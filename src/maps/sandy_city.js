@@ -146,7 +146,9 @@ const B = [
   [589, 156, 25, 18, 50, 2, 'h', { poi: 'dunes_end', sunk: 2 }],
   [600, 247, 40, 30, -35, 3, 'a', { poi: 'dunes_end', tint: 'ochre' }],
   [674, 234, 20, 14, 30, 1, 'r', { sunk: 1.5 }],
-  [692, 256, 18, 13, 40, 1, 'r', { sunk: 1.5 }],
+  [712, 255, 40, 22, 45, 1, 'r', { sunk: 1.5 }],
+  [655, 352, 30, 12, -15, 1, 'h', { sunk: 1 }],
+  [690, 350, 18, 9, -30, 1, 'r', { sunk: 1 }],
   [624, 281, 38, 26, 30, 2, 'h', { sunk: 1 }],
   [657, 285, 25, 10, 60, 1, 'r'],
   // ---- hospital and the north-west lanes
@@ -156,6 +158,11 @@ const B = [
   [267, 256, 24, 19, -20, 2, 'h'],
   [275, 281, 22, 17, -20, 2, 'h'],
   [352, 219, 24, 18, 0, 1, 'r', { sunk: 1 }],
+  [352, 175, 30, 12, -35, 1, 'h', { sunk: 1 }],
+  [326, 193, 18, 12, -30, 1, 'r', { sunk: 1 }],
+  [302, 226, 44, 10, 30, 1, 'h', { sunk: 1.5 }],
+  [330, 242, 20, 12, -30, 1, 'h', { sunk: 1 }],
+  [356, 140, 22, 10, -50, 1, 'r', { sunk: 1 }],
   // ---- Marano Station / Warehouse / Maintenance Depot (west)
   [226, 300, 88, 18, 90, 2, 'c', { name: 'Marano Station', poi: 'marano_station', wall: 'brick', tint: 'cream' }],
   [94, 369, 50, 46, 0, 2, 'i', { name: 'Warehouse', poi: 'warehouse' }],
@@ -1462,7 +1469,7 @@ export default {
   ambient: { music: 'sandy_city', birds: false, wind: true },
   conditions: ['night_raid', 'hurricane', 'lush_blooms', 'uncovered_caches', 'husk_graveyard', 'prospecting_probes', 'close_scrutiny', 'cold_snap', 'bird_city'],
   build(w, rng) {
-    const ctx = { w, rng, occ: new Occ(), doorsOut: [], keySegs: [], metro: {}, nCont: 0, lootSkip: 0.9, keyLoot: {} };
+    const ctx = { w, rng, occ: new Occ(), doorsOut: [], keySegs: [], metro: {}, nCont: 0, lootSkip: 0.915, keyLoot: {} };
     ctx.occFreeSouth = (s, x) => ctx.occ.at(x, s.z1 + 1.2) === -1;
     ctx.decks = [];
     ctx.onDeck = (x, z) => ctx.decks.some(D => { const i = Math.round(z) * (MW + 1) + Math.round(x); return i >= 0 && i < D.arr.length && !Number.isNaN(D.arr[i]); });
