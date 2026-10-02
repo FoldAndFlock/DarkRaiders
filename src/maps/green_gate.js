@@ -570,6 +570,10 @@ export default {
         inner: [[20, 0, 20, 10, []], [20, 10, 40, 10, [{ at: 8, w: 2 }]], [40, 0, 40, 10, []], [70, 0, 70, 10, []], [70, 10, 90, 10, [{ at: 8, w: 2 }]], [90, 0, 90, 10, []], [100, 22, 118, 22, [{ at: 6, w: 3 }]]] });
       bldg(MW2);
       for (const o of [MW1, MW2]) for (let lx = 8; lx < o.w - 4; lx += 15) tlampL(o, lx, o.d / 2);
+      // maintenance bays: parked service trucks, container stacks, pallets and jersey lanes down the hall
+      for (const [lx, lz, k, r] of [[12, 27, 'gg_truck', PI / 2], [30, 26, 'gg_container3', 0], [48, 28, 'gg_van', -PI / 2], [64, 22, 'gg_crates', 0], [66, 28, 'gg_pallet', 0.3], [82, 27, 'gg_container2', 0], [96, 14, 'gg_generator', 0], [58, 14, 'gg_barrier', 0], [76, 14, 'gg_barrier', 0], [26, 14, 'gg_barrier', 0], [44, 18, 'barrelBlue', 0], [45, 19.2, 'barrel', 0], [104, 6, 'gg_crates', 0]])
+        pl(MW2, k, lx, lz, r);
+      for (let lx = 6; lx < 100; lx += 10) pl(MW2, 'gg_lane', lx, 20.5, 0, { y: 0.03 });
       pl(MW1, 'gg_pipes', 30, 1.0, 0); pl(MW1, 'gg_pipes', 56, 17, PI); pl(MW2, 'gg_pipes', 54, 1.0, 0); pl(MW2, 'gg_pipes', 60, 33, PI); pl(MW2, 'gg_generator', 30, 5, 0); pl(MW2, 'gg_transformer', 80, 5, 0); pl(MW2, 'gg_fan', 110, 12, -PI / 2);
       for (const [o, lx, lz, k] of [[MW1, 4, 1.4, 'toolbox'], [MW1, 34, 16.6, 'locker'], [MW1, 62, 1.4, 'electronics'], [MW2, 24, 2, 'toolbox'], [MW2, 36, 2, 'crate'], [MW2, 74, 2, 'electronics'], [MW2, 86, 2, 'toolbox'], [MW2, 104, 26, 'arc_crate'], [MW2, 114, 30, 'locker'], [MW2, 50, 32.6, 'crate']]) ct(o, k, lx, lz, { tier: 2, poi: 'maintenance_wing' });
       // junction pit: the Maintenance Hall's north-east mouth opens under the sky into the Data Vault's south door
@@ -679,7 +683,9 @@ export default {
       w.container('raider_cache', 676, 190, 0, { tier: 3, poi: 'headhouse' });
       w.lamp(676, 190, { y: 5, model: null, color: 0xc8e0ff, intensity: 1.3, range: 16 });
       w.lamp(676, 190, { y: 10.5, model: null, color: 0xff4030, intensity: 0.6, range: 8, flicker: 0.3 });
-      perched('sentinel', 676, 190, 'headhouse_roof', 6.0 + 0.25 + 0.9);   // on the roof hub over the grille (reference icon)
+      // reference icon is on the Headhouse; roofs aren't in the LOS grid, so a roof-top Sentinel would see (and laser)
+      // straight down into the hall — it stands on the concrete drum rim (12.75 m) instead, walls screen the hall
+      perched('sentinel', 698.5, 190, 'headhouse_rim', 0, { yAbs: BENCH_Y - 0.1 + 3.35 });
       w.arkSpawn('pop', 676, 186, { count: 2, habitat: 'indoor' });
       w.poi('headhouse', 'Headhouse', 676, 190, 32, { tier: 2, aliases: ['headhouse'] });
 
@@ -737,8 +743,8 @@ export default {
       for (const [x, z] of [[884, 100], [884, 150], [940, 160], [972, 150], [960, 128]]) lightPost(...gP(x, z), 0xffd8a0);
       gProp('gg_container2', 950, 150, 0.3); gProp('gg_generator', 940, 132, 0); gProp('gg_crates', 945, 158, 0);
       for (let i = 0; i < 26; i++) { const [x, z] = gP(R(872, 984), R(70, 176)); if (free(x, z, 1.5, 3) && pointInPoly(x, z, PEAK)) w.prop(pick(['gg_bush', 'gg_flowers', 'gg_grass', 'gg_rock_s', 'gg_cypress', 'gg_olive']), x, z, rng() * 6, { solid: true, scale: R(0.7, 1) }); }
-      // reference Sentinel icon over the main wing: stand it on the Pilgrim Hostel roof (3 storeys)
-      perched('sentinel', ...gP(916, 90), 'hostel_roof', 9.6 + 0.25);
+      // reference Sentinel icon by the north wing: a perch tower just outside the hostel (a roof perch would see into the rooms)
+      perchTower(...gP(907, 79), 'sentinel');
       // Locked Gate condition: security-code printer + its rocket escort
       gProp('gg_printer', 932, 120, 0); gCont('electronics', 932, 121.4, { tier: 2, poi: 'pilgrims_peak', note: 'security_code_printer' });
       w.arkSpawn('rocketeer', 925, 130, { count: 2, condition: 'locked_gate', patrol: [[880, 100], [960, 80], [970, 160], [890, 170]] });
