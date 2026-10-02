@@ -212,7 +212,11 @@ export class RaidUI {
     x.drawImage(this.mapImg, 0, 0, c.width, c.height);
     const upx = +getComputedStyle(document.documentElement).getPropertyValue('--px') || 2;
     x.font = `${8 * upx}px DRSmall, monospace`; x.textAlign = 'center';
-    for (const p of g.world.pois) { x.fillStyle = 'rgba(0,0,0,0.6)'; x.fillText(p.name.toUpperCase(), p.x * s + 1, p.z * s + 1); x.fillStyle = '#e8e0c8'; x.fillText(p.name.toUpperCase(), p.x * s, p.z * s); }
+    for (const p of g.world.pois) {
+      // skip POI labels that sit on an extract (metro stations etc.) - the extract label already names it
+      if (p.hideLabel || g.extractsData.some(e => Math.hypot(e.x - p.x, e.z - p.z) < 18)) continue;
+      x.fillStyle = 'rgba(0,0,0,0.6)'; x.fillText(p.name.toUpperCase(), p.x * s + 1, p.z * s + 1); x.fillStyle = '#e8e0c8'; x.fillText(p.name.toUpperCase(), p.x * s, p.z * s);
+    }
     for (const e of g.extractsData) { x.fillStyle = e.kind === 'hatch' ? '#f0c030' : '#68e088'; x.fillRect(e.x * s - 4, e.z * s - 4, 8, 8); x.fillText(e.name, e.x * s, e.z * s - 8); }
     for (const p of g.pings.values()) { x.strokeStyle = '#f0c030'; x.beginPath(); x.arc(p.x * s, p.z * s, 6, 0, 7); x.stroke(); }
     for (const e of g.ents.values()) {
