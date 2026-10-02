@@ -517,15 +517,22 @@ function makeCtx(w, rng) {
     w.poi('field_depot', 'Field Depot', x, z, 10, { tier: 1, aliases: ['field_depot'] });
     return bb;
   };
-  // extraction points: the structure (cage / hatch, its lights and beacons) is modelled + collided by the engine
-  // (engine/extracts.js); the map gives it a facing (0 = +z, toward where players arrive), keeps it clear
-  // (elevator: ~6 m in front, 1 m round the 4.5 m cage + console; hatch: 2 m) and dresses the spot.
+  // extraction points: the structure (bunker / hatch, its lights and beacons) is modelled + collided by the engine
+  // (engine/extracts.js); the map gives it a facing (0 = +z = toward the camera; keep the doorway within ~60° of
+  // it so the car stays readable), keeps it clear and dresses the spot. Elevator rig (local frame, +z = front):
+  // battered bunker +-3.75 m, call gantry x 2.6..3.6 / z 4..5, apron to z 5.25, approach kept clear in front.
+  // P2 maps rig-local -> world exactly like the rig (rotation.y = face); props that should line up with the rig
+  // take rot = face, the signs take rot 0 so they face the camera at any facing.
   C.lift = (id, name, x, z, face, o = {}) => {
     const base = o.yAbs ?? null, Rf = rotFrame(x, z, -face), P2 = (lx, lz) => rotPt(Rf, x + lx, z + lz);
-    if (o.paint !== false) { const q = [[-5, -5], [5, -5], [5, 5], [-5, 5]].map(([a, b]) => P2(a, b)); w.paintPoly('concrete', q); w.paintPoly('hazard', [P2(-3, 3.2), P2(3, 3.2), P2(3, 3.9), P2(-3, 3.9)]); }
-    const [fx, fz] = P2(-4.2, -3.8), fl = { y: 6.6, model: 'dg_floodlight', color: 0xe0ffe8, intensity: 1.5, range: 14, rot: -face };   // yard floodlight behind the shaft
+    if (o.paint !== false) { const q = [[-6.6, -5.2], [6.6, -5.2], [6.6, 5.6], [-6.6, 5.6]].map(([a, b]) => P2(a, b)); w.paintPoly('concrete', q); w.paintPoly('hazard', [P2(-3, 5.6), P2(3, 5.6), P2(3, 6.3), P2(-3, 6.3)]); }
+    // yard floodlight on the corner farthest from the camera (never in front of the bunker), clear of the walls
+    const [fx, fz] = [[-4.6, -4.5], [4.6, -4.5], [-4.6, 4.5]].map(([a, b]) => P2(a, b)).reduce((m, c) => (c[1] < m[1] - 0.01 ? c : m));
+    const fl = { y: 6.6, model: 'dg_floodlight', color: 0xe0ffe8, intensity: 1.5, range: 14, rot: face };
     if (base != null) C.lampAt(fx, fz, base, fl); else w.lamp(fx, fz, fl);
-    const [sx, sz] = P2(4.4, -0.6); w.prop('dg_extsign', sx, sz, -face, base != null ? { solid: true, yAbs: base } : { solid: true });   // board beside the cage
+    // lit board beside the bunker on the side nearer the camera, turned to face it; 1.55 m off the wall base
+    const sd = [P2(-5.3, 0.8), P2(5.3, 0.8)], [sx, sz] = sd[1][1] > sd[0][1] + 0.01 ? sd[1] : sd[0];
+    w.prop('dg_extsign', sx, sz, 0, base != null ? { solid: true, yAbs: base } : { solid: true });
     w.extract(id, name, x, z, { kind: 'elevator', face, ...(base != null ? { yAbs: base } : {}), ...o });
     C.addClear(x, z, 7); C.reserved.push([x, z, 6.5]);
     C.reserved.push([...P2(0, 6.5), 3.5]);                                        // the approach in front
@@ -533,7 +540,7 @@ function makeCtx(w, rng) {
   C.hatch = (id, name, x, z, face, o = {}) => {
     const Rf = rotFrame(x, z, -face), P2 = (lx, lz) => rotPt(Rf, x + lx, z + lz);
     w.paintCircle('concrete', x, z, 2.4, 0.15, 5);
-    const [sx, sz] = P2(2.4, 1.4); w.prop('dg_hatchsign', sx, sz, -face, { solid: true });
+    const [sx, sz] = P2(2.4, 1.4); w.prop('dg_hatchsign', sx, sz, 0, { solid: true });   // post sign beside the key reader, facing the camera
     w.extract(id, name, x, z, { kind: 'hatch', needsKey: 'raider_hatch_key', face, ...o });
     C.addClear(x, z, 3.5); C.reserved.push([x, z, 2.5]);
   };
@@ -849,7 +856,7 @@ function damComplex(C) {
     inner: [[0, 12, 12, 12, [{ at: 5, w: 1.8 }]]],
     stairs: [{ x: 9.4, z: 14.4, w: 1.8, dir: 'n', from: 0, to: 1 }], ladders: [{ side: 'n', at: 8 }] });
   C.F(ghE, 'storage', 0, 0, 12, 12, { tier: 2 }); C.F(ghE, 'security', 0, 12, 12, 26, { tier: 2 }); C.F(ghE, 'server', 0, 0, 12, 26, { tier: 2, storey: 1 });
-  C.lift('north_complex_elevator', 'North Complex Elevator', 706, 140, -PI / 6);
+  C.lift('north_complex_elevator', 'North Complex Elevator', 707, 140, -PI / 6);   // 1 m east of the reference (AI nav reaches the lever)
   // Power Control: 2 storeys, roof ladder (Sentinal on the roof), the vent shaft + power switch beside the stairs
   const pc = C.B.pc = C.dbld({ u: -12, v: -182, w: 26, d: 22, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Power Control', tint: 0xd8d0c0, floor: 'tiles',
     doors: [{ side: 's', at: 4, w: 2, door: true }, { side: 'w', at: 10, w: 2 }, { side: 'e', at: 6, w: 2.4, door: true }, { side: 'n', at: 4, w: 3, sill: 1.1 }, { side: 'n', at: 16, w: 3, sill: 1.1 }, { side: 's', at: 16.5, w: 3, sill: 1.1 }],
@@ -1302,8 +1309,9 @@ function westPOIs(C) {
   C.fenceLine([[480, 190], [516, 188], [552, 190]], [[500, 189]]);
   C.loot(510, 240, 30, ['plant', 'plant', 'basket', 'crate', 'toolbox'], 1, { avoid: (x, z) => C.clear.some(([cx, cz, r]) => Math.hypot(x - cx, z - cz) < r) });
   for (const [x, z] of [[516, 214], [482, 216], [552, 214], [528, 246], [500, 262], [476, 270], [556, 268]]) w.lamp(x, z, { y: 3.8, color: 0xd8ffd0, intensity: 1.55, range: 10 });
-  // ---------------- Central Swamp Lift (cargo elevator facing the boardwalk that comes in from the west)
-  C.lift('central_swamp_lift', 'Central Swamp Lift', 355, 334, -PI / 2);
+  // ---------------- Central Swamp Lift (cargo elevator at the boardwalk junction; doorway west-south-west: toward the west
+  // boardwalk, turned enough toward the camera that the open car reads, and the AI nav reaches the lever)
+  C.lift('central_swamp_lift', 'Central Swamp Lift', 355, 334, -PI / 3);
   const ls = C.bld({ x: 362, z: 340, w: 6, d: 5, wall: 'corrugated', roof: 'corrugated', floor: 'wood', name: 'Lift Shack', floorY: MID + 0.45, blend: 0.5, doors: [{ side: 'w', at: 1.5, w: 1.6 }] });
   C.F(ls, 'storage', 0, 0, 6, 5, { tier: 1, light: false });
   for (const [x, z] of [[370, 342], [367, 347]]) w.prop('crate', x, z, 0.3, { solid: true });
@@ -1504,7 +1512,8 @@ function southPOIs(C) {
   C.F(ta, 'server', 40, 0, 56, 20, { tier: 2, storey: 1 }); C.F(ta, 'medical', 40, 20, 56, 40, { tier: 2, storey: 1 });
   const ts = C.gbld(TA, { x: 706, z: 656, w: 16, d: 12, name: 'Annex Storage', wall: 'corrugated', roof: 'corrugated', floor: 'concrete', floorY: MID + 0.3, blend: 1.5, doors: [{ side: 'w', at: 4, w: 2.4 }, { side: 'n', at: 10, w: 1.8, door: true }] });
   C.F(ts, 'storage', 0, 0, 16, 12, { tier: 1, extra: [['crate', 1]] });
-  C.lift('red_lakes_balcony_lift', 'Red Lakes Balcony Lift', 744, 594, 2.6);
+  // square to the Annex wall behind it, doorway toward the basin (east-south-east) and the camera
+  C.lift('red_lakes_balcony_lift', 'Red Lakes Balcony Lift', 744, 594, 2.6 - PI / 2);
   for (const [X, Z, r] of [[690, 640, 0.1], [692, 628, 0.2], [762, 664, 1.5]]) C.gprop(TA, 'car', X, Z, r, { solid: true });
   C.clutter(...GW(TA, 728, 604), 14, 10, ['dg_barrier', 'crate', 'barrel', 'dg_container'], { frame: TA, avoid: (x, z) => C.inDam(x, z, 2) });
   for (const [X, Z] of [[698, 606], [758, 606], [698, 652], [758, 652], [728, 672], [760, 630]]) C.glamp(TA, X, Z, { y: 4, color: 0xe8f0ff, intensity: 1.55, range: 12 });
@@ -1737,6 +1746,19 @@ function vegetation(C) {
   w.scatter('dg_rubble', worn, 70, { solid: true, seed: 512, scale: 1.1, avoid: (x, z) => avoidBase(x, z) || C.swampAt(x, z) || C.propHit(x - 2, z - 2, x + 2, z + 2) });
   w.scatter('debris', worn, 260, { seed: 513, avoid: (x, z) => C.inBuilding(x, z, 0.5) || C.swampAt(x, z) });
   w.scatter('rock', [[440, 20], [520, -2], [640, -2], [700, 20], [620, 120], [560, 130], [470, 110]], 60, { solid: true, seed: 514, scale: 1.6, scaleVar: 0.7, avoid: avoidBase });
+  // extraction rigs keep their footprint, call gantry and approach (rig-local, see C.lift) free of the loose ground
+  // clutter scattered above; hatches keep 2 m. Removed after the fact: no random draws, nothing else moves.
+  const LOOSE = new Set(['debris', 'dg_rubble', 'dg_grass', 'dg_reeds', 'bush', 'rock', 'dg_log', 'dg_stump', 'deadTree', 'tree', 'pine', 'dg_toxic']);
+  const inRig = (x, lx, lz) => (x.kind === 'hatch' ? Math.hypot(lx, lz) < 2.0
+    : (Math.abs(lx) < 4.4 && lz > -4.4 && lz < 5.6) || (Math.abs(lx) < 1.9 && lz > 0 && lz < 9.6) || (lx > 2.2 && lx < 4.3 && lz > 3.6 && lz < 6.8));
+  for (const x of w.extracts) {
+    const c = Math.cos(x.face || 0), s = Math.sin(x.face || 0);
+    w.props = w.props.filter(p => {
+      if (!LOOSE.has(p.kind) || Math.abs(p.x - x.x) > 12 || Math.abs(p.z - x.z) > 12) return true;
+      const dx = p.x - x.x, dz = p.z - x.z;
+      return !inRig(x, dx * c - dz * s, dx * s + dz * c);
+    });
+  }
 }
 
 // ==================================================================================== ARK

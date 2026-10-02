@@ -827,7 +827,7 @@ function metroGateVox() {   // fence gate leaf, x [0, 0.75)
 }
 function buildMetro(R) {
   const o = R.o = metroOpts(R.x), E = o.T - 1.375, PT = 0.375;
-  R.addGroup('main', { cutaway: false }); R.addGroup('portal'); R.addGroup('car', { cutaway: false, clip: true }); R.addGroup('carroof', { cutaway: false, clip: true });
+  R.addGroup('main', { cutaway: false }); R.addGroup('portal', { cutaway: false }); R.addGroup('car', { cutaway: false, clip: true }); R.addGroup('carroof', { cutaway: false, clip: true });
   R.setClip('car', o.x0, o.x1); R.setClip('carroof', o.x0, o.x1);
   const S = {
     st: gset('m_static' + o.key, () => metroStaticVox(o)), portal: gset('m_portal' + o.key, () => metroPortalVox(o)), sign: gset('m_sign', metroSignVox),

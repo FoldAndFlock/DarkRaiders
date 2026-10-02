@@ -60,29 +60,44 @@ Reference positions in brackets; the metro halls are searched outward from them 
 
 | id | name | kind | built at x, z (reference) | face |
 |---|---|---|---|---|
-| northern_station | Northern Station | metro, hall floor 5 m below the street | 435, 296 (425, 303) | π (track along the north wall) |
-| western_station | Western Station | metro | 295, 468 (310, 477) | π |
-| eastern_station | Eastern Station | metro | 537, 630 (552, 616) | π |
-| southern_station | Southern Station | metro | 441, 730 (451, 737) | π |
+| northern_station | Northern Station | metro, hall floor 5 m below the street | 435, 293 (425, 303) | π (track along the north wall) |
+| western_station | Western Station | metro | 295, 465 (310, 477) | π |
+| eastern_station | Eastern Station | metro | 537, 627 (552, 616) | π |
+| southern_station | Southern Station | metro | 441, 727 (451, 737) | π |
 | collapsed_supermarket_hatch | Collapsed Supermarket Hatch | hatch (`raider_hatch_key`) | 476, 168 (475, 167) | toward the most open side |
 | train_station_hatch | Train Station Hatch | hatch | 252, 344 | " |
 | highway_overpass_hatch | Highway Overpass Hatch | hatch | 524, 516 | " |
 | old_town_hatch | Old Town Hatch | hatch | 306, 658 | " |
 
 **Metro stations are real underground halls** (World `under: 5`): a 34 × 16 m tiled hall (32 × 14 m inside)
-whose lid is the street paving. The `extract(..., { kind: 'metro', face: π, trackZ: 3, trackLen: 32,
-platformLen: 16 })` stands at hall-local (17, 8.5), so the extract set's track and 12 m car run along the
-far (north) wall — visible from the camera, doors toward it — with 7.5 m from the point to that wall; the
-set also brings the raised platform, signals, roundel and ticket-machine console. A 16 × 8 m block around
-the point is kept free of our props; dark tunnel mouths sit in both end walls where the track meets them.
-On the near (south) side a concourse with pillars, benches, departure sign, kiosk, locker/trash/backpack
-loot and ceiling lights (`lamp({ yAbs })`); two 4 m stair flights at its ends climb straight up to the
-street, their openings fenced by rust railings with a gap at the street end, an `sc_metro_sign` totem
-(red "M" box + blue line plate) and a lamppost at each entrance. Twelve sealed secondary metro stairs
-(`sc_metro_stairs`) still dot the town where the reference shows stair icons.
+whose lid is the street paving. The hall is declared first, then `extract(..., { kind: 'metro', face: π - rot,
+trackZ: 3, platformLen: 31 })` at hall-local (17, 5.75), so the rig's `metroFit` finds the hall: the track bed
+fills hall-local z 1..4.1 against the far (north) wall and the dark tunnel mouths sit on both end walls (track
+32 m, the 12 m car stays inside the hall; it arrives from the east and leaves west). Everything on the platform
+comes from the rig (`engine/extracts.js`): the full-length raised platform (z 4.1..8.5, 0.375 m up, so nobody
+walks onto the track) with edge lamps and tactile strip, the yellow fence with gates at the two car doors, the
+call terminal against the fence, two benches, the departure board with the "M" roundel. The hall itself only
+dresses the floor-level concourse south of it (z 8.5..15): three pillars, three ceiling lights over the
+platform and three over the concourse (two at the stair feet), a newsstand kiosk in the east bay and a locker in
+the west bay (the dead-end bays beside the stair flights), trash + backpack/suitcase loot. Two 4 m stair flights (z 11..15) at both ends climb
+straight up to the street, their feet kept clear, one 0.375 m step below the platform; at street level rust
+railings with a gap at the street end, an `sc_metro_sign` totem (red "M" box + blue line plate) and a lamppost
+at each entrance. `opts.deg` passed by the build is unused: the site search only tries east-west (rot 0, the
+track needs the 32 m wall) and north-south (rot 90°, fallback); all four stations are built east-west (face π).
+The old `sc_metro` / `sc_metro_stairs` props (decorative entrances and twelve sealed street stairs) are gone;
+the build still draws the 12 random numbers they used so the dressing placed after them does not move.
 
 **Raider hatches**: only the extract set's hatch (no extra props or lamps; the set lights itself), a
-3 × 3 m steel apron and 2.4 m kept clear; `face` points to the most open of 8 directions.
+3 × 3 m steel apron and 2.4 m kept clear; `face` points to the most open of 8 directions (ties keep 0, toward
+the camera). Hatches are placed after the street clutter and dune vegetation, so `hatch()` drops loose clutter
+(debris, rubble, slabs, shrubs, grass, crates, barrels) whose footprint comes within 2 m of the lid.
+
+Checked in real raids (headless, after the extraction rework): all 8 extracts' call points, cabins and
+levers are on the walkable grid from a spawn (multi-level flood fill), and the AI nav reaches every station's
+call terminal, car and lever. A full player extraction was walked on Northern and Southern Station: street ->
+west stair flight -> concourse -> platform (0.375 m step) -> hold E at the terminal -> train in -> fence gate ->
+car door -> hold E on the lever -> closing -> extracted -> car leaves -> station closed. Containers reachable
+unchanged (692 of 772, the rest behind key-room doors), 19/19 spawns, no console errors.
 
 ## Key rooms (ids match the key items in `src/data/items.js`)
 Key wings are rotated buildings; `keyRoom` records carry the world bounding box plus `polys` (exact rotated

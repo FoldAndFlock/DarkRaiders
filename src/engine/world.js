@@ -752,7 +752,7 @@ export class World {
     if (opts.structure === false) return e;
     const R = rotFrame(x, z, -(e.face || 0));
     for (const [x0, z0, x1, z1, h, y0] of extractSolids(e.kind, e, this)) {   // world: the metro fits its hall
-      this.block(x + x0, z + z0, x + x1, z + z1, h, 'metalPanel', { R, nodraw: true, ...(e.yAbs != null ? { y0: e.yAbs + (y0 || 0) } : y0 ? { rel0: y0 } : {}) });
+      this.block(x + x0, z + z0, x + x1, z + z1, h, 'metalPanel', { R, nodraw: true, baseAt: [x, z], ...(e.yAbs != null ? { y0: e.yAbs + (y0 || 0) } : y0 ? { rel0: y0 } : {}) });
     }
     return e;
   }
@@ -798,8 +798,12 @@ export class World {
       if (s.opts.pillarTo != null) { y0 = gmin() - 0.3; y1 = s.opts.pillarTo; }
       else if (s.opts.y0 != null) { y0 = s.opts.y0 - (s.opts.sink ?? 0); y1 = s.opts.y0 + s.h; }
       else {
-        const base = s.opts.onBuilding != null ? this.buildings[s.opts.onBuilding].floorY + (s.opts.rel0 || 0) : gmin() + (s.opts.rel0 || 0);
+        // baseAt: measure from the ground at one point (an extraction rig's marker) instead of the lowest
+        // ground under the piece, so lintels / floors match the model on a slope; still sunk to the lowest
+        const at = s.opts.baseAt;
+        const base = s.opts.onBuilding != null ? this.buildings[s.opts.onBuilding].floorY + (s.opts.rel0 || 0) : (at ? this.groundAt(at[0], at[1]) : gmin()) + (s.opts.rel0 || 0);
         y0 = base - (s.opts.rel0 ? 0 : (s.opts.sink ?? 0.3)); y1 = base + s.h;
+        if (at && !s.opts.rel0) y0 = Math.min(y0, gmin() - (s.opts.sink ?? 0.3));
       }
       const t = tex(s.texName, s.opts.seed || 5);
       // floating pieces (decks, platforms, overpasses) and their pillars open up when you walk under them

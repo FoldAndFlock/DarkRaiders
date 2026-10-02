@@ -338,7 +338,6 @@ const ROADS = [
 // Gameplay markers traced from the annotated reference
 const SPAWNS = [[434, 76], [295, 146], [589, 160], [708, 221], [669, 367], [866, 571], [302, 433], [367, 283], [532, 481],
   [530, 561], [407, 600], [305, 605], [179, 704], [357, 779], [536, 872], [603, 652], [753, 779], [79, 412], [52, 611]];
-const METRO_STAIRS = [[436, 203], [361, 230], [405, 324], [505, 345], [408, 447], [324, 433], [331, 527], [527, 549], [508, 654], [561, 680], [637, 584], [562, 681]];
 const SENTINELS = [[478, 497], [546, 546]];
 const FIELD_DEPOTS = [[425, 239], [386, 711], [740, 491]];
 
@@ -1333,11 +1332,15 @@ function freeSpot(ctx, x, z, r = 1.5, max = 18) {
 function stLamp(w, x, z, o = {}) { w.lamp(x, z, { color: 0xffd8a0, ...o, y: 2.8, model: null }); w.prop('sc_lamppost', x, z, (x * 7.31 + z) % 6.28, { solid: [0.15, 0.15, 2.1] }); }
 function ring(ctx, cx, cz, r, n, fn) { for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; fn(cx + Math.cos(a) * r, cz + Math.sin(a) * r, a, i); } }
 // ---- underground metro stations ------------------------------------------------------------------
-// A 34 x 16 m hall sunk 5 m under the street (World `under`). The metro extract set (platform, 32 m of track,
-// signals, roundel, console, the 12 m car) faces the far (north) wall, so the train runs along the back of
-// the hall and is seen doors-on from the camera; two 4 m street stairwells (railings, M totems, lamps)
-// come down at both ends of the concourse on the near side. 16 x 8 m around the point stays clear.
-const ST_L = 34, ST_D = 16, ST_UNDER = 5, ST_STAIR = 7.7, ST_PZ = 8.5;
+// A 34 x 16 m hall (32 x 14 m inside) sunk 5 m under the street (World `under`). The metro extract rig
+// (engine/extracts.js) brings the track + tunnel mouths (fitted to the end walls), the raised platform with
+// edge lamps, the yellow fence with gates at the car doors, the call terminal, two benches, the departure
+// board + "M" roundel and the 12 m car. It faces the far (north) wall: the track bed fills hall-local
+// z 1..4.1 against that wall, the car is seen doors-on from the camera, and the platform runs the full
+// length of the hall (z 4.1..8.5, so nobody walks onto the track). South of it a floor-level concourse
+// (z 8.5..15) with pillars, kiosk and a little loot; two 4 m street stairwells (railings, M totems, lamps)
+// come down at both ends of the concourse (z 11..15), one 0.375 m step below the platform.
+const ST_L = 34, ST_D = 16, ST_UNDER = 5, ST_STAIR = 7.7, ST_T = 3, ST_PZ = ST_T + 2.75;   // marker: track far edge (T + 1.75) on the north wall
 function siteFree(ctx, cx, cz, rot, L, D, pad) {
   const R = rotFrame(cx, cz, rot), { w } = ctx;
   let gmin = 1e9, gmax = -1e9;
@@ -1381,23 +1384,22 @@ function metroStation(ctx, id, name, rx, rz, opts = {}) {
   const hall = { id, poly: hallPoly, surf, floor, cx, cz, rot, R };
   ctx.halls.push(hall);
   ctx.occ.markPoly([[-1.5, -1.5], [L + 1.5, -1.5], [L + 1.5, D + 1.5], [-1.5, D + 1.5]].map(([lx, lz]) => L2(lx, lz)), 99990);
-  // ---- inside. The extract set brings platform (x 9..25, z 6.9..11.25), track bed (z 3.75..6.9) and car;
-  // ours: dark tunnel mouths where the track meets the end walls, concourse pillars / benches / sign, kiosk,
-  // a little loot in the corners, ceiling lights
-  const inH = { inHall: true }, face = Math.PI - rot;   // extract-local +z (toward the track) = hall north
-  for (const lx of [0.95, L - 1.05]) blk(lx, 3.3, lx + 0.1, 7.6, 3.8, 'roofTar', { y0: floor, collide: false, cast: false, tint: 0x202020 });
+  // ---- inside. The rig owns the track, platform (z 4.1..8.5), fence, benches, board and tunnel mouths; the
+  // hall only dresses the concourse (z 8.5..15) and the two dead-end bays beside the stair flights
+  // (x 1..8.5 / 25.5..33, z 8.5..11). Stair feet (x 8.5..9.5 / 24.5..25.5, z 11..15) stay clear.
+  const face = Math.PI - rot, fS = -rot;   // face: extract-local +z (track side) = hall north; fS: toward the camera
   for (const lx of [12, 17, 22]) blk(lx - 0.4, 13.7, lx + 0.4, 14.5, ST_UNDER, 'concrete', { y0: floor, tint: 0xd8d0c4, cutaway: true });
-  for (const lx of [14.5, 19.5]) w.prop('sc_bench', ...L2(lx, 12.5), face, inH);
-  w.prop('sc_sign', ...L2(17, 14.6), face, inH);
-  w.prop('sc_kiosk', ...L2(30.2, 9.2), face, { inHall: true, solid: true });
-  w.container('locker', ...L2(3.4, 8.8), face, { tier: 1, inHall: true });
-  w.container('trash', ...L2(10.4, 14.1), face, { tier: 1, inHall: true });
-  w.container(rng() < 0.5 ? 'backpack' : 'suitcase', ...L2(23.6, 14.1), face, { tier: 2, inHall: true });
-  for (const lx of [9, 17, 25]) w.lamp(...L2(lx, 9.5), { yAbs: floor + 3.6, color: 0xe8f0ff, intensity: 1.3, range: 12, flicker: rng() < 0.4 ? 0.4 : 0, model: null });
+  w.prop('sc_kiosk', ...L2(29.4, 9.75), fS - Math.PI / 2, { inHall: true, solid: true });   // newsstand in the east bay, window toward the concourse
+  w.container('locker', ...L2(3.0, 8.85), fS, { tier: 1, inHall: true });                   // west bay, back to the platform edge
+  w.container('trash', ...L2(10.4, 14.1), fS, { tier: 1, inHall: true });
+  w.container(rng() < 0.5 ? 'backpack' : 'suitcase', ...L2(23.6, 14.1), fS, { tier: 2, inHall: true });
+  for (const lx of [9, 17, 25]) w.lamp(...L2(lx, 6.4), { yAbs: floor + 3.6, color: 0xe8f0ff, intensity: 1.3, range: 12, flicker: rng() < 0.4 ? 0.4 : 0, model: null });
   for (const lx of [4.6, L - 4.6]) w.lamp(...L2(lx, 13), { yAbs: floor + 3.0, color: 0xfff0d0, intensity: 0.9, range: 8, model: null });
-  // ---- the extract on the platform, facing the track (final position: its collision is placed now)
+  w.lamp(...L2(L / 2, 11.6), { yAbs: floor + 3.4, color: 0xfff0d0, intensity: 1.0, range: 10, model: null });
+  // ---- the extract (final position: its collision is placed now). The rig fits the track and the tunnel
+  // mouths to the hall's end walls (metroFit); the platform runs the full length up to the mouths.
   const [ex, ez] = L2(L / 2, ST_PZ);
-  w.extract(id, name, ex, ez, { kind: 'metro', face, trackZ: 3, trackLen: L - 2, platformLen: 16 });
+  w.extract(id, name, ex, ez, { kind: 'metro', face, trackZ: ST_T, platformLen: L - 3 });
   // ---- street level: railings round both stairwells, M totems + lamps at the entrances
   const rail = (x0, z0, x1, z1) => blk(x0, z0, x1, z1, 1.0, 'rust', { y0: surf + 0.02, xray: false });
   for (const [xa, xb, xe] of [[1.0, 9.1, 9.1], [L - 9.1, L - 1.0, L - 9.25]]) {
@@ -1411,9 +1413,16 @@ function metroStation(ctx, id, name, rx, rz, opts = {}) {
   return [cx, cz];
 }
 // raider hatch: the animated hatch, key post and its lights come from the extract set; keep ~2 m clear
-// and face the most open side
+// and face the most open side. Hatches are placed after the street clutter / dune vegetation, so loose
+// clutter that landed within 2 m of the lid is dropped here (no random draws: the layout stays put).
+const HATCH_LOOSE = new Set(['debris', 'sc_rubble', 'sc_rubble2', 'sc_slab', 'sc_slab2', 'sc_shrub', 'sc_shrub_dry', 'sc_grass', 'sc_agave', 'bush', 'rock', 'barrel', 'crate']);
 function hatch(ctx, id, name, x, z) {
   const { w } = ctx; [x, z] = freeSpot(ctx, x, z, 2.2);
+  w.props = w.props.filter(p => {
+    if (!HATCH_LOOSE.has(p.kind) || Math.abs(p.x - x) > 5 || Math.abs(p.z - z) > 5) return true;
+    const s = propInfo(p.kind).solid, reach = (Array.isArray(s) ? Math.max(s[0], s[1]) : 0.5) * (p.opts?.scale || 1);
+    return Math.hypot(p.x - x, p.z - z) - reach >= 2.0;
+  });
   let face = 0, best = -1;
   for (let a = 0; a < 8; a++) { const an = a * Math.PI / 4, dx = Math.sin(an), dz = Math.cos(an); let free = 0; for (let d = 2; d <= 8; d += 2) if (ctx.occ.at(x + dx * d, z + dz * d) === -1 && !ctx.onDeck(x + dx * d, z + dz * d)) free++; if (free > best) { best = free; face = an; } }
   w.paint('metalPanel', x - 1.5, z - 1.5, x + 1.5, z + 1.5);
@@ -1786,8 +1795,9 @@ function streetClutter(ctx) {
     else w.prop('sc_lamppost', x, z, 0, { solid: true, y: -1.2 });
     n++;
   }
-  // metro stairs (sealed secondary entrances)
-  for (const [x, z] of METRO_STAIRS) { const [px, pz] = freeSpot(ctx, x, z, 1.6, 10); w.prop('sc_metro_stairs', px, pz, rng() < 0.5 ? 0 : Math.PI / 2, {}); }
+  // (the sealed decorative metro stairs that stood here are gone - the stations are real halls now; draw the
+  // 12 values they took so the random dressing after this point stays where it was)
+  for (let k = 0; k < 12; k++) rng();
 }
 
 // =====================================================================================================

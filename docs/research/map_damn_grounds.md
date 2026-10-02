@@ -190,19 +190,29 @@ appears 5 times, so "visit a Field Depot" works at any of them.
 
 ## Extracts
 
-The structures (cargo elevator cage with console and beacons, Raider Hatch with key post) are modelled,
-lit and collided by `src/engine/extracts.js`. The map gives each a facing toward where players arrive,
-keeps the spot clear (elevators: about 6.5 m round the cage plus the approach in front; hatches: 2.5 m)
-and dresses it: a 10 x 10 m concrete pad with a hazard line, a yard floodlight behind the shaft and a lit
-`dg_extsign` board beside the cage; hatches get a concrete apron and a `dg_hatchsign` post. The old
-placeholder pads, frames, rings and lamps are gone.
+The structures (cargo elevator bunker with its call gantry and beacons, Raider Hatch with key post) are modelled,
+lit and collided by `src/engine/extracts.js`. The elevator rig is a 7.5 × 7.5 m battered concrete bunker with the
+call gantry at its front-right corner and a boarding apron to 5.25 m in front; `face` turns the doorway, and every
+elevator keeps it within ~60° of the camera (0 = +z) so the open car reads from above. The map keeps the spot
+clear (6.5 m round the bunker plus the approach in front; hatches 2.5 m) and dresses it: a 13 × 11 m concrete pad
+with a hazard line across the end of the apron, a yard floodlight on the bunker corner farthest from the camera
+(rot = face; it never stands in front of the bunker) and the lit `dg_extsign` board 1.5 m off the side wall nearer
+the camera, turned to face the camera; hatches get a concrete apron and a `dg_hatchsign` post beside the key
+reader, also facing the camera. (`C.lift` / `C.hatch` place dressing with `P2` = rig-local -> world, which matches
+the rig's `rotation.y = face`; the old `rot: -face` on the signs and floodlight turned them by 2 × face and the
+board clipped the bunker wall.) At the end of `vegetation()` loose ground clutter (debris, rubble, grass, reeds,
+bushes, rocks, logs, trees) is removed from every bunker footprint, gantry and approach and from 2 m round every
+hatch, after the fact so no random stream moves. The old placeholder pads, frames, rings and lamps are gone.
+Checked in real raids after the rework: every call gantry, cabin and lever is on the walkable grid from a spawn,
+the AI nav ends on every call point, cabin and lever (the north complex moved 1 m and the swamp lift turned so its
+lever's 2 m nav cell is open), nothing clips a bunker, gantry or approach, and the open car reads at every lift.
 
 | id | Name | kind | x | z | face | notes |
 |---|---|---|---|---|---|---|
-| north_complex_elevator | North Complex Elevator | elevator | 706 | 140 | −30° | on the Power Generation plateau east of Generator Hall, facing down the plateau |
-| central_swamp_lift | Central Swamp Lift | elevator | 355 | 334 | −90° | at the boardwalk junction, facing the west boardwalk; the lift shack moved off the boardwalks |
+| north_complex_elevator | North Complex Elevator | elevator | 707 | 140 | −30° | on the Power Generation plateau east of Generator Hall, facing down the plateau (1 m east of the reference so the AI nav reaches the lever) |
+| central_swamp_lift | Central Swamp Lift | elevator | 355 | 334 | −60° | at the boardwalk junction, doorway WSW toward the west boardwalk (−90° showed the doorway edge-on and the AI nav ended 1.5 m short of the lever); the lift shack moved off the boardwalks |
 | water_treatment_elevator | Water Treatment Elevator | elevator | 443 | 477 | −32° | south edge of the Water Treatment plaza, facing the road |
-| red_lakes_balcony_lift | Red Lakes Balcony Lift | elevator | 744 | 594 | 149° | north of the Testing Annex below the balcony, facing the basin |
+| red_lakes_balcony_lift | Red Lakes Balcony Lift | elevator | 744 | 594 | 59° | north of the Testing Annex below the balcony, square to the Annex wall behind it, doorway ESE toward the basin (149° faced away from the camera) |
 | sunroof_hatch | Sunroof Hatch | hatch | 318 | 194 | 90° | west of Ben Welda's Sunroof, facing the house |
 | pump_house_hatch | Pump House Hatch | hatch | 884 | 302 | −90° | off the Pump House's west door |
 | spillway_hatch | Spillway Hatch | hatch | 765 | 482 | 0° | in the basin by the leaking hydraulic pipes (quest) |

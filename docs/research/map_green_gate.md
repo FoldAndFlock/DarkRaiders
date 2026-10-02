@@ -59,9 +59,17 @@ Gate*, also reflected in the green gate leaves / pylon bands). Ids match `QUEST_
 ## Extracts (reference icon positions; engine structures from `engine/extracts.js`)
 Every `extract()` sits at the reference icon with `face` (0 = +z) pointing its doorway / key post toward the
 approach players arrive from. Airshafts get a levelled 13 m pad (`flatten`, concrete + gravel), a fence arc
-behind, two light masts at 7 m and a vent housing — nothing inside the 5 m clear zone; hatches get a levelled
-5 m gravel patch and nothing within 2 m. The rock outcrops are kept off all eight sites. The old placeholder
+behind, two 8 m light masts square to the shaft's sides (rig-local x ±7 m, 2 m back: out of the dropship's
+hover box and approach, and off to the side of the console instead of in front of it) and a vent housing —
+nothing inside the 5 m clear zone; hatches get a levelled 5 m gravel patch and nothing within 2 m. The rock outcrops are kept off all eight sites. The old placeholder
 props (`gg_airshaft`, `gg_hatchsign`) and their marker lamps are gone; the structures light themselves.
+The airshaft rig is a 4 × 4 m open-topped shaft head (the cabin reads from above at any facing) with its console
+on a post at the front-right; the dropship hovers ~7 m over it (7.5 m wingspan), flies in low from behind the
+shaft (rig-local −z, ~8–11 m up at 10–16 m out) and climbs away forward. Section 16 of the build (`DROPSHIP SKY`)
+drops tall trees whose crowns sit in that flight path, after the fact so no random stream moves (it removes two
+trees behind the Forest Airshaft; the other three are clear by > 1 m).
+Checked in real raids after the rework: all 8 call points / cabins / levers reachable on foot and by the AI nav,
+nothing inside any shaft head, console or approach, the dropship's hover box and flight path clear (> 0.27 m).
 | id | name | kind | x, z | face | site |
 |---|---|---|---|---|---|
 | warehouse_airshaft | Warehouse Airshaft | airshaft | 802, 281 | −1.53 (W, toward the yard gate) | the reference's fenced compound on the bench (9.5 m), yard levelled |

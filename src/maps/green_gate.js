@@ -6,6 +6,7 @@
 // corridors whose roofs fade when entered). Everything is deterministic (seeded rng only).
 import './props_green_gate.js';
 import { pointInPoly, mulberry, rotFrame, rotPt, unrotPt } from '../engine/world.js';
+import { propGeo } from '../engine/models.js';
 
 const W = 1100, H = 825;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -474,7 +475,9 @@ export default {
       w.paintCircle('concrete', x, z, 6.5, 0.15, x); w.paintCircle('gravel', x, z, 8.5, 0.3, z);
       mark(x - 8, z - 8, x + 8, z + 8, 2 | 4);
       for (let k = -5; k <= 5; k++) { const a = f + PI + k * 0.24, fx = x + Math.sin(a) * 9.5, fz = z + Math.cos(a) * 9.5; w.prop('gg_fence', fx, fz, -a + PI / 2, { solid: [1.2, 0.15, 2] }); }
-      for (const sgn of [-1, 1]) { const a = f + sgn * 1.15; lightPost(x + Math.sin(a) * 7, z + Math.cos(a) * 7, 0xe8f4ff, 'gg_lightmast', 6.5, 2.2, 16); }
+      // two 8 m light masts square to the shaft's sides (rig-local x = +-7, 2 m back): clear of the dropship, which
+      // hovers over +-3.75 m and comes in from behind drifting to local -x, and never in front of the console
+      for (const sgn of [-1, 1]) { const lx = sgn * 7, lz = -2; lightPost(x + lx * Math.cos(f) + lz * Math.sin(f), z - lx * Math.sin(f) + lz * Math.cos(f), 0xe8f4ff, 'gg_lightmast', 6.5, 2.2, 16); }
       const av = f + PI + 0.9; w.prop('gg_venthouse', x + Math.sin(av) * 7.2, z + Math.cos(av) * 7.2, -av, { solid: true });
       return w.extract(id, name, x, z, { kind: 'airshaft', face: f });
     };
@@ -1432,6 +1435,31 @@ export default {
           if (solidB.some(b => x > b.ax0 - 2 && x < b.ax1 + 2 && z > b.az0 - 2 && z < b.az1 + 2)) continue;
           w.prop(k, x, z, r, { surface: true, scale: sc, solid: k.includes('rock') || k === 'gg_boulder' });
         }
+      }
+    }
+
+    // ======================================================================== 16. DROPSHIP SKY
+    // The airshaft dropship (engine/extracts.js) comes in low from behind the shaft (rig-local -z), hovers ~7 m up
+    // (7.5 m wingspan) and climbs away forward. Drop the few tall trees whose crowns sit in that flight path (crown =
+    // cone from 30% of the height to the tip). No random draws, so nothing else moves.
+    {
+      const TREE = /pine|spruce|tree|birch/i, dims = new Map();
+      const dim = (k) => { if (!dims.has(k)) { const g = propGeo(k); if (g && !g.boundingBox) g.computeBoundingBox(); const b = g?.boundingBox; dims.set(k, b ? [b.max.y, Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2] : null); } return dims.get(k); };
+      const path = [];   // ship root in the rig frame [x, y, z]
+      for (let k = 0; k <= 1.0001; k += 0.02) path.push([-12 * k, 7.2 + 20 * k ** 1.6, -46 * k], [8 * k * k, 7.2 + 22 * k ** 1.5, 52 * k * k]);
+      for (const x of w.extracts.filter(e => e.kind === 'airshaft')) {
+        const c = Math.cos(x.face || 0), sn = Math.sin(x.face || 0), gy = x.yAbs ?? w.groundAt(x.x, x.z);
+        w.props = w.props.filter(p => {
+          if (!TREE.test(p.kind) || Math.abs(p.x - x.x) > 60 || Math.abs(p.z - x.z) > 60) return true;
+          const d = dim(p.kind); if (!d) return true;
+          const sc = p.opts?.scale || 1, h = d[0] * sc, r = d[1] * sc, top = (p.opts?.yAbs ?? w.groundAt(p.x, p.z)) - gy + h;
+          if (top < 6) return true;
+          const dx = p.x - x.x, dz = p.z - x.z, lx = dx * c - dz * sn, lz = dx * sn + dz * c;
+          return !path.some(([sx, sy, sz]) => {
+            const yb = sy - 0.8; if (yb >= top) return false;
+            return Math.hypot(Math.max(0, Math.abs(lx - sx) - 3.75), Math.max(0, Math.abs(lz - sz) - 3.75)) < r * Math.min(1, (top - yb) / (0.7 * h));
+          });
+        });
       }
     }
   },

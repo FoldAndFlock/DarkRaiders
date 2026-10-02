@@ -59,6 +59,10 @@ export class BotBrain {
     if (!this.path || this.pathT <= 0 || !this.pgoal || Math.hypot(this.pgoal[0] - x, this.pgoal[1] - z) > 3) {
       this.pgoal = [x, z]; this.pathT = 2 + sim.rng() * 2;
       this.path = sim.nav.find(e.x, e.z, x, z, 4000, e.y, ty ?? e.y) || [[x, z]];
+      // nav paths end at the goal's 2 m cell: finish on the exact point (a lever, a seat) when it is close
+      // and standable, so a bot can actually reach it
+      const last = this.path[this.path.length - 1], gap = Math.hypot(last[0] - x, last[1] - z);
+      if (gap > 0.3 && gap < 3.5 && !sim.grid.blockedAt(x, z, e.r * 0.8, ty ?? e.y)) this.path.push([x, z]);
     }
     let wp = this.path[0];
     while (wp && Math.hypot(wp[0] - e.x, wp[1] - e.z) < 1.0 && this.path.length > 1) { this.path.shift(); wp = this.path[0]; }
