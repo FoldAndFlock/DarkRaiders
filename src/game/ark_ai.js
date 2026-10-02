@@ -209,10 +209,11 @@ export class ArkBrain {
     this.climb = d.climbRate ?? ((d.radius || 0.6) < 1 ? 4.5 : 3); // m/s up
     this.desc = 2.5;                                              // m/s down
     this.lowAlt = Math.max(this.fh + 0.45, Math.min(1.55, 2.3 - this.fh));   // indoors: under 2.4 m door heads
+    this.small = this.fr * 2 + 0.15 <= 1.6 && this.fh * 2 + 0.4 <= 2.2;         // fits a door: may fly indoors
     this.lk = null; this.lkT = 0; this.side = 0; this.noDetour = 0; this.prog = { d: 1e9, t: 0, gx: 0, gz: 0 };
     let H = e.y + this.cruise;                                    // spawn floor + hover altitude
-    const c = g.ceilAt(e.x, e.z, e.y + 0.2);                      // indoors / under a deck: stay under it
-    if (c < H + this.fh + 0.15) H = Math.max(e.y + this.fh + 0.3, c - this.fh - 0.15);
+    const c = g.ceilAt(e.x, e.z, e.y + 0.2);                      // indoors / under a deck: small ones stay under it,
+    if (c < H + this.fh + 0.15) H = this.small ? Math.max(e.y + this.fh + 0.3, c - this.fh - 0.15) : this.topUnder(e.x, e.z) + this.fh + CLR;   // big ones go on top
     this.place(e.x, e.z, H);
     if (!this.free(e.x, e.z, H)) this.unstick();
   }
@@ -299,8 +300,23 @@ export class ArkBrain {
         }
       } else return this.lowStep(x, z, ty, dt, sp, o);
     }
-    if (covered) return this.lowStep(x, z, ty, dt, sp, o);
+    if (covered) return this.small ? this.lowStep(x, z, ty, dt, sp, o) : this.escape(dt, sp);
     return this.skyStep(x, z, dt, sp, o);
+  }
+  // too big for doorways yet under something (shoved under a deck): straight out to the nearest open sky
+  escape(dt, sp) {
+    const e = this.e, g = this.sim.grid, H = e.y + e.alt;
+    if (!this.esc || (this.escT -= dt) <= 0) {
+      this.escT = 1; this.esc = null;
+      for (let r = 1; r <= 16 && !this.esc; r += 1) for (let i = 0; i < 16; i++) {
+        const a = i * Math.PI / 8, x = e.x + Math.sin(a) * r, z = e.z + Math.cos(a) * r;
+        if (g.ceilAt(x, z, H) === Infinity && this.free(x, z, H)) { this.esc = [x, z]; break; }
+      }
+    }
+    if (!this.esc) return false;
+    const dx = this.esc[0] - e.x, dz = this.esc[1] - e.z, d = Math.hypot(dx, dz) || 1, st = Math.min(d, sp * dt);
+    this.hmove(dx / d * st, dz / d * st, H);
+    return false;
   }
   skyStep(tx, tz, dt, sp, o) {
     const e = this.e, sim = this.sim;
@@ -372,7 +388,14 @@ export class ArkBrain {
     else if ((LP.t += dt) > 1 && d > 0.6) {
       LP.t = 0;
       if (this.path.length > 1 && this.clearLine([e.x, e.z, cf], this.path[1])) { this.path.shift(); wp = this.path[0]; }
-      else { this.pathT = 0; LP.wf = 1.2; LP.side = -LP.side; }
+      else {
+        // fine-grid detour to the target (or the farthest coarse waypoint within reach), else glance along the wall
+        let gp = [tx, tz];
+        if (d > 22) { gp = null; for (const q of this.path) if (Math.hypot(q[0] - e.x, q[1] - e.z) < 22) gp = q; }
+        const fp = gp && this.fineFind(gp[0], gp[1], cf);
+        if (fp) { this.path = fp; this.pathT = 3; wp = this.path[0]; }
+        else { this.pathT = 0; LP.wf = 1.2; LP.side = -LP.side; }
+      }
     }
     let wx = (wp ? wp[0] : tx) - e.x, wz = (wp ? wp[1] : tz) - e.z;
     if (LP.wf > 0) { LP.wf -= dt; const a = LP.side * 1.2, c = Math.cos(a), sn = Math.sin(a); [wx, wz] = [wx * c + wz * sn, wz * c - wx * sn]; }
@@ -408,6 +431,54 @@ export class ArkBrain {
       while (j > i && !this.clearLine(a, pts[j])) j--;
       out.push(pts[j]); a = pts[j]; i = j + 1;
     }
+    return out;
+  }
+  // fine-grid A* (0.5 m cells, this storey, hull clearance at low-flight height) in a box around us + the goal:
+  // the fallback when the coarse nav path runs into a wall. String-pulled waypoints, or null.
+  fineFind(tx, tz, sf, budget = 2600) {
+    const e = this.e, g = this.sim.grid, C = CELL, M = 5;
+    const x0 = Math.max(0, Math.floor((Math.min(e.x, tx) - M) / C)), x1 = Math.min(g.cw - 1, Math.floor((Math.max(e.x, tx) + M) / C));
+    const z0 = Math.max(0, Math.floor((Math.min(e.z, tz) - M) / C)), z1 = Math.min(g.ch - 1, Math.floor((Math.max(e.z, tz) + M) / C));
+    const W = x1 - x0 + 1, Hn = z1 - z0 + 1; if (W > 110 || Hn > 110) return null;
+    const N = W * Hn, gs = new Float32Array(N).fill(1e9), from = new Int32Array(N).fill(-1), fl = new Float32Array(N), st = new Uint8Array(N);
+    const sx = Math.floor(e.x / C) - x0, sz = Math.floor(e.z / C) - z0, gx = Math.floor(tx / C) - x0, gz = Math.floor(tz / C) - z0;
+    if (sx < 0 || sz < 0 || sx >= W || sz >= Hn || gx < 0 || gz < 0 || gx >= W || gz >= Hn) return null;
+    const s0 = sz * W + sx, t0 = gz * W + gx, hf = (i) => { const dx = Math.abs(i % W - gx), dz = Math.abs(((i / W) | 0) - gz); return dx + dz - 0.586 * Math.min(dx, dz); };
+    const pass = (i, from) => {          // 1 = clear on this storey, 2 = blocked (cached per cell)
+      if (!st[i]) {
+        const x = (x0 + i % W + 0.5) * C, z = (z0 + ((i / W) | 0) + 0.5) * C, f = g.floorAt(x, z, fl[from] + 0.6);
+        st[i] = f - fl[from] <= 0.6 && f - fl[from] >= -4 && this.fitLow(x, z, f) != null ? 1 : 2; fl[i] = f;   // a flyer may drop down (out of a window, off a ledge)
+      }
+      return st[i] === 1;
+    };
+    const hF = [], hI = [];
+    const push = (i, f) => { hF.push(f); hI.push(i); let k = hF.length - 1; while (k > 0) { const p = (k - 1) >> 1; if (hF[p] <= hF[k]) break; [hF[p], hF[k]] = [hF[k], hF[p]]; [hI[p], hI[k]] = [hI[k], hI[p]]; k = p; } };
+    const pop = () => { const r = hI[0], lf = hF.pop(), li = hI.pop(); if (hF.length) { hF[0] = lf; hI[0] = li; let k = 0; for (;;) { const a = 2 * k + 1, b = a + 1; let m = k; if (a < hF.length && hF[a] < hF[m]) m = a; if (b < hF.length && hF[b] < hF[m]) m = b; if (m === k) break; [hF[m], hF[k]] = [hF[k], hF[m]]; [hI[m], hI[k]] = [hI[k], hI[m]]; k = m; } } return r; };
+    fl[s0] = sf; st[s0] = 1; gs[s0] = 0; push(s0, hf(s0));
+    let best = s0, bh = hf(s0), cnt = 0, found = false;
+    while (hF.length && cnt++ < budget) {
+      const n = pop(); if (st[n] === 3) continue; st[n] = 3;
+      if (n === t0) { found = true; best = n; break; }
+      const h = hf(n); if (h < bh) { bh = h; best = n; }
+      const cx = n % W, cz = (n / W) | 0;
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dz) continue;
+        const X = cx + dx, Z = cz + dz; if (X < 0 || Z < 0 || X >= W || Z >= Hn) continue;
+        const m = Z * W + X; if (st[m] === 3) continue;
+        if (!pass(m, n)) continue;
+        if (dx && dz && (!pass(cz * W + X, n) || !pass(Z * W + cx, n))) continue;   // no corner cutting
+        const ng = gs[n] + (dx && dz ? 1.414 : 1);
+        if (ng < gs[m]) { gs[m] = ng; from[m] = n; fl[m] = fl[m] || fl[n]; push(m, ng + hf(m)); }
+      }
+    }
+    if (!found && bh > hf(s0) - 4) return null;                  // got nowhere useful
+    const cells = []; for (let i = best; i >= 0 && cells.length < 400; i = from[i]) cells.push(i);
+    cells.reverse();
+    const pts = cells.slice(1).map(i => [(x0 + i % W + 0.5) * C, (z0 + ((i / W) | 0) + 0.5) * C, fl[i]]);
+    if (found) pts.push([tx, tz, fl[t0]]);
+    if (!pts.length) return null;
+    const out = []; let a = [e.x, e.z, sf], i = 0;
+    while (i < pts.length) { let j = Math.min(pts.length - 1, i + 24); while (j > i && !this.clearLine(a, pts[j])) j--; out.push(pts[j]); a = pts[j]; i = j + 1; }
     return out;
   }
   // clear hull height over floor level fy at (x, z), on this storey: from the low-flight height down to just

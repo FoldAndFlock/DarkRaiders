@@ -31,9 +31,10 @@ async function phone(w = 844, h = 390) {
   const T = {
     down: async (id, x, y) => { pts.set(id, [x, y]); await send('touchStart'); },
     move: async (id, x, y, steps = 4) => { const [x0, y0] = pts.get(id); for (let i = 1; i <= steps; i++) { pts.set(id, [x0 + (x - x0) * i / steps, y0 + (y - y0) * i / steps]); await send('touchMove'); await wait(16); } },
-    up: async (id) => { pts.delete(id); await send('touchEnd'); },
+    // CDP: touchEnd lists the points being lifted (the others stay down)
+    up: async (id) => { const [x, y] = pts.get(id); pts.delete(id); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', timestamp: stamp(), touchPoints: [{ x, y, id }] }); },
     // a tap is short in event time even when the page is slow to process it
-    tap: async (x, y, hold = 60) => { const id = 90 + Math.floor(Math.random() * 9); pts.set(id, [x, y]); await send('touchStart'); const t = clock; await wait(hold); pts.delete(id); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', timestamp: (clock = t + hold / 1000), touchPoints: [...pts].map(([i, [a, c]]) => ({ x: a, y: c, id: i })) }); await wait(80); },
+    tap: async (x, y, hold = 60) => { const id = 90 + Math.floor(Math.random() * 9); pts.set(id, [x, y]); await send('touchStart'); const t = clock; await wait(hold); pts.delete(id); clock = t + hold / 1000; await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', timestamp: clock, touchPoints: [{ x, y, id }] }); await wait(80); },
     // centre of the first element matching sel (optionally containing text)
     at: (sel, text = null) => p.evaluate(([sel, text]) => { const n = [...document.querySelectorAll(sel)].find(n => (!text || n.textContent.trim().startsWith(text)) && n.getBoundingClientRect().width); if (!n) return null; const r = n.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }, [sel, text]),
   };
@@ -67,6 +68,7 @@ const G = (p, fn, arg) => p.evaluate(fn, arg);
   await T.tapEl('.tb-swap'); await wait(500);
   const w0 = await G(p, () => { const pc = window.app.game.pc; return { slot: pc.slot, id: pc.weapon?.id, ammo: pc.weapon?.ammo }; });
   ok(w0.slot === 1, 'SWAP button switches weapon', JSON.stringify(w0));
+  ok(await G(p, () => !document.querySelector('.tb-swap').classList.contains('down') && !window.app.input.virtual.down.has('swap')), 'button released while the other thumb keeps walking');
   await p.screenshot({ path: out + '/touch_walk.png' });
   const aim = await T.at('.ts-aim');
   await T.down(2, aim[0], aim[1]); await T.move(2, aim[0] - 20, aim[1] - 6, 3); await wait(250);
@@ -113,7 +115,8 @@ const G = (p, fn, arg) => p.evaluate(fn, arg);
   ok(qn0 !== qn1, 'THROW button throws the grenade from the quick slots', `${qn0} -> ${qn1}`);
   // container: hold USE until the search completes -> loot panel
   const cinfo = await G(p, () => { const g = window.app.game, me = g.me; const c = g.containersData.find(c => !c.opened && !c.locked && c.kind === 'weapon_case') || g.containersData.find(c => !c.opened && !c.locked) || g.containersData[0]; me.x = c.x; me.z = c.z + 1.1; me.y = g.world.grid.floorAt(me.x, me.z, (c.y ?? 0) + 1); g.camX = me.x; g.camZ = me.z; return { kind: c.kind, i: c.i }; });
-  await wait(400);
+  await p.waitForFunction(() => window.app.game.pc.interact?.kind === 'container', null, { timeout: 8000 }).catch(() => {});
+  await wait(200);
   const it = await G(p, () => window.app.game.pc.interact && { kind: window.app.game.pc.interact.kind, t: window.app.game.pc.interact.time, label: window.app.game.pc.interact.label });
   ok(it?.kind === 'container', 'container prompt shown', JSON.stringify(it));
   ok(await G(p, () => document.querySelector('.tb-interact').classList.contains('hot')), 'USE button highlighted when a prompt is available');
