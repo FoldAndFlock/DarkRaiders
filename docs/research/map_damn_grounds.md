@@ -162,7 +162,7 @@ These match the `key.room` values of the `damn_grounds_*_key` items in `src/data
 
 ## Spawns, Sentinels, Baron husks, bosses
 
-* 22 player spawns on the reference spawn icons (a few moved 2 to 4 m off obstacles).
+* 22 player spawns on the reference spawn icons. A few moved 2 to 4 m off obstacles; the one at the Control Tower corner moved 14 m north to (592, 436), so the 4-storey tower no longer hides the player at insertion.
 * Sentinels (reference eye-diamond icons) sit on static perches (`arkSpawn` `y` / `yAbs`):
 
   | Position | Perch | Absolute height |
