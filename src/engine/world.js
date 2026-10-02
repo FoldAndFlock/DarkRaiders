@@ -6,6 +6,7 @@ import { tex, TID } from './textures.js';
 import { litTex, terrainMaterial, waterMaterial, GU, litVox } from './materials.js';
 import { OBLIQUE_K } from './renderer.js';
 import { propGeo, propInfo } from './models.js';
+import { extractSolids } from './extracts.js';
 
 export const CELL = 0.5;      // collision grid resolution (m)
 const CHUNK = 32;             // terrain / box batching chunk (m)
@@ -725,7 +726,18 @@ export class World {
 
   // =============================================================== GAMEPLAY MARKERS
   poi(id, name, x, z, r = 30, opts = {}) { this.pois.push({ id, name, x, z, r, tier: opts.tier ?? 1, ...opts }); }
-  extract(id, name, x, z, opts = {}) { this.extracts.push({ id, name, x, z, kind: opts.kind || 'elevator', needsKey: opts.needsKey || null, ...opts }); }
+  // extraction point; face = radians the structure faces (0 = +z). The structure's collision comes from
+  // engine/extracts.js (elevator frame, metro platform edge...), its visuals are built by the view.
+  extract(id, name, x, z, opts = {}) {
+    const e = { id, name, x, z, kind: opts.kind || 'elevator', needsKey: opts.needsKey || null, face: opts.face || 0, ...opts };
+    this.extracts.push(e);
+    if (opts.structure === false) return e;
+    const R = rotFrame(x, z, -(e.face || 0));
+    for (const [x0, z0, x1, z1, h, y0] of extractSolids(e.kind, e)) {
+      this.block(x + x0, z + z0, x + x1, z + z1, h, 'metalPanel', { R, nodraw: true, ...(e.yAbs != null ? { y0: e.yAbs + (y0 || 0) } : y0 ? { rel0: y0 } : {}) });
+    }
+    return e;
+  }
   spawnPoint(x, z, opts = {}) { this.spawns.push({ x, z, ...opts }); }
   container(kind, x, z, rot = 0, opts = {}) { this.containers.push({ kind, x, z, rot, tier: opts.tier ?? 1, locked: opts.locked || null, room: opts.room || null, ...opts }); }
   arkSpawn(kind, x, z, opts = {}) { this.arkSpawns.push({ kind, x, z, count: opts.count || 1, radius: opts.radius || 6, patrol: opts.patrol || null, ...opts }); }
@@ -773,7 +785,7 @@ export class World {
       }
       const t = tex(s.texName, s.opts.seed || 5);
       const mat = litTex(t, { cutaway: !!s.opts.cutaway, xray: s.opts.xray !== false, color: s.opts.tint || 0xffffff });
-      this.boxes.add(s.texName + (s.opts.cutaway ? 'c' : '') + (s.opts.tint || '') + (s.opts.xray === false ? 'n' : ''), mat, s.x0, y0, s.z0, s.x1, y1, s.z1, s.opts);
+      if (!s.opts.nodraw) this.boxes.add(s.texName + (s.opts.cutaway ? 'c' : '') + (s.opts.tint || '') + (s.opts.xray === false ? 'n' : ''), mat, s.x0, y0, s.z0, s.x1, y1, s.z1, s.opts);
       if (s.opts.collide !== false) g.eachCell(s.x0, s.z0, s.x1, s.z1, s.opts.R, true, (i) => g.addSolid(i, y0, y1));
     }
     // 4b) roofs are solid and walkable (gables step up), underground lids are the ground above
