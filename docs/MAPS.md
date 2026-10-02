@@ -80,6 +80,7 @@ Gameplay markers (consumed by the game – be generous and thoughtful):
   and turrets sit on rooftops/towers (use reference Sentinel icons). Heavier ARK (leaper, bastion,
   bombardier, rocketeer) roam open areas. 60–120 spawn groups per map; give drones patrol loops.
   Perches: static ARK take `y` (metres above ground) or `yAbs` (absolute height) to sit on roofs, towers
+  (`f` = initial facing / sweep centre in radians; observers above roof level can't see into buildings)
   and decks. `condition: 'harvester' | [...]` spawns a group only under that map condition (bosses,
   escorts); `notCondition` suppresses it. Mark boss arenas with `poi(..., { bossPoi: true | [kinds] })` —
   condition bosses (`spawnBoss`) pick one of those instead of a random POI. `container`, `prop` and `lamp`

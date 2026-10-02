@@ -51,12 +51,17 @@ async function main() {
     const P = (x, z) => [x * ppm, z * ppm];
     o.lineWidth = 1;
     for (const z of world.zones) { o.strokeStyle = ['#666', '#8a8', '#ca4', '#f60'][z.tier] || '#888'; o.beginPath(); z.poly.forEach(([x, zz], i) => { const [a, b] = P(x, zz); i ? o.lineTo(a, b) : o.moveTo(a, b); }); o.closePath(); o.stroke(); }
-    for (const k of world.keyRooms) { o.strokeStyle = '#c060ff'; const [a, b] = P(k.x0, k.z0); o.strokeRect(a, b, (k.x1 - k.x0) * ppm, (k.z1 - k.z0) * ppm); }
+    for (const k of world.keyRooms) {
+      o.strokeStyle = '#c060ff';
+      const polys = k.polys || (k.poly ? [k.poly] : null);
+      if (polys) for (const pl of polys) { o.beginPath(); pl.forEach(([x, z], i) => { const [a, b] = P(x, z); i ? o.lineTo(a, b) : o.moveTo(a, b); }); o.closePath(); o.stroke(); }
+      else { const [a, b] = P(k.x0, k.z0); o.strokeRect(a, b, (k.x1 - k.x0) * ppm, (k.z1 - k.z0) * ppm); }
+    }
     for (const c of world.containers) { o.fillStyle = c.tier >= 3 ? '#ff60ff' : c.tier === 2 ? '#40c0ff' : '#ffffff'; const [a, b] = P(c.x, c.z); o.fillRect(a - 1, b - 1, 2, 2); }
     for (const s of world.arkSpawns) { o.fillStyle = '#ff3020'; const [a, b] = P(s.x, s.z); o.fillRect(a - 2, b - 2, 4, 4); if (s.patrol) { o.strokeStyle = 'rgba(255,60,40,0.6)'; o.beginPath(); s.patrol.forEach(([x, zz], i) => { const [u, v] = P(x, zz); i ? o.lineTo(u, v) : o.moveTo(u, v); }); o.stroke(); } }
     for (const s of world.spawns) { o.fillStyle = '#ffffff'; const [a, b] = P(s.x, s.z); o.beginPath(); o.arc(a, b, 3, 0, 7); o.fill(); }
     for (const e of world.extracts) { o.fillStyle = e.kind === 'hatch' ? '#ffd040' : '#40ff80'; const [a, b] = P(e.x, e.z); o.fillRect(a - 4, b - 4, 8, 8); drawText(o, e.name, a + 6, b - 4, { color: o.fillStyle, shadow: '#000' }); }
-    for (const p of world.pois) { const [a, b] = P(p.x, p.z); o.strokeStyle = '#ffffff'; o.beginPath(); o.arc(a, b, p.r * ppm, 0, 7); o.stroke(); drawText(o, p.name, a, b - 4, { color: '#fff', shadow: '#000', align: 'center' }); }
+    for (const p of world.pois) { const [a, b] = P(p.x, p.z); o.strokeStyle = '#ffffff'; o.beginPath(); o.arc(a, b, p.r * ppm, 0, 7); o.stroke(); if (!p.hideLabel) drawText(o, p.name, a, b - 4, { color: '#fff', shadow: '#000', align: 'center' }); }
     info.textContent = `${mod.name} ${W}x${H}m  build ${tBuild.toFixed(0)}ms  buildings ${world.buildings.length}  props ${world.props.length}  containers ${world.containers.length}  ark spawns ${world.arkSpawns.length}  extracts ${world.extracts.length}  pois ${world.pois.length}`;
     window.__stats = { build: tBuild, buildings: world.buildings.length, props: world.props.length, containers: world.containers.length };
   } else {

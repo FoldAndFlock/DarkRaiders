@@ -181,6 +181,9 @@ export class Sim {
   }
   canSee(obs, tgt, eyeY) {
     const ty = tgt.y + (tgt.alt || 0) + (tgt.crouch ? 0.8 : 1.3);
+    // roofs aren't in the occlusion grid: an observer above roof level can't see into a building it isn't in
+    const bi = this.grid.indoorAt(tgt.x, tgt.z);
+    if (bi >= 0 && this.grid.indoorAt(obs.x, obs.z) !== bi) { const b = this.world.buildings[bi]; if (b && eyeY > b.floorY + b.h - 0.2) return false; }
     if (!this.grid.los(obs.x, eyeY, obs.z, tgt.x, ty, tgt.z)) return false;
     if (this.smokeBetween(obs.x, obs.z, tgt.x, tgt.z)) return false;
     return true;
@@ -579,7 +582,7 @@ export class Sim {
         const [x, z] = this.nav.randomOpenNear(s.x, s.z, s.radius || 4, this.rng);
         const def = arkDefFor(s.kind);
         const fixed = !!def?.static || def?.speed === 0;
-        this.spawnArk(s.kind, fixed ? s.x : x, fixed ? s.z : z, { patrol: s.patrol, home: [s.x, s.z], fixed, y: fixed ? s.y : 0, yAbs: fixed ? s.yAbs : null, boss: !!s.boss });
+        this.spawnArk(s.kind, fixed ? s.x : x, fixed ? s.z : z, { patrol: s.patrol, home: [s.x, s.z], fixed, y: fixed ? s.y : 0, yAbs: fixed ? s.yAbs : null, boss: !!s.boss, f: s.f ?? s.facing });
       }
     }
     if (fx.spawnBoss) {

@@ -23,6 +23,7 @@ export class ArkBrain {
     this.sim = sim; this.e = e; this.def = e.def;
     this.patrol = opts.patrol || null; this.pi = 0;
     this.home = opts.home || [e.x, e.z];
+    this.sweepF = opts.f ?? null;
     this.fixed = !!(opts.fixed || this.def.static || this.def.speed === 0);
     this.target = null; this.lastSeen = null; this.lostT = 0;
     this.cool = sim.rng() * 2; this.wind = 0; this.burst = 0; this.shotT = 0;
@@ -166,7 +167,8 @@ export class ArkBrain {
     const e = this.e, sw = this.def.vision?.sweep;
     this.sweepT += dt;
     const arc = (sw?.arc || 120) * DEG, sp = (sw?.speed || 20) * DEG;
-    e.gaze = e.f + Math.sin(this.sweepT * sp / (arc / 2 || 1)) * arc / 2;
+    // sweeps centre on the spawn facing (arkSpawn f) when given, else the current facing
+    e.gaze = (this.sweepF ?? e.f) + Math.sin(this.sweepT * sp / (arc / 2 || 1)) * arc / 2;
   }
 
   // ------------------------------------------------------------ main
