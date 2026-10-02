@@ -7,6 +7,18 @@ export const UI = {
   rarity: { common: '#a8a8a0', uncommon: '#5cc860', rare: '#3a98f0', epic: '#c058f0', legendary: '#f0b828' },
 };
 
+// safe-area insets in CSS px, read from env() through a hidden probe (all 0 on most screens)
+let probe = null;
+export function safeInsets() {
+  if (!probe) {
+    probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+    document.body.appendChild(probe);
+  }
+  const cs = getComputedStyle(probe), v = (k) => parseFloat(cs[k]) || 0;
+  return { t: v('paddingTop'), r: v('paddingRight'), b: v('paddingBottom'), l: v('paddingLeft') };
+}
+
 export class HUD {
   constructor(canvas) {
     this.c = canvas; this.x = canvas.getContext('2d');
@@ -29,6 +41,9 @@ export class HUD {
     this.W = this.c.width; this.H = this.c.height;
     this.c.style.width = (this.W * scale) + 'px'; this.c.style.height = (this.H * scale) + 'px';
     this.x.imageSmoothingEnabled = false;
+    // notch / rounded corners / home indicator (installed web app, viewport-fit=cover): panels keep out
+    const ins = safeInsets();
+    this.safe = { l: Math.ceil(ins.l / scale), r: Math.ceil(ins.r / scale), t: Math.ceil(ins.t / scale), b: Math.ceil(ins.b / scale) };
   }
   panel(x, y, w, h, edge = UI.line) {
     const c = this.x;
@@ -51,6 +66,10 @@ export class HUD {
     this.quickRects = [];
     if (st.offscreen) this.offscreen(st.offscreen);
     if (st.markers) this.markers(st.markers);
+    // screen-anchored panels are laid out inside the safe area; world markers and the crosshair use
+    // the full canvas
+    const sa = this.safe || { l: 0, r: 0, t: 0, b: 0 };
+    c.save(); c.translate(sa.l, sa.t); this.W = W - sa.l - sa.r; this.H = H - sa.t - sa.b;
     this.compass(st);
     this.raidInfo(st);
     this.player(st);
@@ -61,6 +80,8 @@ export class HUD {
     if (st.feed) this.feed(st.feed);
     if (st.prompt) this.prompt(st.prompt);
     if (st.chat) this.chat(st.chat);
+    c.restore(); this.W = W; this.H = H;
+    for (const q of this.quickRects) { q.x += sa.l; q.y += sa.t; }
     if (st.crosshair) this.crosshair(st.crosshair);
     if (st.banner) this.banner(st.banner);
   }

@@ -117,7 +117,9 @@ export function stepScale(dir) {
 }
 
 // ---------------------------------------------------------------- fullscreen (needs a user gesture)
-export const canFullscreen = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+// launched from the home screen (installed web app): already full screen, no browser bars
+export const isStandalone = () => !!(navigator.standalone || ['fullscreen', 'standalone'].some(m => matchMedia?.(`(display-mode: ${m})`).matches));
+export const canFullscreen = () => !isStandalone() && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
 export const isFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
 export async function toggleFullscreen() {
   try {
