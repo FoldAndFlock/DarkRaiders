@@ -45,7 +45,15 @@ Gamepads work too (twin-stick: left stick move, right stick aim, triggers ADS/fi
   **Green Gate** (The Blue Gate, 1100×825 m) and **Sandy City** (Buried City, 900×900 m), at near-real scale
   for 25–30 minute raids – POIs at their reference positions and angles, key rooms, cargo elevators,
   airshafts, metro stations, raider hatches, field depots, ~700–850 containers and 100+ ARK groups each,
-  with rooftop Sentinels and condition-only bosses (Harvester Queene, Matriark).
+  with rooftop Sentinels and condition-only bosses (Harvester Queene, Matriark). Buildings have real
+  upper floors, stairs, ladders and walkable roofs; towers, catwalks, bridges you can walk on and under,
+  and underground tunnels and metro halls beneath the streets.
+* **Extraction like the real game**: hold E at the call point (the alarm draws nearby ARK), hold out
+  through a 30–45 s countdown, get in when the doors open and pull the departure lever (or it leaves by
+  itself after 90 s), then survive the 10 s door close. Concrete cargo-elevator bunkers, metro trains in
+  their underground stations (each station works once per raid), dropships over Green Gate's airshafts,
+  and key-locked Raider Hatches with a silent 15 s window. A raid goes to overtime while an extraction is
+  underway.
 * **Map conditions**: Night Raid, Electromagnetic Storm (lightning strikes), Cold Snap, Hurricane,
   Lush Blooms, Uncovered Caches, Husk Graveyard, Prospecting Probes, Harvester/Matriarch bosses, Close
   Scrutiny, Locked Gate… plus random time of day and weather (rain, storms, fog, sandstorms, snow).
