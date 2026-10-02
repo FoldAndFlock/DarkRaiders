@@ -27,7 +27,7 @@ export class Renderer {
     this.subpx = new THREE.Vector2();
     this.shake = 0;
     this.grade = {
-      tint: new THREE.Color(1, 1, 1), contrast: 1.05, saturation: 1.0, lift: new THREE.Color(0, 0, 0),
+      tint: new THREE.Color(1, 1, 1), exposure: 1, contrast: 1.05, saturation: 1.0, lift: new THREE.Color(0, 0, 0),
       vignette: 0.35, haze: new THREE.Color(0.8, 0.7, 0.5), hazeAmt: 0.0, flash: 0.0, scan: 0.06,
       wind: new THREE.Vector2(1, 0), time: 0, damage: 0, outline: 1.0,
     };
@@ -64,7 +64,7 @@ export class Renderer {
         tColor: { value: this.target.texture }, tDepth: { value: this.target.depthTexture },
         tMask: { value: this.maskTarget.texture }, tMaskDepth: { value: this.maskTarget.depthTexture },
         res: { value: new THREE.Vector2(4, 4) }, subpx: { value: this.subpx },
-        tint: { value: g.tint }, lift: { value: g.lift }, contrast: { value: 1 }, saturation: { value: 1 },
+        tint: { value: g.tint }, lift: { value: g.lift }, exposure: { value: 1 }, contrast: { value: 1 }, saturation: { value: 1 },
         vignette: { value: 0.3 }, haze: { value: g.haze }, hazeAmt: { value: 0 }, flash: { value: 0 },
         scan: { value: 0 }, wind: { value: g.wind }, time: { value: 0 }, damage: { value: 0 }, outline: { value: 1 },
         screen: { value: new THREE.Vector2(1, 1) }, pscale: { value: 1 },
@@ -74,7 +74,7 @@ export class Renderer {
         precision highp float;
         uniform sampler2D tColor; uniform sampler2D tDepth; uniform sampler2D tMask; uniform sampler2D tMaskDepth;
         uniform vec2 res; uniform vec2 subpx; uniform vec2 screen; uniform float pscale;
-        uniform vec3 tint; uniform vec3 lift; uniform float contrast; uniform float saturation;
+        uniform vec3 tint; uniform vec3 lift; uniform float exposure; uniform float contrast; uniform float saturation;
         uniform float vignette; uniform vec3 haze; uniform float hazeAmt; uniform float flash;
         uniform float scan; uniform vec2 wind; uniform float time; uniform float damage; uniform float outline;
         float bayer(vec2 p){
@@ -92,7 +92,7 @@ export class Renderer {
           vec2 p = (gl_FragCoord.xy - screen * 0.5) / pscale + res * 0.5 + subpx;
           vec2 tp = floor(p);
           vec2 uv = (tp + 0.5) / res;
-          vec3 c = texture2D(tColor, uv).rgb;   // hardware sRGB decode -> linear
+          vec3 c = texture2D(tColor, uv).rgb * exposure;   // hardware sRGB decode -> linear
           c = mix(c * 12.92, 1.055 * pow(max(c, vec3(0.0)), vec3(1.0/2.4)) - 0.055, step(0.0031308, c)); // back to sRGB
           float d = texture2D(tDepth, uv).r;
           // depth outlines: darken pixels that sit in front of a much farther neighbour
@@ -227,7 +227,7 @@ export class Renderer {
     this.maskPass = false;
     this.gl.setClearColor(0x000000, 1);
     this.gl.setRenderTarget(null);
-    u.contrast.value = g.contrast; u.saturation.value = g.saturation; u.vignette.value = g.vignette;
+    u.exposure.value = g.exposure; u.contrast.value = g.contrast; u.saturation.value = g.saturation; u.vignette.value = g.vignette;
     u.hazeAmt.value = g.hazeAmt; u.flash.value = g.flash; u.scan.value = g.scan; u.time.value = g.time;
     u.damage.value = g.damage; u.outline.value = g.outline;
     this.gl.render(this.postScene, this.postCam);
