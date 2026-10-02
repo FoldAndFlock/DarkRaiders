@@ -424,7 +424,7 @@ export class RaidGame {
       if (d > 48 && e.st !== 'alert') continue;
       if (d > 75) continue;
       const s = R.worldToScreen(e.x, (e.y || 0) + (e.alt || 0), e.z);
-      if (s.x < 0 || s.y < 0 || s.x > R.cssW || s.y > R.cssH) off.push({ sx: s.x, sy: s.y, label: `${(ARK[e.kind]?.name || 'ARK').toUpperCase()} ${Math.round(d)}M`, alert: e.st === 'alert', color: e.st === 'search' ? UI.orange : UI.yellow });
+      if (s.x < 0 || s.y < 0 || s.x > R.cssW || s.y > R.cssH) off.push({ sx: s.x, sy: s.y, label: `${(ARK[e.kind]?.name || 'ARK').toUpperCase()} ${Math.round(d)}M`, alert: e.st === 'alert', color: e.st === 'search' ? UI.orange : (e.vis || 0) > 0.05 ? UI.yellow : '#c8dcff' });
     }
     st.offscreen = off;
     // world markers: extracts near, pings, squad names, emotes

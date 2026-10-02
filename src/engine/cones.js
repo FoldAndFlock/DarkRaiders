@@ -1,42 +1,60 @@
 // ARK vision cones: the visibility fan is ray-traced against the 2.5D occlusion grid so cover
-// (walls, trees, rocks, terrain) visibly cuts it. Rendered as a smooth gradient wash + a traced
-// outline (no dithering). The actual illumination comes from a matching spot light (Lighting.spot).
+// (walls, trees, rocks, terrain) visibly cuts it. Rendered as a smooth gradient wash with soft
+// outlines on the two side edges only; wash and outlines fade out toward the far end together with
+// the matching gaze spot light (Lighting.spot flat, same falloff curve). No line along the arc.
 import * as THREE from '../../vendor/three.module.js';
 
 const RAYS = 44, SEG = 6;
+// ARC Raiders-style alert colours: calm searchlight → yellow/orange when suspicious → red when attacking
 export const CONE_COLORS = {
-  idle: new THREE.Color(1.0, 0.78, 0.22),     // yellow: patrolling
-  search: new THREE.Color(1.0, 0.48, 0.1),    // orange: suspicious / investigating
-  alert: new THREE.Color(1.0, 0.1, 0.06),     // red: has you
-  scan: new THREE.Color(0.3, 0.75, 1.0),      // blue: surveyor / snitch scan beam
-  friendly: new THREE.Color(0.4, 1.0, 0.6),
+  idle: new THREE.Color(0.68, 0.85, 1.0),     // cool white searchlight: patrolling, unaware
+  suspicious: new THREE.Color(1.0, 0.86, 0.2), // yellow: noticed something
+  search: new THREE.Color(1.0, 0.52, 0.08),   // orange: investigating / hunting a lost target
+  alert: new THREE.Color(1.0, 0.1, 0.06),     // red: has spotted a raider and is attacking
+  scan: new THREE.Color(0.3, 0.75, 1.0),      // blue: surveyor scan beam (idle)
 };
+// distance falloff shared by the wash, the outlines and the gaze light (materials.js, flat lights)
+export const CONE_FADE = [0.3, 1.0];
 
 const fillMat = new THREE.ShaderMaterial({
   uniforms: { uTime: { value: 0 } },
   vertexShader: /* glsl */`
-    attribute float aDist; attribute vec4 aCol; varying float vDist; varying vec4 vCol;
-    void main(){ vDist = aDist; vCol = aCol; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-  fragmentShader: /* glsl */`
-    uniform float uTime; varying float vDist; varying vec4 vCol;
+    attribute float aDist; attribute vec4 aCol; attribute vec4 aCone;
+    varying float vDist; varying vec4 vCol; varying vec4 vCone; varying vec2 vXZ;
     void main(){
-      // smooth falloff + soft pulse travelling outward ("broadcast" sweep)
-      float pulse = 0.5 + 0.5 * sin(vDist * 18.0 - uTime * 5.0);
-      float a = vCol.a * (1.0 - smoothstep(0.55, 1.0, vDist)) * (0.75 + 0.25 * pulse) * smoothstep(0.0, 0.08, vDist);
+      vDist = aDist; vCol = aCol; vCone = aCone; vXZ = position.xz;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: /* glsl */`
+    uniform float uTime; varying float vDist; varying vec4 vCol; varying vec4 vCone; varying vec2 vXZ;
+    void main(){
+      float fade = 1.0 - smoothstep(${CONE_FADE[0].toFixed(2)}, ${CONE_FADE[1].toFixed(2)}, vDist);
+      float near = smoothstep(0.0, 0.07, vDist);
+      // exact per-pixel distance (metres) to the nearest side edge of the cone
+      vec2 rel = vXZ - vCone.xy; float r = length(rel);
+      float ang = atan(rel.x, rel.y) - vCone.z;
+      ang = mod(ang + 3.14159265, 6.2831853) - 3.14159265;
+      float lateral = sin(max(vCone.w - abs(ang), 0.0)) * r;
+      float edge = 1.0 - smoothstep(0.04, 0.16, lateral);
+      // soft pulse travelling outward ("broadcast" sweep)
+      float pulse = 0.88 + 0.12 * sin(vDist * 18.0 - uTime * 5.0);
+      float a = (vCol.a * pulse + edge * 0.6) * fade * near;
       gl_FragColor = vec4(vCol.rgb * a, a);
     }`,
   transparent: true, depthWrite: false, blending: THREE.CustomBlending,
   blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
   polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8,
 });
-const edgeMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+
+const tmpCol = new THREE.Color();
 
 export class VisionCones {
   constructor(scene, max = 64, groundAt = () => 0) {
     this.max = max; this.groundAt = groundAt;
     const per = (RAYS + 1) * SEG + 1;
     this.per = per;
-    this.pos = new Float32Array(max * per * 3); this.dist = new Float32Array(max * per); this.col = new Float32Array(max * per * 4);
+    this.pos = new Float32Array(max * per * 3); this.dist = new Float32Array(max * per);
+    this.col = new Float32Array(max * per * 4); this.cone = new Float32Array(max * per * 4);
     const idx = [];
     for (let c = 0; c < max; c++) {
       const b = c * per;
@@ -53,68 +71,50 @@ export class VisionCones {
     this.pa = new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
     this.da = new THREE.BufferAttribute(this.dist, 1).setUsage(THREE.DynamicDrawUsage);
     this.ca = new THREE.BufferAttribute(this.col, 4).setUsage(THREE.DynamicDrawUsage);
-    g.setAttribute('position', this.pa); g.setAttribute('aDist', this.da); g.setAttribute('aCol', this.ca);
+    this.ka = new THREE.BufferAttribute(this.cone, 4).setUsage(THREE.DynamicDrawUsage);
+    g.setAttribute('position', this.pa); g.setAttribute('aDist', this.da); g.setAttribute('aCol', this.ca); g.setAttribute('aCone', this.ka);
     g.setIndex(idx);
     this.mesh = new THREE.Mesh(g, fillMat); this.mesh.frustumCulled = false; this.mesh.renderOrder = 8;
-    const emax = max * (RAYS + 2 + SEG * 2) * 2;
-    this.epos = new Float32Array(emax * 3); this.ecol = new Float32Array(emax * 3);
-    const eg = new THREE.BufferGeometry();
-    this.epa = new THREE.BufferAttribute(this.epos, 3).setUsage(THREE.DynamicDrawUsage);
-    this.eca = new THREE.BufferAttribute(this.ecol, 3).setUsage(THREE.DynamicDrawUsage);
-    eg.setAttribute('position', this.epa); eg.setAttribute('color', this.eca);
-    this.edges = new THREE.LineSegments(eg, edgeMat); this.edges.frustumCulled = false; this.edges.renderOrder = 9;
-    scene.add(this.mesh, this.edges);
+    scene.add(this.mesh);
     this.list = [];
   }
-  // queue a cone this frame. grid.ray(x,z,dx,dz,max,eyeY) -> distance
-  add(grid, x, z, facing, halfAngle, range, state = 'idle', alpha = 0.22, eyeY = 1.2) {
-    if (this.list.length < this.max) this.list.push({ x, z, facing, halfAngle, range, state, alpha, eyeY, grid });
+  // queue a cone this frame. grid.ray(x,z,dx,dz,max,eyeY) -> distance. color: state name or THREE.Color
+  add(grid, x, z, facing, halfAngle, range, color = 'idle', alpha = 0.2, eyeY = 1.2) {
+    if (this.list.length < this.max) this.list.push({ x, z, facing, halfAngle, range, color, alpha, eyeY, grid });
   }
   update(dt) {
     fillMat.uniforms.uTime.value += dt;
-    let ei = 0;
     const lift = 0.07;
-    const epush = (x0, y0, z0, x1, y1, z1, c, f) => {
-      this.epos.set([x0, y0, z0, x1, y1, z1], ei * 6);
-      this.ecol.set([c.r * f, c.g * f, c.b * f, c.r * f, c.g * f, c.b * f], ei * 6); ei++;
-    };
     this.list.forEach((c, ci) => {
-      const b = ci * this.per, col = CONE_COLORS[c.state] || CONE_COLORS.idle;
-      const gy = this.groundAt(c.x, c.z) + lift;
-      this.pos.set([c.x, gy, c.z], b * 3); this.dist[b] = 0; this.col.set([col.r, col.g, col.b, c.alpha], b * 4);
-      let prev = null;
-      const ends = [];
+      const b = ci * this.per;
+      const col = c.color instanceof THREE.Color ? c.color : (CONE_COLORS[c.color] || CONE_COLORS.idle);
+      const put = (k, x, y, z, d) => {
+        this.pos.set([x, y, z], k * 3); this.dist[k] = d;
+        this.col.set([col.r, col.g, col.b, c.alpha], k * 4);
+        this.cone.set([c.x, c.z, c.facing, c.halfAngle], k * 4);
+      };
+      put(b, c.x, this.groundAt(c.x, c.z) + lift, c.z, 0);
       for (let r = 0; r <= RAYS; r++) {
         const a = c.facing - c.halfAngle + (2 * c.halfAngle) * r / RAYS;
         const dx = Math.sin(a), dz = Math.cos(a);
         const d = Math.max(0.3, c.grid ? c.grid.ray(c.x, c.z, dx, dz, c.range, c.eyeY) : c.range);
         for (let s = 0; s < SEG; s++) {
-          const dd = d * (s + 1) / SEG, vx = c.x + dx * dd, vz = c.z + dz * dd, k = b + 1 + r * SEG + s;
-          this.pos.set([vx, this.groundAt(vx, vz) + lift, vz], k * 3);
-          this.dist[k] = dd / c.range;
-          this.col.set([col.r, col.g, col.b, c.alpha], k * 4);
-        }
-        const ex = c.x + dx * d, ez = c.z + dz * d, ey = this.groundAt(ex, ez) + lift;
-        ends.push([ex, ey, ez, d]);
-        if (prev) {
-          const f = 0.95 * (1 - Math.min(1, d / c.range) * 0.55);
-          epush(prev[0], prev[1], prev[2], ex, ey, ez, col, f);
-        }
-        prev = [ex, ey, ez];
-      }
-      // side edges (follow terrain)
-      for (const e of [ends[0], ends[ends.length - 1]]) {
-        let px = c.x, pz = c.z, py = gy;
-        for (let s = 1; s <= SEG; s++) {
-          const t = s / SEG, x = c.x + (e[0] - c.x) * t, z = c.z + (e[2] - c.z) * t, y = this.groundAt(x, z) + lift;
-          epush(px, py, pz, x, y, z, col, 0.75 * (1 - t * 0.5));
-          px = x; pz = z; py = y;
+          const dd = d * (s + 1) / SEG, vx = c.x + dx * dd, vz = c.z + dz * dd;
+          put(b + 1 + r * SEG + s, vx, this.groundAt(vx, vz) + lift, vz, dd / c.range);
         }
       }
     });
     this.mesh.geometry.setDrawRange(0, this.list.length * RAYS * (3 + (SEG - 1) * 6));
-    this.edges.geometry.setDrawRange(0, ei * 2);
-    this.pa.needsUpdate = this.da.needsUpdate = this.ca.needsUpdate = this.epa.needsUpdate = this.eca.needsUpdate = true;
+    this.pa.needsUpdate = this.da.needsUpdate = this.ca.needsUpdate = this.ka.needsUpdate = true;
     this.list = [];
   }
+}
+
+// colour for an ARK's current awareness: state + detection meter (0..1) blend
+export function coneColor(state, vis = 0, scan = false, out = tmpCol) {
+  if (state === 'alert') return out.copy(CONE_COLORS.alert);
+  if (state === 'search') return out.copy(CONE_COLORS.suspicious).lerp(CONE_COLORS.search, Math.min(1, 0.35 + vis));
+  const base = scan ? CONE_COLORS.scan : CONE_COLORS.idle;
+  // idle but building suspicion: drift toward yellow as the meter fills
+  return out.copy(base).lerp(CONE_COLORS.suspicious, Math.min(1, vis / 0.35) * 0.85);
 }

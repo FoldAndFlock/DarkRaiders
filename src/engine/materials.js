@@ -77,7 +77,8 @@ const COMMON_FRAG_PARS = /* glsl */`
       }
       vec3 Ld = Lv / max(d, 1e-3);
       float ndl = B.a > 0.5 ? 0.55 + 0.45 * max(dot(nrm, Ld), 0.0) : max(dot(nrm, Ld), 0.0) * 0.8 + 0.2;
-      float att = 1.0 - d / A.w; att *= att;
+      // flat (ARK gaze) lights fade with the same curve as the drawn vision cone (cones.js CONE_FADE)
+      float att = B.a > 0.5 ? 1.0 - smoothstep(0.3, 1.0, d / A.w) : (1.0 - d / A.w) * (1.0 - d / A.w);
       float sh = dwShadow(p, A.xyz);
       sum += B.rgb * (att * ndl * spot * sh);
     }

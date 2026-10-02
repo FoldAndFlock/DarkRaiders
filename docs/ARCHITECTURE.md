@@ -179,6 +179,8 @@ locked_gate (Green Gate).
   gameplay markers (POIs, extracts, hatches, spawns, containers, ARK spawn zones, key rooms).
 * `Grid` holds collision/occlusion at 0.5 m; `ray()` / `los()` are 2.5D (respect heights).
 * Lights are game-side 2D-occluded lights (raymarched against the occlusion grid) – ARK "gaze"
-  is a coloured spot light whose cone is also traced as an outline.
+  is a coloured spot light; `engine/cones.js` draws the matching traced wash with soft side-edge
+  outlines (no arc line) that share the light's distance falloff. Colour follows awareness via
+  `coneColor(state, vis)`: cool white (idle) → yellow/orange (suspicious/search) → red (alert).
 * Simulation is host-authoritative and deterministic per seed for static content; only dynamic
   state is replicated over the network.

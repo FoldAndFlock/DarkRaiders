@@ -3,14 +3,15 @@
 import * as THREE from '../../vendor/three.module.js';
 import { markEntity, OBLIQUE_K } from '../engine/renderer.js';
 import { RaiderModel, OUTFITS, arcMesh, gunGeo, voxMesh } from '../engine/models.js';
+import { createArkModel } from '../engine/arkmodels.js';
 import { ContainerRenderer, containerGeo } from '../engine/containers.js';
 import { GU, litVox } from '../engine/materials.js';
 import { SURF } from '../engine/world.js';
+import { coneColor } from '../engine/cones.js';
 import { ARK } from '../data/arc.js';
 import { ITEMS } from './items.js';
 import { Vox } from '../engine/voxel.js';
 
-const GAZE_COL = { idle: 0xffc838, search: 0xff7a18, alert: 0xff2010, scan: 0x50c0ff };
 const TEAM_COL = [0x30d0d0, 0xf0a030, 0xe84a30, 0x9a70ff];
 const SURF_FX = { [SURF.dirt]: 0x6a5a40, [SURF.concrete]: 0x8a8a84, [SURF.metal]: 0xffd080, [SURF.sand]: 0xc0a070, [SURF.water]: 0xb0c8d0, [SURF.wood]: 0x7a5a3a, [SURF.grass]: 0x4a6a2e, [SURF.tile]: 0x9a948a };
 const SURF_SND = { [SURF.dirt]: 'step_grass', [SURF.concrete]: 'step_concrete', [SURF.metal]: 'step_metal', [SURF.sand]: 'step_sand', [SURF.water]: 'step_water', [SURF.wood]: 'step_wood', [SURF.grass]: 'step_grass', [SURF.tile]: 'step_concrete' };
@@ -86,10 +87,9 @@ export class View {
       v.mask = markEntity(this.R, obj, mate && !mine ? tcol : mine ? 0x0c0c10 : 0x140c0c, mate && !mine);
     } else if (e.type === 'ark') {
       const def = ARK[e.kind] || {};
-      obj = new THREE.Group();
-      const m = arcMesh(def.model || 'wasp');
-      m.scale.multiplyScalar(def.modelScale || 1);
-      obj.add(m); v.mesh = m;
+      v.ark = createArkModel(def.model || 'wasp', def);   // part rig sized to the def (see engine/arkmodels.js)
+      obj = v.ark.root;
+      v.broken = new Set();
       v.mask = markEntity(this.R, obj, 0x140808, false);
     } else if (e.type === 'loot') {
       obj = voxMesh(containerGeo(e.kind === 'ark' ? 'arc_crate' : 'bag'));
@@ -176,17 +176,26 @@ export class View {
     const alt = e.alt || 0;
     const bob = def.flying ? Math.sin(t * 3 + e.id) * 0.08 : 0;
     v.obj.position.set(v.px, v.py + alt + bob - (def.flying ? 0 : 0), v.pz);
-    v.mesh.rotation.y = e.f;
-    v.mesh.rotation.z = def.flying ? Math.sin(t * 2.1 + e.id) * 0.05 : 0;
+    v.obj.rotation.y = e.f;
     // telegraph: flashing glow + charging light
     const tele = e.tele || 0;
+    // ARK rig: speed from the smoothed position, broken parts, stun / fire / leap flags (host has e.brain)
+    const mdx = v.px - (v.lpx ?? v.px), mdz = v.pz - (v.lpz ?? v.pz); v.lpx = v.px; v.lpz = v.pz;
+    v.spd = (v.spd ?? 0) + ((dt > 0 ? Math.hypot(mdx, mdz) / dt : 0) - (v.spd ?? 0)) * Math.min(1, dt * 8);
+    if (e.parts) for (const pk in e.parts) if (e.parts[pk] <= 0 && !v.broken.has(pk)) { v.broken.add(pk); v.ark.setBroken(pk); }
+    const br = e.brain;
+    v.ark.update(dt, {
+      moving: v.spd > 0.15, speed: v.spd, alert: e.st === 'alert' ? 1 : e.st === 'search' ? 0.5 : 0, tele,
+      gaze: (e.gaze ?? e.f) - e.f, stunned: (br?.stunT || 0) > 0, firing: (br?.burst || 0) > 0 || tele >= 1,
+      leaping: !!br?.leap || (!def.flying && alt > 0.05),
+    });
     if (tele > 0) {
       const col = e.st === 'alert' ? 0xff3010 : 0xffa020;
       this.L.light(v.px + Math.sin(e.f) * 0.6, v.py + alt + 0.6, v.pz + Math.cos(e.f) * 0.6, col, 0.6 + tele * 2.2, 3 + tele * 4, 2.4);
       if (def.attack?.telegraph === 'laser' || def.attack?.kind === 'laser') this.telegraphLaser(v, e, tele);
     }
     // eye glow
-    if (!e.dormant) this.L.light(v.px, v.py + alt + 0.5, v.pz, e.st === 'alert' ? 0xff2a10 : 0xffa020, 0.35, 2.2, 0.8);
+    if (!e.dormant) this.L.light(v.px, v.py + alt + 0.5, v.pz, v.coneCol || (e.st === 'alert' ? 0xff2a10 : 0xffa020), 0.35, 2.2, 0.8);
   }
   telegraphLaser(v, e, tele) {
     const def = ARK[e.kind] || {}, alt = e.alt || 0;
@@ -221,14 +230,16 @@ export class View {
       const def = ARK[e.kind]; if (!def?.vision) continue;
       const vr = def.vision.range;
       if (Math.abs(e.x - cx) > W / 2 + vr || e.z - cz > H / 2 + vr || cz - e.z > H / 2 + vr + 8) continue;
-      const st = def.behavior === 'surveyor' ? 'scan' : e.st === 'alert' ? 'alert' : e.st === 'search' ? 'search' : 'idle';
+      const st = e.st === 'alert' ? 'alert' : e.st === 'search' ? 'search' : 'idle';
       const gy = this.world.groundAt(e.x, e.z), eye = gy + (e.alt || 0) + (def.flying ? 0 : Math.min(def.height || 1, 2.2) * 0.8);
       const half = (def.vision.fov / 2) * Math.PI / 180;
       const r = vr * (st === 'alert' ? 1 : 0.92) * range;
       const vis = this.vis.get(e.id);
       const x = vis ? vis.px : e.x, z = vis ? vis.pz : e.z;
-      this.cones.add(this.world.grid, x, z, e.gaze ?? e.f, half, r, st, st === 'alert' ? 0.26 : 0.18, eye);
-      this.L.spot(x, eye, z, e.gaze ?? e.f, half, GAZE_COL[st], st === 'alert' ? 2.2 : 1.5, r, st === 'alert' ? 2.2 : 1.6, true, 0.85);
+      // colour follows awareness: calm searchlight → yellow/orange (suspicious) → red (attacking)
+      const col = coneColor(st, e.vis || 0, def.behavior === 'surveyor', vis ? (vis.coneCol ||= new THREE.Color()) : new THREE.Color());
+      this.cones.add(this.world.grid, x, z, e.gaze ?? e.f, half, r, col, st === 'alert' ? 0.2 : st === 'search' ? 0.16 : 0.12, eye);
+      this.L.spot(x, eye, z, e.gaze ?? e.f, half, col, st === 'alert' ? 1.5 : st === 'search' ? 1.15 : 0.9, r, st === 'alert' ? 2.2 : 1.6, true, 0.85);
     }
   }
 

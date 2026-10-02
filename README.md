@@ -50,8 +50,11 @@ Gamepads work too (twin-stick: left stick move, right stick aim, triggers ADS/fi
 * **21 ARK machines** (Wazp, Hornett, Tikk, Popp, Fyreball, Snytch, Spottr, Turrett, Sentinal, Surveyr,
   Rocketier, Leapr, Bastian, Bombardeer, Queene, Matriark…) with top-down weak points: shoot rotors off
   drones, flank armoured fronts, crack rear canisters to expose cores, break Leapr legs.
-  **ARK vision cones are real light** – a coloured spotlight (yellow patrol → orange suspicious → red
-  alert) traced against walls, trees, rocks and terrain, with an outline you can see from off-screen.
+  **ARK vision cones are real light** – a spotlight traced against walls, trees, rocks and terrain, with
+  soft side outlines that fade out with the light. Its colour follows the machine's awareness like in
+  ARC Raiders: cool white while patrolling, yellow → orange when suspicious or searching, red once it has
+  spotted a raider and is attacking. Cones from off-screen ARK still reach into view, and edge-of-screen
+  chevrons warn of nearby machines.
 * **Bot raider squads** with mixed temperament: some hunt you, others shout *"DON'T SHOOT!"* and keep
   their distance – until someone opens fire.
 * **488 items**: 24 weapons with tiers I–IV and mods, augments, shields, healing, grenades, traps,
