@@ -11,6 +11,7 @@ const v4s = () => Array.from({ length: MAX_LIGHTS }, () => new THREE.Vector4());
 export const GU = {
   uTime: { value: 0 },
   uCut: { value: new THREE.Vector4(1e9, 1e9, -1e9, -1e9) },  // xz rect of building the player is inside
+  uCutR: { value: new THREE.Vector4(0, 0, 1, 0) },            // cut rect frame for rotated buildings: centre xz, cos, sin
   uCutH: { value: 999 },                                      // walls in that rect are cut above this height
   uXray: { value: new THREE.Vector4(0, 0, -1e9, 0) },         // player screen x, z, depth key, radius (m)
   uXrayY: { value: 0 },                                       // player feet height
@@ -40,7 +41,7 @@ const COMMON_VERT = /* glsl */`
 `;
 const COMMON_FRAG_PARS = /* glsl */`
   varying vec3 vWPos; varying vec3 vWNormal;
-  uniform vec4 uCut; uniform float uCutH; uniform vec4 uXray; uniform float uXrayY; uniform float uTime;
+  uniform vec4 uCut; uniform vec4 uCutR; uniform float uCutH; uniform vec4 uXray; uniform float uXrayY; uniform float uTime;
   uniform vec4 uLA[${MAX_LIGHTS}]; uniform vec4 uLB[${MAX_LIGHTS}]; uniform vec4 uLC[${MAX_LIGHTS}]; uniform int uLN;
   uniform sampler2D tOcc; uniform vec2 uOccSize; uniform float uMaxSteps;
   float dwBayer4(vec2 p){ ivec2 i = ivec2(mod(p,4.0)); int k = i.x + i.y*4;
@@ -87,7 +88,11 @@ const COMMON_FRAG_PARS = /* glsl */`
 `;
 const COMMON_FRAG_CLIP = /* glsl */`
   #ifdef DW_CUTAWAY
-    if (vWPos.x > uCut.x && vWPos.x < uCut.z && vWPos.z > uCut.y && vWPos.z < uCut.w && vWPos.y > uCutH) discard;
+    {
+      vec2 cd = vWPos.xz - uCutR.xy;
+      vec2 cl = uCutR.xy + vec2(cd.x * uCutR.z + cd.y * uCutR.w, -cd.x * uCutR.w + cd.y * uCutR.z);
+      if (cl.x > uCut.x && cl.x < uCut.z && cl.y > uCut.y && cl.y < uCut.w && vWPos.y > uCutH) discard;
+    }
   #endif
   #ifdef DW_XRAY
   {

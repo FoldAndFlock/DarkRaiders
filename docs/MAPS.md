@@ -43,6 +43,12 @@ Structures: `block(x0,z0,x1,z1,h,tex,{y0?,collide?,cast?,tint?,xray?})`,
 `wallLine(ax,az,bx,bz,thick,h,tex,gaps)`, `fence(points,h,tex)`,
 `building({ x,z,w,d, storeys, wall, floor, roof, roofShape:'gable'|undefined, roofTint, tint, thick,
  doors:[{side,at,w,sill?,door?:true,locked?:roomId}], inner:[[x0,z0,x1,z1,gaps]], peek, name, roofExtras })`.
+**Rotated buildings:** add `rot` (radians) to `building()` to rotate the whole footprint about its centre.
+`doors`/`inner` stay in the building's own frame; put contents in the same frame with
+`containers:[[kind, lx, lz, rot?, opts?]]` and `props:[[kind, lx, lz, rot?, opts?]]` (offsets from the
+`x, z` corner), or convert any local point yourself with `world.local(bb, lx, lz)` → `[x, z]` (`bb` is the
+value `building()` returns; `bb.poly` holds its world corners). Collision, indoor detection, roof fade,
+wall cutaway, doors and the in-raid map all follow the rotation.
 Box/wall textures: the terrain list plus `plaster brick rust corrugated roofTar roofTile`.
 Windows = door gaps with `sill` (low wall you can see/shoot over but not walk through).
 

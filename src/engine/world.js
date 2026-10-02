@@ -25,6 +25,18 @@ export function pointInPoly(x, z, pts) {
   }
   return inside;
 }
+// rotated-building frame: angle a about (cx, cz); world = rot(local). three.js rotation.y equivalent is -a
+export function rotFrame(cx, cz, a) { return { cx, cz, a, c: Math.cos(a), s: Math.sin(a) }; }
+export function rotPt(R, x, z) { if (!R) return [x, z]; const dx = x - R.cx, dz = z - R.cz; return [R.cx + dx * R.c - dz * R.s, R.cz + dx * R.s + dz * R.c]; }
+export function unrotPt(R, x, z) { if (!R) return [x, z]; const dx = x - R.cx, dz = z - R.cz; return [R.cx + dx * R.c + dz * R.s, R.cz - dx * R.s + dz * R.c]; }
+function rectPts(R, x0, z0, x1, z1) { return [[x0, z0], [x1, z0], [x1, z1], [x0, z1]].map(([x, z]) => rotPt(R, x, z)); }
+// rotate the vertices / normals pushed into a geometry group since vertex index `start`
+function rotTail(g, start, R) {
+  for (let v = start, n = g.pos.length / 3; v < n; v++) {
+    const i = v * 3, [x, z] = rotPt(R, g.pos[i], g.pos[i + 2]); g.pos[i] = x; g.pos[i + 2] = z;
+    const nx = g.nor[i], nz = g.nor[i + 2]; g.nor[i] = nx * R.c - nz * R.s; g.nor[i + 2] = nx * R.s + nz * R.c;
+  }
+}
 function polyBounds(pts) { let a = 1e9, b = 1e9, c = -1e9, d = -1e9; for (const [x, z] of pts) { a = Math.min(a, x); b = Math.min(b, z); c = Math.max(c, x); d = Math.max(d, z); } return [a, b, c, d]; }
 function distToSeg(px, pz, ax, az, bx, bz) {
   const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1e-9;
@@ -61,6 +73,20 @@ export class Grid {
     const c = Math.min(this.cw - 1, Math.ceil(x1 / CELL - 1e-6) - 1), d = Math.min(this.ch - 1, Math.ceil(z1 / CELL - 1e-6) - 1);
     for (let z = b; z <= d; z++) for (let x = a; x <= c; x++) {
       const i = z * this.cw + x;
+      arr[i] = mode === 'max' ? Math.max(arr[i], v) : v;
+    }
+  }
+  // fillRect in a rotated frame R (local rect x0..x1, z0..z1). pad: thin pieces (walls) are widened by
+  // ~half a cell diagonal so diagonal walls rasterise as a 4-connected band (no movement / light leaks)
+  fillRotRect(arr, x0, z0, x1, z1, R, v, mode = 'set', pad = false) {
+    if (!R || Math.abs(R.s) < 1e-6 && R.c > 0) return this.fillRect(arr, x0, z0, x1, z1, v, mode);
+    const P = CELL * 0.5, px = pad && x1 - x0 < 2 * CELL && x1 - x0 <= z1 - z0 ? P : 0, pz = pad && z1 - z0 < 2 * CELL && z1 - z0 < x1 - x0 ? P : 0;
+    const [a, b, c, d] = polyBounds(rectPts(R, x0 - px, z0 - pz, x1 + px, z1 + pz));
+    const ca = Math.max(0, Math.floor(a / CELL)), cb = Math.max(0, Math.floor(b / CELL)), cc = Math.min(this.cw - 1, Math.floor(c / CELL)), cd = Math.min(this.ch - 1, Math.floor(d / CELL));
+    for (let cz = cb; cz <= cd; cz++) for (let cx = ca; cx <= cc; cx++) {
+      const [lx, lz] = unrotPt(R, (cx + 0.5) * CELL, (cz + 0.5) * CELL);
+      if (lx < x0 - px || lx > x1 + px || lz < z0 - pz || lz > z1 + pz) continue;
+      const i = cz * this.cw + cx;
       arr[i] = mode === 'max' ? Math.max(arr[i], v) : v;
     }
   }
@@ -122,11 +148,14 @@ export class Grid {
 class BoxBatch {
   constructor() { this.groups = new Map(); }
   add(matKey, material, x0, y0, z0, x1, y1, z1, opts = {}) {
-    const ck = Math.floor((x0 + x1) / 2 / CHUNK) + ',' + Math.floor((z0 + z1) / 2 / CHUNK);
+    const [mx, mz] = rotPt(opts.R, (x0 + x1) / 2, (z0 + z1) / 2);
+    const ck = Math.floor(mx / CHUNK) + ',' + Math.floor(mz / CHUNK);
     const key = matKey + '|' + ck + '|' + (opts.cast === false ? 0 : 1);
     let g = this.groups.get(key);
     if (!g) { g = { material, pos: [], nor: [], uv: [], idx: [], cast: opts.cast !== false }; this.groups.set(key, g); }
+    const start = g.pos.length / 3;
     pushBox(g, x0, y0, z0, x1, y1, z1, opts.rep || 4, opts);
+    if (opts.R) rotTail(g, start, opts.R);
   }
   build(parent) {
     for (const g of this.groups.values()) {
@@ -387,7 +416,10 @@ export class World {
       if (!g) { seg(s, e, 0, h); continue; }
       if (g.sill) { seg(s, e, 0, g.sill, {}); seg(s, e, g.top || Math.min(h, g.sill + 1.4), h, { collide: false }); }
       else if (g.lintel !== false && h > (g.h || 2.4)) seg(s, e, g.h || 2.4, h, { collide: false });
-      if (g.door) this.doors.push({ x: horiz ? ax + s + g.w / 2 : ax, z: horiz ? az : az + s + g.w / 2, axis: horiz ? 'x' : 'z', w: g.w, locked: g.locked || null, bid: opts.bid ?? -1, thick });
+      if (g.door) {
+        const lx = horiz ? ax + s + g.w / 2 : ax, lz = horiz ? az : az + s + g.w / 2, [wx, wz] = rotPt(opts.R, lx, lz);
+        this.doors.push({ x: wx, z: wz, lx, lz, R: opts.R || null, axis: horiz ? 'x' : 'z', w: g.w, locked: g.locked || null, bid: opts.bid ?? -1, thick });
+      }
     }
   }
   /*
@@ -399,12 +431,17 @@ export class World {
     const id = this.buildings.length;
     const storeys = b.storeys || 1;
     const h = b.h || storeys * (b.storeyH || 3.2);
-    const bb = { id, x0: b.x, z0: b.z, x1: b.x + b.w, z1: b.z + b.d, h, alpha: b.peek ?? 0.72, target: 0.72, def: b, floorY: 0, name: b.name || null };
+    // rot (radians): footprint rotated about its centre; everything else (doors, inner walls, local
+    // containers/props) is given in the unrotated frame and rotated with it
+    const R = b.rot ? rotFrame(b.x + b.w / 2, b.z + b.d / 2, b.rot) : null;
+    const poly = rectPts(R, b.x, b.z, b.x + b.w, b.z + b.d), [ax0, az0, ax1, az1] = polyBounds(poly);
+    const bb = { id, x0: b.x, z0: b.z, x1: b.x + b.w, z1: b.z + b.d, R, poly, ax0, az0, ax1, az1, h, alpha: b.peek ?? 0.72, target: 0.72, def: b, floorY: 0, name: b.name || null };
     this.buildings.push(bb);
-    this.flatten(b.x - 0.5, b.z - 0.5, b.x + b.w + 0.5, b.z + b.d + 0.5, b.floorY ?? null, b.blend ?? 2.5);
-    if (b.floor !== false) this.paint(b.floor || 'tiles', b.x, b.z, b.x + b.w, b.z + b.d);
+    if (R) this.flattens.push({ x0: ax0, z0: az0, x1: ax1, z1: az1, poly: rectPts(R, b.x - 0.5, b.z - 0.5, b.x + b.w + 0.5, b.z + b.d + 0.5), h: b.floorY ?? null, blend: b.blend ?? 2.5 });
+    else this.flatten(b.x - 0.5, b.z - 0.5, b.x + b.w + 0.5, b.z + b.d + 0.5, b.floorY ?? null, b.blend ?? 2.5);
+    if (b.floor !== false) { if (R) this.paintPoly(b.floor || 'tiles', poly); else this.paint(b.floor || 'tiles', b.x, b.z, b.x + b.w, b.z + b.d); }
     const th = b.thick || 0.3, wall = b.wall || 'plaster';
-    const o = { cutaway: true, seed: b.seed ?? (id % 7) + 3, tint: b.tint, bid: id, onBuilding: id };
+    const o = { cutaway: true, seed: b.seed ?? (id % 7) + 3, tint: b.tint, bid: id, onBuilding: id, R };
     const gapsFor = side => (b.doors || []).filter(dd => dd.side === side);
     const { x, z, w, d } = b;
     this.wallLine(x, z, x + w, z, th, h, wall, gapsFor('n'), o);
@@ -417,8 +454,13 @@ export class World {
       for (let s = 1; s < storeys; s++) this.block(x - 0.05, z + d - 0.05, x + w + 0.05, z + d + 0.12, 0.18, b.trim || 'concrete', { ...o, rel0: s * (h / storeys) - 0.1, collide: false, cast: false });
     }
     this.roofBoxes.push({ bid: id, b, h });
+    // local-frame contents: [kind, lx, lz, rot?, opts?] relative to (x, z)
+    for (const c of b.containers || []) { const [cx, cz] = this.local(bb, c[1], c[2]); this.container(c[0], cx, cz, (c[3] || 0) - (b.rot || 0), c[4] || {}); }
+    for (const p of b.props || []) { const [px, pz] = this.local(bb, p[1], p[2]); this.prop(p[0], px, pz, (p[3] || 0) - (b.rot || 0), p[4] || {}); }
     return bb;
   }
+  // building-local offset (from the footprint's x, z corner) -> world [x, z]
+  local(bb, lx, lz) { return rotPt(bb.R, bb.x0 + lx, bb.z0 + lz); }
   fence(points, h = 1.2, texName = 'rust', thick = 0.1, opts = {}) {
     for (let k = 0; k < points.length - 1; k++) {
       const [ax, az] = points[k], [bx, bz] = points[k + 1];
@@ -497,7 +539,8 @@ export class World {
         let s = 0, n = 0; this._area(f.x0, f.z0, f.x1, f.z1, (x, z, i) => { s += this.hv[i]; n++; }); h = n ? s / n : 0;
         f.h = h;
       }
-      this.raiseRect(f.x0, f.z0, f.x1, f.z1, h, f.blend, 'set');
+      if (f.poly) this.raisePoly(f.poly, h, f.blend, 'set');
+      else this.raiseRect(f.x0, f.z0, f.x1, f.z1, h, f.blend, 'set');
     }
     this.buildings.forEach(b => { b.floorY = this.groundAt((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2); });
     // 2) ground into grid
@@ -508,18 +551,18 @@ export class World {
       g.surf[i] = tn ?? 0;
     }
     // 3) buildings: indoor cells
-    for (const b of this.buildings) g.fillRect(g.indoor, b.x0 + 0.01, b.z0 + 0.01, b.x1 - 0.01, b.z1 - 0.01, b.id);
+    for (const b of this.buildings) g.fillRotRect(g.indoor, b.x0 + 0.01, b.z0 + 0.01, b.x1 - 0.01, b.z1 - 0.01, b.R, b.id);
     // 4) solids
     for (const s of this.solids) {
       let base;
       if (s.opts.y0 != null) base = s.opts.y0;
       else if (s.opts.onBuilding != null) base = this.buildings[s.opts.onBuilding].floorY + (s.opts.rel0 || 0);
-      else { base = Math.min(this.groundAt(s.x0, s.z0), this.groundAt(s.x1, s.z0), this.groundAt(s.x0, s.z1), this.groundAt(s.x1, s.z1)) + (s.opts.rel0 || 0); }
+      else { base = Math.min(...rectPts(s.opts.R, s.x0, s.z0, s.x1, s.z1).map(([x, z]) => this.groundAt(x, z))) + (s.opts.rel0 || 0); }
       const y0 = base - (s.opts.rel0 ? 0 : (s.opts.sink ?? 0.3)), y1 = base + s.h;
       const t = tex(s.texName, s.opts.seed || 5);
       const mat = litTex(t, { cutaway: !!s.opts.cutaway, xray: s.opts.xray !== false, color: s.opts.tint || 0xffffff });
       this.boxes.add(s.texName + (s.opts.cutaway ? 'c' : '') + (s.opts.tint || '') + (s.opts.xray === false ? 'n' : ''), mat, s.x0, y0, s.z0, s.x1, y1, s.z1, s.opts);
-      if (s.opts.collide !== false) g.fillRect(g.top, s.x0, s.z0, s.x1, s.z1, y1, 'max');
+      if (s.opts.collide !== false) g.fillRotRect(g.top, s.x0, s.z0, s.x1, s.z1, s.opts.R, y1, 'max', true);
     }
     // 5) water bodies -> grid
     this.waters.forEach((wv, wi) => {
@@ -633,14 +676,18 @@ export class World {
   }
   _buildRoofs() {
     const groups = new Map();
+    let R = null;
     const box = (texName, tint, bid, x0, y0, z0, x1, y1, z1) => {
       const key = texName + '|' + (tint || '');
       let r = groups.get(key);
       if (!r) { r = { texName, tint, pos: [], nor: [], uv: [], idx: [], bid: [] }; groups.set(key, r); }
+      const start = r.pos.length / 3;
       pushBox(r, x0, y0, z0, x1, y1, z1, 4, { bid });
+      if (R) rotTail(r, start, R);
     };
     for (const { bid, b, h } of this.roofBoxes) {
-      const B = this.buildings[bid], fy = B.floorY, x = b.x, z = b.z, w = b.w, d = b.d, wall = b.wall || 'plaster';
+      const B = this.buildings[bid], fy = B.floorY; R = B.R;
+      const x = b.x, z = b.z, w = b.w, d = b.d, wall = b.wall || 'plaster';
       const rt = b.roof || 'roofTar', top = fy + h;
       box(rt, b.roofTint, bid, x - 0.15, top, z - 0.15, x + w + 0.15, top + 0.25, z + d + 0.15);
       if (b.roofShape === 'gable') {
@@ -703,8 +750,9 @@ export class World {
     GU.uOccSize.value.set(g.cw * CELL, g.ch * CELL);
   }
   // runtime change to the occlusion grid (doors, barricades). Re-uploads the texture.
-  setTop(x0, z0, x1, z1, top) {
-    const g = this.grid; g.fillRect(g.top, x0, z0, x1, z1, top);
+  setTop(x0, z0, x1, z1, top, R = null) {
+    const g = this.grid; g.fillRotRect(g.top, x0, z0, x1, z1, R, top, 'set', true);
+    if (R) [x0, z0, x1, z1] = polyBounds(rectPts(R, x0 - 0.4, z0 - 0.4, x1 + 0.4, z1 + 0.4));
     const a = Math.max(0, Math.floor(x0 / CELL)), b = Math.max(0, Math.floor(z0 / CELL)), c = Math.min(g.cw - 1, Math.ceil(x1 / CELL) - 1), d = Math.min(g.ch - 1, Math.ceil(z1 / CELL) - 1);
     for (let z = b; z <= d; z++) for (let x = a; x <= c; x++) this.occData[z * g.cw + x] = clamp(Math.round((g.top[z * g.cw + x] + 8) * 4), 0, 255);
     this.occTex.needsUpdate = true;
@@ -725,6 +773,7 @@ export class World {
     if (inside >= 0) {
       const b = this.buildings[inside];
       GU.uCut.value.set(b.x0 - 0.3, b.z0 - 0.3, b.x1 + 0.3, b.z1 + 0.3);
+      if (b.R) GU.uCutR.value.set(b.R.cx, b.R.cz, b.R.c, b.R.s); else GU.uCutR.value.set(0, 0, 1, 0);
       const want = b.floorY + 1.15;
       if (GU.uCutH.value > b.floorY + b.h + 1) GU.uCutH.value = b.floorY + b.h + 1;
       GU.uCutH.value = Math.max(want, GU.uCutH.value - dt * 7);

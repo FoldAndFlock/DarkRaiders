@@ -53,7 +53,7 @@ export class View {
       const y = this.world.groundAt(d.x, d.z);
       m.position.set(d.x, y, d.z);
       m.scale.set(d.w, 1.05, 1);
-      m.rotation.y = d.axis === 'x' ? 0 : Math.PI / 2;
+      m.rotation.y = (d.axis === 'x' ? 0 : Math.PI / 2) - (d.R?.a || 0);
       m.castShadow = true; m.receiveShadow = true;
       m.userData = { base: m.rotation.y, open: d.open, cur: d.open ? 1 : 0 };
       m.visible = true;

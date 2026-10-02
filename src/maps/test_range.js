@@ -19,6 +19,10 @@ export default {
       doors: [{ side: 'w', at: 3, w: 1.6 }, { side: 's', at: 2, w: 3, sill: 1 }] });
     w.building({ x: 142, z: 96, w: 14, d: 10, wall: 'plaster', floor: 'tiles', roof: 'roofTile', roofShape: 'gable', name: 'House',
       doors: [{ side: 'n', at: 5, w: 1.6 }] });
+    // rotated footprint (engine test): doors, inner wall and local-frame container rotate with it
+    w.building({ x: 166, z: 70, w: 14, d: 10, rot: 0.55, storeys: 2, wall: 'plaster', tint: 0xf0d8b0, floor: 'tiles', roof: 'roofTile', roofShape: 'gable', name: 'Leaning House',
+      doors: [{ side: 's', at: 2, w: 1.6, door: true }, { side: 'n', at: 9, w: 2.4, sill: 1 }], inner: [[7, 0, 7, 10, [{ at: 5, w: 1.4 }]]],
+      containers: [['cabinet', 2, 1.2, 0, { tier: 2 }], ['desk', 11, 7, 0]] });
     w.keyRoom('depot_office', 105, 74, 114, 81, null);
     w.container('locker', 98, 76, 0, { tier: 1 }); w.container('weapon_case', 112, 76, 0, { tier: 2 });
     w.container('toolbox', 126, 78, 0); w.container('medical_bag', 150, 100, 0); w.container('trash', 120, 110, 0);

@@ -203,7 +203,7 @@ export class RaidUI {
     }
     x.putImageData(img, 0, 0);
     x.strokeStyle = '#9a9484'; x.lineWidth = 0.5;
-    for (const bd of w.buildings) { x.fillStyle = '#3a3836'; x.fillRect(bd.x0 / S, bd.z0 / S, (bd.x1 - bd.x0) / S, (bd.z1 - bd.z0) / S); x.strokeRect(bd.x0 / S, bd.z0 / S, (bd.x1 - bd.x0) / S, (bd.z1 - bd.z0) / S); }
+    for (const bd of w.buildings) { x.fillStyle = '#3a3836'; x.beginPath(); bd.poly.forEach(([px, pz], i) => i ? x.lineTo(px / S, pz / S) : x.moveTo(px / S, pz / S)); x.closePath(); x.fill(); x.stroke(); }
     return c;
   }
   drawMap() {

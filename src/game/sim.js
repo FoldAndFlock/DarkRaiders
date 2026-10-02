@@ -483,8 +483,9 @@ export class Sim {
   _doorBlock(d, closed) {
     const hw = d.w / 2, ht = (d.thick || 0.3) / 2 + 0.05, g = this.ground(d.x, d.z);
     const top = closed ? g + 2.4 : g;
-    if (d.axis === 'x') this.world.setTop(d.x - hw, d.z - ht, d.x + hw, d.z + ht, top);
-    else this.world.setTop(d.x - ht, d.z - hw, d.x + ht, d.z + hw, top);
+    const x = d.lx ?? d.x, z = d.lz ?? d.z;
+    if (d.axis === 'x') this.world.setTop(x - hw, z - ht, x + hw, z + ht, top, d.R);
+    else this.world.setTop(x - ht, z - hw, x + ht, z + hw, top, d.R);
   }
 
   callExtract(x, by) {
