@@ -59,7 +59,7 @@ Reference positions in brackets; the metro halls are searched outward from them 
 
 | id | name | kind | built at x, z (reference) | face |
 |---|---|---|---|---|
-| northern_station | Northern Station | metro, platform 2.3 m below street | 428, 303 (425, 303) | −π/2 (track to the west) |
+| northern_station | Northern Station | metro, hall floor 5 m below the street | 428, 303 (425, 303) | −π/2 (track to the west) |
 | western_station | Western Station | metro | 304, 479 (310, 477) | −π/2 |
 | eastern_station | Eastern Station | metro | 541, 630 (552, 616) | 0 (track to the south) |
 | southern_station | Southern Station | metro | 444, 732 (451, 737) | 0 |
@@ -185,6 +185,16 @@ offset from the ground-floor doorway because a grid cell holds only one door blo
 * **Perches**: Sentinels / turrets on the Town Hall, Hospital, Red Tower, Bell Tower, Galleria, Grandiosa,
   Library, Research, Space Travel, Warehouse and Marino Station roofs and on the overpass deck use
   `{ surface: true }` (real roof / deck surface).
+
+## Verification (pass 3, headless Chromium)
+* Multi-level flood fill on the 0.5 m grid (steps ≤ 0.45 m, 1.7 m headroom, ladders, locked doors closed):
+  all 19 spawns and all 8 extracts reachable (the four metro platforms included), every non-key upper
+  floor reached, ~100 roofs reached, 770 of 772 containers reachable, **0 key-area leaks**.
+* AI nav (`nav.find` with heights): all four metro platforms, Parking Garage decks + roof, Red Tower up to
+  its 3rd floor, Hospital, Grandiosa; 37 of 49 individual stair flights pass — the misses are tower flights
+  above the nav grid's 4-layer limit and a few rotated flights.
+* Raids at noon / night / dusk-sandstorm and the `bird_city` / `hurricane` conditions (condition ids
+  patched in, see engine note) load with no console errors.
 
 ## Deviations (forced by the top-down / engine model)
 * Ziplines / snap hooks are replaced by ladders and planks; the Town Hall's secret one-way window exit

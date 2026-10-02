@@ -61,11 +61,26 @@ export function gunModelFor(id) {
   const c = ITEMS[id]?.weapon?.class;
   return { pistol: 'pistol', smg: 'smg', assault_rifle: 'rifle', battle_rifle: 'heavy', lmg: 'heavy', shotgun: 'shotgun', marksman: 'sniper', sniper: 'sniper', launcher: 'launcher', energy: 'energy' }[c] || 'rifle';
 }
+// Per-weapon sound names (defined in src/audio/sfx_guns.js; no audio import here):
+// gun_<id> fire, reload_<id> / reload_<id>_end, charge_<id>. Weapons not listed fall back to class sounds.
+const GUN_SFX = new Set(['kettel', 'rattlr', 'arpeggo', 'tempesta', 'betina', 'ferrox', 'renegayde', 'afelion', 'stitchr', 'canta',
+  'bobkat', 'el_torro', 'volcano', 'dolabre', 'hairpyn', 'burleta', 'venattor', 'anvill', 'torrento', 'ospray', 'jupitor', 'raskal',
+  'hullkracker', 'equaliser']);
+const RELOAD_SFX = new Set(['ferrox', 'renegayde', 'el_torro', 'volcano', 'hullkracker', 'raskal', 'anvill', 'rattlr', 'torrento',
+  'ospray', 'jupitor', 'afelion', 'dolabre', 'equaliser']);
+const CHARGE_SFX = new Set(['dolabre']);
 export function gunSoundFor(id) {
+  if (GUN_SFX.has(id)) return 'gun_' + id;
   const w = ITEMS[id]?.weapon; if (!w) return 'gun_rifle';
   if (w.mode === 'beam') return 'gun_beam_loop';
   return { pistol: 'gun_pistol', smg: 'gun_smg', assault_rifle: 'gun_rifle', battle_rifle: 'gun_battle_rifle', lmg: 'gun_lmg', shotgun: 'gun_shotgun', marksman: 'gun_marksman', sniper: 'gun_sniper', launcher: 'gun_launcher', energy: 'gun_energy' }[w.class] || 'gun_rifle';
 }
+// phase: 'start' (reload begins) | 'end' (rounds in / action closed)
+export function reloadSoundFor(id, phase = 'start') {
+  if (RELOAD_SFX.has(id)) return phase === 'end' ? `reload_${id}_end` : `reload_${id}`;
+  return phase === 'end' ? 'reload_end' : 'reload_start';
+}
+export function chargeSoundFor(id) { return CHARGE_SFX.has(id) ? 'charge_' + id : 'charge_up'; }
 
 // items of a type / filter
 export function itemsWhere(fn) { return Object.keys(ITEMS).filter(id => fn(ITEMS[id], id)); }

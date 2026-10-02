@@ -1,6 +1,6 @@
 // Weapon fire, handling and impact sounds.
 import { buf, noise, osc, fm, ad, env, filt, layer, mix, snes, am, seamless } from './dsp.js';
-import { def, gunshot, click, clack, rustle, thump, ping, sparks } from './sfx_lib.js';
+import { def, gunshot, click, clack, rustle, thump, ping } from './sfx_lib.js';
 
 const GUN = { max: 8, dist: 90, prio: 3, pj: 0.05 };
 
@@ -184,14 +184,6 @@ export const WEAPONS = {
     layer(out, click(R, 5500, 0.012, 2), 0.7);
     return snes(out, { bits: 7, p: 0.8 });
   }, { vol: 0.65, dist: 40, max: 5, prio: 3 }),
-  ark_part_break: def((R) => {
-    const out = buf(1.0);
-    layer(out, ping(R, R.r(500, 800), 0.8, 2.76, 5), 0.7);
-    const n = noise(0.4, 'crunch', R, 2); filt(n, 'lp', 3500, 400, 1); ad(n, 0.001, 0.3); layer(out, n, 0.9);
-    layer(out, sparks(R, 0.8, 25), 0.5, 0.03);
-    layer(out, thump(R, 110, 40, 0.3, 0.1), 0.7);
-    return snes(out, { drv: 2.2, bits: 8, p: 0.92 });
-  }, { vol: 0.85, dist: 60, max: 3, prio: 3 }),
   ricochet: def((R) => {
     const out = buf(0.5), f = R.r(2600, 4200);
     const r = fm(0.45, { f, f1: f * R.r(0.35, 0.55), ratio: 1.01, index: 0.6, vib: 0.03, vibHz: 30 });

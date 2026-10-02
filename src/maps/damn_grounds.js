@@ -315,6 +315,13 @@ function makeCtx(w, rng) {
       const g = C.stairGeom(st, sh, bb.h, spec.under);
       const kf = g.from === 'top' ? 'top' : g.from, kt = g.to;
       bb.keep.push([kf, g.r[0] - 0.4, g.r[1] - 0.4, g.r[2] + 0.4, g.r[3] + 0.4], [kf, ...g.foot], [kt, ...g.hole], [kt, ...g.top]);
+      // landing plate over the stairwell margin at the top end of the flight: the engine cuts the opening a cell
+      // wider than the flight on every side, which leaves a 0.5 m drop between the last step and the floor
+      const [r0, r1, r2, r3] = g.r, M = 0.5;
+      const lr = { e: [r2, r1 - M, r2 + M, r3 + M], w: [r0 - M, r1 - M, r0, r3 + M], s: [r0 - M, r3, r2 + M, r3 + M], n: [r0 - M, r1 - M, r2 + M, r1] }[g.dir];
+      const top = g.to === 'top' ? bb.h : g.to * sh, lid = g.to === 'top' && spec.under;
+      w.block(spec.x + lr[0], spec.z + lr[1], spec.x + lr[2], spec.z + lr[3], lid ? 0.32 : 0.25, lid ? (spec.roof || 'grass') : g.to === 'top' ? (spec.roof || 'roofTar') : (spec.floor || 'tiles'),
+        { cutaway: !lid, seed: 3, tint: lid ? spec.roofTint : undefined, bid: bb.id, onBuilding: bb.id, rel0: lid ? top - 0.3 : g.to === 'top' ? top : top - 0.25, R: bb.R, rep: 4 });
     }
     for (const ld of spec.ladders || []) {
       if (ld.side) { const at = ld.at ?? 1, o2 = { n: [at, -1.2], s: [at, d + 1.2], w: [-1.2, at], e: [bw + 1.2, at] }[ld.side]; C.doorPts.push(w.local(bb, o2[0], o2[1])); }
@@ -720,9 +727,9 @@ function terrain(C) {
   for (const r of CREST_ROADS) w.path(LP(r), 5, 'concrete');
   w.path(HIGHWAY, 8, 'asphalt'); w.path(LP([[175, -206], [186, -206]]), 8, 'asphalt'); w.path(LP([[-268, -195], [-250, -195]]), 9, 'asphalt');
   // concrete walls on every sheer drop along the dam / deck edges, and inside the turbine shafts
-  frameWalls(C, DAM, [...DAM_HIGH, DECK_RECTS[0]], {});
+  frameWalls(C, DAM, [...DAM_HIGH, DECK_RECTS[0]], { gap: (u, v) => Math.abs(u - 36) < 2.1 && v > 38 && v < 152 });   // chute service bridges
   frameWalls(C, DAM, DECK_RECTS.slice(1), { parapet: false });     // bridge abutments: no lip where the bridge deck continues
-  frameWalls(C, DAM, PITS, { inward: true });
+  frameWalls(C, DAM, PITS, { inward: true, gap: (u, v) => Math.abs(v + 129) < 2.0 });                   // turbine-shaft catwalks
 }
 
 // Walls along the edges of turned rects wherever the ground just outside drops more than 2.2 m below the
@@ -749,7 +756,7 @@ function frameWalls(C, G, rects, o = {}) {
       for (let i = 0; i < n; i++) {
         const t = (i + 0.5) * stp, px = ax + ux * t, pz = az + uz * t;
         const top = w.groundAt(...GW(G, px - nx * 2.0, pz - nz * 2.0)), low = w.groundAt(...GW(G, px + nx * 1.9, pz + nz * 1.9));
-        const ok = top - low > DROP;
+        const ok = top - low > DROP && !(o.gap && o.gap(px, pz));      // gaps: where catwalks / bridges cross the edge
         if (ok && run && t - run.a < PIECE && Math.abs(top - run.top) < 0.6) { run.b = t + stp / 2; run.low = Math.min(run.low, low); }
         else { if (run) emit(run); run = ok ? { a: t - stp / 2, b: t + stp / 2, top, low } : null; }
       }
@@ -878,7 +885,7 @@ function damComplex(C) {
   C.fieldDepot(...L(115, -168), G.a);
   // pits (with a catwalk across them), pipe racks, cranes, tanks, parked containers
   for (const [a, b, c, d] of PITS) { beacon(a - 1.5, b - 1.5); beacon(c + 1.5, d + 1.5); }
-  w.bridge([L(-36, -129), L(74, -129)], 2.2, HIGH + 0.02, 'metalPanel', { pillars: 0, thick: 0.4 });       // service catwalk over the turbine shafts
+  for (const [a, , c] of PITS) w.bridge([L(a - 1.6, -129), L(c + 1.6, -129)], 3.0, HIGH + 0.02, 'metalPanel', { pillars: 0, thick: 0.4 });   // service catwalks over the turbine shafts
   for (let v = -150; v < -120; v += 8) P('dg_bigpipe', -36, v, PI / 2, { solid: true, scale: 0.8 });
   for (let u = 86; u < 136; u += 8) P('dg_bigpipe', u, -170, 0, { solid: true, scale: 0.7 });
   P('dg_crane', 20, -124, 0.6, { solid: true }); C.mastLight(...L(20, -124), 22);
@@ -893,7 +900,7 @@ function damComplex(C) {
     inner: [[0, 15, 50, 15, [{ at: 4.5, w: 2, door: true }, { at: 24, w: 2.4, door: true, locked: 'controlled_access_zone' }, { at: 43.5, w: 2, door: true }]],
       [13, 0, 13, 15, []], [37, 0, 37, 15, []], [0, 27, 50, 27, [{ at: 8, w: 2.4 }, { at: 39.6, w: 2.4 }]],
       [13, 0, 13, 15, [{ at: 6, w: 1.6 }], 1], [37, 0, 37, 15, [{ at: 6, w: 1.6 }], 1], [0, 15, 50, 15, [{ at: 6, w: 2 }, { at: 24, w: 2.4 }, { at: 42, w: 2 }], 1]],
-    stairs: [{ x: 18, z: 24.8, w: 1.4, dir: 'e', from: 0, to: 1 }],
+    stairs: [{ x: 18, z: 24.4, w: 1.8, dir: 'e', from: 0, to: 1 }],
     roofExtras: [[4, 4, 10, 10, 1.4], [40, 20, 46, 30, 1.0]] });
   C.F(caz, 'storage', 0, 0, 13, 15, { tier: 2, extra: [['crate', 1]] });
   C.P(caz, 'barrelBlue', 4, 4, 0, { solid: true });                                         // fuel cell
@@ -927,17 +934,32 @@ function damComplex(C) {
   C.F(pp, 'control', 11, 0, 20, 18, { tier: 2 });
   C.F(pp, 'storage', 0, 0, 11, 18, { tier: 1, storey: 1 }); C.F(pp, 'control', 11, 0, 20, 18, { tier: 2, storey: 1 });
   // catwalks: a lower ring at the pumphouse's first floor (bridge from its east door), an upper ring by ladder
-  const ring = (y, rad, rails = () => true) => {
+  // catwalk decks have no engine rails (they would cross at the octagon's corners); outer rails are short blocks
+  const T0 = L(...TC);
+  const rail = (ax, az, bx, bz, off, y, trim0 = 0.5, trim1 = 0.5) => {
+    const Ls = Math.hypot(bx - ax, bz - az), a = Math.atan2(bz - az, bx - ax), cx = (ax + bx) / 2, cz = (az + bz) / 2;
+    w.block(cx - Ls / 2 + trim0, cz + off - 0.1, cx + Ls / 2 - trim1, cz + off + 0.1, 1.0, 'rust', { y0: y, R: rotFrame(cx, cz, a), xray: false });
+  };
+  const outSide = (ax, az, bx, bz) => { const a = Math.atan2(bz - az, bx - ax); return ((ax + bx) / 2 - T0[0]) * -Math.sin(a) + ((az + bz) / 2 - T0[1]) * Math.cos(a) > 0 ? 1 : -1; };
+  const ring = (y, rad, skip = -1) => {
     const pts = Array.from({ length: 9 }, (_, i) => L(TC[0] + Math.cos(i / 8 * 2 * PI + PI / 8) * rad, TC[1] + Math.sin(i / 8 * 2 * PI + PI / 8) * rad));
-    for (let i = 0; i < 8; i++) w.bridge([pts[i], pts[i + 1]], 1.6, y, 'metalPanel', { pillars: 0, thick: 0.35, rails: rails(i) });
+    for (let i = 0; i < 8; i++) {
+      w.bridge([pts[i], pts[i + 1]], 2.6, y, 'metalPanel', { pillars: 0, thick: 0.35, rails: false });
+      if (i !== skip) rail(...pts[i], ...pts[i + 1], outSide(...pts[i], ...pts[i + 1]) * 1.18, y);
+      const [vx, vz] = pts[i];                                                     // corner plate (fills the mitre wedge)
+      w.block(vx - 1.3, vz - 1.3, vx + 1.3, vz + 1.3, 0.35, 'metalPanel', { y0: y - 0.35, R: rotFrame(vx, vz, Math.atan2(vz - T0[1], vx - T0[0])), xray: true, bridge: true });
+    }
     return pts;
   };
   const yLo = HIGH + 3.2, yHi = HIGH + 9.2, door = [48.2, -95];
   const ang = Math.atan2(door[1] - TC[1], door[0] - TC[0]), seg = Math.floor((((ang - PI / 8) / (2 * PI) * 8) % 8 + 8) % 8);
-  ring(yLo, 5.2, (i) => i !== seg); ring(yHi, 5.2);
-  w.bridge([L(...door), L(TC[0] + Math.cos(ang) * 5.0, TC[1] + Math.sin(ang) * 5.0)], 1.8, yLo, 'metalPanel', { pillars: 0, thick: 0.35 });
-  { const a = ang + PI, [bx, bz] = L(TC[0] + Math.cos(a) * 6.9, TC[1] + Math.sin(a) * 6.9), [tx, tz] = L(TC[0] + Math.cos(a) * 5.2, TC[1] + Math.sin(a) * 5.2); w.ladder(bx, bz, null, tx, tz, yLo, -Math.atan2(tx - bx, tz - bz)); }
-  { const a = ang + PI / 2, [x, z] = L(TC[0] + Math.cos(a) * 5.2, TC[1] + Math.sin(a) * 5.2); w.ladder(x, z, yLo, x, z, yHi, a); }
+  const RR = 6.0;                                                                // ring radius (clear of the tower's corners)
+  ring(yLo, RR, seg); ring(yHi, RR);
+  { const [ax, az] = L(...door), [bx, bz] = L(TC[0] + Math.cos(ang) * (RR - 0.2), TC[1] + Math.sin(ang) * (RR - 0.2));
+    w.bridge([[ax, az], [bx, bz]], 2.6, yLo, 'metalPanel', { pillars: 0, thick: 0.35, rails: false });
+    for (const sg of [-1, 1]) rail(ax, az, bx, bz, sg * 1.18, yLo, 0.3, 2.4); }
+  { const a = ang + PI, [bx, bz] = L(TC[0] + Math.cos(a) * (RR + 2.0), TC[1] + Math.sin(a) * (RR + 2.0)), [tx, tz] = L(TC[0] + Math.cos(a) * RR, TC[1] + Math.sin(a) * RR); w.ladder(bx, bz, null, tx, tz, yLo, -Math.atan2(tx - bx, tz - bz)); }
+  { const a = ang + PI / 2, [x, z] = L(TC[0] + Math.cos(a) * RR, TC[1] + Math.sin(a) * RR); w.ladder(x, z, yLo, x, z, yHi, a); }
   for (const [u, v, r] of [[74, -100, PI / 2], [74, -70, PI / 2], [50, -60, 0], [92, -100, 0], [92, -90, 0]]) P('dg_bigpipe', u, v, r, { solid: true });   // penstocks + racks
   P('dg_scaffold', 54, -101, 0, { solid: true });
   flood(80, -110); flood(30, -58); beacon(81, -56); beacon(81, -110);
@@ -972,14 +994,14 @@ function damComplex(C) {
     C.clutter(...L(44, c), 10, 3, ['debris', 'dg_rubble', 'barrel'], { sz: 0.3, avoid: (x, z) => { const [u, v] = toL(x, z); return Math.abs(v - c) > 3 || u < 39; } });
   });
   // service bridge over the chute heads, resting on the piers: walk along it, or under it down the chutes
-  w.bridge([L(36, 42), L(36, 150)], 2.4, HIGH + 0.02, 'metalPanel', { pillars: 0, thick: 0.45 });
+  for (const c of CHUTES) w.bridge([L(36, c - 5.6), L(36, c + 5.6)], 3.2, HIGH + 0.02, 'metalPanel', { pillars: 0, thick: 0.45 });
   for (let v = 42; v < 150; v += 4) P('dg_rail', 11.5, v + 2, 0, {});
   for (const u of [24, 44, 52]) beacon(u, 151);
   const fc = C.B.fc = C.dbld({ u: -28, v: 46, w: 22, d: 16, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Floodgate Control', floor: 'metalPanel', tint: 0xe8e0d0,
     doors: [{ side: 's', at: 3, w: 2.2, door: true }, { side: 'e', at: 9, w: 2, door: true }, { side: 'n', at: 4, w: 3, sill: 1.1 }, { side: 'n', at: 14, w: 3, sill: 1.1 }, { side: 'w', at: 6, w: 3, sill: 1.1 },
       { side: 'e', at: 3, w: 3, sill: 1.0, storey: 1 }, { side: 'e', at: 10, w: 4, sill: 1.0, storey: 1 }],
     inner: [[12, 0, 12, 16, [{ at: 9, w: 1.8 }]]],
-    stairs: [{ x: 19.8, z: 1.4, w: 1.4, dir: 's', from: 0, to: 1 }], ladders: [{ side: 'n', at: 9 }] });
+    stairs: [{ x: 19.4, z: 1.8, w: 1.8, dir: 's', from: 0, to: 1 }], ladders: [{ side: 'n', at: 9 }] });
   C.F(fc, 'control', 0, 0, 12, 16, { tier: 2 }); C.F(fc, 'office', 12, 0, 22, 16, { tier: 2 });
   C.F(fc, 'control', 0, 0, 22, 16, { tier: 2, storey: 1, extra: [['electronics', 1]] });
   const fm = C.dbld({ u: -28, v: 72, w: 16, d: 12, floorY: HIGH, blend: 0.5, name: 'Floodgate Maintenance', roof: 'corrugated', floor: 'concrete',
@@ -1174,7 +1196,7 @@ function northPOIs(C) {
   const rg = C.gbld(RU, { x: 368, z: 98, w: 20, d: 14, storeys: 2, wall: 'plaster', tint: 0xe0d0c0, floor: 'tiles', roof: 'roofTile', roofShape: 'gable', name: 'Rubie Guesthouse',
     doors: [{ side: 's', at: 4, w: 1.8, door: true }, { side: 'n', at: 12, w: 1.6, door: true }, { side: 's', at: 12, w: 2.4, sill: 0.9 }],
     inner: [[10, 0, 10, 14, [{ at: 6, w: 1.6 }]], [10, 0, 10, 14, [{ at: 6, w: 1.6 }], 1]],
-    stairs: [{ x: 2, z: 0.8, w: 1.6, dir: 'e', from: 0, to: 1 }] });
+    stairs: [{ x: 2, z: 0.8, w: 2.4, dir: 'e', from: 0, to: 1 }] });
   C.F(rg, 'kitchen', 0, 0, 10, 14, { tier: 1 }); C.F(rg, 'bedroom', 10, 0, 20, 14, { tier: 2 });
   C.F(rg, 'living', 0, 0, 10, 14, { tier: 1, storey: 1 }); C.F(rg, 'bedroom', 10, 0, 20, 14, { tier: 2, storey: 1 });
   const inRU = (x, z) => { const [X, Z] = GL(RU, x, z); return X > 350 && X < 390 && Z > 52 && Z < 88; };
@@ -1189,12 +1211,12 @@ function westPOIs(C) {
   const { w, R, rng } = C;
   // ---------------- Pale Apartments (-15°): A = 3 storeys (common stairwell in the middle flat, roof ladder), B = 3 storeys, C = 2 storeys (shop below)
   const PA = G_PALE;
-  const flatWalls = (k) => [[10, 0, 10, 14, [{ at: 9.5, w: 1.6 }], k], [20, 0, 20, 14, [{ at: 9.5, w: 1.6 }], k],
-    [0, 7, 10, 7, [{ at: 6, w: 1.6 }], k], [10, 7, 20, 7, [{ at: 0.3, w: 1.6 }], k], [20, 7, 30, 7, [{ at: 6, w: 1.6 }], k]];
+  const flatWalls = (k) => [[10, 0, 10, 14, [{ at: 11, w: 1.6 }], k], [20, 0, 20, 14, [{ at: 11, w: 1.6 }], k],
+    [0, 7, 10, 7, [{ at: 6, w: 1.6 }], k], [10, 7, 20, 7, [{ at: k === 1 ? 8 : 0.3, w: 1.6 }], k], [20, 7, 30, 7, [{ at: 6, w: 1.6 }], k]];
   const paA = C.B.pale = C.gbld(PA, { x: 250, z: 146, w: 30, d: 14, storeys: 3, wall: 'plaster', tint: 0xd8d4c8, floor: 'wood', roof: 'roofTar', name: 'Pale Apartments A',
     doors: [{ side: 's', at: 4, w: 1.6, door: true }, { side: 's', at: 14, w: 1.6, door: true }, { side: 's', at: 24, w: 1.6, door: true }, { side: 'n', at: 3, w: 2.2, sill: 1 }, { side: 'n', at: 13, w: 2.2, sill: 1 }, { side: 'n', at: 23, w: 2.2, sill: 1 }, { side: 'w', at: 5, w: 2, sill: 1 }],
     inner: [[10, 0, 10, 14, []], [20, 0, 20, 14, []], [0, 7, 10, 7, [{ at: 6, w: 1.6 }]], [10, 7, 20, 7, [{ at: 2, w: 1.6 }]], [20, 7, 30, 7, [{ at: 6, w: 1.6 }]], ...flatWalls(1), ...flatWalls(2)],
-    stairs: [{ x: 11.3, z: 0.8, w: 1.6, dir: 'e', from: 0, to: 1 }, { x: 13.3, z: 4.4, w: 1.6, dir: 'w', from: 1, to: 2 }], ladders: [{ side: 'n', at: 27 }] });
+    stairs: [{ x: 11.3, z: 0.8, w: 1.8, dir: 'e', from: 0, to: 1 }, { x: 13.3, z: 8.0, w: 2.2, dir: 'w', from: 1, to: 2 }], ladders: [{ side: 'n', at: 27 }] });
   for (let k = 0; k < 3; k++) for (let u = 0; u < 3; u++) {
     C.F(paA, u === 1 ? 'kitchen' : 'bedroom', u * 10, 0, u * 10 + 10, 7, { tier: 1, storey: k, mul: k ? 0.8 : 1 });
     C.F(paA, 'living', u * 10, 7, u * 10 + 10, 14, { tier: u === 2 || k === 2 ? 2 : 1, storey: k, mul: k ? 0.8 : 1 });
@@ -1203,7 +1225,7 @@ function westPOIs(C) {
     doors: [{ side: 'n', at: 5, w: 1.6, door: true }, { side: 'n', at: 18, w: 1.6, door: true }, { side: 's', at: 4, w: 2.2, sill: 1 }, { side: 's', at: 18, w: 2.2, sill: 1 }, { side: 'e', at: 6, w: 2, sill: 1 }],
     inner: [[13, 0, 13, 14, []], [0, 7, 13, 7, [{ at: 9, w: 1.6 }]], [13, 7, 26, 7, [{ at: 2, w: 1.6 }]],
       ...[1, 2].flatMap(k => [[13, 0, 13, 14, [{ at: 10, w: 1.6 }], k], [0, 7, 13, 7, [{ at: 9, w: 1.6 }], k], [13, 7, 26, 7, [{ at: 4, w: 1.6 }], k]])],
-    stairs: [{ x: 6.4, z: 0.8, w: 1.6, dir: 'e', from: 0, to: 1 }, { x: 1.6, z: 4.4, w: 1.6, dir: 'e', from: 1, to: 2 }] });
+    stairs: [{ x: 6.2, z: 0.6, w: 2.2, dir: 'e', from: 0, to: 1 }, { x: 1.6, z: 4.6, w: 1.8, dir: 'e', from: 1, to: 2 }] });
   C.F(paB, 'living', 0, 0, 13, 7, { tier: 1 }); C.F(paB, 'bedroom', 0, 7, 13, 14, { tier: 2 });
   C.F(paB, 'kitchen', 13, 0, 26, 7, { tier: 1 }); C.F(paB, 'bunk', 13, 7, 26, 14, { tier: 1 });
   for (const k of [1, 2]) { C.F(paB, 'living', 0, 0, 13, 7, { tier: 1, storey: k, mul: 0.7 }); C.F(paB, 'bedroom', 0, 7, 13, 14, { tier: k, storey: k }); C.F(paB, 'bedroom', 13, 0, 26, 14, { tier: 1, storey: k }); }
@@ -1306,7 +1328,7 @@ function westPOIs(C) {
     doors: [{ side: 'e', at: 26, w: 2.4, door: true }, { side: 's', at: 22, w: 2, door: true }, { side: 'n', at: 14, w: 3 }, { side: 'e', at: 8, w: 3, sill: 1.1 }, { side: 'w', at: 10, w: 3, sill: 1.1 }, { side: 'w', at: 26, w: 3, sill: 1.1 }, { side: 'e', at: 36, w: 3, sill: 1.1 }],
     inner: [[0, 20, 32, 20, [{ at: 14, w: 2.4 }]], [0, 32, 32, 32, [{ at: 6, w: 1.8, door: true, locked: 'surveillance' }, { at: 24, w: 1.8 }]], [16, 32, 16, 44, []],
       [0, 20, 32, 20, [{ at: 10, w: 2 }], 1], [0, 32, 32, 32, [{ at: 8, w: 1.8 }, { at: 26, w: 1.8 }], 1], [16, 32, 16, 44, [{ at: 6, w: 1.6 }], 1]],
-    stairs: [{ x: 20, z: 20.75, w: 1.6, dir: 'e', from: 0, to: 1 }], ladders: [{ side: 'e', at: 4 }] });
+    stairs: [{ x: 20, z: 20.75, w: 2.4, dir: 'e', from: 0, to: 1 }], ladders: [{ side: 'e', at: 4 }] });
   for (const lx of [5, 11, 17]) C.P(wtc, 'dg_pump', lx, 6, PI / 2, { solid: true });
   C.P(wtc, 'dg_valve', 28, 13, 0, { solid: true }); C.P(wtc, 'dg_bigpipe', 12, 17.5, 0, { solid: true, scale: 0.6 });
   C.Cn(wtc, 'toolbox', 4, 18, 0, { tier: 2 }); C.Cn(wtc, 'crate', 30, 2, 0, { tier: 1 }); C.Cn(wtc, 'locker', 2, 12, PI / 2, { tier: 1 });
@@ -1347,7 +1369,7 @@ function westPOIs(C) {
   w.raiseCircle(493, 522, 15, MID - 1.4, 0.15, 'set');
   w.waterPoly(Array.from({ length: 20 }, (_, i) => [493 + Math.cos(i / 20 * 2 * PI) * 15.5, 522 + Math.sin(i / 20 * 2 * PI) * 15.5]), { level: MID - 0.45, material: C.swampMat });
   C.ring(493, 522, 16.2, 1.0, 'concrete', [0, PI], 1.6);
-  w.bridge([[474.5, 522], [511.5, 522]], 1.6, MID + 0.4, 'metalPanel', { pillars: 0, thick: 0.3 });     // the skimmer bridge across the tank (walkable)
+  w.bridge([[474.5, 522], [511.5, 522]], 3.0, MID + 0.4, 'metalPanel', { pillars: 0, thick: 0.3 });     // the skimmer bridge across the tank (walkable)
   w.prop('dg_valve', 493, 520.4, 0, { yAbs: MID + 0.4 });
   C.addClear(493, 522, 19);
   // ---------------- South Swamp Outpost
@@ -1396,7 +1418,7 @@ function southPOIs(C) {
   const sc = C.B.sub = C.gbld(SS, { x: 370, z: 550, w: 18, d: 16, storeys: 2, name: 'Substation Control', tint: 0xd0ccc0, floor: 'tiles', floorY: MID + 0.2, blend: 2,
     doors: [{ side: 'w', at: 10, w: 2, door: true }, { side: 's', at: 12, w: 2.4, door: true }, { side: 'n', at: 6, w: 3, sill: 1.1 }, { side: 'e', at: 6, w: 3, sill: 1.1 }],
     inner: [[9, 0, 9, 16, [{ at: 10, w: 1.8 }]], [9, 8, 18, 8, [{ at: 4, w: 1.6 }]], [9, 0, 9, 16, [{ at: 4, w: 1.6 }], 1]],
-    stairs: [{ x: 0.75, z: 1.6, w: 1.8, dir: 's', from: 0, to: 1 }], ladders: [{ side: 'e', at: 13 }] });
+    stairs: [{ x: 0.75, z: 2.0, w: 2.4, dir: 's', from: 0, to: 1 }], ladders: [{ side: 'e', at: 13 }] });
   C.F(sc, 'control', 0, 0, 9, 16, { tier: 2 }); C.F(sc, 'server', 9, 0, 18, 8, { tier: 2 }); C.F(sc, 'workshop', 9, 8, 18, 16, { tier: 1 });
   C.F(sc, 'office', 0, 0, 9, 16, { tier: 1, storey: 1 }); C.F(sc, 'server', 9, 0, 18, 16, { tier: 2, storey: 1 });
   const sh = C.gbld(SS, { x: 392, z: 556, w: 8, d: 7, wall: 'brick', roof: 'corrugated', name: 'Switch Hut', floor: 'concrete', floorY: MID + 0.2, blend: 1.5, doors: [{ side: 's', at: 3, w: 1.6, door: true }] });
@@ -1535,7 +1557,7 @@ function eastPOIs(C) {
   const ph = C.B.pump = C.gbld(PH, { x: 892, z: 290, w: 22, d: 14, storeys: 2, name: 'Pump House', wall: 'brick', tint: 0xc0b0a0, floor: 'concrete', roof: 'corrugated', floorY: LOW + 0.7, blend: 1.5,
     doors: [{ side: 'w', at: 8, w: 2.4, door: true }, { side: 's', at: 16, w: 2, door: true }, { side: 'n', at: 4, w: 3, sill: 1.1 }],
     inner: [[13, 0, 13, 14, [{ at: 9, w: 1.8 }]], [13, 0, 13, 14, [{ at: 9, w: 1.8 }], 1]],
-    stairs: [{ x: 19.4, z: 1.6, w: 1.8, dir: 's', from: 0, to: 1 }], ladders: [{ side: 'n', at: 6 }] });
+    stairs: [{ x: 19.4, z: 1.9, w: 1.8, dir: 's', from: 0, to: 1 }], ladders: [{ side: 'n', at: 6 }] });
   for (const lx of [5, 10]) C.P(ph, 'dg_pump', lx, 4, 0, { solid: true });
   C.Cn(ph, 'toolbox', 4, 12, 0, { tier: 2 }); C.Cn(ph, 'crate', 11, 12, 0, { tier: 1 });
   C.IL(ph, 7, 7, 0xffd090, 1.0, 9);
@@ -1724,7 +1746,7 @@ function arkSpawns(C) {
     const bb = B[k]; if (!bb) continue;
     const [x, z, o] = onRoof(bb, lx, lz); A('turret', x, z, o);
   }
-  A('turret', ...L(62 + 5.2 * Math.cos(PI / 8), -84 + 5.2 * Math.sin(PI / 8)), { radius: 0, yAbs: HIGH + 9.2 });   // Pipeline Tower upper catwalk
+  A('turret', ...L(62 + 6.0 * Math.cos(PI / 8), -84 + 6.0 * Math.sin(PI / 8)), { radius: 0, yAbs: HIGH + 9.2 });   // Pipeline Tower upper catwalk
   // Wasps on patrol loops
   const loops = [
     [[200, 260], [300, 240], [320, 320], [230, 360]], [[360, 300], [450, 280], [470, 360], [380, 380]], [[220, 420], [320, 430], [330, 500], [240, 510]],

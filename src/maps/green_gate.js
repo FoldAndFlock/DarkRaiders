@@ -665,8 +665,12 @@ export default {
       // reference Sentinel icon east of the Headhouse: a lookout tower standing on the Maintenance Hall lid, beside a
       // small concrete pump hut (solid, on the lid)
       perchTower(774, 193, 'sentinel', 'gg_perchtower', faceTo(774, 193, 746, 289), BENCH_Y);
-      { const HR2 = rotFrame(768, 206, -0.5); w.block(763.5, 202.5, 772.5, 209.5, 3.0, 'concrete', { y0: BENCH_Y - 0.1, R: HR2, tint: 0xd8d8d0 });
-        w.block(763.2, 202.2, 772.8, 209.8, 0.25, 'roofTar', { y0: BENCH_Y + 2.9, R: HR2, collide: false }); w.prop('gg_pipes', 767, 211.6, -0.5, { yAbs: BENCH_Y, solid: true }); }
+      // the engine's sight rays sample one height per 0.5 m cell, so a steep look-down can slip through a 0.3 m lid: thicken
+      // the lid (invisible, 2.3 m headroom left) under the deck so the tower can't see the hall floor right beneath it
+      w.block(769.5, 188.1, 778.5, 197.1, 1.7, 'concrete', { y0: 7.5, nodraw: true });
+      w.block(771.5, 190.1, 776.5, 195.1, UNDER - 0.3, 'damConcrete', { y0: TUN_Y, cutaway: true, seed: 6 });   // the tower's foundation pier in the hall below
+      { const HR2 = rotFrame(768, 206, -0.5); w.block(763.5, 202.5, 772.5, 209.5, 3.0, 'concrete', { y0: BENCH_Y - 0.1, R: HR2, tint: 0xd8d8d0, cutaway: true });
+        w.block(763.2, 202.2, 772.8, 209.8, 0.25, 'roofTar', { y0: BENCH_Y + 2.9, R: HR2, collide: false, cutaway: true }); w.prop('gg_pipes', 767, 211.6, -0.5, { yAbs: BENCH_Y, solid: true }); }
       perchTower(745, 344, 'turret', 'gg_perchtower_w', faceTo(745, 344, 760, 420));      // the white lookout tower south of the Warehouse (quest)
       for (const [a, b] of [[166, 72], [196, 112], [120, 128], [84, 62]]) lightPost(...cp(a, b), 0xe8f4ff, 'gg_lightmast', 6.5, 2.6, 21);
       for (const [a, b, k, r] of [[188, 74, 'gg_container3', PI / 4], [196, 124, 'gg_container', -PI / 4], [176, 84, 'gg_truck', PI / 4 + 0.2], [130, 130, 'gg_crates', 0], [184, 96, 'gg_pallet', 0]]) w.prop(k, ...cp(a, b), r, { solid: true });
@@ -703,20 +707,22 @@ export default {
       for (const [lx, lz] of [[12, 12], [24, 12], [12, 24], [24, 24]]) w.prop('gg_fan', 658 + lx, 172 + lz, lx < 18 ? PI / 2 : -PI / 2, { solid: true });
       w.prop('gg_pipes', 676, 178.5, 0, { solid: true }); w.prop('gg_generator', 676, 202, 0, { solid: true }); w.prop('gg_transformer', 688, 190, PI / 2, { solid: true });
       for (const [x, z, k] of [[662, 190, 'toolbox'], [690, 184, 'toolbox'], [676, 184, 'arc_crate'], [668, 205, 'crate'], [690, 197, 'electronics']]) w.container(k, x, z, 0, { tier: 2, poi: 'headhouse' });
-      w.container('raider_cache', 676, 190, 0, { tier: 3, poi: 'headhouse' });
-      w.lamp(676, 190, { y: 2.8, model: null, color: 0xc8e0ff, intensity: 1.5, range: 16 });
+      w.container('raider_cache', 676, 194.2, 0, { tier: 3, poi: 'headhouse' });
+      w.lamp(676, 195.6, { y: 2.8, model: null, color: 0xc8e0ff, intensity: 1.5, range: 16 }); w.lamp(676, 184.4, { y: 2.8, model: null, color: 0xc8e0ff, intensity: 1.2, range: 12 });
       // the drum: a 3.35 m concrete collar on the bench whose top is flush with the hall roof (12.75 m); stairs up its south side
       const skip = (x, z) => (x > 658 && x < 694 && z > 172 && z < 208) || (x > 644.5 && x < 658.5 && z > 183.5 && z < 196.5) || (x > 669.4 && x < 682.6 && z > 200);
       for (let z = HC[1] - HR; z < HC[1] + HR; z++) {
         const hw = Math.sqrt(Math.max(0, HR * HR - (z + 0.5 - HC[1]) ** 2)); if (hw < 0.5) continue;
         let x0 = Math.round(HC[0] - hw), x1 = Math.round(HC[0] + hw), cur = null;
-        for (let x = x0; x <= x1; x++) { const s2 = x < x1 && !skip(x + 0.5, z + 0.5); if (s2 && cur == null) cur = x; if ((!s2 || x === x1) && cur != null) { w.block(cur, z, x, z + 1, 3.35, 'damConcrete', { y0: BENCH_Y - 0.1, seed: 4 }); cur = null; } }
+        for (let x = x0; x <= x1; x++) { const s2 = x < x1 && !skip(x + 0.5, z + 0.5); if (s2 && cur == null) cur = x; if ((!s2 || x === x1) && cur != null) { w.block(cur, z, x, z + 1, 3.35, 'damConcrete', { y0: BENCH_Y - 0.1, seed: 4, cutaway: true }); cur = null; } }
       }
       for (const [a, b, c, d] of [[657.3, 171.3, 694.7, 171.8], [657.3, 208.2, 669.4, 208.7], [682.6, 208.2, 687.6, 208.7], [657.3, 171.3, 657.8, 184], [657.3, 196, 657.8, 208.7], [694.2, 171.3, 694.7, 208.7]])
-        w.block(a, b, c, d, 0.9, 'rust', { y0: BENCH_Y + 3.25, xray: false });
-      for (let k = 0; k < 8; k++) w.block(689.6, 216.5 - (k + 1) * 0.72, 693.6, 216.5 - k * 0.72, 0.42 * (k + 1), 'damConcrete', { y0: BENCH_Y - 0.1 });
+        w.block(a, b, c, d, 0.9, 'rust', { y0: BENCH_Y + 3.25, xray: false, cutaway: true });
+      for (let k = 0; k < 8; k++) w.block(689.6, 216.5 - (k + 1) * 0.72, 693.6, 216.5 - k * 0.72, 0.42 * (k + 1), 'damConcrete', { y0: BENCH_Y - 0.1, cutaway: true });
       w.ramp(669.6, 208.6, 682.4, 226, TUN_Y, BENCH_Y, 'z'); w.paint('concrete', 669, 208, 683, 226);
       // reference Sentinel icon: on the roof hub (13.65 m). Roofs block line of sight, so it can't see into the hall below.
+      w.block(671.5, 185.5, 680.5, 194.5, 2.0, 'metalPanel', { y0: TUN_Y + 5.5, nodraw: true });   // thickened roof under the hub (see the Maintenance Hall tower)
+      w.block(673.5, 187.5, 678.5, 192.5, UNDER + 3 - 0.25, 'damConcrete', { y0: TUN_Y, cutaway: true, seed: 6 });   // central duct column carrying the hub
       perched('sentinel', 676, 190, 'headhouse_roof', 0, { yAbs: TUN_Y + UNDER + 3 + 0.25 + 0.9, f: faceTo(676, 190, 636, 258) });
       w.arkSpawn('pop', 676, 186, { count: 2, habitat: 'indoor' });
       w.poi('headhouse', 'Headhouse', 676, 190, 32, { tier: 2, aliases: ['headhouse'] });
@@ -786,7 +792,7 @@ export default {
 
       // ---------------------------------------------------------------- Security Wing (gate frame a 50-84, b -100..-58), yard door + stair up into the guard post
       const SW = gfDef(50, 84, -100, -58, { ...UND, name: 'Security Wing', floor: 'metalPanel', roofExtras: grates(34, 'x', 42),
-        doors: [{ side: 's', at: 6, w: 22, lintel: false }],
+        doors: [{ side: 's', at: 6, w: 22, lintel: false }, { side: 'w', at: 1.2, w: 2.6 }],
         inner: [[24, 1, 24, 12, [{ at: 3, w: 2, door: true, locked: 'confiscation_room' }]], [24, 12, 33, 12, []],
           [8, 4, 8, 40, [{ at: 2, w: 1.6, door: true }, { at: 11, w: 1.6, door: true }, { at: 20, w: 1.6, door: true }, { at: 29, w: 1.6, door: true }]],
           [1, 4, 8, 4, []], [1, 13, 8, 13, []], [1, 22, 8, 22, []], [1, 31, 8, 31, []], [1, 40, 8, 40, []],
@@ -802,7 +808,26 @@ export default {
       for (const [lx, lz] of [[16, 12], [16, 30], [30, 20]]) tlampL(SW, lx, lz);
       w.arkSpawn('tick', ...worldOf(SW, 16, 22), { count: 2, habitat: 'indoor' }); w.arkSpawn('pop', ...worldOf(SW, 18, 36), { count: 2, habitat: 'indoor' });
       w.arkSpawn('turret', ...worldOf(SW, 20, 6), { habitat: 'indoor', f: faceTo(...worldOf(SW, 20, 6), ...worldOf(SW, 17, 42)) });
-      w.poi('security_wing', 'Security Wing', ...worldOf(SW, 17, 21), 26, { tier: 3, aliases: ['security_wing'], underground: true });
+      // the wing's west block: the reference outline runs on ~30 m toward the gate. Processing rooms, an armoury and an
+      // emergency stair to the bench; joined to the cell corridor through the shared wall (cut through both earth walls)
+      const SWA = gfDef(22, 50, -100, -58, { ...UND, name: 'Security Wing Processing', floor: 'metalPanel', roofExtras: grates(28, 'x', 42),
+        doors: [{ side: 'e', at: 1.2, w: 2.6 }],
+        inner: [[1, 14, 14, 14, [{ at: 5, w: 2 }]], [14, 1, 14, 28, [{ at: 6, w: 2 }, { at: 20, w: 2 }]], [1, 28, 27, 28, [{ at: 4, w: 2.4 }, { at: 14, w: 3 }]],
+          [20, 28, 20, 41, [{ at: 4, w: 1.6, door: true }]]],
+        stairs: [stTop(0.8, 34, 'w')] });
+      hall(SWA);
+      cut([cp(48.8, -98.9), cp(51.2, -98.9), cp(51.2, -96.1), cp(48.8, -96.1)]);
+      pl(SWA, 'gg_table', 7, 7, 0); pl(SWA, 'gg_chair', 5.8, 7, PI / 2, {}); pl(SWA, 'gg_chair', 8.2, 7, -PI / 2, {}); pl(SWA, 'gg_console', 2.4, 3, PI / 2);   // interrogation
+      for (const lz of [16.5, 19.5, 22.5, 25.5]) pl(SWA, 'shelf', 2.2, lz, PI / 2);                                                                // records
+      for (const [lx, lz] of [[18, 6], [23, 6], [18, 14], [23, 14], [18, 22], [23, 22]]) pl(SWA, 'gg_desk', lx, lz, 0);                           // processing
+      pl(SWA, 'gg_lockers', 26.2, 10, -PI / 2); pl(SWA, 'gg_lockers', 26.2, 18, -PI / 2);
+      for (const lz of [31, 34, 37]) pl(SWA, 'gg_lockers', 26.2, lz, -PI / 2);                                                                    // armoury
+      for (const lx of [10, 14]) pl(SWA, 'gg_bench', lx, 39.6, 0);
+      for (const [lx, lz, k, t] of [[3, 12.4, 'desk', 2], [12.4, 2.4, 'cabinet', 2], [2.4, 18, 'cabinet', 2], [9, 26.4, 'security_locker', 2], [20, 8, 'desk', 2], [16, 26.4, 'electronics', 2],
+        [26, 2.6, 'locker', 2], [22, 39.6, 'weapon_case', 3], [25.6, 39.6, 'ammo_box', 2], [23, 30, 'weapon_case', 2], [12, 31, 'trash', 1]]) ct(SWA, k, lx, lz, { tier: t, poi: 'security_wing' });
+      for (const [lx, lz] of [[7, 7], [7, 21], [20, 10], [20, 22], [10, 35], [23.5, 35]]) tlampL(SWA, lx, lz);
+      w.arkSpawn('tick', ...worldOf(SWA, 20, 16), { count: 2, habitat: 'indoor' }); w.arkSpawn('pop', ...worldOf(SWA, 12, 34), { count: 1, habitat: 'indoor' });
+      w.poi('security_wing', 'Security Wing', ...cp(53, -79), 36, { tier: 3, aliases: ['security_wing'], underground: true });
 
       // ---------------------------------------------------------------- Maintenance Wing (yard -> NE) + Maintenance Hall + south leg
       const MW1 = gfDef(40, 108, 40, 58, { ...UND, name: 'Maintenance Wing', roofExtras: grates(68, 'x', 18), doors: [full('w', 18), full('e', 18)], inner: [[22, 1, 22, 5, []], [22, 13, 22, 17, []], [44, 1, 44, 5, []], [44, 13, 44, 17, []]],
@@ -1384,5 +1409,24 @@ export default {
     // outdoor ARK groups whose anchor lies over an underground hall spawn on the surface (the lid), not in the tunnel
     const inHall = (x, z) => underHalls.some(o => { const [lx, lz] = localOf(o, x, z); return lx > 0 && lz > 0 && lx < o.w && lz < o.d; });
     for (const s of w.arkSpawns) if (!s.habitat && s.y == null && s.yAbs == null && inHall(s.x, s.z)) s.surface = true;
+    // the bench over the halls is broken rock and scrub in the reference: dress the lids (props standing on a lid are
+    // cut away with it while you are inside the hall below). Keep clear of stairwells, grates, buildings and perches.
+    {
+      const keep = [[774, 193, 5], [768, 206, 7], [745, 344, 5], [802, 281, 12], [676, 190, 30], ...w.spawns.map(p => [p.x, p.z, 4]), ...w.extracts.map(e => [e.x, e.z, 8])];
+      const solidB = w.buildings.filter(b => !b.under);
+      const kinds = ['gg_rock_s', 'gg_rock_s', 'gg_rock_m', 'gg_boulder', 'gg_scree', 'gg_bush', 'bush', 'gg_grass', 'gg_grass', 'gg_bush'];
+      for (const o of underHalls) {
+        const holes = [...(o.stairs || []).map(st => stairRect(o, st, 2.5)), ...(o.roofExtras || []).map(([x0, z0, x1, z1]) => [x0 - 1.2, z0 - 1.2, x1 + 1.2, z1 + 1.2])];
+        const n = Math.round(o.w * o.d / 42);
+        for (let i = 0; i < n; i++) {
+          const lx = R(2.5, o.w - 2.5), lz = R(2.5, o.d - 2.5), k = pick(kinds), r = rng() * 6, sc = R(0.6, 1.1);
+          if (holes.some(([x0, z0, x1, z1]) => lx > x0 && lx < x1 && lz > z0 && lz < z1)) continue;
+          const [x, z] = worldOf(o, lx, lz);
+          if (keep.some(([cx, cz, rr]) => Math.hypot(x - cx, z - cz) < rr)) continue;
+          if (solidB.some(b => x > b.ax0 - 2 && x < b.ax1 + 2 && z > b.az0 - 2 && z < b.az1 + 2)) continue;
+          w.prop(k, x, z, r, { surface: true, scale: sc, solid: k.includes('rock') || k === 'gg_boulder' });
+        }
+      }
+    }
   },
 };

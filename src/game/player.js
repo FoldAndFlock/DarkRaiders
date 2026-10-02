@@ -1,6 +1,6 @@
 // Local player controller: movement, aiming, weapons, quick-use, interaction. Client-authoritative
 // for movement; combat outcomes are resolved by the host through the session.
-import { ITEMS, weaponStats, gunModelFor, gunSoundFor, makeStack } from './items.js';
+import { ITEMS, weaponStats, gunModelFor, gunSoundFor, reloadSoundFor, chargeSoundFor, makeStack } from './items.js';
 import { capacities, countLoadout, takeFrom, loadoutWeight, QUICK_TYPES } from './inventory.js';
 import { OBLIQUE_K } from '../engine/renderer.js';
 import { wrapAngle } from './sim.js';
@@ -178,7 +178,7 @@ export class PlayerController {
     if ((w.ammo || 0) >= ws.mag) return;
     if (this.ammoCount(ws.ammo) <= 0) { this.g.hudMsg('NO ' + (ITEMS[ws.ammo]?.name || 'AMMO').toUpperCase(), '#e84a30'); this.g.audio?.play('dry_fire'); return; }
     this.reloadT = (ws.reload || 2.2) / this.stats.reload_speed; this.reloadFor = w.uid;
-    this.g.audio?.play('reload_start', { x: this.e.x, z: this.e.z });
+    this.g.audio?.play(reloadSoundFor(w.id), { x: this.e.x, z: this.e.z });
     this.g.session.noise(6);
   }
   updateWeapon(dt, input) {
@@ -191,7 +191,7 @@ export class PlayerController {
       if (this.reloadT <= 0) {
         const need = ws.mag - (w.ammo || 0);
         const got = takeFrom([this.lo.backpack, this.lo.safe, this.lo.quick], ws.ammo, need);
-        w.ammo = (w.ammo || 0) + got; g.audio?.play('reload_end', { x: e.x, z: e.z }); g.invDirty = true;
+        w.ammo = (w.ammo || 0) + got; g.audio?.play(reloadSoundFor(w.id, 'end'), { x: e.x, z: e.z }); g.invDirty = true;
       }
       return;
     }
@@ -200,7 +200,7 @@ export class PlayerController {
     if (!trig) this.semiLatch = false;
     const auto = ws.mode === 'auto' || ws.mode === 'beam';
     if (ws.mode === 'charge') {
-      if (trig && (w.ammo || 0) > 0) { this.charge = Math.min(1, this.charge + dt / (ws.chargeTime || 1)); if (this.charge > 0.05 && !this.chargeSnd) { this.chargeSnd = true; g.audio?.play('charge_up', { x: e.x, z: e.z }); } return; }
+      if (trig && (w.ammo || 0) > 0) { this.charge = Math.min(1, this.charge + dt / (ws.chargeTime || 1)); if (this.charge > 0.05 && !this.chargeSnd) { this.chargeSnd = true; g.audio?.play(chargeSoundFor(w.id), { x: e.x, z: e.z }); } return; }
       if (!trig && this.charge > 0) { const c = this.charge; this.charge = 0; this.chargeSnd = false; if (c >= 0.99 && this.fireT <= 0) this.shoot(ws, w, 1); }
       return;
     }

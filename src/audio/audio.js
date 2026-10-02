@@ -119,55 +119,78 @@ export class AudioSystem {
     if (!this.ctx) return;
     for (const L of this.loops) if (L.positional) this._updateLoop(L);
   }
-  _spatial(x, z, maxD, occ) {
+  // exp: distance falloff exponent; lpFloor: lowpass at max distance (far layers stay brighter)
+  _spatial(x, z, maxD, occ, exp = 1.7, lpFloor = 700) {
     const dx = x - this.lx, dz = z - this.lz, d = Math.hypot(dx, dz);
     if (!(d < maxD)) return null;
     const k = d / maxD, near = Math.min(1, d / 3);
-    let g = Math.pow(1 - k, 1.7), lp = 700 + 21000 * Math.pow(1 - k, 2.6);
+    let g = Math.pow(1 - k, exp), lp = lpFloor + 21000 * Math.pow(1 - k, 2.6);
     const pan = (dx / (Math.abs(dx) + 6)) * 0.9 * near;
     if (occ) { g *= 0.5; lp = Math.min(lp, 550); }
-    return { g, pan, lp };
+    return { g, pan, lp, d };
   }
 
   // ------------------------------------------------------------------ one-shots
+  // Sounds with a `far` layer (guns) crossfade into a dedicated distant recording-style sample as the
+  // listener gets further away (like the close/mid/far mic layers of the real game), so distant
+  // shots keep their character (boom + rolling tail) instead of turning to mush under the lowpass.
   play(name, o = {}) {
     if (!this.ctx) return NOOP;
     try {
       const def = SFX[name];
       if (!def) return this._unknown(name);
-      const ctx = this.ctx, now = ctx.currentTime;
       const positional = o.x != null && o.z != null;
-      let g = (o.vol ?? 1) * def.vol * (0.92 + Math.random() * 0.16), pan = o.pan ?? 0, lp = 22000;
+      const jit = () => (0.92 + Math.random() * 0.16);
+      let g = (o.vol ?? 1) * def.vol * jit(), pan = o.pan ?? 0, lp = 22000, far = null;
       if (positional) {
-        const s = this._spatial(o.x, o.z, o.dist ?? def.dist, o.occluded);
-        if (!s) return NOOP;
+        const nd = o.dist ?? def.dist;
+        const s = this._spatial(o.x, o.z, nd, o.occluded);
+        const fd = def.far && SFX[def.far];
+        if (fd) {
+          const d = Math.hypot(o.x - this.lx, o.z - this.lz), k = Math.min(1, Math.max(0, (d / nd - 0.18) / 0.32));
+          const w = k * k * (3 - 2 * k);
+          if (w > 0.02) {
+            const fs = this._spatial(o.x, o.z, Math.max(fd.dist, nd * 1.3), o.occluded, 1.15, 1800);
+            if (fs) far = this._voice(def.far, fd, (o.vol ?? 1) * fd.vol * jit() * fs.g * w, fs.pan, fs.lp, o.pitch, o.delay);
+          }
+          if (s) s.g *= 1 - w;
+        }
+        if (!s) return far ? this._handle(far) : NOOP;
         g *= s.g; pan = s.pan; lp = s.lp;
       } else if (o.occluded) lp = 550;
-      if (g < 0.002) return NOOP;
-      if (!this._limit(name, def, now)) return NOOP;
-      const list = this.buffers(name, 1);
-      if (list.length < def.v && !this.queue.includes(name)) { this.queue.push(name); this._prewarm(); }
-      const buf = list[(Math.random() * list.length) | 0];
-      const rate = Math.max(0.05, (o.pitch ?? 1) * (1 + (Math.random() * 2 - 1) * def.pj));
+      if (g < 0.002) return far ? this._handle(far) : NOOP;
       if (def.pj > 0 && lp > 16000) lp = 8000 + Math.random() * 14000;    // timbre jitter
-      const src = ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate;
-      const gn = ctx.createGain(); gn.gain.value = g;
-      let f = null, p = null, head = src;
-      if (lp < 20000) { f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; f.Q.value = 0.4; src.connect(f); head = f; }
-      head.connect(gn);
-      const bus = def.bus === 'ui' ? this.uiBus : this.sfxBus;
-      if (pan) { p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); gn.connect(p); p.connect(bus); } else gn.connect(bus);
-      const start = now + Math.max(0, o.delay || 0);
-      const v = { name, src, gn, f, p, t: start, prio: def.prio, stopping: false };
-      src.onended = () => {
-        const i = this.voices.indexOf(v); if (i >= 0) this.voices.splice(i, 1);
-        gn.disconnect(); f?.disconnect(); p?.disconnect();
-      };
-      src.start(start);
-      this.voices.push(v);
-      if (def.duck) this.duck(def.duck * Math.min(1, g * 1.4), 0.3 + def.duck);
-      return { stop: (fade = 0.04) => this._stopVoice(v, fade), get playing() { return !v.stopping; } };
+      const v = this._voice(name, def, g, pan, lp, o.pitch, o.delay);
+      if (v && def.duck) this.duck(def.duck * Math.min(1, g * 1.4), 0.3 + def.duck);
+      return v || far ? this._handle(v, far) : NOOP;
     } catch (e) { this._err(name, e); return NOOP; }
+  }
+  _handle(a, b = null) {
+    return { stop: (fade = 0.04) => { this._stopVoice(a, fade); this._stopVoice(b, fade); }, get playing() { return !!((a && !a.stopping) || (b && !b.stopping)); } };
+  }
+  _voice(name, def, g, pan, lp, pitch = 1, delay = 0) {
+    const ctx = this.ctx, now = ctx.currentTime;
+    if (g < 0.002 || !this._limit(name, def, now)) return null;
+    const list = this.buffers(name, 1);
+    if (list.length < def.v && !this.queue.includes(name)) { this.queue.push(name); this._prewarm(); }
+    const buf = list[(Math.random() * list.length) | 0];
+    const rate = Math.max(0.05, (pitch ?? 1) * (1 + (Math.random() * 2 - 1) * def.pj));
+    const src = ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate;
+    const gn = ctx.createGain(); gn.gain.value = g;
+    let f = null, p = null, head = src;
+    if (lp < 20000) { f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; f.Q.value = 0.4; src.connect(f); head = f; }
+    head.connect(gn);
+    const bus = def.bus === 'ui' ? this.uiBus : this.sfxBus;
+    if (pan) { p = ctx.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); gn.connect(p); p.connect(bus); } else gn.connect(bus);
+    const start = now + Math.max(0, delay || 0);
+    const v = { name, src, gn, f, p, t: start, prio: def.prio, stopping: false };
+    src.onended = () => {
+      const i = this.voices.indexOf(v); if (i >= 0) this.voices.splice(i, 1);
+      gn.disconnect(); f?.disconnect(); p?.disconnect();
+    };
+    src.start(start);
+    this.voices.push(v);
+    return v;
   }
   // voice limiter: per-name cap (steal oldest of same name) + global cap by priority/age
   _limit(name, def, now) {

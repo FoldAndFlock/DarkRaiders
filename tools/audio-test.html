@@ -56,6 +56,10 @@
       <div class="row" id="jingles"></div>
     </section>
     <section>
+      <h2>Weapons <span style="color:var(--dim)">(per-weapon fire, distance layers at 30 m / 80 m, reloads)</span></h2>
+      <div id="weapons"></div>
+    </section>
+    <section>
       <h2>Sound effects <span style="color:var(--dim)">(loops toggle on/off)</span></h2>
       <div id="sfx"></div>
     </section>
@@ -90,6 +94,8 @@
 </main>
 <script type="module">
 import { audio } from '../src/audio/audio.js';
+import { ITEMS } from '../src/data/items.js';
+import { gunSoundFor, reloadSoundFor, chargeSoundFor } from '../src/game/items.js';
 window.audio = audio;
 const $ = (id) => document.getElementById(id);
 const log = (msg, cls = '') => { const d = document.createElement('div'); d.className = cls; d.textContent = msg; $('log').prepend(d); };
@@ -119,14 +125,42 @@ $('duck').onclick = () => audio.duck(0.7, 1);
 $('musicoff').onclick = () => { audio.music('off'); curBtn?.classList.remove('on'); };
 
 // ---------------------------------------------------------------- sfx
+// per-weapon rows: name (ARC Raiders counterpart) + fire / far / reload / charge buttons
+const REAL = { kettel: 'Kettle', rattlr: 'Rattler', arpeggo: 'Arpeggio', tempesta: 'Tempest', betina: 'Bettina', ferrox: 'Ferro', renegayde: 'Renegade',
+  afelion: 'Aphelion', stitchr: 'Stitcher', canta: 'Canto', bobkat: 'Bobcat', el_torro: 'Il Toro', volcano: 'Vulcano', dolabre: 'Dolabra', hairpyn: 'Hairpin',
+  burleta: 'Burletta', venattor: 'Venator', anvill: 'Anvil', torrento: 'Torrente', ospray: 'Osprey', jupitor: 'Jupiter', raskal: 'Rascal',
+  hullkracker: 'Hullcracker', equaliser: 'Equalizer' };
+const LX0 = 50, LZ0 = 50;
+const usedByWeapons = new Set();
+for (const [id, it] of Object.entries(ITEMS)) {
+  if (it.type !== 'weapon') continue;
+  const row = document.createElement('div'); row.className = 'row'; row.style.marginBottom = '2px';
+  const w = it.weapon, lab = document.createElement('label'); lab.style.minWidth = '210px';
+  lab.textContent = `${it.name} (${REAL[id] || '?'}) · ${w.mode}`;
+  row.append(lab);
+  const add = (txt, fn) => { const b = document.createElement('button'); b.textContent = txt; b.onclick = fn; row.append(b); };
+  const fire = gunSoundFor(id);
+  add(fire, () => audio.play(fire));
+  add('@30m', () => { audio.setListener(LX0, LZ0); audio.play(fire, { x: LX0 + 30, z: LZ0 }); });
+  add('@80m', () => { audio.setListener(LX0, LZ0); audio.play(fire, { x: LX0 - 80, z: LZ0 }); });
+  if (w.mode === 'burst') add('burst', () => { for (let k = 0; k < (w.burst || 3); k++) audio.play(fire, { delay: k * 60 / w.rpm }); });
+  if (w.mode === 'auto' || w.mode === 'beam') add('auto 1s', () => { const n = Math.round(w.rpm / 60); for (let k = 0; k < n; k++) audio.play(fire, { delay: k * 60 / w.rpm }); });
+  const r0 = reloadSoundFor(id), r1 = reloadSoundFor(id, 'end');
+  add(r0, () => audio.play(r0)); add(r1, () => audio.play(r1));
+  if (w.mode === 'charge') { const c = chargeSoundFor(id); add(c, () => audio.play(c)); usedByWeapons.add(c); }
+  usedByWeapons.add(fire); usedByWeapons.add(r0); usedByWeapons.add(r1);
+  $('weapons').append(row);
+}
 const GROUPS = [
-  ['Weapons', /^(gun_|reload_|dry_fire|weapon_switch|bolt_cycle|pump_cycle|charge_up)/],
+  ['Weapons: generic class sounds, handling & distance layers', /^(gun_|reload_|dry_fire|weapon_switch|bolt_cycle|pump_cycle|charge_)/],
   ['Impacts', /^(hit_|shield_break|ark_part_break|ricochet|bullet_whiz)/],
   ['Explosives & fire', /^(explosion_|grenade_|fire_loop|gas_hiss|smoke_pop|flashbang|mine_)/],
   ['Player', /^(step_|dodge_roll|jump_land|crouch|hurt|downed|revive|death|heal_|shield_recharge|stamina_out|breath_heavy)/],
   ['Loot & interaction', /^(search_|loot_|door_|hatch_open|container_open|zipper|key_use)/],
-  ['ARK', /^(wazp|hornit|ark_|tikk|popp|fyreball|snytch|surveyr|sentinal|turret|rocket|leapr|bastian|bombadier|queen)/],
-  ['Extraction & raid', /^(extract_|elevator_|raid_|hatch_extract)/],
+  ['ARK: drones', /^(wazp|hornit|fyrefly|snytch|spottr)/],
+  ['ARK: ground & emplacements', /^(tikk|popp|fyreball|surveyr|turret|sentinal)/],
+  ['ARK: heavies, ordnance & bosses', /^(rocket|vaporiser|leapr|bastian|bombadier|mortar|queen|ark_)/],
+  ['Extraction & raid', /^(extract_|elevator_|metro_|raid_|hatch_extract)/],
   ['UI', /^(ui_|chat_msg)/],
   ['Ambient', /./],
 ];
@@ -136,7 +170,7 @@ for (const [title, re] of GROUPS) {
   const div = document.createElement('div'); div.className = 'group';
   const h = document.createElement('b'); h.textContent = title; div.append(h);
   for (const n of names.sfx) {
-    if (placed.has(n) || !re.test(n)) continue;
+    if (placed.has(n) || usedByWeapons.has(n) || !re.test(n)) continue;
     placed.add(n);
     const b = document.createElement('button'); b.textContent = n;
     if (names.loops.includes(n)) {
