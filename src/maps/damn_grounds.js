@@ -783,6 +783,9 @@ function northPOIs(C) {
   w.prop('dg_fusebox', 690.8, 215, -PI / 2, { solid: true });                                // resource lock panel
   for (const [x, z, r] of [[648.5, 224, PI / 2], [689.5, 224, -PI / 2], [648.5, 233, PI / 2], [689.5, 233, -PI / 2]]) w.prop('dg_switch', x, z, r, { solid: true });
   w.prop('dg_puzzle', 669, 222.3, 0, { y: 2.3 });
+  // the switch hall: work desks, shelving and dropped crates between the four switch panels
+  for (const [x, z, k, r] of [[654, 228.5, 'dg_desk', 0], [684, 228.5, 'dg_desk', 0], [660, 233, 'shelf', PI], [678, 233, 'shelf', PI], [669, 229, 'dg_console', 0], [652, 231.5, 'crate', 0.3], [687, 231.8, 'barrel', 0]]) w.prop(k, x, z, r, { solid: true });
+  w.container('electronics', 666, 233, PI, { tier: 2 }); w.container('toolbox', 673, 233, PI, { tier: 2 }); w.container('crate', 656, 233, 0, { tier: 1 });
   C.inLight(669, 228, 0xd0e8ff, 1.0, 12, 3.4);
   C.furnish('security', 646, 234, 668, 244, { tier: 2 });
   C.furnish('commercial', 670, 234, 692, 244, { tier: 1, mul: 0.6 });
@@ -819,7 +822,7 @@ function northPOIs(C) {
   w.prop('dg_brokenspan', 566, 31, 1.1, {}); w.prop('dg_brokenspan', 592, 52, 2.2, {});
   C.clutter(582, 46, 24, 16, ['dg_rubble', 'dg_rubble', 'debris', 'rock', 'dg_slab'], {});
   w.prop('dg_tent', 540, 34, 0.45, { solid: true }); w.prop('dg_bed', 534, 30, 0.45, { solid: true });
-  C.fire(546, 30); w.container('raider_cache', 532, 35, 0.4, { tier: 2 }); w.container('suitcase', 548, 37, 0, { tier: 1 }); w.container('ammo_box', 528, 33, 0, { tier: 1 });
+  C.fire(546, 30); w.container('raider_cache', 532, 35, 0.4, { tier: 2 }); w.container('suitcase', 548, 37, 0, { tier: 1 }); w.container('ammo_box', 537, 39, 0, { tier: 1 });
   C.sandbags([[524, 38], [532, 42], [540, 44]]);
   for (const [x, z] of [[510, 3], [530, 13], [552, 22]]) C.beacon(x, z, { model: null, y: 13.6 });
   // ---------------- East Broken Bridge
@@ -1175,9 +1178,9 @@ function southPOIs(C) {
   C.bld({ x: 838, z: 624, w: 14, d: 12, wall: 'brick', tint: 0xb8a898, roof: 'corrugated', floor: 'concrete', name: 'Electrical Tower Station', floorY: MID + 0.2, blend: 1.5,
     doors: [{ side: 'w', at: 4, w: 1.8, door: true }, { side: 's', at: 8, w: 3, sill: 1.1 }], inner: [[7, 0, 7, 12, [{ at: 4, w: 1.6 }]]] });
   C.furnish('industrial', 838, 624, 845, 636, { tier: 1 }); C.furnish('server', 845, 624, 852, 636, { tier: 2 });
-  w.prop('dg_pylon', 860, 616, 0.4, { solid: true, scale: 1.25 });
-  for (const [x, z] of [[856, 640], [866, 630]]) w.prop('dg_transformer', x, z, 0, { solid: true });
-  C.fenceRect(852, 610, 870, 646, [[852, 628]]);
+  w.prop('dg_pylon', 864, 617, 0.4, { solid: true, scale: 1.25 });
+  for (const [x, z] of [[860, 632], [868, 640]]) w.prop('dg_transformer', x, z, 0, { solid: true });
+  C.fenceRect(855, 608, 874, 648, [[855, 642]]);
   C.loot(846, 630, 14, ['electronics', 'toolbox', 'crate'], 1);
   w.lamp(834, 622, { y: 4, color: 0xffc078, intensity: 1.55, range: 11 });
   C.powerLine([[880, 606], [920, 596], [960, 590], [1020, 560], [1080, 520]], { scale: 1 });
@@ -1263,7 +1266,8 @@ function roadsideAndOutskirts(C) {
   {
     const crest = (x, z) => C.inDam(x, z, -2.5) && !C.inBuilding(x, z, 2.5) && !C.nearRoad(x, z, 0.5) &&
       C.distLine(x, z, [[548, 452], [578, 420], [596, 392], [612, 360], [626, 330]]) > 4 && C.distLine(x, z, [[680, 288], [690, 262], [700, 236], [722, 200], [742, 176], [728, 150], [706, 140]]) > 4 &&
-      !CHUTES.some(([xf, zc]) => Math.abs(z - zc) < 6 && x > xf - 12) && C.distLine(x, z, HIGHWAY) > 6;
+      !CHUTES.some(([xf, zc]) => Math.abs(z - zc) < 6 && x > xf - 12) && C.distLine(x, z, HIGHWAY) > 6 &&
+      !(x > 700 && x < 724 && z > 188 && z < 214) && !(x > 728 && x < 756 && z > 208 && z < 238);
     const kinds = ['dg_container', 'dg_containerB', 'dg_containerG', 'dg_barrier', 'dg_barrier', 'crate', 'crate', 'barrel', 'barrelBlue', 'dg_ventbox', 'dg_transformer', 'pipe', 'dg_bigpipe', 'sandbag', 'car', 'dg_truck', 'dg_rubble', 'dg_scaffold', 'dg_tankS'];
     for (const [cx, cz, r, n] of [[600, 520, 34, 26], [596, 476, 22, 10], [508, 480, 30, 14], [620, 380, 40, 18], [680, 230, 34, 12], [740, 230, 30, 10], [700, 150, 40, 14], [800, 200, 40, 14], [760, 560, 50, 10], [860, 210, 24, 8]]) {
       C.clutter(cx, cz, r, n, kinds, { avoid: (x, z) => !crest(x, z) });
@@ -1375,11 +1379,12 @@ function vegetation(C) {
   lootScatter(swampForest, 34, ['plant', 'basket', 'plant', 'backpack'], 1, 601, (x, z) => w.groundAt(x, z) < SWAMP_WATER + 0.05);
   lootScatter(southForest, 18, ['plant', 'basket', 'trash'], 1, 602, (x, z) => w.groundAt(x, z) < MID - 0.2);
   lootScatter([0, 0, W, H], 14, ['raider_cache'], 2, 603, (x, z) => C.swampAt(x, z) || C.basinAt(x, z) || w.groundAt(x, z) < 0.4);
-  lootScatter(BASIN, 14, ['arc_husk', 'trash', 'crate'], 1, 604, (x, z) => w.groundAt(x, z) < 0.05);
+  lootScatter(BASIN, 14, ['arc_husk', 'trash', 'crate'], 1, 604, (x, z) => w.groundAt(x, z) < 0.05 || C.inDam(x, z, 7));
   for (const b of w.buildings) {                       // a bin or crate outside most buildings
     if (b.x1 - b.x0 < 7 || C.rng() < 0.35) continue;
     const x = b.x0 - 1.4, z = b.z1 + 1.6;
-    if (!C.propHit(x - 0.6, z - 0.6, x + 0.6, z + 0.6) && !C.nearDoor(x, z, x, z, 1.6) && !C.inBuilding(x, z, 0.6)) w.container(C.rng() < 0.6 ? 'trash' : 'crate', x, z, 0, { tier: 1 });
+    const gy = w.groundAt(x, z), by = w.groundAt((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2);
+    if (Math.abs(gy - by) < 0.6 && !C.propHit(x - 0.6, z - 0.6, x + 0.6, z + 0.6) && !C.nearDoor(x, z, x, z, 1.6) && !C.inBuilding(x, z, 0.6)) w.container(C.rng() < 0.6 ? 'trash' : 'crate', x, z, 0, { tier: 1 });
   }
   const worn = [[330, 470], [400, 400], [470, 404], [552, 420], [600, 300], [640, 230], [628, 150], [600, 100], [640, 60], [720, 60], [900, 170], [910, 240], [790, 280], [700, 300], [664, 330], [650, 470], [640, 560], [560, 590], [470, 640], [420, 660], [330, 620]];
   w.scatter('dg_rubble', worn, 70, { solid: true, seed: 512, scale: 1.1, avoid: (x, z) => avoidBase(x, z) || C.swampAt(x, z) || C.propHit(x - 2, z - 2, x + 2, z + 2) });
