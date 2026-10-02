@@ -358,7 +358,7 @@ function makeCtx(w, rng) {
     const sides = { n: [X0, Z0, X1, Z0], s: [X0, Z1, X1, Z1], w: [X0, Z0, X0, Z1], e: [X1, Z0, X1, Z1] };
     for (const [sd, [ax, az, bx, bz]] of Object.entries(sides)) {
       const g = gates.filter(q => q[0] === sd).map(q => ({ at: q[1] - 1.5, w: 3 }));
-      C.gwall(G, ax, az, bx, bz, 0.5, h, tex, g, opts);
+      C.gwall(G, ax, az, bx, bz, 0.5, h, tex, g, sd === 'n' || sd === 's' ? { ...opts, endPad: [0.25, 0.25] } : opts);   // n / s run over the corners
       for (const q of gates.filter(q => q[0] === sd)) C.doorPts.push(GW(G, sd === 'n' || sd === 's' ? ax + q[1] : ax, sd === 'n' || sd === 's' ? az : az + q[1]));
     }
   };

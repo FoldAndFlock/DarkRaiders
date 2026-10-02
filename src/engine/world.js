@@ -786,15 +786,15 @@ export class World {
         this.block(Math.min(x0, x1) - thick / 2, Math.min(z0, z1) - thick / 2, Math.max(x0, x1) + thick / 2, Math.max(z0, z1) + thick / 2, h, texName, { ...opts, xray: false, nodraw: true });
       }
       if (L < 0.05) continue;
-      const a = Math.atan2(bz - az, bx - ax), m = Math.max(1, Math.round(L / 2)), pl = L / m, pt = Math.max(thick, 0.12);
+      const a = Math.atan2(bz - az, bx - ax), m = Math.max(1, Math.round(L / 2)), pl = L / m, pt = Math.max(thick, 0.16);
       for (let i = 0; i < m; i++) {
         const t = (i + 0.5) / m, cx = ax + (bx - ax) * t, cz = az + (bz - az) * t, R = rotFrame(cx, cz, a);
         this.block(cx - pl / 2, cz - pt / 2, cx + pl / 2, cz + pt / 2, h - 0.12, texName, { ...vo, R, capF: 2 });
-        this.block(cx - pl / 2, cz - 0.13, cx + pl / 2, cz + 0.13, 0.12, texName, { ...vo, R, rel0: h - 0.12, capF: 3 });
+        this.block(cx - pl / 2, cz - 0.16, cx + pl / 2, cz + 0.16, 0.12, texName, { ...vo, R, rel0: h - 0.12, capF: 3 });
       }
       for (let i = k === 0 ? 0 : 1; i <= m; i++) {
         const px = ax + (bx - ax) * i / m, pz = az + (bz - az) * i / m;
-        this.block(px - 0.15, pz - 0.15, px + 0.15, pz + 0.15, h + 0.1, texName, { ...vo, R: rotFrame(px, pz, a), capF: 11 });
+        this.block(px - 0.18, pz - 0.18, px + 0.18, pz + 0.18, h + 0.1, texName, { ...vo, R: rotFrame(px, pz, a), capF: 11 });
       }
     }
   }

@@ -364,7 +364,7 @@ export class View {
     if (r() < dt * (st >= 2 ? 1.7 : 0.7)) { const n = st >= 2 ? 6 : 3; fx.sparks(x, y + 0.1, z, n, st >= 3 ? 0xffa040 : 0xffd080, 2.5 + st * 0.6); this._dfxN += n; }
     if (st >= 2 && r() < dt * 11 * sz) { fx.parts.emit({ x, y: y + 0.15, z, vx: w.x * 0.7 + (r() - 0.5) * 0.4, vy: 0.9 + r() * 0.7, vz: w.y * 0.7 + (r() - 0.5) * 0.4, life: 2.0 + r() * 1.2, size: 4 * sz, size1: 15 * sz, color: 0x2a2624, color1: 0x4e4a46, alpha: 0.78, shape: 1, drag: 0.45 }); this._dfxN++; }
     if (st >= 3) {
-      if (r() < dt * 18) { fx.fire(x, y, z, 1, 0.25 * sz); this._dfxN++; }
+      if (r() < dt * 30) { fx.fire(x, y + 0.15, z, 2, 0.35 * sz); this._dfxN += 2; }
       this.L.light(v.px, y + 0.4, v.pz, 0xff7a20, 0.7 + r() * 0.6, 3 + sz * 2, 1.3);
     }
   }
