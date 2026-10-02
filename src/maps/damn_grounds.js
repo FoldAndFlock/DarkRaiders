@@ -115,7 +115,7 @@ export default {
     const step = (name, fn) => { fn(C); const t = performance.now(); T[name] = Math.round(t - T.t); T.t = t; };
     step('terrain', terrain); step('dam', damDetails); step('north', northPOIs); step('west', westPOIs); step('south', southPOIs);
     step('east', eastPOIs); step('outskirts', roadsideAndOutskirts); step('vegetation', vegetation); step('ark', arkSpawns); step('markers', markers);
-    delete T.t; w.buildTimings = T; T.TT = C.TT;
+    delete T.t; w.buildTimings = T;
   },
 };
 
@@ -399,7 +399,6 @@ function makeCtx(w, rng) {
 function terrain(C) {
   const { w, areaFn, slope } = C;
   const VW = w.tw + 1, VH = w.th + 1;
-  const TT = {}; let tt = performance.now(); const mark = (n) => { const t = performance.now(); TT[n] = Math.round(t - tt); tt = t; }; C.TT = TT;
   // rasterised masks: binary ones at vertex resolution, smooth (blurred) ones on a 4 m grid
   const scanFill = (pts, fn, step = 1, cols = VW, rows = VH) => {
     for (let r = 0; r < rows; r++) {
@@ -426,7 +425,6 @@ function terrain(C) {
   const samp = (m, x, z) => { const fx = x / G, fz = z / G, ix = Math.min(GW - 2, fx | 0), iz = Math.min(GH - 2, fz | 0), tx = fx - ix, tz = fz - iz, i = iz * GW + ix;
     return (m[i] * (1 - tx) + m[i + 1] * tx) * (1 - tz) + (m[i + GW] * (1 - tx) + m[i + GW + 1] * tx) * tz; };
   const rectPts = (x0, z0, x1, z1) => [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
-  mark('masks0');
   const swampBin = polyMask(SWAMP), basinBin = polyMask(BASIN);
   C.swampAt = (x, z) => swampBin[clamp(Math.round(z), 0, VH - 1) * VW + clamp(Math.round(x), 0, VW - 1)] > 0;
   C.basinAt = (x, z) => basinBin[clamp(Math.round(z), 0, VH - 1) * VW + clamp(Math.round(x), 0, VW - 1)] > 0;
@@ -453,7 +451,6 @@ function terrain(C) {
     const amp = Math.min(1 - swampS[i] * 0.78, 1 - coreS[i] * 0.65, 1 - southS[i] * 0.5);
     coreS[i] = amp;                                                                    // reuse buffer: noise amplitude
   }
-  mark('blur');
   const n1 = makeNoise(11), n2 = makeNoise(23);
   C.noise = n1; C.noise2 = n2;
   const fbm = (n, x, z) => (n(x, z) * 0.6 + n(x * 2.3, z * 2.3) * 0.28 + n(x * 5.1, z * 5.1) * 0.12 - 0.5) * 2;
@@ -463,7 +460,6 @@ function terrain(C) {
       + (n2(x / 24, z / 24) * 0.7 + n2(x / 10.5, z / 10.5) * 0.3 - 0.5) * 1.5 * (0.3 + 0.7 * sw);
   }
   C.southAt = (x, z) => samp(southS, x, z);
-  mark('height');
   w.raiseCircle(566, 46, 46, -4.6, 0.6, 'add');                       // where the West Broken Bridge span fell
   w.ridge([[925, 110], [938, 200], [944, 262], [960, 320]], 22, 1.5, 16, 'min');   // East Broken Bridge ravine
   w.raiseCircle(232, 318, 15, 2.8, 0.7, 'add');                       // Victory Rise (Old Battleground)
@@ -475,7 +471,6 @@ function terrain(C) {
     if (hh == null) { let s = 0, n = 0; areaFn(x0, z0, x1, z1, (x, z, cur) => { s += cur; n++; return null; }); hh = s / n; }
     w.raiseRect(x0, z0, x1, z1, hh, b, 'set');
   }
-  mark('circles+flats');
   // ---------------- dam
   for (const [x0, z0, x1, z1] of DAM_RECTS) w.raiseRect(x0, z0, x1, z1, HIGH, 0, 'set');
   scanFill(PG_POLY, (i) => { w.hv[i] = HIGH; });
@@ -510,7 +505,6 @@ function terrain(C) {
   w.deck(EBB, 9, HIGH + 0.25, 'asphalt', { rails: false, pillars: true, side: 'concrete' });
   for (const b of BOARDWALKS) w.deck(b, 2.4, MID + 0.32, 'wood', { rails: false, pillars: false });
 
-  mark('dam');
   // ---------------- water
   C.redMat = waterMaterial({ deep: 0x5a1e18, shallow: 0x8e3c28, opacity: 0.9 });
   C.darkMat = waterMaterial({ deep: 0x14262a, shallow: 0x23403e, opacity: 0.92 });
@@ -526,14 +520,12 @@ function terrain(C) {
   w.river([[700, 360], [740, 392], [770, 420], [790, 456], [826, 486], [870, 500], [910, 540], [940, 600], [980, 660], [1010, 720]], 5, { level: LOW - 0.25, depth: 0.7, bank: 3 });
   w.river([[452, 600], [490, 608], [530, 603], [570, 613], [610, 633], [640, 660], [668, 676], [700, 688], [745, 690], [790, 682], [830, 692], [880, 704]], 4, { level: MID - 0.45, depth: 0.75, bank: 3 });
 
-  mark('water');
   // ---------------- roads
   for (const r of ROADS) w.road(r, 7, 'asphalt', { edge: 'gravel', edgeW: 1.2 });
   for (const r of TRACKS) w.road(r, 4, 'dirt', { edge: 'gravel', edgeW: 0.6 });
   w.path([[548, 452], [578, 420], [596, 392], [612, 360], [626, 330]], 5, 'concrete');           // crest service road
   w.path([[680, 288], [690, 262], [700, 236], [722, 200], [742, 176], [728, 150], [706, 140]], 5, 'concrete');
 
-  mark('roads');
   // ---------------- terrain paint
   {
     const T = TID, tw = w.tw;
@@ -543,7 +535,7 @@ function terrain(C) {
       const a = n1(x / 19, z / 19), b = n2(x / 7, z / 7), c = n1(x / 47 + 31, z / 47 + 17);
       let t = null;
       if (swampBin[vi]) t = g < SWAMP_WATER + 0.1 ? T.mud : a > 0.66 ? T.moss : b > 0.72 ? T.mud : c > 0.42 ? T.dirt : a < 0.3 ? T.gravel : null;
-      else if (basinBin[vi]) t = g < 0.3 ? T.mud : a > 0.63 ? T.sandDark : b < 0.28 ? T.gravel : T.dirt;
+      else if (basinBin[vi]) t = g < 0.3 ? T.mud : a > 0.66 ? T.rock : b < 0.3 ? T.gravel : c > 0.6 ? T.mud : T.dirt;
       else if (samp(southS, x, z) > 0.6) t = a > 0.64 ? T.moss : b > 0.6 ? T.dirt : c > 0.62 ? T.mud : null;
       else if (g > 13) t = a > 0.45 ? T.rock : T.gravel;
       else if (x > 920 || z > 760 || x < 120) t = a > 0.72 ? T.rock : c > 0.62 ? T.dirt : b > 0.78 ? T.gravel : null;
@@ -551,7 +543,6 @@ function terrain(C) {
       if (t != null) w.tids[ci] = t;
     }
   }
-  mark('paint');
   // worn, rubble-strewn ground around the dam and the central facilities (the bright zone of the reference)
   {
     const T = TID, tw = w.tw;
@@ -572,7 +563,6 @@ function terrain(C) {
       if (t != null) w.tids[ci] = t;
     }
   }
-  mark('worn');
   for (const [x0, z0, x1, z1] of DAM_RECTS) w.paint('damConcrete', x0, z0, x1, z1);
   w.paintPoly('damConcrete', PG_POLY);
   w.paintPoly('damConcrete', C.strip(BALCONY, 12.5));
@@ -585,10 +575,8 @@ function terrain(C) {
   w.path(HIGHWAY, 8, 'asphalt');
   w.paint('hazard', 704, 190, 722, 192); w.paint('hazard', 730, 210, 754, 212);
   // concrete facades on every sheer drop of the dam / plateau / decks (stepped where diagonal)
-  mark('paint2');
   facades(C, 440, 50, 935, 615, 'damConcrete');
   facades(C, 496, 0, 572, 34, 'concrete');
-  mark('facades');
 }
 
 // Turn every vertical terrain step (> 2.2 m between neighbouring vertices) into concrete slabs:
@@ -1314,7 +1302,24 @@ function roadsideAndOutskirts(C) {
 function vegetation(C) {
   const { w, rng } = C;
   const swampDeep = (x, z) => C.swampAt(x, z) && w.groundAt(x, z) < SWAMP_WATER - 0.75;
-  const avoidBase = (x, z) => C.blocked(x, z) || C.nearDoor(x, z, x, z, 2.6) || C.reserved.some(([a, b]) => Math.abs(a - x) < 3 && Math.abs(b - z) < 3) || C.nearRoad(x, z, 1) || C.inDam(x, z, 3) || C.distLine(x, z, WBB) < 7 || C.distLine(x, z, EBB) < 7 || BOARDWALKS.some(b => C.distLine(x, z, b) < 2.2);
+  // rasterise everything vegetation must avoid into a 1 m bitmap (fast lookups for ~40k candidates)
+  const AV = new Uint8Array(W * H);
+  const markRect = (x0, z0, x1, z1) => { for (let z = Math.max(0, Math.floor(z0)); z < Math.min(H, Math.ceil(z1)); z++) for (let x = Math.max(0, Math.floor(x0)); x < Math.min(W, Math.ceil(x1)); x++) AV[z * W + x] = 1; };
+  const markLine = (pts, r) => { for (let k = 0; k < pts.length - 1; k++) { const [ax, az] = pts[k], [bx, bz] = pts[k + 1];
+    for (let z = Math.max(0, Math.floor(Math.min(az, bz) - r)); z < Math.min(H, Math.ceil(Math.max(az, bz) + r)); z++) for (let x = Math.max(0, Math.floor(Math.min(ax, bx) - r)); x < Math.min(W, Math.ceil(Math.max(ax, bx) + r)); x++)
+      if (C.distLine(x + 0.5, z + 0.5, [[ax, az], [bx, bz]]) < r) AV[z * W + x] = 1; } };
+  for (const r of ROADS) markLine(r, 4.5);
+  for (const r of TRACKS) markLine(r, 3);
+  markLine(WBB, 7); markLine(EBB, 7); for (const b of BOARDWALKS) markLine(b, 2.2);
+  for (const [a0, b0, c0, d0] of DAM_RECTS) markRect(a0 - 3, b0 - 3, c0 + 3, d0 + 3);
+  markLine(BALCONY, 9.5);
+  for (let z = 50; z < 300; z++) for (let x = 600; x < 910; x++) if (C.inDam(x + 0.5, z + 0.5, 3)) AV[z * W + x] = 1;
+  for (const b of w.buildings) markRect(b.x0 - 0.8, b.z0 - 0.8, b.x1 + 0.8, b.z1 + 0.8);
+  for (const [cx, cz, r] of C.clear) markLine([[cx, cz], [cx + 0.01, cz]], r);
+  for (const [a0, b0, c0, d0] of C.clearRects) markRect(a0, b0, c0, d0);
+  for (const [dx, dz] of C.doorPts) markRect(dx - 2.6, dz - 2.6, dx + 2.6, dz + 2.6);
+  for (const [rx, rz] of C.reserved) markRect(rx - 3, rz - 3, rx + 3, rz + 3);
+  const avoidBase = (x, z) => x < 0 || z < 0 || x >= W || z >= H || AV[(z | 0) * W + (x | 0)] === 1;
   // dense swamp forest
   const swampForest = [[170, 210], [300, 196], [420, 206], [560, 228], [600, 262], [592, 300], [572, 330], [552, 372], [536, 402], [470, 410], [420, 402], [362, 406], [345, 450], [320, 512], [292, 548], [226, 548], [180, 522], [172, 452], [176, 380], [172, 300]];
   w.forest(swampForest, 1.6, ['dg_willow', 'dg_cypress', 'tree', 'dg_cypress'], { seed: 101, avoid: (x, z) => avoidBase(x, z) || swampDeep(x, z), scaleVar: 0.35 });
@@ -1348,14 +1353,34 @@ function vegetation(C) {
   w.scatter('dg_lily', SWAMP, 340, { seed: 502, avoid: (x, z) => w.groundAt(x, z) > SWAMP_WATER - 0.25 || C.blocked(x, z) });
   for (const p of w.props) if (p.kind === 'dg_lily') { p.opts.yAbs = SWAMP_WATER + 0.02; }
   w.scatter('dg_reeds', BASIN, 220, { seed: 503, avoid: (x, z) => { const g = w.groundAt(x, z); return g > 0.25 || g < -0.6; } });
-  w.scatter('dg_grass', SWAMP, 1400, { seed: 504, avoid: (x, z) => w.groundAt(x, z) < SWAMP_WATER || C.blocked(x, z) });
-  w.scatter('dg_grass', [0, 0, W, H], 2600, { seed: 505, avoid: (x, z) => C.inDam(x, z, 1) || C.nearRoad(x, z, 0) || C.blocked(x, z) || w.groundAt(x, z) < 0.3 || C.swampAt(x, z) });
+  w.scatter('dg_grass', SWAMP, 1400, { seed: 504, avoid: (x, z) => w.groundAt(x, z) < SWAMP_WATER || avoidBase(x, z) });
+  w.scatter('dg_grass', [0, 0, W, H], 2600, { seed: 505, avoid: (x, z) => avoidBase(x, z) || w.groundAt(x, z) < 0.3 || C.swampAt(x, z) });
   w.scatter('dg_log', SWAMP, 70, { solid: true, seed: 506, avoid: avoidBase });
   w.scatter('dg_stump', SWAMP, 60, { solid: true, seed: 507, avoid: avoidBase });
   w.scatter('dg_toxic', SWAMP, 30, { solid: true, seed: 508, avoid: avoidBase });
   w.scatter('dg_log', [440, 590, 740, 780], 40, { solid: true, seed: 509, avoid: avoidBase });
   w.scatter('dg_reeds', [440, 590, 900, 720], 160, { seed: 510, avoid: (x, z) => C.distLine(x, z, [[452, 600], [530, 603], [610, 633], [668, 676], [745, 690], [830, 692], [880, 704]]) > 4 });
   w.scatter('debris', [540, 80, 900, 620], 160, { seed: 511, avoid: (x, z) => C.inBuilding(x, z, 0.5) });
+  // nature loot: plants + baskets in the swamp and southern forest, buried raider caches in the wilds
+  const lootScatter = (area, n, kinds, tier, seed, extraAvoid) => {
+    const r = C.rng; let placed = 0, tries = 0;
+    const [a0, b0, c0, d0] = Array.isArray(area[0]) ? [Math.min(...area.map(p => p[0])), Math.min(...area.map(p => p[1])), Math.max(...area.map(p => p[0])), Math.max(...area.map(p => p[1]))] : area;
+    while (placed < n && tries++ < n * 40) {
+      const x = a0 + r() * (c0 - a0), z = b0 + r() * (d0 - b0);
+      if (Array.isArray(area[0]) && !pointInPoly(x, z, area)) continue;
+      if (avoidBase(x, z) || C.propHit(x - 0.6, z - 0.6, x + 0.6, z + 0.6) || (extraAvoid && extraAvoid(x, z))) continue;
+      w.container(kinds[placed % kinds.length], x, z, r() * 2 * PI, { tier }); placed++;
+    }
+  };
+  lootScatter(swampForest, 34, ['plant', 'basket', 'plant', 'backpack'], 1, 601, (x, z) => w.groundAt(x, z) < SWAMP_WATER + 0.05);
+  lootScatter(southForest, 18, ['plant', 'basket', 'trash'], 1, 602, (x, z) => w.groundAt(x, z) < MID - 0.2);
+  lootScatter([0, 0, W, H], 14, ['raider_cache'], 2, 603, (x, z) => C.swampAt(x, z) || C.basinAt(x, z) || w.groundAt(x, z) < 0.4);
+  lootScatter(BASIN, 14, ['arc_husk', 'trash', 'crate'], 1, 604, (x, z) => w.groundAt(x, z) < 0.05);
+  for (const b of w.buildings) {                       // a bin or crate outside most buildings
+    if (b.x1 - b.x0 < 7 || C.rng() < 0.35) continue;
+    const x = b.x0 - 1.4, z = b.z1 + 1.6;
+    if (!C.propHit(x - 0.6, z - 0.6, x + 0.6, z + 0.6) && !C.nearDoor(x, z, x, z, 1.6) && !C.inBuilding(x, z, 0.6)) w.container(C.rng() < 0.6 ? 'trash' : 'crate', x, z, 0, { tier: 1 });
+  }
   const worn = [[330, 470], [400, 400], [470, 404], [552, 420], [600, 300], [640, 230], [628, 150], [600, 100], [640, 60], [720, 60], [900, 170], [910, 240], [790, 280], [700, 300], [664, 330], [650, 470], [640, 560], [560, 590], [470, 640], [420, 660], [330, 620]];
   w.scatter('dg_rubble', worn, 70, { solid: true, seed: 512, scale: 1.1, avoid: (x, z) => avoidBase(x, z) || C.swampAt(x, z) || C.propHit(x - 2, z - 2, x + 2, z + 2) });
   w.scatter('debris', worn, 260, { seed: 513, avoid: (x, z) => C.inBuilding(x, z, 0.5) || C.swampAt(x, z) });

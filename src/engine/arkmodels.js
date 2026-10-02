@@ -465,10 +465,9 @@ function limbGS(key, s, L, w0, h0, w1, h1, o = {}) {
       return band % 2 ? col : col2;
     });
     if (o.piston !== false) {
-      const ph = Math.max(h0, h1) * 0.7, pr = Math.max(s * 0.6, Math.min(w0, w1) * 0.35);
+      const pr = Math.max(s * 0.6, Math.min(w0, w1) * 0.35);           // hydraulic ram along the top
       v.cylZ(0, h0 + pr * 0.6, L * 0.08, L * 0.5, pr * 1.25, K.g1);
       v.cylZ(0, (h0 + h1) / 2 + pr * 0.4, L * 0.5, L * 0.86, pr * 0.8, K.st2);
-      void ph;
     }
     if (o.cable !== false) v.seg(-w0 * 0.9 - s * 0.4, 0, L * 0.05, -w1 * 0.9 - s * 0.4, 0, L * 0.95, s * 0.55, K.cab);
     if (o.haz) v.paintBox(-W, -H, L * o.haz[0], W, H, L * o.haz[1], (X, Y, Z, i, j, k) => (Y > 0 ? K.y1 : undefined));
@@ -883,8 +882,6 @@ MODELS.shredder = (R) => {
       v.cylZ(sx * 0.42, 0.1, -0.7, -0.63, 0.22, K.y0);
       v.box(sx * 0.42 - 0.07, 0.28, -0.91, sx * 0.42 + 0.07, 0.35, -0.7, K.BLUE);
     }
-    // side jets
-    for (const sx of [-1, 1]) { v.cylX(0, 0, sx > 0 ? 0.6 : -0.84, sx > 0 ? 0.84 : -0.6, 0.15, K.g2, 0.07); v.cylX(0, 0, sx > 0 ? 0.77 : -0.84, sx > 0 ? 0.84 : -0.77, 0.07, K.BLUE); }
     return v.weather({ seed: 81, rust: 0.12 });
   });
   const ring = gset('shred.ring', () => {
@@ -906,7 +903,16 @@ MODELS.shredder = (R) => {
   const rg = R.pm(ring, hull, 0, 0, 0);
   R.pm(glow, hull, 0, -0.58, 0);
   for (const sx of [-1, 1]) { const st = R.pm(stubGS('', s, 0.21), hull, sx * 0.42, 0.1, -0.84); R.zone('thruster', sx * 0.45, -0.65, { show: [st.g] }); }
-  for (const sx of [-1, 1]) R.zone('side_jet', sx * 0.85, 0, {});
+  const jet = gset('shred.jet', () => {
+    const v = new VB(s, -0.07, -0.21, -0.21, 0.35, 0.21, 0.21);
+    v.cylX(0, 0, 0, 0.28, 0.15, K.g2, 0.07); v.cylX(0, 0, 0.21, 0.28, 0.07, K.BLUE); v.cylX(0, 0, 0.07, 0.14, 0.17, K.y1);
+    return v.weather({ seed: 4 });
+  });
+  for (const sx of [-1, 1]) {
+    const jg = R.g(hull, sx * 0.58, 0, 0); jg.rotation.y = sx > 0 ? 0 : Math.PI;
+    const jp = R.pm(jet, jg);
+    R.zone('side_jet', sx * 0.85, 0, { hide: [jp.g], show: [R.pm(stubGS('', s, 0.14), hull, sx * 0.66, 0, 0).g] });
+  }
   const hp = R.pm(headPlate, hull);
   R.zone('head', 0, 0.6, { hide: [hp.g], show: [R.pm(stubGS('', s, 0.21), hull, 0, 0.3, 0.6).g] });
   R.flash(flashGS('', s, 0.3), hull, 0, -0.18, 0.98);
@@ -1055,18 +1061,19 @@ MODELS.surveyor = (R) => {
     const v = new VB(s, -0.91, -0.91, -0.91, 0.91, 0.91, 0.91);
     v.fillIf(-0.91, -0.91, -0.91, 0.91, 0.91, 0.91, (X, Y, Z) => {
       const r = Math.hypot(X, Y, Z); if (r > Rb || r <= rIn) return false;
-      const sc = sector(X, Y, Z); if (which === 'side' ? sc !== 'side' : sc !== which) return false;
+      const sc = sector(X, Y, Z), side = which === 'sideL' || which === 'sideR';
+      if (side ? (sc !== 'side' || (which === 'sideL') !== (X < 0)) : sc !== which) return false;
       if (sc !== 'side' && (Math.abs(Math.abs(Y) - Math.abs(Z)) < 0.08 || Math.abs(X) > 0.53)) return false;   // seams
       return true;
     }, (X, Y, Z, i, j, k) => {
-      if (which === 'side') { const d = Math.hypot(Y, Z); return d < 0.2 ? (d < 0.09 ? K.st2 : K.g2) : (Math.abs(d - 0.36) < 0.045 ? K.BLUE : Math.abs(d - 0.5) < 0.04 ? K.y1 : K.g3); }
+      if (which === 'sideL' || which === 'sideR') { const d = Math.hypot(Y, Z); return d < 0.2 ? (d < 0.09 ? K.st2 : K.g2) : (Math.abs(d - 0.36) < 0.045 ? K.BLUE : Math.abs(d - 0.5) < 0.04 ? K.y1 : K.g3); }
       const a = Math.abs(X);
       if (a > 0.42) return K.y1;
       const along = (which === 'top' || which === 'bottom') ? Math.abs(Z) : Math.abs(Y);
       if (along < 0.05) return K.g4;
       return a < 0.07 ? K.cer2 : K.cer;
     });
-    if (which !== 'side') v.paint((X, Y, Z, i, j, k, c) => (c === K.cer && Math.abs(X) > 0.3 && (i + j + k) % 4 === 0 ? K.cer2 : undefined));
+    if (which !== 'sideL' && which !== 'sideR') v.paint((X, Y, Z, i, j, k, c) => (c === K.cer && Math.abs(X) > 0.3 && (i + j + k) % 4 === 0 ? K.cer2 : undefined));
     return v.weather({ seed: 111 + which.length, rust: 0.12, noise: 0.04 });
   });
   const inner = gset('surv.inner', () => {
@@ -1090,11 +1097,11 @@ MODELS.surveyor = (R) => {
   const parts = {};
   for (const w of ['front', 'rear', 'bottom']) parts[w] = R.pm(plate(w), roll);
   const hinge = R.g(roll, 0, 0.6, -0.55); parts.top = R.pm(plate('top'), hinge, 0, -0.6, 0.55);
-  R.pm(plate('side'), roll);
+  const sideL = R.pm(plate('sideL'), roll), sideR = R.pm(plate('sideR'), roll);
   const coreG = R.g(R.top, 0, cy, 0); R.pm(core, coreG);
   R.zone('plate_front', 0, 0.75, { hide: [parts.front.g] });
   R.zone('plate_rear', 0, -0.75, { hide: [parts.rear.g] });
-  R.zone('plate_side', -0.75, 0, {}); R.zone('plate_side', 0.75, 0, {});
+  R.zone('plate_side', -0.75, 0, { hide: [sideL.g] }); R.zone('plate_side', 0.75, 0, { hide: [sideR.g] });
   let scan = 0;
   R.anim = (dt, s, t) => {
     const sp = s.moving ? (s.speed ?? 3) / R.k : 0;

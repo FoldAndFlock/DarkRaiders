@@ -122,7 +122,7 @@ function stateFor(it, t) {
 
 // ------------------------------------------------------------------ loop
 const dt = 1 / 30;
-let t = 0, frame = 0;
+let t = 0;
 const octx = ov.getContext('2d');
 function drawLabels() {
   ov.width = R.cssW; ov.height = R.cssH;
@@ -135,7 +135,7 @@ function drawLabels() {
   }
 }
 function step() {
-  t += dt; frame++;
+  t += dt;
   for (const it of items) {
     const s = stateFor(it, t);
     it.m.update(dt, s);
