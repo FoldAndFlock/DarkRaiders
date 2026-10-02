@@ -43,10 +43,26 @@ export class Renderer {
     });
     this.target.depthTexture = new THREE.DepthTexture(4, 4);
     this.target.depthTexture.type = THREE.UnsignedIntType;
+    // entity mask pass (layer 1): rgb = outline colour, a = 0.5 outline / 1.0 outline + x-ray silhouette
+    this.maskTarget = new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true });
+    this.maskTarget.depthTexture = new THREE.DepthTexture(4, 4);
+    this.maskTarget.depthTexture.type = THREE.UnsignedIntType;
+    this.maskMat = new THREE.ShaderMaterial({
+      uniforms: { uColor: { value: new THREE.Vector4(0.06, 0.05, 0.05, 0.5) } },
+      vertexShader: `#include <common>
+        void main(){ vec4 p = vec4(position, 1.0);
+          #ifdef USE_INSTANCING
+            p = instanceMatrix * p;
+          #endif
+          gl_Position = projectionMatrix * modelViewMatrix * p; }`,
+      fragmentShader: `uniform vec4 uColor; void main(){ gl_FragColor = uColor; }`,
+    });
+    this.maskPass = false;
     const g = this.grade;
     this.postMat = new THREE.ShaderMaterial({
       uniforms: {
         tColor: { value: this.target.texture }, tDepth: { value: this.target.depthTexture },
+        tMask: { value: this.maskTarget.texture }, tMaskDepth: { value: this.maskTarget.depthTexture },
         res: { value: new THREE.Vector2(4, 4) }, subpx: { value: this.subpx },
         tint: { value: g.tint }, lift: { value: g.lift }, contrast: { value: 1 }, saturation: { value: 1 },
         vignette: { value: 0.3 }, haze: { value: g.haze }, hazeAmt: { value: 0 }, flash: { value: 0 },
@@ -56,7 +72,7 @@ export class Renderer {
       vertexShader: `void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }`,
       fragmentShader: /* glsl */`
         precision highp float;
-        uniform sampler2D tColor; uniform sampler2D tDepth;
+        uniform sampler2D tColor; uniform sampler2D tDepth; uniform sampler2D tMask; uniform sampler2D tMaskDepth;
         uniform vec2 res; uniform vec2 subpx; uniform vec2 screen; uniform float pscale;
         uniform vec3 tint; uniform vec3 lift; uniform float contrast; uniform float saturation;
         uniform float vignette; uniform vec3 haze; uniform float hazeAmt; uniform float flash;
@@ -86,7 +102,24 @@ export class Renderer {
           float dd = texture2D(tDepth, uv - vec2(0.0, 1.0/res.y)).r;
           float edge = max(max(dl - d, dr - d), max(du - d, dd - d));
           float o = smoothstep(0.004, 0.012, edge) * outline;
-          c *= 1.0 - 0.55 * o;
+          c *= 1.0 - 0.45 * o;
+          // entity mask: crisp 1px outline outside visible entities, x-ray silhouettes for squad/loot
+          {
+            vec4 mk = texture2D(tMask, uv); float md = texture2D(tMaskDepth, uv).r;
+            bool here = mk.a > 0.01 && md <= d + 0.0004;
+            if (!here) {
+              vec2 offs[4] = vec2[4](vec2(1.0,0.0), vec2(-1.0,0.0), vec2(0.0,1.0), vec2(0.0,-1.0));
+              for (int k = 0; k < 4; k++) {
+                vec2 nuv = uv + offs[k] / res;
+                vec4 mn = texture2D(tMask, nuv);
+                if (mn.a > 0.01 && texture2D(tMaskDepth, nuv).r <= texture2D(tDepth, nuv).r + 0.0004) { c = mn.rgb; break; }
+              }
+            }
+            if (mk.a > 0.75 && md > d + 0.0006) {
+              float ch = mod(tp.x + tp.y, 2.0);
+              c = mix(c, mk.rgb, 0.35 + 0.3 * ch);
+            }
+          }
           // haze (sand / fog) with wind-scrolling noise
           if (hazeAmt > 0.0) {
             vec2 hp = tp * 0.03 - wind * time * 0.6;
@@ -126,6 +159,7 @@ export class Renderer {
     this.lh = Math.ceil(h / this.scale) + 4;
     this.gl.setSize(w, h, false);
     this.target.setSize(this.lw, this.lh);
+    this.maskTarget.setSize(this.lw, this.lh);
     this.postMat.uniforms.res.value.set(this.lw, this.lh);
     this.postMat.uniforms.screen.value.set(w, h);
     this.postMat.uniforms.pscale.value = this.scale;
@@ -174,12 +208,47 @@ export class Renderer {
     const g = this.grade, u = this.postMat.uniforms;
     g.time += dt;
     this._updateProjection();
+    this.camera.layers.set(0);
     this.gl.setRenderTarget(this.target);
     this.gl.render(this.scene, this.camera);
+    // mask pass: only layer-1 entities, flat colours, no shadow-map re-render
+    this.maskPass = true;
+    this.camera.layers.set(1);
+    this.scene.overrideMaterial = this.maskMat;
+    const bg = this.scene.background; this.scene.background = null;
+    this.gl.shadowMap.autoUpdate = false;
+    this.gl.setRenderTarget(this.maskTarget);
+    this.gl.setClearColor(0x000000, 0);
+    this.gl.clear(true, true, false);
+    this.gl.render(this.scene, this.camera);
+    this.gl.shadowMap.autoUpdate = true;
+    this.scene.overrideMaterial = null; this.scene.background = bg;
+    this.camera.layers.set(0);
+    this.maskPass = false;
+    this.gl.setClearColor(0x000000, 1);
     this.gl.setRenderTarget(null);
     u.contrast.value = g.contrast; u.saturation.value = g.saturation; u.vignette.value = g.vignette;
     u.hazeAmt.value = g.hazeAmt; u.flash.value = g.flash; u.scan.value = g.scan; u.time.value = g.time;
     u.damage.value = g.damage; u.outline.value = g.outline;
     this.gl.render(this.postScene, this.postCam);
   }
+}
+
+// Put an object (and its children) into the outline mask pass.
+// color: outline colour (THREE.Color/hex); xray: show silhouette through walls (squad, loot)
+const _mc = new THREE.Color();
+export function markEntity(renderer, obj, color = 0x100c0c, xray = false) {
+  _mc.set(color);
+  const v = new THREE.Vector4(_mc.r, _mc.g, _mc.b, xray ? 1.0 : 0.5);
+  obj.traverse(o => {
+    if (!o.isMesh) return;
+    o.layers.enable(1);
+    o.userData.maskColor = v;
+    const prev = o.onBeforeRender;
+    o.onBeforeRender = function (r, s, c, g, mat) {
+      if (renderer.maskPass && mat === renderer.maskMat) { mat.uniforms.uColor.value.copy(this.userData.maskColor); mat.uniformsNeedUpdate = true; }
+      else if (prev && prev !== THREE.Object3D.prototype.onBeforeRender) prev.apply(this, arguments);
+    };
+  });
+  return v;   // caller may mutate (e.g. flash red on hit)
 }

@@ -1,6 +1,6 @@
 // Static look-development mockups built with the real engine modules.
 import * as THREE from '../vendor/three.module.js';
-import { Renderer } from '../src/engine/renderer.js';
+import { Renderer, markEntity } from '../src/engine/renderer.js';
 import { Lighting } from '../src/engine/lighting.js';
 import { FX } from '../src/engine/fx.js';
 import { VisionCones } from '../src/engine/cones.js';
@@ -15,7 +15,7 @@ const which = params.get('s') || 'dam';
 const R = new Renderer(document.getElementById('gl'), { preserve: true });
 const L = new Lighting(R.scene, R);
 const fx = new FX(R.scene);
-const cones = new VisionCones(R.scene);
+const cones = new VisionCones(R.scene, 64);
 const hud = new HUD(document.getElementById('hud'));
 hud.icons = drawIcon;
 hud.resize(R.scale);
@@ -28,12 +28,15 @@ function raider(outfit, gun, x, z, facing, opts = {}) {
   m.update(0.3, !!opts.moving, facing, 1, !!opts.crouch);
   if (opts.moving) m.update(0.05, true, facing);
   R.scene.add(m.root);
-  const a = { m, x, z, facing, ...opts }; actors.push(a); return a;
+  const a = { m, x, z, facing, ...opts }; actors.push(a);
+  markEntity(R, m.root, opts.team ? opts.team : 0x100c0c, !!opts.team);
+  return a;
 }
 function arc(kind, x, y, z, facing, cone) {
   const mesh = arcMesh(kind);
   mesh.position.set(x, y, z); mesh.rotation.y = facing;
   R.scene.add(mesh);
+  markEntity(R, mesh, 0x140808, false);
   const a = { mesh, kind, x, y, z, facing, cone }; arcs.push(a); return a;
 }
 function prop(world, kind, x, z, rot = 0, solid) { world.prop(kind, x, z, rot, { solid }); }
@@ -53,8 +56,8 @@ SCENES.dam = () => {
   for (let i = 0; i < 6; i++) W.block(26 + i * 8, 12, 29 + i * 8, 14, 3.8, 'metalPanel');
   W.block(0, 2, 96, 6, 9.0, 'damConcrete', { seed: 3 });
   // channel of shallow water running SW
-  W.water(44, 14, 56, 72, { level: -0.1 });
-  W.water(56, 46, 96, 58, { level: -0.1 }); W.paint('rock', 56, 44, 96, 46); W.paint('rock', 56, 58, 96, 60);
+  W.raiseRect(44, 14, 56, 72, -0.7, 1.5); W.water(44, 14, 56, 72, { level: -0.1 });
+  W.raiseRect(56, 46, 96, 58, -0.7, 1.5); W.water(56, 46, 96, 58, { level: -0.1 }); W.paint('rock', 56, 44, 96, 46); W.paint('rock', 56, 58, 96, 60);
   W.paint('rock', 42, 14, 44, 72); W.paint('rock', 56, 14, 58, 46);
   // pump house (player inside)
   W.building({ x: 30, z: 28, w: 10, d: 8, h: 3.4, wall: 'concrete', floor: 'tiles', roof: 'corrugated', doors: [{ side: 's', at: 3.5, w: 1.6 }, { side: 'e', at: 3, w: 1.4, sill: 1.0 }] });
@@ -91,12 +94,12 @@ SCENES.dam = () => {
     if (Math.random() < 0.3) fx.ripples.add(50 + (Math.random() - .5), 44.4 + (Math.random() - .5) * .4, 0.03, 0.8, 1.2);
   };
   const lights = () => {
-    L.light(24.2, 1.6, 44.2, 0xff7a20, 26, 12, 3, true);
-    L.light(t.x + 0.9, 1.2, t.z + 0.4, 0xffe0a0, 20, 7, 2);
-    L.light(41.5, 4.0, 37.5, 0xffd8a0, 14, 9, 1); L.light(60, 4.0, 35.5, 0xffd8a0, 14, 9, 1);
-    L.light(wasp.x, 2.2, wasp.z, 0xff3a1a, 8, 4, 1);
-    L.light(70, 2.2, 46, 0xff3a1a, 4, 3, 1);
-    L.light(35, 2.8, 31, 0xc8e0ff, 6, 8, 2);   // interior work light
+    L.light(24.2, 1.6, 44.2, 0xff7a20, 2.89, 12, 3);
+    L.light(t.x + 0.9, 1.2, t.z + 0.4, 0xffe0a0, 2.22, 7, 2);
+    L.light(41.5, 4.0, 37.5, 0xffd8a0, 1.56, 9, 1); L.light(60, 4.0, 35.5, 0xffd8a0, 1.56, 9, 1);
+    L.light(wasp.x, 2.2, wasp.z, 0xff3a1a, 0.89, 4, 1);
+    L.light(70, 2.2, 46, 0xff3a1a, 0.44, 3, 1);
+    L.light(35, 2.8, 31, 0xc8e0ff, 0.67, 8, 2);   // interior work light
     fx.muzzle(t.x + 0.7, 1.1, t.z + 0.35, 0.6, 0.7);
     fx.sparks(wasp.x, 2.2, wasp.z, 6);
   };
@@ -156,9 +159,9 @@ SCENES.city = () => {
     fx.dust(52 + (Math.random() - .5) * 2, 40 + (Math.random() - .5) * 2, 0xc0a070);
   };
   const lights = () => {
-    L.light(45, 1.5, 35.5, 0xff8a30, 22, 10, 3, true);
-    L.light(48.5, 1.2, 37, 0xfff0c0, 30, 9, 4, true); // fresh blast
-    L.light(leaper.x, 1.4, leaper.z, 0xff3a1a, 5, 4, 1);
+    L.light(45, 1.5, 35.5, 0xff8a30, 2.44, 10, 3);
+    L.light(48.5, 1.2, 37, 0xfff0c0, 3.33, 9, 4); // fresh blast
+    L.light(leaper.x, 1.4, leaper.z, 0xff3a1a, 0.56, 4, 1);
   };
   return {
     world: W, me, center: [44, 29], lights, pre,
@@ -179,6 +182,8 @@ SCENES.city = () => {
 SCENES.gate = () => {
   L.set('night', 'fog');
   const W = new World(R.scene, 96, 72, { base: 'forest' });
+  W.noiseHills(2.5, 30, 5, (x, z) => (Math.abs(x - 44) < 14 || (z > 14 && z < 50 && x > 12 && x < 66)) ? 0 : 1);
+  W.raiseRect(70, 0, 96, 30, 5, 6, 'max');
   const r = mulberry(21);
   W.paintFn((x, z) => (Math.sin(x * 0.2) * Math.cos(z * 0.15) + r() * 0.5 > 0.7 ? 'moss' : null));
   W.paint('asphalt', 40, 0, 48, 72); W.paint('gravel', 38, 0, 40, 72); W.paint('gravel', 48, 0, 50, 72);
@@ -206,14 +211,14 @@ SCENES.gate = () => {
   arc('wasp', 62, 2.4, 40, -1.4, { half: 0.42, range: 12, state: 'idle' });
   arc('rocketeer', 66, 3.8, 56, -1.7, { half: 0.5, range: 18, state: 'alert' });
   const lights = () => {
-    L.light(37, 4.0, 30.5, 0xb0d0ff, 16, 11, 2, true); L.light(51, 4.0, 30.5, 0xb0d0ff, 16, 11, 2);
-    L.light(44, 0.6, 56, 0x40ff80, 14, 9, 3);  // extract pad beacon
-    L.light(bas.x, 2.6, bas.z + 2, 0xff3a1a, 10, 6, 1); L.light(sent.x, 10.6, sent.z + 0.6, 0xff3a1a, 6, 5, 1);
-    L.light(66, 3.8, 56, 0xffa020, 8, 6, 1);
+    L.light(37, 4.0, 30.5, 0xb0d0ff, 1.78, 11, 2); L.light(51, 4.0, 30.5, 0xb0d0ff, 1.78, 11, 2);
+    L.light(44, 0.6, 56, 0x40ff80, 1.56, 9, 3);  // extract pad beacon
+    L.light(bas.x, 2.6, bas.z + 2, 0xff3a1a, 1.11, 6, 1); L.light(sent.x, 10.6, sent.z + 0.6, 0xff3a1a, 0.67, 5, 1);
+    L.light(66, 3.8, 56, 0xffa020, 0.89, 6, 1);
     // flashlights
-    L.spot(me.x + 0.2, 1.3, me.z - 0.1, me.x + Math.sin(me.facing) * 8, 0, me.z + Math.cos(me.facing) * 8, 0xfff2d8, 60, 3);
-    L.spot(mate.x, 1.3, mate.z, mate.x + Math.sin(mate.facing) * 8, 0, mate.z + Math.cos(mate.facing) * 8, 0xfff2d8, 50, 2);
-    L.light(mate.x + 0.6, 1.1, mate.z + 0.3, 0x50c8ff, 16, 6, 2);
+    L.spot(me.x, 1.4, me.z, me.facing, 0.42, 0xfff2d8, 3.2, 16, 3);
+    L.spot(mate.x, 1.4, mate.z, mate.facing, 0.42, 0xfff2d8, 3.0, 16, 2);
+    L.light(mate.x + 0.6, 1.1, mate.z + 0.3, 0x50c8ff, 1.78, 6, 2);
     fx.tracers.add(mate.x + 0.6, 1.1, mate.z + 0.4, 66, 3.8, 56, 0x60d8ff, 1);
     fx.tracers.add(66, 3.8, 56, 46.5, 0.6, 53, 0xffa060, 1);
   };
@@ -255,13 +260,18 @@ for (let i = 0; i < 150; i++) {
   GU.uTime.value += dt;
 }
 sc.lights();
+cones.groundAt = (x, z) => sc.world.groundAt(x, z);
+const GAZE = { idle: 0xffc838, search: 0xff7a18, alert: 0xff2010, scan: 0x50c0ff };
 for (const a of arcs) {
-  if (a.cone) cones.add(sc.world.grid, a.x, a.z, a.facing, a.cone.half, a.cone.range, a.cone.state, 0.16, a.y > 4 ? 0.2 : 1.0);
+  if (!a.cone) continue;
+  const eye = sc.world.groundAt(a.x, a.z) + Math.max(1.0, a.y);
+  cones.add(sc.world.grid, a.x, a.z, a.facing, a.cone.half, a.cone.range, a.cone.state, 0.2, eye);
+  L.spot(a.x, eye, a.z, a.facing, a.cone.half, GAZE[a.cone.state], a.cone.state === 'alert' ? 2.2 : 1.6, a.cone.range, 2, true, 0.85);
 }
 cones.update(0.4);
 fx.update(0.001);
 for (let i = 0; i < 20; i++) sc.world.update(0.25, sc.me.x, sc.me.z);
-L.update(dt, cx, cz);
+L.update(dt, cx, cz, R.viewW, R.viewH);
 R.render(dt);
 
 // HUD

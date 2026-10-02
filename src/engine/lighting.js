@@ -1,23 +1,26 @@
-// Sun/moon + ambient + pooled dynamic point lights (muzzle flashes, explosions, fires, lamps).
+// Sun/moon + ambient (three.js lights) and the pooled game lights (custom shader lights with
+// raymarched 2D occlusion): muzzle flashes, explosions, fires, lamps, flashlights, ARK gaze cones.
 import * as THREE from '../../vendor/three.module.js';
-import { GU } from './materials.js';
+import { GU, MAX_LIGHTS } from './materials.js';
 import { FXU } from './fx.js';
 
-const POOL = 14, SHADOW_POOL = 2;
-
 export const TIMES = {
-  dawn:  { sunDir: [-0.8, 0.35, -0.3], sun: 0xffb088, sunI: 1.8, sky: 0xb8b8e0, ground: 0x7a6060, amb: 1.4, glow: 1.2, grade: { tint: [1.05, 0.95, 0.92], sat: 1.0, contrast: 1.05 } },
-  noon:  { sunDir: [0.35, 0.9, -0.45], sun: 0xfff4e0, sunI: 2.4, sky: 0xc8d8f0, ground: 0x9a8a70, amb: 1.5, glow: 0.8, grade: { tint: [1.02, 1.0, 0.96], sat: 1.05, contrast: 1.04 } },
-  dusk:  { sunDir: [0.85, 0.3, -0.35], sun: 0xff8a40, sunI: 2.0, sky: 0xa898c8, ground: 0x7a5048, amb: 1.25, glow: 1.4, grade: { tint: [1.08, 0.92, 0.86], sat: 1.1, contrast: 1.08 } },
-  night: { sunDir: [-0.4, 0.75, -0.5], sun: 0x8aa8ff, sunI: 0.7, sky: 0x6a7ab8, ground: 0x2a3048, amb: 0.75, glow: 2.2, grade: { tint: [0.9, 0.95, 1.12], sat: 0.8, contrast: 1.12 } },
+  dawn:  { sunDir: [-0.8, 0.35, -0.3], sun: 0xffb088, sunI: 1.8, sky: 0xb8b8e0, ground: 0x7a6060, amb: 1.4, glow: 1.2, grade: { tint: [1.05, 0.96, 0.92], sat: 1.05, contrast: 1.06 } },
+  noon:  { sunDir: [0.35, 0.9, -0.45], sun: 0xfff4e0, sunI: 2.4, sky: 0xc8d8f0, ground: 0x9a8a70, amb: 1.5, glow: 0.8, grade: { tint: [1.02, 1.0, 0.97], sat: 1.08, contrast: 1.05 } },
+  dusk:  { sunDir: [0.85, 0.3, -0.35], sun: 0xff8a40, sunI: 2.0, sky: 0xa898c8, ground: 0x7a5048, amb: 1.3, glow: 1.4, grade: { tint: [1.06, 0.94, 0.9], sat: 1.1, contrast: 1.08 } },
+  night: { sunDir: [-0.4, 0.75, -0.5], sun: 0x8aa8ff, sunI: 0.7, sky: 0x6a7ab8, ground: 0x2a3048, amb: 0.8, glow: 2.2, grade: { tint: [0.92, 0.97, 1.1], sat: 0.85, contrast: 1.1 } },
 };
 export const WEATHER = {
   clear: { sunMul: 1, ambMul: 1, rain: 0, haze: 0, hazeCol: 0xc0b090, wind: 0.3, sat: 1 },
-  rain: { sunMul: 0.4, ambMul: 0.9, rain: 0.9, haze: 0.06, hazeCol: 0x607080, wind: 1.2, sat: 0.8 },
-  storm: { sunMul: 0.2, ambMul: 0.7, rain: 1.0, haze: 0.1, hazeCol: 0x404a58, wind: 2.2, sat: 0.7, lightning: true },
-  sandstorm: { sunMul: 0.55, ambMul: 1.0, rain: 0, haze: 0.38, hazeCol: 0xb89868, wind: 3.0, sat: 0.85, sand: true },
-  fog: { sunMul: 0.6, ambMul: 1.0, rain: 0, haze: 0.2, hazeCol: 0x8a9298, wind: 0.4, sat: 0.8 },
+  overcast: { sunMul: 0.55, ambMul: 1.0, rain: 0, haze: 0.04, hazeCol: 0x808890, wind: 0.8, sat: 0.9 },
+  rain: { sunMul: 0.4, ambMul: 0.92, rain: 0.9, haze: 0.06, hazeCol: 0x607080, wind: 1.2, sat: 0.85 },
+  storm: { sunMul: 0.25, ambMul: 0.8, rain: 1.0, haze: 0.1, hazeCol: 0x404a58, wind: 2.2, sat: 0.75, lightning: true },
+  sandstorm: { sunMul: 0.6, ambMul: 1.0, rain: 0, haze: 0.32, hazeCol: 0xb89868, wind: 3.0, sat: 0.9, sand: true },
+  fog: { sunMul: 0.6, ambMul: 1.0, rain: 0, haze: 0.18, hazeCol: 0x8a9298, wind: 0.4, sat: 0.85 },
+  snow: { sunMul: 0.6, ambMul: 1.1, rain: 0, haze: 0.1, hazeCol: 0xc8d0dc, wind: 1.0, sat: 0.8, snow: true },
 };
+
+const tmpC = new THREE.Color();
 
 export class Lighting {
   constructor(scene, renderer) {
@@ -27,27 +30,17 @@ export class Lighting {
     this.sun = new THREE.DirectionalLight(0xffffff, 2);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
-    const sc = this.sun.shadow.camera; sc.left = -34; sc.right = 34; sc.top = 34; sc.bottom = -34; sc.near = 1; sc.far = 160;
+    const sc = this.sun.shadow.camera; sc.left = -36; sc.right = 36; sc.top = 36; sc.bottom = -36; sc.near = 1; sc.far = 220;
     this.sun.shadow.bias = -0.0008; this.sun.shadow.normalBias = 0.03;
     scene.add(this.sun); scene.add(this.sun.target);
-    this.pool = [];
-    for (let i = 0; i < POOL; i++) {
-      const l = new THREE.PointLight(0xffffff, 0, 10, 1.6);
-      if (i < SHADOW_POOL) { l.castShadow = true; l.shadow.mapSize.set(256, 256); l.shadow.bias = -0.004; l.shadow.camera.near = 0.2; l.shadow.camera.far = 14; }
-      scene.add(l); this.pool.push(l);
-    }
-    this.spots = [];
-    for (let i = 0; i < 4; i++) {
-      const s = new THREE.SpotLight(0xfff0d0, 0, 16, 0.42, 0.5, 1.2);
-      if (i === 0) { s.castShadow = true; s.shadow.mapSize.set(512, 512); s.shadow.bias = -0.002; s.shadow.camera.near = 0.3; s.shadow.camera.far = 18; }
-      scene.add(s); scene.add(s.target); this.spots.push(s);
-    }
-    this.requests = []; this.spotReq = [];
+    this.requests = [];
+    this.statics = [];
     this.lightning = 0;
+    this.flashBoost = 0;
     this.set('noon', 'clear');
   }
   set(time, weather) {
-    this.time = TIMES[time]; this.weather = WEATHER[weather]; this.timeName = time; this.weatherName = weather;
+    this.time = TIMES[time] || TIMES.noon; this.weather = WEATHER[weather] || WEATHER.clear; this.timeName = time; this.weatherName = weather;
     const T = this.time, W = this.weather;
     this.sunDir = new THREE.Vector3(...T.sunDir).normalize();
     this.sun.color.set(T.sun);
@@ -62,55 +55,66 @@ export class Lighting {
     const a = Math.random() * Math.PI * 2;
     GU.uWind.value.set(Math.cos(a) * W.wind, Math.sin(a) * W.wind);
     g.wind.copy(GU.uWind.value);
-    // particle ambient tint ~ overall scene brightness
     const amb = new THREE.Color(T.sky).multiplyScalar(0.5 * this.baseAmb).add(new THREE.Color(T.sun).multiplyScalar(0.25 * this.baseSun));
     FXU.uAmbient.value.setRGB(Math.min(1, amb.r + 0.15), Math.min(1, amb.g + 0.15), Math.min(1, amb.b + 0.15));
+    this.isNight = time === 'night';
   }
-  // dynamic light request for this frame
-  light(x, y, z, color, intensity, distance = 8, priority = 1, shadow = false) {
-    this.requests.push({ x, y, z, color, intensity, distance, priority, shadow });
+  // ---- per-frame light requests
+  // omni light. intensity ~0.5..4 (multiplies albedo), range in metres
+  light(x, y, z, color, intensity, range = 8, priority = 1) {
+    this.requests.push({ x, y, z, color, intensity, range, priority, spot: false });
   }
-  spot(x, y, z, tx, ty, tz, color = 0xfff0d0, intensity = 30, priority = 1) {
-    this.spotReq.push({ x, y, z, tx, ty, tz, color, intensity, priority });
+  // spot light pointing along facing (radians, 0 = +z). flat = even ground wash (ARK gaze)
+  spot(x, y, z, facing, halfAngle, color, intensity, range, priority = 1, flat = false, inner = 0.75) {
+    this.requests.push({ x, y, z, color, intensity, range, priority, spot: true, dx: Math.sin(facing), dz: Math.cos(facing), half: halfAngle, inner, flat });
   }
-  update(dt, cx, cz) {
-    this.frames = (this.frames || 0) + 1;
+  addStatic(l) { this.statics.push(l); }
+  clearStatics() { this.statics = []; }
+
+  update(dt, cx, cz, viewW = 44, viewH = 26) {
     // sun follows camera, shadow camera snapped to texels
-    const texel = 68 / 2048;
+    const texel = 72 / 2048;
     const sx = Math.round(cx / texel) * texel, sz = Math.round(cz / texel) * texel;
     this.sun.target.position.set(sx, 0, sz);
-    this.sun.position.set(sx + this.sunDir.x * 60, this.sunDir.y * 60, sz + this.sunDir.z * 60);
+    this.sun.position.set(sx + this.sunDir.x * 90, this.sunDir.y * 90, sz + this.sunDir.z * 90);
     let flash = 0;
     if (this.weather.lightning) {
       this.lightning -= dt;
       if (this.lightning < -6 - Math.random() * 10) { this.lightning = 0.35; this.onThunder && this.onThunder(); }
       if (this.lightning > 0) flash = (Math.random() < 0.6 ? 1 : 0.3) * this.lightning;
     }
-    // three's Lambert BRDF divides by PI; our presets are in "albedo multiplier" units
+    this.flashBoost = Math.max(0, this.flashBoost - dt * 4);
+    flash = Math.max(flash, this.flashBoost);
+    // three's Lambert BRDF divides by PI; presets are in "albedo multiplier" units
     this.sun.intensity = (this.baseSun + flash * 6) * Math.PI * 0.75;
     this.hemi.intensity = (this.baseAmb + flash * 2) * Math.PI * 0.6;
-    this.r.grade.flash = flash * 0.15;
+    this.r.grade.flash = flash * 0.12;
 
-    const rq = this.requests;
-    for (const q of rq) { const dx = q.x - cx, dz = q.z - cz; q.score = q.priority * 100 - Math.sqrt(dx * dx + dz * dz); }
-    rq.sort((a, b) => b.score - a.score);
-    const shadowQ = rq.filter(q => q.shadow).slice(0, SHADOW_POOL);
-    const rest = rq.filter(q => !shadowQ.includes(q));
-    for (let i = 0; i < POOL; i++) {
-      const l = this.pool[i];
-      const q = i < SHADOW_POOL ? shadowQ[i] : rest[i - SHADOW_POOL];
-      // never toggle .visible (light count changes force shader recompiles) - just zero intensity
-      if (q) { l.position.set(q.x, q.y, q.z); l.color.set(q.color); l.intensity = q.intensity * 2.2; l.distance = q.distance; }
-      else l.intensity = 0;
-      // shadow maps must render at least once or the shadow sampler has no texture bound
-      if (i < SHADOW_POOL) l.shadow.autoUpdate = !!q || this.frames < 3;
+    // static lamps near the view
+    const t = performance.now() / 1000;
+    for (const s of this.statics) {
+      if (Math.abs(s.x - cx) > viewW / 2 + s.range || Math.abs(s.z - cz) > viewH / 2 + s.range + 6) continue;
+      let I = s.intensity;
+      if (s.flicker) I *= 1 - s.flicker * (0.5 + 0.5 * Math.sin(t * 23 + s.x) * Math.sin(t * 7.3 + s.z));
+      if (s.off) continue;
+      if (s.spot) this.spot(s.x, s.y, s.z, s.spot.facing, s.spot.half, s.color, I, s.range, 0.5);
+      else this.light(s.x, s.y, s.z, s.color, I, s.range, 0.5);
     }
-    this.spotReq.sort((a, b) => b.priority - a.priority);
-    this.spots.forEach((s, i) => {
-      const q = this.spotReq[i];
-      if (q) { s.position.set(q.x, q.y, q.z); s.target.position.set(q.tx, q.ty, q.tz); s.color.set(q.color); s.intensity = q.intensity * 2.2; }
-      else s.intensity = 0;
-    });
-    this.requests = []; this.spotReq = [];
+    // pick the best MAX_LIGHTS: priority, then proximity to view centre; cull fully off-screen ones
+    const rq = this.requests.filter(q => Math.abs(q.x - cx) < viewW / 2 + q.range && q.z - cz < viewH / 2 + q.range + 4 && cz - q.z < viewH / 2 + q.range + 10);
+    for (const q of rq) { const dx = q.x - cx, dz = q.z - cz; q.score = q.priority * 60 - Math.sqrt(dx * dx + dz * dz); }
+    rq.sort((a, b) => b.score - a.score);
+    const n = Math.min(MAX_LIGHTS, rq.length);
+    const A = GU.uLA.value, B = GU.uLB.value, C = GU.uLC.value;
+    for (let i = 0; i < n; i++) {
+      const q = rq[i];
+      tmpC.set(q.color);
+      A[i].set(q.x, q.y, q.z, q.range);
+      B[i].set(tmpC.r * q.intensity, tmpC.g * q.intensity, tmpC.b * q.intensity, q.flat ? 1 : 0);
+      if (q.spot) C[i].set(q.dx, q.dz, Math.cos(q.half), Math.cos(q.half * q.inner));
+      else C[i].set(0, 0, -2, 0);
+    }
+    GU.uLN.value = n;
+    this.requests = [];
   }
 }

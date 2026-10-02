@@ -13,39 +13,56 @@ function mesh(geo, shadow = true) {
 
 // ---------------------------------------------------------------- RAIDER
 export const OUTFITS = {
-  scav: { jacket: 0x8a6a3a, pants: 0x3a3e36, accent: 0xd8862a, helmet: 0x6a6a5a, visor: 0x9ad8e8, pack: 0x5a4a32, skin: 0xc89a78 },
-  red: { jacket: 0xa83a2a, pants: 0x2e2e30, accent: 0xe8d8b0, helmet: 0xd8d0b8, visor: 0x2a2a2a, pack: 0x4a5a3a, skin: 0xa87858 },
-  teal: { jacket: 0x2a6a6a, pants: 0x3a3428, accent: 0xe8b830, helmet: 0x2a3a3a, visor: 0xffa040, pack: 0x7a5a3a, skin: 0xd8aa88 },
-  khaki: { jacket: 0x9a8a5a, pants: 0x4a4434, accent: 0x3a6aa8, helmet: 0x8a7a50, visor: 0x50e0a0, pack: 0x3a3a34, skin: 0x8a6048 },
-  bot: { jacket: 0x5a5a62, pants: 0x2a2a2e, accent: 0xc83030, helmet: 0x3a3a40, visor: 0xff5040, pack: 0x4a4038, skin: 0xb08868 },
+  scav: { jacket: 0xb08040, jacket2: 0x8a6430, pants: 0x4a4e44, accent: 0xf0a030, helmet: 0x7a7a68, visor: 0x9ae8f8, pack: 0x6a5434, skin: 0xd8a882, boots: 0x2e2622 },
+  red: { jacket: 0xc8402a, jacket2: 0x9a2e20, pants: 0x34343a, accent: 0xf0e0b8, helmet: 0xe8e0c8, visor: 0x30302e, pack: 0x5a6a3e, skin: 0xb8865e, boots: 0x262224 },
+  teal: { jacket: 0x2a8a8a, jacket2: 0x1e6666, pants: 0x4a4232, accent: 0xf8c838, helmet: 0x2e4444, visor: 0xffb048, pack: 0x8a6440, skin: 0xe0b896, boots: 0x2a2420 },
+  khaki: { jacket: 0xb0a068, jacket2: 0x8a7c4e, pants: 0x585038, accent: 0x4a8ad8, helmet: 0x9a8a5a, visor: 0x58f0b0, pack: 0x46463e, skin: 0x9a6a4e, boots: 0x2e2a22 },
+  violet: { jacket: 0x7a4aa8, jacket2: 0x5a3480, pants: 0x30303a, accent: 0x50e0e0, helmet: 0xd8d0e0, visor: 0xff60a0, pack: 0x4a4a3a, skin: 0xc89070, boots: 0x22222a },
+  bot: { jacket: 0x6a6a72, jacket2: 0x4e4e56, pants: 0x2e2e32, accent: 0xd83830, helmet: 0x44444a, visor: 0xff5040, pack: 0x544838, skin: 0xb08868, boots: 0x1e1e20 },
+  bot2: { jacket: 0x5a6a4a, jacket2: 0x44523a, pants: 0x3a3a30, accent: 0xe0a020, helmet: 0x4a5040, visor: 0xffd040, pack: 0x5a4a36, skin: 0xa07858, boots: 0x222018 },
+  bot3: { jacket: 0x8a5a4a, jacket2: 0x6a4438, pants: 0x34302e, accent: 0x60b0f0, helmet: 0x5a5048, visor: 0x80ffe0, pack: 0x3e3a34, skin: 0xc09070, boots: 0x201c1a },
 };
+export const RAIDER_SCALE = 1.15;
 
 export function raiderParts(o = OUTFITS.scav) {
-  const key = 'raider' + JSON.stringify(o);
+  const key = 'raider2' + JSON.stringify(o);
   return cached(key, () => {
-    // torso + head + backpack (pivot at hips, y=0 at hips)
-    const t = new Vox(8, 11, 7, 0.1, [4, 0, 3.5]);
-    t.box(1, 0, 1, 6, 1, 5, o.pants);                // belt / hips
-    t.box(1, 0, 1, 6, 0, 5, 0x2a2420);
-    t.box(1, 2, 1, 6, 5, 5, o.jacket);              // torso
-    t.box(0, 4, 2, 7, 5, 4, o.jacket);              // shoulders
-    t.box(2, 3, 5, 5, 4, 5, o.accent);              // chest rig
-    t.set(3, 2, 5, 0x2a2a2a).set(4, 2, 5, 0x2a2a2a);
-    t.box(1, 1, 0, 6, 5, 0, o.pack);                // backpack
-    t.box(2, 2, 0, 5, 4, 0, o.pack);
-    t.box(2, 6, 0, 5, 6, 0, 0x8a8a7a);              // bedroll on pack
-    t.box(3, 6, 2, 4, 6, 4, o.skin);                // neck
-    t.box(2, 7, 1, 5, 10, 5, o.helmet);             // head/helmet
-    t.box(2, 8, 5, 5, 8, 5, o.visor);               // visor
-    t.box(1, 8, 2, 1, 9, 4, o.accent); t.box(6, 8, 2, 6, 9, 4, o.accent); // ear cups
-    t.set(4, 10, 2, o.accent);
+    // torso + head + backpack, pivot at hips (y=0), 0.07 m voxels, facing +z
+    const t = new Vox(12, 16, 10, 0.07, [6, 0, 5.5]);
+    t.box(2, 0, 2, 9, 1, 8, o.pants);                    // hips
+    t.box(2, 1, 2, 9, 1, 8, 0x2a2420);                   // belt
+    t.set(5, 1, 8, 0xb0a070).set(6, 1, 8, 0xb0a070);     // buckle
+    t.box(2, 2, 2, 9, 7, 8, o.jacket);                   // torso
+    t.box(2, 2, 2, 9, 3, 8, o.jacket2);                  // jacket hem
+    t.box(1, 6, 3, 10, 7, 7, o.jacket);                  // shoulders
+    t.box(3, 3, 8, 8, 6, 8, o.accent);                   // chest rig plate
+    t.box(4, 4, 9, 5, 5, 9, o.jacket2); t.box(6, 4, 9, 7, 5, 9, o.jacket2);   // pouches
+    t.box(1, 2, 1, 10, 7, 1, o.pack);                    // backpack
+    t.box(2, 1, 0, 9, 8, 0, o.pack);
+    t.box(3, 2, 0, 8, 3, 0, 0x2a2420);                   // pack strap
+    t.box(2, 9, 0, 9, 9, 1, 0xa09a88);                   // bedroll
+    t.set(1, 8, 1, o.accent).set(10, 8, 1, o.accent);
+    t.box(4, 8, 3, 7, 8, 7, o.accent);                   // scarf / collar
+    t.box(3, 9, 2, 8, 14, 8, o.helmet);                  // head / helmet
+    t.box(3, 10, 8, 8, 11, 8, o.visor);                  // visor band
+    t.box(4, 12, 8, 7, 12, 8, o.helmet);
+    t.box(2, 10, 4, 2, 12, 6, o.accent); t.box(9, 10, 4, 9, 12, 6, o.accent);   // ear cups
+    t.box(4, 15, 3, 7, 15, 6, o.helmet);                 // helmet top (rim-lit)
+    t.set(5, 15, 7, o.accent);                           // helmet lamp
     t.glow(o.visor);
     const torso = t.build();
-    // leg (pivot at hip)
-    const l = new Vox(3, 6, 3, 0.1, [1.5, 6, 1.5]);
-    l.box(0, 1, 0, 2, 5, 2, o.pants); l.box(0, 0, 0, 2, 1, 2, 0x2a2622); l.set(1, 0, 3, 0x2a2622); l.box(0, 3, 2, 2, 3, 2, o.accent);
+    // leg, pivot at hip (y=9 voxels)
+    const l = new Vox(4, 9, 5, 0.07, [2, 9, 2.5]);
+    l.box(0, 2, 1, 3, 8, 3, o.pants);
+    l.box(0, 0, 0, 3, 1, 4, o.boots); l.box(0, 2, 4, 3, 2, 4, o.boots);
+    l.box(0, 4, 3, 3, 5, 3, o.accent);                   // knee pad
     const leg = l.build();
-    return { torso, leg };
+    // arm
+    const a = new Vox(3, 3, 8, 0.07, [1.5, 1.5, 0]);
+    a.box(0, 0, 0, 2, 2, 5, o.jacket); a.box(0, 0, 6, 2, 2, 7, 0x2e2a26);   // glove
+    a.box(0, 0, 3, 2, 2, 3, o.jacket2);
+    const arm = a.build();
+    return { torso, leg, arm };
   });
 }
 
@@ -78,35 +95,48 @@ export class RaiderModel {
   constructor(outfit = OUTFITS.scav, gun = 'rifle') {
     const p = raiderParts(outfit);
     this.root = new THREE.Group();
-    this.hips = new THREE.Group(); this.hips.position.y = 0.6;
+    this.body = new THREE.Group(); this.body.scale.setScalar(RAIDER_SCALE);
+    this.root.add(this.body);
+    this.hips = new THREE.Group(); this.hips.position.y = 0.63;
     this.upper = new THREE.Group();
     this.torso = mesh(p.torso);
     this.legL = mesh(p.leg); this.legR = mesh(p.leg);
-    this.legL.position.set(-0.15, 0.6, 0); this.legR.position.set(0.15, 0.6, 0);
-    this.armGun = new THREE.Group();
+    this.legL.position.set(-0.13, 0.63, 0); this.legR.position.set(0.13, 0.63, 0);
+    this.armGun = new THREE.Group(); this.armGun.position.y = 0.42;
+    this.gunKind = gun;
     this.gun = mesh(gunGeo(gun));
-    this.gun.position.set(0.18, 0.38, 0.25);
-    this.armGun.add(this.gun);
-    // arms: simple boxes in jacket colour
-    const a = new Vox(2, 2, 5, 0.1, [1, 1, 0]); a.box(0, 0, 0, 1, 1, 4, outfit.jacket); a.box(0, 0, 4, 1, 1, 4, outfit.skin);
-    const ag = cached('arm' + outfit.jacket + outfit.skin, () => a.build());
-    this.armR = mesh(ag); this.armR.position.set(0.32, 0.42, 0.02); this.armR.rotation.y = -0.15;
-    this.armL = mesh(ag); this.armL.position.set(-0.2, 0.40, 0.12); this.armL.rotation.y = 0.55;
-    this.armGun.add(this.armR, this.armL);
+    this.gun.position.set(0.12, 0.0, 0.26);
+    this.armR = mesh(p.arm); this.armR.position.set(0.3, 0.02, 0.0); this.armR.rotation.y = -0.2;
+    this.armL = mesh(p.arm); this.armL.position.set(-0.24, 0.0, 0.06); this.armL.rotation.y = 0.62;
+    this.armGun.add(this.gun, this.armR, this.armL);
     this.upper.add(this.torso, this.armGun);
     this.hips.add(this.upper);
-    this.root.add(this.hips, this.legL, this.legR);
-    this.walk = 0;
+    this.body.add(this.hips, this.legL, this.legR);
+    this.walk = 0; this.recoil = 0; this.lean = 0;
   }
-  // facing: radians, 0 = +z (south / toward camera)
-  update(dt, moving, facing, speed = 1, crouch = false) {
+  setGun(kind) {
+    if (kind === this.gunKind) return;
+    this.gunKind = kind;
+    this.gun.geometry = gunGeo(kind || 'pistol');
+    this.gun.visible = !!kind;
+  }
+  // facing: radians, 0 = +z (south / toward camera); aim pitch ignored (top-down)
+  update(dt, moving, facing, speed = 1, crouch = false, moveDir = facing) {
     this.root.rotation.y = facing;
-    if (moving) this.walk += dt * 9 * speed; else this.walk *= 0.8;
-    const s = Math.sin(this.walk) * (moving ? 0.6 : 0);
+    if (moving) this.walk += dt * 9 * speed; else this.walk *= Math.pow(0.02, dt);
+    // legs swing along the movement direction relative to facing (strafe/backpedal look right)
+    const rel = Math.cos(moveDir - facing);
+    const s = Math.sin(this.walk) * (moving ? 0.65 : 0) * (rel >= 0 ? 1 : -1);
     this.legL.rotation.x = s; this.legR.rotation.x = -s;
-    this.hips.position.y = (crouch ? 0.42 : 0.6) + Math.abs(Math.cos(this.walk)) * (moving ? 0.04 : 0);
-    this.legL.position.y = this.legR.position.y = crouch ? 0.45 : 0.6;
+    const hipY = crouch ? 0.44 : 0.63;
+    this.hips.position.y = hipY + Math.abs(Math.cos(this.walk)) * (moving ? 0.035 : 0);
+    this.legL.position.y = this.legR.position.y = hipY;
+    this.upper.rotation.x = crouch ? 0.22 : 0.05 * (moving ? 1 : 0);
+    this.recoil = Math.max(0, this.recoil - dt * 10);
+    this.armGun.position.z = -this.recoil * 0.08;
+    this.armGun.rotation.x = -this.recoil * 0.25;
   }
+  kick(a = 1) { this.recoil = Math.min(1.2, this.recoil + a); }
 }
 
 // ---------------------------------------------------------------- ARC
@@ -267,6 +297,18 @@ const PROPS = {
   shelf() { const v = new Vox(16, 20, 5, 0.1, [8, 0, 2.5]); for (let y = 0; y < 20; y += 6) v.box(0, y, 0, 15, y, 4, 0x4a4a4a); v.box(0, 0, 0, 0, 19, 4, 0x3a3a3a); v.box(15, 0, 0, 15, 19, 4, 0x3a3a3a); for (let i = 0; i < 8; i++) v.box(1 + i * 2, 1 + (i % 3) * 6, 1, 2 + i * 2, 3 + (i % 3) * 6, 3, [0x8a6a3a, 0x3a6a8a, 0xa83a2a, 0xd8d0b0][i % 4]); return v.build(); },
   debris() { const v = new Vox(12, 3, 12, 0.1, [6, 0, 6]); for (let i = 0; i < 40; i++) { const x = (i * 7) % 12, z = (i * 11) % 12; v.box(x, 0, z, x, (i % 3), z, [0x6a665e, 0x5a564e, 0x7a4a2a][i % 3]); } return v.build(); },
 };
+const PROP_INFO = {
+  crate: { solid: [0.48, 0.48, 0.85] }, lootCrate: { solid: [0.5, 0.35, 0.6] }, arcCrate: { solid: [0.4, 0.4, 0.6] },
+  barrel: { solid: [0.3, 0.3, 0.9] }, barrelBlue: { solid: [0.3, 0.3, 0.9] },
+  tree: { solid: [0.3, 0.3, 4.5] }, pine: { solid: [0.3, 0.3, 5] }, deadTree: { solid: [0.25, 0.25, 3.5] },
+  bush: { cast: true }, cactus: { solid: [0.25, 0.25, 2] }, rock: { solid: [1.0, 0.85, 1.0] },
+  car: { solid: [1.0, 2.0, 1.3] }, lamp: { solid: [0.15, 0.15, 3] }, sandbag: { solid: [1.0, 0.3, 0.6] },
+  pipe: { solid: [2.0, 0.4, 0.8] }, husk: { solid: [1.5, 1.2, 0.9] }, antenna: { solid: [0.5, 0.5, 7] },
+  extractPad: {}, hatch: {}, workbench: { solid: [0.8, 0.4, 0.9] }, shelf: { solid: [0.8, 0.25, 2] }, debris: { cast: false },
+};
+export function registerProp(kind, builder, info = {}) { PROPS[kind] = builder; PROP_INFO[kind] = info; geoCache.delete('prop_' + kind); }
+export function propInfo(kind) { return PROP_INFO[kind] || {}; }
 export function propMesh(kind, shadow = true) { return mesh(cached('prop_' + kind, PROPS[kind]), shadow); }
-export function propGeo(kind) { return cached('prop_' + kind, PROPS[kind]); }
-export const PROP_KINDS = Object.keys(PROPS);
+export function propGeo(kind) { return PROPS[kind] ? cached('prop_' + kind, PROPS[kind]) : null; }
+export function propKinds() { return Object.keys(PROPS); }
+export { Vox, ARC as ARK_COLORS, mesh as voxMesh, cached as cachedGeo };
