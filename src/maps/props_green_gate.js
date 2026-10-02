@@ -229,21 +229,6 @@ P('gg_patrolcar', () => {    // armoured patrol car with light bar
 }, { solid: [1.2, 2.6, 2.0] });
 
 // ------------------------------------------------------------------ TUNNEL / INDUSTRIAL
-P('gg_airshaft', () => {     // airshaft extraction vent, 7 x 7 m
-  const v = new Vox(28, 19, 28, 0.25, [14, 0, 14]);
-  v.box(0, 0, 0, 27, 4, 27, C.conc);
-  hazardBand(v, 0, 4, 0, 27, 4, 27, 2);
-  v.box(2, 5, 2, 25, 13, 25, (x, y, z) => ((y % 2) && (x === 2 || x === 25 || z === 2 || z === 25) ? C.steelD : C.steel));
-  v.box(3, 14, 3, 24, 14, 24, C.steelD);
-  for (let z = 4; z < 24; z++) for (let x = 4; x < 24; x++) {
-    const dx = x - 13.5, dz = z - 13.5, d = Math.hypot(dx, dz);
-    if (d < 9.5) v.set(x, 14, z, (Math.atan2(dz, dx) * 4 / Math.PI + 8 | 0) % 2 && d > 2 ? C.black : C.steelL);
-  }
-  v.box(12, 15, 12, 15, 16, 15, C.steelD);
-  for (const [x, z] of [[1, 1], [26, 1], [1, 26], [26, 26]]) v.box(x, 5, z, x, 17, z, C.green), v.set(x, 18, z, C.gG);
-  v.glow(C.gG);
-  return v.build();
-}, { solid: [3.5, 3.5, 3.6] });
 P('gg_fan', () => {          // giant ventilation fan standing upright, 6 m
   const v = new Vox(24, 25, 6, 0.25, [12, 0, 3]);
   v.box(0, 0, 0, 23, 1, 5, C.concD);
@@ -622,9 +607,3 @@ P('gg_venthouse', () => {     // small ventilation housing next to an airshaft h
   v.box(0, 4, 4, 0, 7, 7, C.haz);
   return v.build();
 }, { solid: [1.2, 0.9, 1.7] });
-P('gg_hatchsign', () => {     // raider hatch marker post with a yellow plate
-  const v = new Vox(6, 22, 3, 0.1, [3, 0, 1.5]);
-  v.box(2, 0, 1, 3, 20, 1, C.steelD); v.box(0, 14, 0, 5, 19, 2, C.haz); v.box(1, 16, 2, 4, 17, 2, C.black);
-  v.set(2, 21, 1, C.gY); v.glow(C.gY);
-  return v.build();
-}, { solid: [0.12, 0.12, 2] });

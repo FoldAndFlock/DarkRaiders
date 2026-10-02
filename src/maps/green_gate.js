@@ -467,14 +467,11 @@ export default {
       for (let k = -5; k <= 5; k++) { const a = f + PI + k * 0.24, fx = x + Math.sin(a) * 9.5, fz = z + Math.cos(a) * 9.5; w.prop('gg_fence', fx, fz, -a + PI / 2, { solid: [1.2, 0.15, 2] }); }
       for (const sgn of [-1, 1]) { const a = f + sgn * 1.15; lightPost(x + Math.sin(a) * 7, z + Math.cos(a) * 7, 0xe8f4ff, 'gg_lightmast', 6.5, 2.2, 16); }
       const av = f + PI + 0.9; w.prop('gg_venthouse', x + Math.sin(av) * 7.2, z + Math.cos(av) * 7.2, -av, { solid: true });
-      w.lamp(x + Math.sin(f) * 3, z + Math.cos(f) * 3, { y: 2.4, model: null, color: 0x40ff80, intensity: 1.4, range: 9 });
       return w.extract(id, name, x, z, { kind: 'airshaft', face: f });
     };
     const hatchSite = (id, name, x, z, f) => {
       w.flatten(x - 2.5, z - 2.5, x + 2.5, z + 2.5, null, 1.5);
       w.paintCircle('gravel', x, z, 3.2, 0.3, x); mark(x - 3, z - 3, x + 3, z + 3, 2 | 4);
-      const as = f + 1.4; w.prop('gg_hatchsign', x + Math.sin(as) * 2.6, z + Math.cos(as) * 2.6, -as, { solid: true });
-      w.lamp(x + Math.sin(as) * 2.6, z + Math.cos(as) * 2.6, { y: 2.2, model: null, color: 0xffd040, intensity: 1.4, range: 7 });
       return w.extract(id, name, x, z, { kind: 'hatch', needsKey: 'raider_hatch', face: f });
     };
     const watchtower = (x, z, scale = 1) => {   // roofed decorative guard tower
@@ -683,7 +680,6 @@ export default {
         mark(768, 253, 827, 297, 2 | 4);
         w.prop('gg_fan', 818, 266, -PI / 2, { solid: true }); w.prop('gg_transformer', 816, 290, 0, { solid: true }); w.prop('gg_pipes', 790, 290, 0, { solid: true });
         for (const [x, z] of [[772, 257], [823, 257], [823, 293], [772, 293]]) lightPost(x, z, 0xe8f4ff, 'gg_lightmast', 6.5, 2.2, 16);
-        w.lamp(AX - 3, AZ, { y: 2.6, model: null, color: 0x40ff80, intensity: 1.4, range: 9 });
         w.extract('warehouse_airshaft', 'Warehouse Airshaft', AX, AZ, { kind: 'airshaft', face: faceTo(AX, AZ, 780, 282) });
       }
       w.arkSpawn('rocketeer', 760, 230, { count: 1, patrol: [[700, 220], [820, 230], [820, 340], [700, 340]] });
