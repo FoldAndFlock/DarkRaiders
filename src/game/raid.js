@@ -117,10 +117,22 @@ export class RaidGame {
     return new Promise((resolve) => { this.resolve = resolve; requestAnimationFrame((t) => this.frame(t)); });
   }
   get me() { return this.ents.get(this.meId); }
+  // host: random insertion point, preferring ones with no ARK within 32 m (patrol waypoints within 20 m)
   pickSpawn() {
     const sp = this.world.spawns;
     const r = mulberry((this.o.seed || 1) * 13 + 5);
-    const p = sp.length ? sp[Math.floor(r() * sp.length)] : { x: this.world.w / 2, z: this.world.h / 2 };
+    if (!sp.length) return { x: this.world.w / 2, z: this.world.h / 2 };
+    const clear = (p) => {
+      let m = 1e9;
+      if (this.sim) for (const e of this.sim.entities.values()) if (e.type === 'ark') m = Math.min(m, Math.hypot(e.x - p.x, e.z - p.z));
+      for (const s of this.world.arkSpawns) for (const w of s.patrol || []) m = Math.min(m, Math.hypot(w[0] - p.x, w[1] - p.z) + 12);
+      return m;
+    };
+    const scored = sp.map(p => ({ p, d: clear(p) }));
+    this.safeSpawns = scored.filter(s => s.d >= 32).length;
+    const safe = scored.filter(s => s.d >= 32);
+    const pool = safe.length ? safe : scored.sort((a, b) => b.d - a.d).slice(0, Math.max(1, Math.ceil(scored.length / 3)));
+    const p = pool[Math.floor(r() * pool.length)].p;
     return { x: p.x, z: p.z };
   }
 

@@ -82,6 +82,7 @@ export class ArkBrain {
     this.sim.near(e.x, e.z, range * 1.2, (t) => {
       if (t.type !== 'raider' || (t.st !== 'alive' && t.st !== 'downed')) return;
       if (t.buffs?.cloak) return;
+      if (t.grace > this.sim.t) return;                        // just inserted: a few seconds to get bearings
       const dx = t.x - e.x, dz = t.z - e.z, d = Math.hypot(dx, dz);
       let r = range * (t.stats?.arc_detect_mul || 1) * (t.crouch ? 0.62 : 1) * (t.flash && this.sim.night ? 1.35 : night);
       if (t.sprint) r *= 1.15;

@@ -59,7 +59,7 @@ export class Sim {
       type: 'raider', pid: o.pid, name: o.name || 'Raider', bot: !!o.bot, team: o.team ?? 1, outfit: o.outfit || 'scav',
       x: o.x, z: o.z, y: this.ground(o.x, o.z), f: o.f || 0, mf: 0, moving: false, sprint: false, crouch: false,
       hp: st.max_hp || 100, maxHp: st.max_hp || 100, sh: 0, shMax: 0, shMit: 0, st: 'alive', downHp: 0,
-      wid: null, wk: 'rifle', flash: false, r: RAIDER_R, h: RAIDER_H, hot: [], buffs: {}, regenPause: 0,
+      wid: null, wk: 'rifle', flash: false, r: RAIDER_R, h: RAIDER_H, hot: [], buffs: {}, regenPause: 0, grace: o.bot ? 0 : this.t + 8,
       stats: st, kills: 0, dmgDealt: 0, temper: o.temper || 'player', lastHit: -99, emote: null, emoteT: 0,
     });
     if (o.shield) this.setShield(e, o.shield);
