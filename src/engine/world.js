@@ -124,7 +124,7 @@ export class Grid {
     if (r >= 0) { const s = this.spans[r]; for (let k = 0; k < s.length; k += 2) if (s[k] < yb && s[k + 1] > ya) return true; }
     return this._doorIn(this.door[i], ya, yb) || this._doorIn(this.door2[i], ya, yb);
   }
-  _doorIn(d, ya, yb) { if (d < 0) return false; const b = this.doorBlocks[d]; return b.closed && b.y0 < yb && b.y1 > ya; }
+  _doorIn(d, ya, yb) { if (!(d >= 0)) return false; const b = this.doorBlocks[d]; return b.closed && b.y0 < yb && b.y1 > ya; }
   // is height y inside a solid of cell i?
   solidAtI(i, y) {
     if (this.top[i] > y) return true;
@@ -216,21 +216,30 @@ export class Grid {
   // can a walker with feet at height feetY stand at x,z with radius r?
   blockedAt(x, z, r, feetY) {
     const x0 = Math.floor((x - r) / CELL), x1 = Math.floor((x + r) / CELL), z0 = Math.floor((z - r) / CELL), z1 = Math.floor((z + r) / CELL);
+    if (x0 < 0 || z0 < 0 || x1 >= this.cw || z1 >= this.ch) return true;
+    const under = (cx, cz) => { const nx = Math.max(cx * CELL, Math.min(x, (cx + 1) * CELL)), nz = Math.max(cz * CELL, Math.min(z, (cz + 1) * CELL)); return (nx - x) ** 2 + (nz - z) ** 2 < r * r; };
+    // support: the highest surface within a step of the feet that the circle already rests on. Obstacles
+    // are judged from there, so on a turned stair the step after next under the rim doesn't jam a walker
+    // whose centre hasn't reached the next step yet. The centre itself is judged from the real feet, so
+    // nothing can be walked through.
+    let sup = feetY;
     for (let cz = z0; cz <= z1; cz++) for (let cx = x0; cx <= x1; cx++) {
-      if (cx < 0 || cz < 0 || cx >= this.cw || cz >= this.ch) return true;
+      if (!under(cx, cz)) continue;
+      const f = this.floorI(cz * this.cw + cx, feetY); if (f > sup) sup = f;
+    }
+    if (this.solidIn(Math.floor(z / CELL) * this.cw + Math.floor(x / CELL), feetY + STEP_H, feetY + BODY_H)) return true;
+    for (let cz = z0; cz <= z1; cz++) for (let cx = x0; cx <= x1; cx++) {
       const i = cz * this.cw + cx;
-      let bad = this.solidIn(i, feetY + STEP_H, feetY + BODY_H);
+      let bad = this.solidIn(i, sup + STEP_H, sup + BODY_H);
       if (!bad && this.water[i] && feetY < this.top[i] + 1) { const b = this.bodies[this.water[i] - 1]; bad = b.level - this.top[i] > 0.95; }
-      if (bad) {
-        const nx = Math.max(cx * CELL, Math.min(x, (cx + 1) * CELL)), nz = Math.max(cz * CELL, Math.min(z, (cz + 1) * CELL));
-        if ((nx - x) ** 2 + (nz - z) ** 2 < r * r) return true;
-      }
+      if (bad && under(cx, cz)) return true;
     }
     return false;
   }
   // circle movement with sliding; p = {x,z,y?}. Feet follow step-ups (stairs, kerbs); dropping off
   // ledges is left to the caller (gravity / snap via floorAt). Returns true if something was hit.
   move(p, vx, vz, r) {
+    if (!(Number.isFinite(vx) && Number.isFinite(vz))) vx = vz = 0;   // never let a bad vector poison p
     const steps = Math.ceil(Math.max(Math.abs(vx), Math.abs(vz)) / (r * 0.5)) || 1;
     let x = p.x, z = p.z, hit = false;
     let feet = p.y ?? this.floorAt(x, z, 1e9);
@@ -611,11 +620,13 @@ export class World {
         else if (dir === 's') r = [fx0, fz0 + len * t0, fx1, fz0 + len * t1];
         else r = [fx0, fz1 - len * t1, fx1, fz1 - len * t0];
         // each step is solid down to the lower level (a stair block), resting on that level's floor
-        this.block(r[0], r[1], r[2], r[3], top - y0, st.tex || ST, { ...o, rel0: y0 || 0, sink: 0.3, rep: 2 });
+        this.block(r[0], r[1], r[2], r[3], top - y0, st.tex || ST, { ...o, rel0: y0 || 0, sink: 0.3, rep: 2, step: true });
       }
-      const hk = to === 'top' ? 'top' : to, m = CELL;   // stairwell opening: a cell wider than the flight
-      (bb.holes[hk] ||= []).push([fx0 - m, fz0 - m, fx1 + m, fz1 + m]);
-      (bb.stairs ||= []).push({ rect: [fx0, fz0, fx1, fz1], from, to });
+      // stairwell opening: a cell wider than the flight for headroom, except at the top end where the
+      // last step meets the slab (no gap to step over)
+      const hk = to === 'top' ? 'top' : to, m = CELL;
+      (bb.holes[hk] ||= []).push([fx0 - (dir === 'w' ? 0 : m), fz0 - (dir === 'n' ? 0 : m), fx1 + (dir === 'e' ? 0 : m), fz1 + (dir === 's' ? 0 : m)]);
+      (bb.stairs ||= []).push({ rect: [fx0, fz0, fx1, fz1], from, to, dir, y0, y1 });
     }
     // floor slabs between storeys (walkable, cut away with the walls when you are below them)
     if (storeys > 1 && b.floors !== false) {
@@ -634,8 +645,9 @@ export class World {
         this.ladders.push({ x0: bx, z0: bz, x1: tx, z1: tz, bid: id, rel0: 0, rel1: ld.to === undefined || ld.to === 'top' ? h + 0.25 : lev(ld.to), face, wall: rotPt(R, (out[0] + out[2]) / 2, (out[1] + out[3]) / 2) });
       } else {
         const [lx, lz] = rotPt(R, x + ld.x, z + ld.z);
-        const to = ld.to ?? 'top', from = ld.from ?? 0;
-        this.ladders.push({ x0: lx, z0: lz, x1: lx, z1: lz, bid: id, rel0: lev(from), rel1: lev(to) + (to === 'top' && !under ? 0.25 : 0), face: (ld.face || 0) - (b.rot || 0), inside: true });
+        const to = ld.to ?? 'top', from = ld.from ?? 0, fw = (ld.face || 0) - (b.rot || 0);
+        // the top end steps off beside the hatch (on the climber's side), not back down into it
+        this.ladders.push({ x0: lx, z0: lz, x1: lx + Math.sin(fw) * 1.0, z1: lz + Math.cos(fw) * 1.0, bid: id, rel0: lev(from), rel1: lev(to) + (to === 'top' && !under ? 0.25 : 0), face: fw, inside: true });
         (bb.holes[to] ||= []).push([x + ld.x - 0.5, z + ld.z - 0.5, x + ld.x + 0.5, z + ld.z + 0.5]);
       }
     }
@@ -652,12 +664,18 @@ export class World {
   }
   // elevated walkable slab along a polyline (bridge / overpass / catwalk): you can walk on it AND under it
   bridge(points, width, y, texName = 'concrete', { thick = 0.6, railH = 1.0, rails = true, pillars = 8, side = 'damConcrete', pillarW = 1.2 } = {}) {
-    for (let k = 0; k < points.length - 1; k++) {
+    const n = points.length, closed = n > 2 && Math.hypot(points[0][0] - points[n - 1][0], points[0][1] - points[n - 1][1]) < 0.01;
+    const ang = (k) => Math.atan2(points[k + 1][1] - points[k][1], points[k + 1][0] - points[k][0]);
+    // rail trim at a joint: half the turn angle's tangent times the rail offset, so inner rails meet
+    // instead of crossing the walkway
+    const trim = (k0, k1) => { const t = Math.abs(Math.atan2(Math.sin(ang(k1) - ang(k0)), Math.cos(ang(k1) - ang(k0)))); return t < 0.02 ? 0 : Math.min(width, Math.tan(t / 2) * (width / 2 - 0.12) + 0.1); };
+    for (let k = 0; k < n - 1; k++) {
       const [ax, az] = points[k], [bx, bz] = points[k + 1];
       const L = Math.hypot(bx - ax, bz - az), a = Math.atan2(bz - az, bx - ax);
       const cx = (ax + bx) / 2, cz = (az + bz) / 2, R = rotFrame(cx, cz, a), hw = width / 2;
       this.block(cx - L / 2 - 0.05, cz - hw, cx + L / 2 + 0.05, cz + hw, thick, texName, { y0: y - thick, R, xray: true, bridge: true });
-      if (rails) for (const sgn of [-1, 1]) this.block(cx - L / 2, cz + sgn * (hw - 0.12) - 0.1, cx + L / 2, cz + sgn * (hw - 0.12) + 0.1, railH, 'rust', { y0: y, R, xray: false });
+      const t0 = k > 0 ? trim(k - 1, k) : closed ? trim(n - 2, 0) : 0, t1 = k < n - 2 ? trim(k, k + 1) : closed ? trim(n - 2, 0) : 0;
+      if (rails && L - t0 - t1 > 0.2) for (const sgn of [-1, 1]) this.block(cx - L / 2 + t0, cz + sgn * (hw - 0.12) - 0.1, cx + L / 2 - t1, cz + sgn * (hw - 0.12) + 0.1, railH, 'rust', { y0: y, R, xray: false });
       if (pillars) for (let t = pillars / 2; t < L; t += pillars) this.block(cx - L / 2 + t - pillarW / 2, cz - pillarW / 2, cx - L / 2 + t + pillarW / 2, cz + pillarW / 2, 0, side, { R, pillarTo: y - thick });
     }
   }
@@ -788,7 +806,9 @@ export class World {
       const cut = s.opts.cutaway ?? (s.opts.y0 != null || s.opts.pillarTo != null);
       const mat = litTex(t, { cutaway: !!cut, xray: s.opts.xray !== false, color: s.opts.tint || 0xffffff });
       if (!s.opts.nodraw) this.boxes.add(s.texName + (cut ? 'c' : '') + (s.opts.tint || '') + (s.opts.xray === false ? 'n' : ''), mat, s.x0, y0, s.z0, s.x1, y1, s.z1, s.opts);
-      if (s.opts.collide !== false) g.eachCell(s.x0, s.z0, s.x1, s.z1, s.opts.R, true, (i) => g.addSolid(i, y0, y1));
+      // thin pieces are padded so turned walls stay closed; stair steps tile their flight exactly instead
+      // (padding would push each turned step into the one below and jam a walker going straight up)
+      if (s.opts.collide !== false) g.eachCell(s.x0, s.z0, s.x1, s.z1, s.opts.R, !s.opts.step, (i) => g.addSolid(i, y0, y1));
     }
     // 4b) roofs are solid and walkable (gables step up), underground lids are the ground above
     for (const B of this.buildings) if (B.def.roofWalk !== false) for (const r of this._roofParts(B)) {

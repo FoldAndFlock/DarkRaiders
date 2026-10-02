@@ -63,7 +63,7 @@ export class BotBrain {
     let wp = this.path[0];
     while (wp && Math.hypot(wp[0] - e.x, wp[1] - e.z) < 1.0 && this.path.length > 1) { this.path.shift(); wp = this.path[0]; }
     if (!wp) { e.moving = false; return true; }
-    const dx = wp[0] - e.x, dz = wp[1] - e.z, d = Math.hypot(dx, dz);
+    const dx = wp[0] - e.x, dz = wp[1] - e.z, d = Math.hypot(dx, dz) || 1e-3;
     if (d < 0.5 && this.path.length <= 1) { e.moving = false; return true; }
     const sp = (e.sprint ? 6.0 : 4.0) * mul * (e.buffs?.slowed ? 0.5 : 1) * dt;
     const p = { x: e.x, z: e.z, y: e.y };
@@ -121,7 +121,7 @@ export class BotBrain {
   }
   fight(t, dt) {
     const e = this.e, sim = this.sim;
-    const dx = t.x - e.x, dz = t.z - e.z, d = Math.hypot(dx, dz), a = Math.atan2(dx, dz);
+    const dx = t.x - e.x, dz = t.z - e.z, d = Math.hypot(dx, dz) || 1e-3, a = Math.atan2(dx, dz);   // same spot: no NaN
     const ty = t.y + (t.alt || 0) + (t.type === 'raider' ? (t.crouch ? 0.8 : 1.2) : 0.6);
     const vis = sim.grid.los(e.x, e.y + 1.4, e.z, t.x, ty, t.z) && !sim.smokeBetween(e.x, e.z, t.x, t.z);
     e.f += Math.max(-dt * 7, Math.min(dt * 7, wrapAngle(a - e.f)));
