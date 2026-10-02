@@ -146,7 +146,7 @@ export class RaidGame {
   // ------------------------------------------------------------------ main loop
   frame(now) {
     if (!this.running) return;
-    const dt = Math.min(0.05, (now - this.last) / 1000); this.last = now;
+    const dt = Math.max(0, Math.min(0.05, (now - this.last) / 1000)); this.last = now;   // never negative (stale first timestamp)
     this.time += dt;
     const input = this.o.input;
     const me = this.me;
@@ -471,9 +471,12 @@ export class RaidGame {
   aimScreen(me) {
     const input = this.o.input;
     if (input.mode === 'kbm' || !this.pc) return { x: input.mouse.x, y: input.mouse.y };
+    // pad aim locked onto an entity (e.g. a flying ARK): player.js puts input.mouse on its body
+    if (input.mode === 'pad' && this.pc.aim.entity) return { x: input.mouse.x, y: input.mouse.y };
     const a = this.pc.aim, s = this.R.worldToScreen(a.x, (me?.y || 0) + 1.1, a.z);
     return { x: s.x, y: s.y, dim: input.mode === 'touch' && !this.o.input.virtual.fire && !this.touch?.aim };
   }
+  quickLabel(i) { try { return String(this.o.input.label?.('quick' + (i + 1)) || ''); } catch (e) { return ''; } }
   // short key / button label for HUD prompts ('E', 'A', 'LB+X'); the HUD bar shows hold progress itself
   keyLabel(action, def) { try { const l = this.o.input.label?.(action); return l && l !== '?' ? String(l).toUpperCase().replace(/^HOLD\s+/, '').slice(0, 5) : def; } catch (e) { return def; } }
   drawHUD(dt) {
@@ -491,7 +494,8 @@ export class RaidGame {
       raid: { map: this.o.map.name, time: Math.max(0, this.timeLeft ?? 0), condition: (this.timeLeft ?? 1) <= 0 ? 'OVERTIME - EXTRACTION IN PROGRESS' : (this.cond?.name || '').toUpperCase(), weather: `${this.timeOfDay.toUpperCase()}  ${this.weather.toUpperCase()}`, where: this.whereLabel(me) },
       player: { name: this.o.name, level: this.profile?.level, hp: me.st === 'downed' ? me.downHp : me.hp, hpMax: me.st === 'downed' ? 75 : me.maxHp, shield: me.sh, shieldMax: me.shMax, stamina: pc.stamina / pc.stats.max_stamina, weight: pc.weight(), weightMax: caps.weightLimit },
       weapon: w ? { name: ITEMS[w.id].name, tier: ROMAN[w.tier || 1], rarity: ITEMS[w.id].rarity, mag: w.ammo || 0, reserve: countLoadout(lo, ws.ammo), mode: pc.reloadT > 0 ? 'RELOADING' : ((w.dur ?? 1) <= 0 ? 'BROKEN' : ws.mode.toUpperCase()), alt: lo.weapons.filter((x, i) => x && i !== pc.slot).map(x => ITEMS[x.id].name).join(' / ') } : { name: 'Unarmed', tier: '', rarity: 'common', mag: 0, reserve: 0, mode: '' },
-      quick: lo.quick.map((s, i) => s ? { item: s.id, icon: ITEMS[s.id]?.icon, count: s.qty, active: pc.useSlot === i && pc.useItem } : {}),
+      // slot labels follow the device: 1-6 on keyboard, d-pad arrows on a pad ('' on touch -> the HUD shows 1-6)
+      quick: lo.quick.map((s, i) => { const key = this.quickLabel(i); return s ? { item: s.id, icon: ITEMS[s.id]?.icon, count: s.qty, active: pc.useSlot === i && pc.useItem, key } : { key }; }),
       feed: this.feedList,
       chat: { lines: this.chatLines, open: this.ui.chatOpen, input: this.ui.chatInput || '', teamCount: 0 },
       banner: this.bannerS,

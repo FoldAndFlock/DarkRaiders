@@ -102,6 +102,7 @@ html.touchui .cell.wide img { width: calc(var(--px) * 52px); }
 .hub.hub-narrow .hh-xp .bar { width: calc(var(--u) * 70); }
 .hub.hub-narrow .sk-wrap { grid-template-columns: max-content max-content max-content minmax(calc(var(--u) * 150), 1fr); overflow: auto; height: 100%; }
 .hub.hub-narrow .sk-br { min-width: max-content; }
+.hub.hub-narrow .sk-bdesc { width: 0; min-width: 100%; max-width: none; }   /* wraps to the tree's width */
 .hub.hub-short .sk-wrap { overflow: auto; align-items: start; }
 .hub.hub-short .sk-br { height: auto; }
 .hub.hub-narrow .bench-head .hp-b { grid-template-columns: minmax(0, 1fr); gap: calc(var(--u) * 3); }

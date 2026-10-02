@@ -162,7 +162,7 @@ export class HUD {
       this.panel(qx, qy, 32, 26, q.active ? UI.yellow : UI.line);
       if (q.item && this.itemIcons) this.itemIcons(c, q.item, qx + 8, qy + 3, 16);
       else if (q.icon && this.icons) this.icons(c, q.icon, qx + 8, qy + 3, 16);
-      this.text(String(i + 1), qx + 3, qy + 2, { color: UI.dim });
+      this.text(q.key || String(i + 1), qx + 3, qy + 2, { color: UI.dim });
       if (q.count != null) this.text('x' + q.count, qx + 29, qy + 18, { color: UI.cream, align: 'right' });
       this.quickRects.push({ x: qx, y: qy, w: 32, h: 26, empty: !q.item && !q.icon });
     });
