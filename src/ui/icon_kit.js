@@ -185,6 +185,23 @@ export class PB {
     const dy = vert ? Math.floor((this.h - (b.y1 - b.y0 + 1)) / 2) - b.y0 : 0;
     return this.shift(dx, dy);
   }
+  // crisp downscale to n x n: per output pixel, the colour with the largest coverage (outline down-weighted)
+  scaled(n) {
+    const out = new PB(n, n), k = this.w / n;
+    for (let oy = 0; oy < n; oy++) for (let ox = 0; ox < n; ox++) {
+      const votes = new Map(); let cover = 0;
+      const x0 = ox * k, x1 = x0 + k, y0 = oy * k, y1 = y0 + k;
+      for (let sy = Math.floor(y0); sy < Math.ceil(y1); sy++) for (let sx = Math.floor(x0); sx < Math.ceil(x1); sx++) {
+        const v = this.get(sx, sy); if (v === -1) continue;
+        const w = (Math.min(x1, sx + 1) - Math.max(x0, sx)) * (Math.min(y1, sy + 1) - Math.max(y0, sy));
+        cover += w; votes.set(v, (votes.get(v) || 0) + w * (v === OUT ? 0.7 : 1));
+      }
+      if (cover < k * k * 0.42) continue;
+      let best = -1, bw = -1; for (const [v, w] of votes) if (w > bw) { bw = w; best = v; }
+      out.s(ox, oy, best);
+    }
+    return out;
+  }
   // wear & tear: desaturate/darken, rust/char specks, a crack and chipped edge pixels
   damage(rnd, { amt = 1, rust = false, char = false } = {}) {
     this.map(c => { let v = grey(c, 0.45 * amt); v = dk(v, 0.18 * amt); return v; });

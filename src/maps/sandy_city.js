@@ -66,7 +66,15 @@ class Mask {
   constructor(res = 3) { this.r = res; this.w = Math.ceil(MW / res) + 1; this.h = Math.ceil(MH / res) + 1; this.a = new Float32Array(this.w * this.h); }
   poly(pts, v = 1) { for (let j = 0; j < this.h; j++) for (let i = 0; i < this.w; i++) if (inPoly(i * this.r, j * this.r, pts)) this.a[j * this.w + i] = Math.max(this.a[j * this.w + i], v); return this; }
   circle(cx, cz, rad, v = 1) { for (let j = 0; j < this.h; j++) for (let i = 0; i < this.w; i++) if (Math.hypot(i * this.r - cx, j * this.r - cz) < rad) this.a[j * this.w + i] = Math.max(this.a[j * this.w + i], v); return this; }
-  line(pts, wd, v = 1) { for (let j = 0; j < this.h; j++) for (let i = 0; i < this.w; i++) if (polyDist(i * this.r, j * this.r, pts)[0] < wd / 2) this.a[j * this.w + i] = Math.max(this.a[j * this.w + i], v); return this; }
+  line(pts, wd, v = 1) {
+    for (let k = 0; k < pts.length - 1; k++) {
+      const [ax, az] = pts[k], [bx, bz] = pts[k + 1], r = wd / 2;
+      for (let j = Math.max(0, Math.floor((Math.min(az, bz) - r) / this.r)); j <= Math.min(this.h - 1, Math.ceil((Math.max(az, bz) + r) / this.r)); j++)
+        for (let i = Math.max(0, Math.floor((Math.min(ax, bx) - r) / this.r)); i <= Math.min(this.w - 1, Math.ceil((Math.max(ax, bx) + r) / this.r)); i++)
+          if (segDist(i * this.r, j * this.r, ax, az, bx, bz)[0] < r) this.a[j * this.w + i] = Math.max(this.a[j * this.w + i], v);
+    }
+    return this;
+  }
   blur(rad, passes = 2) {
     const { w, h } = this; let a = this.a, b = new Float32Array(a.length);
     for (let p = 0; p < passes; p++) {
@@ -89,6 +97,10 @@ class Mask {
 const TOWN = [[248, 196], [292, 172], [330, 150], [372, 112], [418, 92], [470, 112], [540, 118], [590, 150], [640, 205], [700, 268],
   [760, 330], [790, 420], [800, 500], [900, 528], [900, 606], [810, 622], [790, 690], [770, 790], [700, 826], [610, 812], [540, 836],
   [470, 846], [400, 836], [330, 806], [282, 760], [238, 716], [196, 690], [176, 640], [184, 560], [206, 470], [214, 380], [208, 300], [222, 236]];
+// the swept-clear heart of the old town (paved lanes); TOWN minus CORE is the half-buried fringe
+const CORE = [[296, 300], [336, 262], [396, 214], [452, 196], [512, 214], [552, 250], [600, 300], [612, 370], [604, 430], [640, 500],
+  [700, 516], [800, 532], [900, 534], [900, 604], [790, 612], [730, 650], [706, 700], [700, 772], [640, 796], [560, 806], [480, 826],
+  [410, 822], [350, 800], [300, 752], [262, 704], [232, 650], [222, 572], [246, 484], [262, 410], [276, 346]];
 const FLATS = [
   { pts: [[48, 326], [178, 326], [186, 444], [56, 446]], v: 1 },           // Warehouse yard
   { pts: [[186, 196], [262, 186], [266, 362], [192, 360]], v: 1 },         // Marano Station
@@ -156,7 +168,7 @@ const B = [
   [375, 318, 80, 34, -22, 3, 'c', { name: 'Library', poi: 'library', kindLoot: 'old' }],
   [352, 285, 46, 26, -22, 3, 'c', { poi: 'library', kindLoot: 'old' }],
   [487, 333, 64, 56, -14, 3, 'p', { name: 'Parking Garage', poi: 'parking_garage' }],
-  [568, 316, 112, 40, 61, 3, 's', { name: 'Galleria', poi: 'galleria', wall: 'concrete', tint: 'cream' }],
+  [568, 316, 112, 40, 61, 3, 's', { name: 'Galleria', poi: 'galleria', wall: 'concrete', tint: 'cream', flat: true }],
   [501, 396, 64, 30, 62, 3, 't', { name: 'Research', poi: 'research' }],
   [533, 377, 64, 28, 59, 3, 't', { name: 'Space Travel', poi: 'space_travel', key: 'space_travel', keySeg: -1 }],
   // ---- Marano Park ring and Piazza Roma
@@ -173,38 +185,47 @@ const B = [
   [348, 505, 30, 22, -25, 2, 'h'],
   [558, 429, 30, 19, 60, 2, 's'],
   // ---- Town Hall
-  [477, 520, 92, 28, -26, 3, 'c', { name: 'Town Hall', poi: 'town_hall', key: 'town_hall', keySeg: 0, tint: 'cream', kindLoot: 'old' }],
+  [477, 520, 92, 28, -26, 3, 'c', { name: 'Town Hall', poi: 'town_hall', key: 'town_hall', keySeg: 'mid', tint: 'cream', kindLoot: 'old' }],
   [532, 489, 38, 24, -26, 3, 'c', { poi: 'town_hall', tint: 'ochre' }],
   // ---- south of the Corso: Santa Maria Houses and Main Street
-  [474, 597, 64, 18, 66, 3, 'a', { name: 'Santa Maria Houses', poi: 'santa_maria_houses', tint: 'pink' }],
-  [512, 594, 70, 18, -56, 3, 'a', { poi: 'santa_maria_houses', tint: 'ochre' }],
-  [439, 627, 54, 22, -30, 3, 'h', { poi: 'santa_maria_houses', tint: 'cream' }],
-  [390, 637, 48, 34, -35, 3, 'a', { tint: 'terracotta' }],
-  [412, 604, 34, 18, -30, 2, 'h'],
-  [345, 630, 40, 26, 90, 2, 'h'],
+  [480, 602, 64, 17, 66, 3, 'a', { name: 'Santa Maria Houses', poi: 'santa_maria_houses', tint: 'pink' }],
+  [510, 598, 72, 18, -60, 3, 'a', { poi: 'santa_maria_houses', tint: 'ochre' }],
+  [[411, 637], [452, 607], [461, 621], 3, 'h', { poi: 'santa_maria_houses', tint: 'cream' }],
+  [391, 632, 50, 32, 60, 3, 'a', { tint: 'terracotta' }],
+  [[395, 601], [413, 591], [422, 607], 2, 'h'],
+  [334, 637, 25, 20, 90, 2, 'h'],
   [553, 588, 56, 21, 80, 3, 'a', { tint: 'cream' }],
-  // ---- Plaza Rosa / Red Tower / southern lanes
-  [415, 707, 44, 15, 82, 3, 'h', { poi: 'plaza_rosa', key: 'residential', keyName: 'Residential (Plaza Rossa)', tint: 'pink' }],
-  [490, 714, 30, 16, 90, 2, 'h', { poi: 'plaza_rosa', tint: 'ochre' }],
-  [463, 750, 30, 17, -30, 2, 'h', { poi: 'plaza_rosa' }],
-  [494, 772, 32, 21, -35, 2, 'h', { tint: 'terracotta' }],
+  // ---- Plaza Rosa / southern lanes (corner-traced: [[x,z] x3 consecutive corners], storeys, kind, opts)
+  [[405, 687], [422, 688], [417, 731], 3, 'h', { poi: 'plaza_rosa', key: 'residential', keyName: 'Residential (Plaza Rossa)', tint: 'pink' }],
+  [487, 716, 28, 19, 90, 2, 'h', { poi: 'plaza_rosa', tint: 'ochre' }],
+  [474, 738, 24, 13, -35, 2, 'h', { poi: 'plaza_rosa' }],
+  [462, 752, 25, 21, -35, 2, 'h', { tint: 'cream' }],
+  [[349, 674], [400, 684], [397, 700], 2, 'h', { tint: 'terracotta' }],
+  [[350, 690], [363, 692], [358, 720], 2, 'h', { tint: 'terracotta' }],
+  [[375, 705], [397, 707], [396, 716], 1, 'h'],
+  [[343, 726], [383, 733], [378, 752], 2, 'h', { tint: 'ochre' }],
+  [[336, 757], [374, 760], [373, 786], 2, 'h'],
+  [[377, 737], [400, 739], [398, 790], 2, 'h', { tint: 'pink' }],
+  [[416, 743], [449, 745], [448, 767], 2, 'h', { tint: 'cream' }],
+  [446, 772, 30, 24, -30, 2, 'h'],
+  [490, 779, 26, 24, 0, 2, 'h', { tint: 'terracotta' }],
+  [510, 764, 22, 17, -30, 2, 'h'],
   [527, 740, 48, 20, 60, 2, 'h', { poi: 'plaza_rosa', tint: 'cream' }],
-  [362, 740, 42, 26, -20, 2, 'h', { tint: 'ochre' }],
-  [352, 770, 42, 24, 0, 2, 'h'],
-  [396, 768, 56, 22, 75, 2, 'h', { tint: 'pink' }],
-  [439, 792, 54, 28, -20, 2, 'h', { tint: 'cream' }],
-  [463, 813, 34, 24, -30, 2, 'h', { sunk: 1 }],
-  [376, 698, 52, 30, -15, 2, 'h', { tint: 'terracotta' }],
-  [545, 684, 50, 24, -35, 3, 'h', { poi: 'red_tower', tint: 'pink' }],
-  [522, 666, 12, 12, 0, 7, 'h', { name: 'Red Tower', poi: 'red_tower', wall: 'brick', tint: 'red', flat: true }],
+  [425, 805, 40, 24, -15, 2, 'h', { tint: 'cream' }],
+  [463, 815, 34, 22, -30, 2, 'h', { sunk: 1 }],
+  [533, 667, 16, 16, 0, 7, 'h', { name: 'Red Tower', poi: 'red_tower', wall: 'brick', tint: 'red', flat: true }],
+  [538, 694, 30, 26, 80, 3, 'h', { poi: 'red_tower', tint: 'pink' }],
+  [548, 652, 30, 20, -20, 2, 'h', { tint: 'cream' }],
+  [603, 650, 28, 19, 0, 2, 'h', { tint: 'ochre' }],
   // ---- Grandioso Apartments / west lanes / Old Town
   [228, 598, 40, 37, 15, 5, 'a', { name: 'Grandioso Apartments', poi: 'grandioso_apartments', key: 'residential', keySeg: 0, keyName: 'Residential (Grandiosa)', tint: 'cream' }],
   [217, 648, 40, 38, 15, 5, 'a', { poi: 'grandioso_apartments', tint: 'cream' }],
-  [239, 540, 68, 44, -25, 3, 'a', { tint: 'ochre' }],
+  [249, 539, 49, 37, 69, 3, 'a', { tint: 'ochre', flat: true }],
   [243, 510, 26, 20, -25, 2, 'h'],
   [298, 607, 52, 32, 75, 2, 'h', { tint: 'pink' }],
   [328, 566, 36, 22, 80, 2, 'h'],
-  [311, 683, 52, 38, -30, 2, 'h', { poi: 'old_town', tint: 'terracotta' }],
+  [[286, 677], [349, 679], [348, 699], 2, 'h', { poi: 'old_town', tint: 'terracotta' }],
+  [[317, 656], [342, 658], [340, 677], 2, 'h', { poi: 'old_town', tint: 'ochre' }],
   // ---- east: Piazza Arbusto, Buried Properties
   [642, 523, 40, 26, 0, 2, 'h', { poi: 'piazza_arbusto', tint: 'ochre' }],
   [673, 524, 36, 24, 0, 2, 'h', { poi: 'piazza_arbusto' }],
@@ -215,7 +236,7 @@ const B = [
   [618, 612, 36, 26, 60, 2, 'h', { tint: 'ochre' }],
   [590, 633, 58, 28, -35, 3, 'a', { key: 'residential', keySeg: 0, keyName: 'Residential (Arbusta)', tint: 'terracotta' }],
   [670, 638, 40, 21, -20, 2, 'h'],
-  [636, 653, 34, 29, -30, 2, 'h', { tint: 'cream' }],
+  [636, 666, 46, 22, 70, 2, 'h', { tint: 'cream' }],
   [762, 614, 15, 15, 0, 2, 'h', { sunk: 1 }],
   [716, 639, 19, 15, 0, 1, 'h', { sunk: 1 }],
   [632, 321, 58, 30, 62, 2, 'h', { sunk: 1, poi: 'buried_properties' }],
@@ -233,12 +254,12 @@ const B = [
   [657, 724, 9, 9, 0, 7, 'o', { name: 'Bell Tower', poi: 'church_ruins', flat: true, wall: 'plaster', tint: 'cream' }],
   [663, 787, 18, 17, 0, 1, 'r'],
   [692, 798, 19, 17, 0, 1, 'h', { sunk: 1 }],
-  [583, 702, 38, 20, -30, 2, 'h', { tint: 'ochre' }],
-  [613, 718, 34, 19, -30, 2, 'h'],
-  [577, 745, 30, 19, -30, 2, 'h', { tint: 'pink' }],
+  [572, 701, 54, 28, 15, 2, 'h', { tint: 'ochre' }],
+  [621, 714, 32, 22, -35, 2, 'h'],
+  [581, 743, 32, 27, 0, 2, 'h', { tint: 'pink' }],
   [613, 755, 35, 21, -30, 2, 'h'],
   [646, 739, 24, 15, -30, 2, 'h', { tint: 'cream' }],
-  [598, 779, 26, 17, -30, 1, 'h', { sunk: 1 }],
+  [551, 778, 48, 26, -25, 2, 'h', { sunk: 1 }],
 ];
 
 // Houses swallowed by the dunes: only roofs / attic windows still show. [cx, cz, w, d, ridgeAxis 'x'|'z', showH]
@@ -284,8 +305,8 @@ const PLAZAS = [
   { id: 'plaza_rosa', pts: [[424, 690], [474, 698], [506, 712], [500, 744], [470, 742], [448, 736], [424, 728]], tex: 'tiles' },
   { id: 'piazza_roma', pts: [[290, 448], [334, 452], [340, 462], [318, 482], [292, 480], [284, 466]], tex: 'tiles' },
   { id: 'piazza_arbusto', pts: [[596, 540], [660, 538], [672, 560], [640, 572], [600, 566]], tex: 'tiles' },
-  { id: 'northern_square', pts: [[400, 286], [450, 290], [452, 318], [414, 336], [398, 318]], tex: 'tiles' },
-  { id: 'town_hall_square', pts: [[420, 470], [500, 452], [520, 470], [452, 498], [418, 500]], tex: 'tiles' },
+  { id: 'northern_square', pts: [[400, 286], [450, 290], [452, 318], [414, 336], [398, 318]], tex: 'concrete' },
+  { id: 'town_hall_square', pts: [[420, 470], [500, 452], [520, 470], [452, 498], [418, 500]], tex: 'concrete' },
   { id: 'market_square', pts: [[500, 196], [552, 180], [566, 206], [536, 226], [506, 222]], tex: 'tiles' },
   { id: 'main_street', pts: [[300, 664], [420, 660], [470, 664], [512, 650], [560, 662], [640, 690], [700, 716], [694, 730], [636, 706], [556, 676], [512, 664], [470, 680], [420, 676], [300, 680]], tex: 'concrete' },
   { id: 'church_square', pts: [[660, 742], [700, 744], [702, 760], [668, 768], [652, 760]], tex: 'tiles' },
@@ -359,7 +380,7 @@ function decompose(cx, cz, L, Wd, ang) {
   const r = a * D2R, ux = Math.cos(r), uz = Math.sin(r);
   const tilt = Math.min(Math.abs(a), 90 - Math.abs(a)), t = tilt * D2R;
   const nearX = Math.abs(a) <= 45, drift = L * Math.sin(t);
-  if (tilt < 12 || drift < 11 || L < 24) {
+  if (tilt < 12 || drift < 12 || L < 34) {
     const ax = L * Math.cos(t) + Wd * Math.sin(t), az = L * Math.sin(t) + Wd * Math.cos(t), k = Math.sqrt(L * Wd / (ax * az));
     const ex = (nearX ? ax : az) * k, ez = (nearX ? az : ax) * k;
     return [[R2(cx - ex / 2), R2(cz - ez / 2), R2(cx + ex / 2), R2(cz + ez / 2)]];
@@ -380,6 +401,13 @@ function decompose(cx, cz, L, Wd, ang) {
   return out;
 }
 
+// [[x1,z1],[x2,z2],[x3,z3], ...rest] (three consecutive corners) -> [cx, cz, L, W, angle, ...rest]
+function fromCorners(b) {
+  const [[x1, z1], [x2, z2], [x3, z3], ...rest] = b;
+  const ax = x2 - x1, az = z2 - z1, bx = x3 - x2, bz = z3 - z2, la = Math.hypot(ax, az), lb = Math.hypot(bx, bz);
+  const cx = (x1 + x3) / 2, cz = (z1 + z3) / 2;
+  return la >= lb ? [cx, cz, la, lb, Math.atan2(az, ax) / D2R, ...rest] : [cx, cz, lb, la, Math.atan2(bz, bx) / D2R, ...rest];
+}
 class Occ { // 1 m occupancy raster of building segments
   constructor() { this.a = new Int32Array(MW * MH).fill(-1); }
   mark(x0, z0, x1, z1, id) { for (let z = Math.max(0, Math.floor(z0)); z < Math.min(MH, Math.ceil(z1)); z++) for (let x = Math.max(0, Math.floor(x0)); x < Math.min(MW, Math.ceil(x1)); x++) this.a[z * MW + x] = id; }
@@ -420,7 +448,8 @@ function layoutComplexes(ctx) {
   const { occ } = ctx;
   ctx.cxs = []; ctx.segs = [];
   const placed = (ctx.obstacles || []).slice();
-  B.forEach((b, bi) => {
+  B.forEach((b0, bi) => {
+    const b = Array.isArray(b0[0]) ? fromCorners(b0) : b0;
     const [cx, cz, L, Wd, ang, storeys, kind, o = {}] = b;
     const C = { bi, cx, cz, L, Wd, ang, storeys, kind, o, segs: [] };
     for (const r of decompose(cx, cz, L, Wd, ang)) {
@@ -478,7 +507,7 @@ function buildComplexes(ctx) {
     const gable = !o.flat && !ruinAll && rng() < st.gable;
     const roofTint = ROOF_TINTS[Math.floor(rng() * ROOF_TINTS.length)];
     const floorTex = st.floor[Math.floor(rng() * st.floor.length)];
-    const keyIdx = o.key ? (o.keySeg === -1 ? -1 : (o.keySeg ?? 0)) : null;
+    const keyIdx = o.key ? (o.keySeg === -1 ? -1 : o.keySeg === 'mid' ? Math.floor(C.segs.length / 2) : (o.keySeg ?? 0)) : null;
     C.rooms = [];
     C.segs.forEach((s, k) => {
       const W = s.x1 - s.x0, D = s.z1 - s.z0;
@@ -635,21 +664,29 @@ function duneH(x, z) {
   const edge = Math.min(x, MW - x, z, MH - z);
   const rim = Math.pow(1 - sstep(0, 200, edge), 1.5) * 13;
   const base = 2.5 + fbm(N2, x, z, 170) * 9;
-  const warp = fbm(N3, x, z, 95) * 70;
-  const u = (x * 0.93 + z * 0.37 + warp) / 62, f = u - Math.floor(u);
+  const warp = fbm(N3, x, z, 95) * 90, per = 52 + fbm(N1, x + 300, z, 210) * 40;
+  const u = (x * 0.93 + z * 0.37 + warp) / per, f = u - Math.floor(u);
   const crest = f < 0.7 ? f / 0.7 : (1 - f) / 0.3;                 // long windward slope, steep lee face
-  const ridges = crest * crest * (2 + fbm(N4, x, z, 120) * 5.5);
+  const amp = fbm(N4, x, z, 120), on = sstep(0.32, 0.6, amp);       // crest fields fade in and out
+  const u2 = (x * 0.42 - z * 0.91 + warp * 0.6) / 88, f2 = u2 - Math.floor(u2), c2 = f2 < 0.65 ? f2 / 0.65 : (1 - f2) / 0.35;
+  const ridges = crest * crest * (1.5 + amp * 6) * on + c2 * c2 * 2.5 * (1 - on);
   const north = Math.exp(-((z - 70) ** 2) / (2 * 60 * 60)) * sstep(100, 260, x) * (1 - sstep(780, 900, x)) * 7;
   return base + rim + ridges + north;
 }
 function shapeTerrain(ctx) {
   const { w } = ctx;
-  const L = new Mask(3).poly(TOWN, 1);
+  const L = new Mask(3).poly(TOWN, 0.66).poly(CORE, 1);
   for (const f of FLATS) L.poly(f.pts, f.v);
   L.line(HIGHWAY, 30, 0.7); L.line(RAIL, 20, 0.7);
   L.blur(5, 2);
   ctx.low = L;
-  w.heightFn((x, z) => townH(x, z) + duneH(x, z) * sstep(0.03, 0.97, 1 - L.at(x, z)), 'set');
+  // evaluate on a 2 m lattice and interpolate (dune features are >= ~15 m)
+  const G = 2, gw = MW / G + 1, gh = MH / G + 1, hg = new Float32Array(gw * gh);
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const x = i * G, z = j * G, d = sstep(0.03, 0.97, 1 - L.at(x, z)); hg[j * gw + i] = townH(x, z) + (d > 0.002 ? duneH(x, z) * d : 0); }
+  w.heightFn((x, z) => {
+    const fx = x / G, fz = z / G, i = Math.min(gw - 2, Math.floor(fx)), j = Math.min(gh - 2, Math.floor(fz)), u = fx - i, v = fz - j;
+    return (hg[j * gw + i] * (1 - u) + hg[j * gw + i + 1] * u) * (1 - v) + (hg[(j + 1) * gw + i] * (1 - u) + hg[(j + 1) * gw + i + 1] * u) * v;
+  }, 'set');
 }
 // buried edge buildings: pile a dune against their windward (north-east) side
 function sunkMounds(ctx) {
@@ -731,7 +768,7 @@ function makeDeck(ctx, D) {
     }
     return best;
   }, 'set');
-  D.R = R; D.inGap = inGap; D.arr = arr;
+  D.R = R; D.inGap = inGap; D.arr = arr; D.from = from; D.gaps = gaps;
   return D;
 }
 // side walls, parapets, pilasters, broken ends — called after the heightfield is final
@@ -815,11 +852,12 @@ function furnish(ctx) {
         const ck = keyLoot ? keyLoot[i % keyLoot.length] : e[1];
         if (!ck) continue;
         if (!keyLoot && rng() < ctx.lootSkip) continue;
+        if (keyLoot) { const kc = ctx.keyLoot[r.key] = (ctx.keyLoot[r.key] || 0) + 1; if (kc > (r.key === 'residential' ? 18 : 10) || i > 3) continue; }
         // container beside the furniture (or in its place)
         const off = kind ? hw + 0.55 : 0, sx = side < 2 ? 1 : 0, sz = side < 2 ? 0 : 1;
         const cx = x + sx * off * (rng() < 0.5 ? 1 : -1), cz = z + sz * off * (rng() < 0.5 ? 1 : -1);
         if (cx < r.x0 + 0.5 || cx > r.x1 - 0.5 || cz < r.z0 + 0.5 || cz > r.z1 - 0.5) continue;
-        const tier = r.key ? 3 : C.o.poi ? (rng() < 0.2 ? 3 : 2) : (rng() < 0.18 ? 2 : 1);
+        const tier = r.key ? 3 : C.o.poi ? (rng() < 0.07 ? 3 : 2) : (rng() < 0.15 ? 2 : 1);
         w.container(ck, cx, cz, rot, { tier, room: r.key || null });
         ctx.nCont++;
       }
@@ -838,13 +876,16 @@ function paintGround(ctx) {
   w.paintFn((x, z) => {
     const l = L.at(x, z);
     const drift = N4(x / 7, z / 7) * 0.55 + N2(x / 26, z / 26) * 0.45;
-    if (l > 0.8) {
-      if (drift > 0.62 - (1 - l) * 0.9) return drift > 0.67 ? 'sand' : 'sandDark';
+    if (l > 0.62) {
+      if (drift > 0.58 - (1 - l) * 1.6) return drift > 0.62 - (1 - l) * 1.2 ? 'sand' : 'sandDark';
       const pv = N3(x / 11, z / 11);
-      return pv > 0.64 ? 'tiles' : pv < 0.3 ? 'gravel' : 'concrete';
+      return pv > 0.72 ? 'tiles' : pv < 0.3 ? 'gravel' : 'concrete';
     }
-    if (l > 0.5) return drift > 0.42 ? 'sand' : (N1(x / 5, z / 5) > 0.62 ? 'gravel' : 'sandDark');
-    return N3(x / 40, z / 40) > 0.74 ? 'sandDark' : null;
+    if (l > 0.5) return drift > 0.36 ? 'sand' : (N1(x / 5, z / 5) > 0.62 ? 'gravel' : 'sandDark');
+    // dunes: darker sand on the steep lee faces (wind from the west-north-west)
+    const gx = w.groundAt(x + 1, z) - w.groundAt(x - 1, z), gz = w.groundAt(x, z + 1) - w.groundAt(x, z - 1);
+    const lee = (gx * 0.93 + gz * 0.37) * 0.5;
+    return lee < -0.32 + N1(x / 9, z / 9) * 0.12 ? 'sandDark' : null;
   });
   for (const p of PLAZAS) w.paintPoly(p.tex, p.pts);
   for (const r of ROADS) w.path(r.pts, r.w, r.tex);
@@ -1114,7 +1155,7 @@ function vegetation(ctx) {
     const area = Math.abs(a / 2), n = Math.round(area / 100 * g.d);
     const ks = kinds[g.k];
     let tot = 0; for (const k of ks) tot += k[1];
-    for (const [k, wgt] of ks) w.scatter(k, g.pts, Math.round(n * wgt / tot), { solid: true, seed: 1000 + gi * 17 + k.length, avoid, scaleVar: 0.35 });
+    for (const [k, wgt] of ks) w.scatter(k, g.pts, Math.round(n * wgt / tot), { solid: true, seed: 1000 + gi * 17 + k.length, avoid, scale: k.startsWith('sc_olive') ? 1.45 : k === 'sc_cypress' ? 1.1 : 1.25, scaleVar: 0.4 });
     w.scatter(gi % 3 ? 'sc_shrub' : 'bush', g.pts, Math.round(n * 0.5), { seed: 2000 + gi, avoid, scaleVar: 0.5 });
     w.scatter('sc_agave', g.pts, Math.round(n * 0.12), { seed: 3000 + gi, avoid });
     // dappled earth under the trees
@@ -1164,28 +1205,68 @@ function streetClutter(ctx) {
       }
     }
   }
-  // parked / abandoned cars, debris, signs and street lamps in the open lanes
-  const lanes = (x, z, r) => ctx.low.at(x, z) > 0.72 && !ctx.blocked(x, z, r);
-  let cars = 0, lamps = 0, deb = 0, signs = 0, husks = 0, trash = 0;
-  for (let i = 0; i < 9000; i++) {
-    const x = 180 + rng() * 640, z = 80 + rng() * 760, t = rng();
-    if (t < 0.12 && cars < 70 && lanes(x, z, 2.4)) {
-      const sunk = ctx.low.at(x, z) < 0.86;
+  // parked / abandoned cars, debris, signs and street lamps in the open lanes (clustered vignettes)
+  const lanes = (x, z, r) => ctx.low.at(x, z) > 0.6 && !ctx.blocked(x, z, r);
+  const B = { car: 170, lamp: 230, deb: 900, sign: 70, husk: 40, trash: 60, barricade: 70, market: 50, weeds: 700, junk: 160 };
+  const cnt = {}; for (const k in B) cnt[k] = 0;
+  const near = (x, z, r) => { const a = rng() * 6.283, d = rng() * r; return [x + Math.cos(a) * d, z + Math.sin(a) * d]; };
+  for (let i = 0; i < 26000; i++) {
+    const x = 160 + rng() * 680, z = 60 + rng() * 800, t = rng();
+    if (t < 0.1) {
+      if (cnt.car >= B.car || !lanes(x, z, 2.4)) continue;
+      const sunk = ctx.low.at(x, z) < 0.8;
       const rot = rng() * 6.283, k = sunk ? (rng() < 0.5 ? 'sc_carroof' : 'sc_carroof2') : ['sc_fiat', 'sc_fiat2', 'sc_fiat3', 'sc_fiat4'][Math.floor(rng() * 4)];
-      w.prop(k, x, z, rot, { solid: true }); if (rng() < 0.5) w.container('car_trunk', x + Math.sin(rot) * 2.2, z + Math.cos(rot) * 2.2, rot, { tier: 1 });
-      cars++;
-    } else if (t < 0.3 && lamps < 150 && lanes(x, z, 1.2)) {
-      w.lamp(x, z, { y: 2.4, model: 'sc_lamppost', intensity: 0.95, range: 9, color: 0xffd8a0, flicker: rng() < 0.15 ? 0.6 : 0 }); lamps++;
-    } else if (t < 0.6 && deb < 700 && lanes(x, z, 0.8)) {
-      const k = rng(); w.prop(k < 0.45 ? 'debris' : k < 0.7 ? 'sc_rubble' : k < 0.8 ? 'sc_rubble2' : k < 0.9 ? 'sc_slab' : 'crate', x, z, rng() * 6, { solid: k > 0.45 }); deb++;
-    } else if (t < 0.66 && signs < 40 && lanes(x, z, 1)) {
-      w.prop(rng() < 0.5 ? 'sc_sign' : 'sc_streetsign', x, z, rng() * 6, { solid: true }); signs++;
-    } else if (t < 0.7 && husks < 26 && lanes(x, z, 2)) {
-      w.prop('husk', x, z, rng() * 6, { solid: true }); w.container('arc_husk', x + 1.6, z + 0.4, 0, { tier: 2 }); husks++;
-    } else if (t < 0.78 && trash < 70 && lanes(x, z, 1)) {
-      w.container('trash', x, z, rng() * 6, { tier: 1 }); trash++;
+      w.prop(k, x, z, rot, { solid: true }); if (rng() < 0.3) w.container('car_trunk', x + Math.sin(rot) * 2.2, z + Math.cos(rot) * 2.2, rot, { tier: 1 });
+      if (rng() < 0.5) { const [px, pz] = near(x, z, 3); if (!ctx.blocked(px, pz, 0.4)) w.prop('debris', px, pz, rng() * 6, {}); }
+      cnt.car++;
+    } else if (t < 0.2) {
+      if (cnt.lamp >= B.lamp || !lanes(x, z, 1.2)) continue;
+      w.lamp(x, z, { y: 2.4, model: 'sc_lamppost', intensity: 0.95, range: 9, color: 0xffd8a0, flicker: rng() < 0.15 ? 0.6 : 0 }); cnt.lamp++;
+    } else if (t < 0.45) {
+      if (cnt.deb >= B.deb || !lanes(x, z, 0.8)) continue;
+      const k = rng(); w.prop(k < 0.4 ? 'debris' : k < 0.62 ? 'sc_rubble' : k < 0.78 ? 'sc_rubble2' : k < 0.9 ? 'sc_slab' : 'sc_slab2', x, z, rng() * 6, { solid: k > 0.4 }); cnt.deb++;
+    } else if (t < 0.5) {
+      if (cnt.sign >= B.sign || !lanes(x, z, 1)) continue;
+      w.prop(rng() < 0.5 ? 'sc_sign' : 'sc_streetsign', x, z, rng() * 6, { solid: true }); cnt.sign++;
+    } else if (t < 0.53) {
+      if (cnt.husk >= B.husk || !lanes(x, z, 2)) continue;
+      w.prop('husk', x, z, rng() * 6, { solid: true }); if (rng() < 0.7) w.container('arc_husk', x + 1.6, z + 0.4, 0, { tier: 2 }); cnt.husk++;
+      for (let j = 0; j < 3; j++) { const [px, pz] = near(x, z, 4); if (!ctx.blocked(px, pz, 0.4)) w.prop('debris', px, pz, rng() * 6, {}); }
+    } else if (t < 0.58) {
+      if (cnt.trash >= B.trash || !lanes(x, z, 1)) continue;
+      w.container('trash', x, z, rng() * 6, { tier: 1 }); cnt.trash++;
+    } else if (t < 0.64) {
+      // raider barricade: sandbags in an arc, barrels, a crate
+      if (cnt.barricade >= B.barricade || !lanes(x, z, 3)) continue;
+      const a0 = rng() * 6.283;
+      for (let j = 0; j < 3; j++) { const a = a0 + (j - 1) * 0.6; w.prop('sandbag', x + Math.cos(a) * 2.6, z + Math.sin(a) * 2.6, -a + Math.PI / 2, { solid: true }); }
+      w.prop(rng() < 0.6 ? 'barrel' : 'barrelBlue', x - Math.cos(a0) * 0.6, z - Math.sin(a0) * 0.6, 0, { solid: true });
+      if (rng() < 0.6) w.prop('crate', x - Math.cos(a0 + 1.2) * 1.4, z - Math.sin(a0 + 1.2) * 1.4, a0, { solid: true });
+      if (rng() < 0.35) w.container(rng() < 0.5 ? 'ammo_box' : 'backpack', x - Math.cos(a0) * 1.8, z - Math.sin(a0) * 1.8, a0, { tier: 1 });
+      cnt.barricade++;
+    } else if (t < 0.68) {
+      // abandoned market corner: crates, baskets, amphorae, planters, a parasol
+      if (cnt.market >= B.market || !lanes(x, z, 2.5)) continue;
+      for (let j = 0; j < 4; j++) { const [px, pz] = near(x, z, 2.4); if (!ctx.blocked(px, pz, 0.5)) w.prop(['crate', 'sc_vase', 'sc_planter', 'sc_cratestack', 'sc_planter2'][Math.floor(rng() * 5)], px, pz, rng() * 6, { solid: true }); }
+      if (rng() < 0.5) w.prop(rng() < 0.5 ? 'sc_parasol' : 'sc_parasol2', x, z, 0, { solid: true });
+      if (rng() < 0.3) w.container('basket', x + 1.2, z, 0, { tier: 1 });
+      cnt.market++;
+    } else if (t < 0.9) {
+      if (cnt.weeds >= B.weeds || !lanes(x, z, 0.3)) continue;
+      w.prop(rng() < 0.7 ? 'sc_grass' : rng() < 0.6 ? 'sc_shrub_dry' : 'sc_agave', x, z, rng() * 6, { scale: 0.7 + rng() * 0.5 }); cnt.weeds++;
+    } else {
+      if (cnt.junk >= B.junk || !lanes(x, z, 1)) continue;
+      const k = rng();
+      if (k < 0.3) { w.prop('barrel', x, z, 0, { solid: true }); w.prop(rng() < 0.5 ? 'barrel' : 'barrelBlue', x + 0.7, z + 0.2, 0, { solid: true }); }
+      else if (k < 0.5) w.prop('pipe', x, z, rng() * 6, { solid: true });
+      else if (k < 0.65) w.prop('sc_bench', x, z, rng() * 6, { solid: true });
+      else if (k < 0.8) w.prop(rng() < 0.5 ? 'sc_vespa' : 'sc_vespa2', x, z, rng() * 6, { solid: true });
+      else if (k < 0.9) w.prop('sc_column_fallen', x, z, rng() * 6, { solid: true });
+      else w.prop('sc_kiosk', x, z, rng() < 0.5 ? 0 : Math.PI / 2, { solid: true });
+      cnt.junk++;
     }
   }
+  ctx.clutterCounts = cnt;
   // husks + buried cars out in the dunes, ARK crates
   for (let i = 0, n = 0; i < 3000 && n < 46; i++) {
     const x = 20 + rng() * 860, z = 20 + rng() * 860;
@@ -1341,7 +1422,7 @@ export default {
   ambient: { music: 'sandy_city', birds: false, wind: true },
   conditions: ['night_raid', 'hurricane', 'lush_blooms', 'uncovered_caches', 'husk_graveyard', 'prospecting_probes', 'close_scrutiny', 'cold_snap', 'bird_city'],
   build(w, rng) {
-    const ctx = { w, rng, occ: new Occ(), doorsOut: [], keySegs: [], metro: {}, nCont: 0, lootSkip: 0.84 };
+    const ctx = { w, rng, occ: new Occ(), doorsOut: [], keySegs: [], metro: {}, nCont: 0, lootSkip: 0.86, keyLoot: {} };
     ctx.occFreeSouth = (s, x) => ctx.occ.at(x, s.z1 + 1.2) === -1;
     ctx.decks = [];
     ctx.onDeck = (x, z) => ctx.decks.some(D => { const i = Math.round(z) * (MW + 1) + Math.round(x); return i >= 0 && i < D.arr.length && !Number.isNaN(D.arr[i]); });
@@ -1370,6 +1451,6 @@ export default {
     vegetation(ctx); mark('veg');
     streetClutter(ctx); mark('clutter');
     markers(ctx); mark('markers');
-    this._ctx = ctx;   // debug hook for tools (not used by the game)
+    if (typeof window === 'undefined') this._ctx = ctx;   // node-side debug hook for map tools only
   },
 };

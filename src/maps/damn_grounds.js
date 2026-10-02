@@ -8,7 +8,8 @@
 // axis-aligned blocks laid out in the same diagonal staircase.
 import './props_damn_grounds.js';
 import { waterMaterial } from '../engine/materials.js';
-import { pointInPoly } from '../engine/world.js';
+import { pointInPoly, mulberry } from '../engine/world.js';
+import { TID } from '../engine/textures.js';
 
 const W = 1100, H = 825;
 const LOW = 0, MID = 3, HIGH = 9;
@@ -21,11 +22,13 @@ const lerp = (a, b, t) => a + (b - a) * t;
 
 // ------------------------------------------------------------------------------------ layout data
 // Dam + plateau monoliths (HIGH)
+// Power Generation plateau + upper dam (Generator Hall, transformer yards, Controlled Access Zone,
+// Pipeline Tower, broken end above The Breach): one polygon whose NE edge follows the highway, like the
+// reference's diagonal band; its south side keeps the stepped monolith faces.
+const PG_POLY = [[626, 70], [700, 104], [780, 146], [852, 184], [886, 200], [886, 236], [840, 236], [840, 214], [772, 214], [772, 268], [712, 268], [712, 292], [648, 292], [648, 256], [634, 256], [634, 152], [626, 152]];
+// natural highland NE of the highway (rocky slopes up to the northern mountains)
+const NE_HIGHLAND = [[560, -6], [1106, -6], [1106, 212], [906, 210], [886, 200], [852, 184], [780, 146], [700, 104], [636, 72], [606, 58]];
 const DAM_RECTS = [
-  // Power Generation plateau (Generator Hall at the NW end, transformer yards, east end)
-  [628, 86, 712, 152], [700, 108, 784, 186], [772, 140, 852, 214], [840, 168, 884, 236], [634, 150, 716, 200],
-  // upper dam: Controlled Access Zone, Pipeline Tower, broken south end above The Breach
-  [634, 196, 714, 256], [712, 186, 772, 268], [648, 254, 712, 292],
   // Floodgates (stepping south-west)
   [598, 322, 654, 362], [582, 356, 638, 394], [566, 388, 622, 426], [550, 420, 608, 456],
   // Control Tower + Research & Administration block, Primary Facility platform
@@ -119,6 +122,18 @@ export default {
   },
 };
 
+// tileless value noise in [0,1]
+function makeNoise(seed) {
+  const r = mulberry(seed), perm = new Float32Array(1024);
+  for (let i = 0; i < 1024; i++) perm[i] = r();
+  const h = (a, b) => perm[((a * 73856093) ^ (b * 19349663)) & 1023];
+  return (x, z) => {
+    const ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz, sx = fx * fx * (3 - 2 * fx), sz = fz * fz * (3 - 2 * fz);
+    const a = h(ix, iz), b = h(ix + 1, iz), c = h(ix, iz + 1), d = h(ix + 1, iz + 1);
+    return (a + (b - a) * sx) * (1 - sz) + (c + (d - c) * sx) * sz;
+  };
+}
+
 // ==================================================================================== CONTEXT
 function makeCtx(w, rng) {
   const C = { w, rng };
@@ -147,6 +162,7 @@ function makeCtx(w, rng) {
   };
   const distSeg = (px, pz, ax, az, bx, bz) => { const dx = bx - ax, dz = bz - az, l = dx * dx + dz * dz || 1; const t = clamp(((px - ax) * dx + (pz - az) * dz) / l, 0, 1); return Math.hypot(px - ax - dx * t, pz - az - dz * t); };
   C.distLine = (px, pz, pts) => { let d = 1e9; for (let k = 0; k < pts.length - 1; k++) d = Math.min(d, distSeg(px, pz, pts[k][0], pts[k][1], pts[k + 1][0], pts[k + 1][1])); return d; };
+  C.distEdge = (x, z, poly) => C.distLine(x, z, poly.concat([poly[0]]));
   C.strip = (pts, wd) => {
     const L = [], Rr = [];
     for (let k = 0; k < pts.length; k++) {
@@ -156,7 +172,7 @@ function makeCtx(w, rng) {
     }
     return L.concat(Rr.reverse());
   };
-  C.inDam = (x, z, pad = 0) => DAM_RECTS.some(([a, b, c, d]) => x > a - pad && x < c + pad && z > b - pad && z < d + pad) || C.distLine(x, z, BALCONY) < 6.5 + pad;
+  C.inDam = (x, z, pad = 0) => DAM_RECTS.some(([a, b, c, d]) => x > a - pad && x < c + pad && z > b - pad && z < d + pad) || C.distLine(x, z, BALCONY) < 6.5 + pad || (pad <= 0 ? pointInPoly(x, z, PG_POLY) && C.distEdge(x, z, PG_POLY) > -pad : pointInPoly(x, z, PG_POLY) || C.distEdge(x, z, PG_POLY) < pad);
   // clearings that vegetation / scatter avoid: [cx, cz, r] and rects [x0,z0,x1,z1]
   C.clear = []; C.clearRects = [];
   C.addClear = (x, z, r) => C.clear.push([x, z, r]);
@@ -351,8 +367,49 @@ function makeCtx(w, rng) {
 // ==================================================================================== TERRAIN
 function terrain(C) {
   const { w, areaFn, slope } = C;
-  // macro relief
-  w.heightFn((x, z) => {
+  const VW = w.tw + 1, VH = w.th + 1;
+  // rasterised masks (vertex resolution) — much faster than per-vertex pointInPoly
+  const polyMask = (pts) => {
+    const m = new Float32Array(VW * VH);
+    for (let z = 0; z < VH; z++) {
+      const xs = [];
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const [xi, zi] = pts[i], [xj, zj] = pts[j];
+        if ((zi > z) !== (zj > z)) xs.push(xi + (z - zi) / (zj - zi) * (xj - xi));
+      }
+      xs.sort((a, b) => a - b);
+      for (let k = 0; k + 1 < xs.length; k += 2) for (let x = Math.max(0, Math.ceil(xs[k])); x <= Math.min(VW - 1, Math.floor(xs[k + 1])); x++) m[z * VW + x] = 1;
+    }
+    return m;
+  };
+  const rectMask = (x0, z0, x1, z1) => polyMask([[x0, z0], [x1, z0], [x1, z1], [x0, z1]]);
+  const blur = (src, r) => {          // two passes of a separable running-sum box blur
+    const tmp = new Float32Array(src.length), out = Float32Array.from(src), k = 2 * r + 1;
+    for (let pass = 0; pass < 2; pass++) {
+      for (let z = 0; z < VH; z++) {
+        const o = z * VW; let acc = 0;
+        for (let x = -r; x <= r; x++) acc += out[o + clamp(x, 0, VW - 1)];
+        for (let x = 0; x < VW; x++) { tmp[o + x] = acc / k; acc += out[o + Math.min(VW - 1, x + r + 1)] - out[o + Math.max(0, x - r)]; }
+      }
+      for (let x = 0; x < VW; x++) {
+        let acc = 0;
+        for (let z = -r; z <= r; z++) acc += tmp[clamp(z, 0, VH - 1) * VW + x];
+        for (let z = 0; z < VH; z++) { out[z * VW + x] = acc / k; acc += tmp[Math.min(VH - 1, z + r + 1) * VW + x] - tmp[Math.max(0, z - r) * VW + x]; }
+      }
+    }
+    return out;
+  };
+  const swampBin = polyMask(SWAMP), basinBin = polyMask(BASIN);
+  C.swampAt = (x, z) => swampBin[clamp(Math.round(z), 0, VH - 1) * VW + clamp(Math.round(x), 0, VW - 1)] > 0.5;
+  C.basinAt = (x, z) => basinBin[clamp(Math.round(z), 0, VH - 1) * VW + clamp(Math.round(x), 0, VW - 1)] > 0.5;
+  const neS = blur(polyMask(NE_HIGHLAND), 9);
+  const swampS = blur(swampBin, 7), basinS = blur(basinBin, 13), coreS = blur(rectMask(540, 70, 940, 620), 16), southS = blur(rectMask(430, 580, 900, 770), 16);
+  const n1 = makeNoise(11), n2 = makeNoise(23);
+  C.noise = n1; C.noise2 = n2;
+  const fbm = (n, x, z) => (n(x, z) * 0.6 + n(x * 2.3, z * 2.3) * 0.28 + n(x * 5.1, z * 5.1) * 0.12 - 0.5) * 2;
+  // macro relief + basin + noise in one pass
+  for (let z = 0; z < VH; z++) for (let x = 0; x < VW; x++) {
+    const i = z * VW + x;
     let h = MID;
     const north = sm(150, 96, z) * sm(330, 430, x);
     h += north * (HIGH - MID + 0.6);                                                   // northern highland (dam abutment)
@@ -363,17 +420,15 @@ function terrain(C) {
     h += sm(126, 30, x) * (sm(200, 300, z) * 7 + (1 - sm(200, 300, z)) * 4);           // west hills past the ring road
     h += sm(730, 820, z) * sm(380, 470, x) * 7;                                        // southern (Formikai) hills
     h += sm(130, 20, z) * sm(320, 200, x) * 5;                                         // NW hills
-    h += sm(600, 700, x) * sm(690, 730, z) * sm(1000, 900, x) * 2.5;                    // Wreckage rise
-    return h;
-  }, 'set');
-  w.raisePoly(BASIN, LOW, 34, 'set');
-  w.noiseHills(2.2, 90, 11, (x, z) => {
-    if (pointInPoly(x, z, SWAMP)) return 0.22;
-    if (x > 540 && x < 940 && z > 70 && z < 620) return 0.35;
-    if (x > 430 && x < 900 && z > 580 && z < 770) return 0.5;
-    return 1;
-  });
-  w.noiseHills(0.75, 24, 23, (x, z) => (pointInPoly(x, z, SWAMP) ? 1 : 0.3));
+    h += sm(600, 700, x) * sm(690, 730, z) * sm(1000, 900, x) * 2.5;                   // Wreckage rise
+    h = lerp(h, Math.max(h, HIGH + 0.9), neS[i]);
+    const bt = smooth(clamp(basinS[i] / 0.55, 0, 1));
+    h = lerp(h, LOW, bt);
+    const amp = Math.min(1 - swampS[i] * 0.78, 1 - coreS[i] * 0.65, 1 - southS[i] * 0.5);
+    h += fbm(n1, x / 90, z / 90) * 2.2 * amp;
+    h += fbm(n2, x / 24, z / 24) * 0.75 * (0.3 + 0.7 * swampS[i]);
+    w.hv[i] = h;
+  }
   w.raiseCircle(566, 46, 46, -4.6, 0.6, 'add');                       // where the West Broken Bridge span fell
   w.ridge([[925, 110], [938, 200], [944, 262], [960, 320]], 22, 1.5, 16, 'min');   // East Broken Bridge ravine
   w.raiseCircle(232, 318, 15, 2.8, 0.7, 'add');                       // Victory Rise (Old Battleground)
@@ -387,6 +442,7 @@ function terrain(C) {
   }
   // ---------------- dam
   for (const [x0, z0, x1, z1] of DAM_RECTS) w.raiseRect(x0, z0, x1, z1, HIGH, 0, 'set');
+  w.raisePoly(PG_POLY, HIGH, 0, 'set');
   w.raisePoly(C.strip(BALCONY, 13), HIGH, 0, 'set');
   // The Breach: a rubble-strewn pass through the broken dam, swamp (west) -> basin (east)
   areaFn(586, 292, 676, 322, (x, z) => {
@@ -435,28 +491,35 @@ function terrain(C) {
   // ---------------- roads
   for (const r of ROADS) w.road(r, 7, 'asphalt', { edge: 'gravel', edgeW: 1.2 });
   for (const r of TRACKS) w.road(r, 4, 'dirt', { edge: 'gravel', edgeW: 0.6 });
-  w.path([[548, 452], [578, 420], [596, 392], [612, 360], [626, 330]], 6, 'asphalt');           // crest service road
-  w.path([[680, 288], [690, 262], [700, 236], [722, 200], [742, 176], [728, 150], [706, 140]], 6, 'asphalt');
+  w.path([[548, 452], [578, 420], [596, 392], [612, 360], [626, 330]], 5, 'concrete');           // crest service road
+  w.path([[680, 288], [690, 262], [700, 236], [722, 200], [742, 176], [728, 150], [706, 140]], 5, 'concrete');
 
   // ---------------- terrain paint
-  w.paintFn((x, z, cur) => {
-    if (cur !== 0) return null;   // only repaint plain grass
-    const n = Math.sin(x * 0.051 + z * 0.023) + Math.cos(z * 0.067 - x * 0.019) + Math.sin((x + z) * 0.13) * 0.4;
-    if (pointInPoly(x, z, SWAMP)) return n > 0.9 ? 'mud' : n > 0.1 ? 'moss' : 'forest';
-    if (pointInPoly(x, z, BASIN)) { const g = w.groundAt(x, z); return g < 0.3 ? 'mud' : n > 0.6 ? 'sandDark' : n > -0.5 ? 'dirt' : 'gravel'; }
-    if (z > 585 && z < 770 && x > 455 && x < 720) return n > 0.8 ? 'moss' : 'forest';
-    if (w.groundAt(x, z) > 13) return n > 0.3 ? 'rock' : 'gravel';
-    if (x > 920 || z > 760 || x < 120) return n > 1.1 ? 'rock' : n > 0.4 ? 'dirt' : null;
-    return n > 1.3 ? 'dirt' : n < -1.4 ? 'moss' : null;
-  });
+  {
+    const T = TID, tw = w.tw;
+    for (let z = 0; z < w.th; z++) for (let x = 0; x < tw; x++) {
+      const ci = z * tw + x; if (w.tids[ci] !== T.grass) continue;          // only repaint plain grass
+      const vi = z * VW + x, g = w.hv[vi];
+      const a = n1(x / 19, z / 19), b = n2(x / 7, z / 7), c = n1(x / 47 + 31, z / 47 + 17);
+      let t = null;
+      if (swampBin[vi] > 0.5) t = g < SWAMP_WATER + 0.1 ? T.mud : a > 0.66 ? T.moss : b > 0.72 ? T.mud : c > 0.42 ? T.dirt : a < 0.3 ? T.gravel : null;
+      else if (basinBin[vi] > 0.5) t = g < 0.3 ? T.mud : a > 0.63 ? T.sandDark : b < 0.28 ? T.gravel : T.dirt;
+      else if (southS[vi] > 0.6) t = a > 0.64 ? T.moss : b > 0.6 ? T.dirt : c > 0.62 ? T.mud : null;
+      else if (g > 13) t = a > 0.45 ? T.rock : T.gravel;
+      else if (x > 920 || z > 760 || x < 120) t = a > 0.72 ? T.rock : c > 0.62 ? T.dirt : b > 0.78 ? T.gravel : null;
+      else t = a > 0.74 && c > 0.45 ? T.dirt : b > 0.8 ? T.gravel : a < 0.22 ? T.moss : null;
+      if (t != null) w.tids[ci] = t;
+    }
+  }
   for (const [x0, z0, x1, z1] of DAM_RECTS) w.paint('damConcrete', x0, z0, x1, z1);
+  w.paintPoly('damConcrete', PG_POLY);
   w.paintPoly('damConcrete', C.strip(BALCONY, 12.5));
   w.paint('gravel', 586, 292, 676, 322);
   w.paintCircle('mud', 628, 307, 10, 0.4, 3);
   for (const [xf, zc, len] of CHUTES) { w.paint('concrete', xf, zc - 3.5, xf + len, zc + 3.5); w.paint('hazard', xf - 1, zc - 3.5, xf, zc + 3.5); }
-  // re-paint roads over the dam paint where they cross
-  w.path([[548, 452], [578, 420], [596, 392], [612, 360], [626, 330]], 6, 'asphalt');
-  w.path([[680, 288], [690, 262], [700, 236], [722, 200], [742, 176], [728, 150], [706, 140]], 6, 'asphalt');
+  // re-paint the crest service roads over the dam paint
+  w.path([[548, 452], [578, 420], [596, 392], [612, 360], [626, 330]], 5, 'concrete');
+  w.path([[680, 288], [690, 262], [700, 236], [722, 200], [742, 176], [728, 150], [706, 140]], 5, 'concrete');
   w.path(HIGHWAY, 8, 'asphalt');
   w.paint('hazard', 704, 190, 722, 192); w.paint('hazard', 730, 210, 754, 212);
   // concrete facades on every sheer drop of the dam / plateau / decks (stepped where diagonal)
@@ -470,11 +533,14 @@ function facades(C, X0, Z0, X1, Z1, tex) {
   const { w, rng } = C;
   const V = (x, z) => w.vh(x, z);
   const DROP = 2.2, PIECE = 6;
+  const horizOf = (d) => d === 's' || d === 'n';
   const emit = (dir, a, b, line, top, low) => {
     const y0 = low - 0.25, gapTop = top + 0.06;
     const big = top - low > 7;
-    // parapet: solid on big basin-side drops, with gaps on lower faces
-    const par = (rng() < (big ? 0.85 : 0.6)) ? 0.95 : 0.06;
+    // parapet: coherent 14 m stretches, solid on big basin-side drops, with gaps on lower faces
+    const cx = horizOf(dir) ? (a + b) / 2 : line, cz = horizOf(dir) ? line : (a + b) / 2;
+    const hsh = ((Math.floor(cx / 14) * 73856093) ^ (Math.floor(cz / 14) * 19349663) ^ (dir.charCodeAt(0) * 83492791)) >>> 0;
+    const par = (hsh % 100) < (big ? 82 : 55) ? 0.95 : 0.06;
     const h = (par > 0.5 ? top + par : gapTop) - y0;
     if (dir === 's') w.block(a - 0.5, line - 0.3, b + 0.5, line + 1.0, h, tex, { y0 });
     else if (dir === 'n') w.block(a - 0.5, line - 1.0, b + 0.5, line + 0.3, h, tex, { y0 });
@@ -521,13 +587,13 @@ function damDetails(C) {
   for (const [x, z] of [[596, 304], [640, 296], [660, 316]]) w.lamp(x, z, { y: 4, color: 0xffb070, intensity: 1.1, range: 10, flicker: 0.7 });
   C.fire(624, 312);
   // ---------------- Floodgates crest machinery
-  for (const [xf, zc] of CHUTES) {
+  CHUTES.forEach(([xf, zc], ci) => {
     w.prop('dg_floodgate', xf - 2.2, zc, PI / 2, { solid: true });
-    w.prop('dg_gantry', xf - 6, zc, PI / 2, {});
+    if (ci % 2 === 0) w.prop('dg_gantry', xf - 6, zc, PI / 2, {});
     w.prop('dg_spillgrate', xf + 6, zc, PI / 2, {});
     C.beacon(xf - 1.2, zc - 5, { y: 3.9 });
     C.clutter(xf + 22, zc, 12, 3, ['debris', 'dg_rubble', 'barrel'], { sz: 0.25, avoid: (x, z) => Math.abs(z - zc) > 3 });
-  }
+  });
   // gantry rails along the chute heads
   for (const [x, z0, z1] of [[648, 324, 360], [632, 362, 392], [616, 394, 424], [602, 428, 452]]) for (let z = z0; z < z1; z += 4) w.prop('dg_rail', x, z + 2, 0, {});
   // crest lights
@@ -623,9 +689,30 @@ function northPOIs(C) {
   C.bld({ x: 650, z: 156, w: 20, d: 14, floorY: HIGH, blend: 0.5, name: 'Turbine Access', roof: 'corrugated', floor: 'metalPanel',
     doors: [{ side: 's', at: 8, w: 3.2 }, { side: 'e', at: 5, w: 2, door: true }] });
   C.furnish('industrial', 650, 156, 670, 170, { tier: 1 });
-  for (const [x, z, r, k] of [[684, 158, 0, 'dg_container'], [684, 164, 0, 'dg_containerB'], [694, 176, PI / 2, 'dg_container'], [646, 184, 0.2, 'dg_truck'], [700, 160, 1.5, 'dg_containerG']]) w.prop(k, x, z, r, { solid: true });
+  for (const [x, z, r, k] of [[684, 158, 0, 'dg_container'], [684, 164, 0, 'dg_containerB'], [664, 188, PI / 2, 'dg_container'], [646, 184, 0.2, 'dg_truck'], [702, 166, 1.5, 'dg_containerG']]) w.prop(k, x, z, r, { solid: true });
   C.clutter(690, 180, 20, 14, ['crate', 'barrel', 'barrelBlue', 'dg_barrier', 'pipe', 'debris'], { avoid: (x, z) => !C.inDam(x, z, -2) });
   for (const [x0, z0, x1, z1] of [[704, 192, 720, 210], [732, 212, 752, 234]]) { C.beacon(x0 - 1, z0 - 1); C.beacon(x1 + 1, z1 + 1); }
+  // more of the dense power complex: compressor + valve houses, cable hall, east gatehouse, pipe racks
+  C.bld({ x: 676, z: 172, w: 24, d: 18, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Compressor House', roof: 'corrugated', floor: 'metalPanel', tint: 0xd0c8b8,
+    doors: [{ side: 'w', at: 6, w: 2.4, door: true }, { side: 'n', at: 14, w: 3.2 }, { side: 's', at: 4, w: 3, sill: 1.1 }, { side: 's', at: 14, w: 3, sill: 1.1 }],
+    inner: [[14, 0, 14, 18, [{ at: 10, w: 1.8 }]]] });
+  C.furnish('industrial', 676, 172, 690, 190, { tier: 2 }); w.prop('dg_turbine', 683, 181, 0, { solid: true, scale: 0.8 });
+  C.furnish('workshop', 690, 172, 700, 190, { tier: 1 });
+  C.bld({ x: 754, z: 192, w: 16, d: 14, floorY: HIGH, blend: 0.5, name: 'Valve House', roof: 'corrugated', floor: 'concrete',
+    doors: [{ side: 's', at: 5, w: 2.4, door: true }, { side: 'w', at: 6, w: 2 }] });
+  C.furnish('industrial', 754, 192, 770, 206, { tier: 2 }); w.prop('dg_valve', 762, 199, 0, { solid: true });
+  C.bld({ x: 790, z: 170, w: 24, d: 14, floorY: HIGH, blend: 0.5, name: 'Cable Hall', wall: 'concrete', tint: 0xc8c0b0, floor: 'metalPanel',
+    doors: [{ side: 'w', at: 5, w: 2.4, door: true }, { side: 'e', at: 5, w: 2.4 }, { side: 's', at: 12, w: 3, sill: 1.1 }], inner: [[12, 0, 12, 14, [{ at: 4, w: 1.8 }]]] });
+  C.furnish('storage', 790, 170, 802, 184, { tier: 1, extra: [['crate', 1]] }); C.furnish('server', 802, 170, 814, 184, { tier: 2 });
+  C.bld({ x: 852, z: 214, w: 18, d: 14, floorY: HIGH, blend: 0.5, name: 'East Gatehouse', tint: 0xd8d0c0, floor: 'tiles',
+    doors: [{ side: 's', at: 4, w: 2, door: true }, { side: 'n', at: 12, w: 2, door: true }, { side: 'e', at: 6, w: 3, sill: 1.1 }], inner: [[9, 0, 9, 14, [{ at: 6, w: 1.6 }]]] });
+  C.furnish('security', 852, 214, 861, 228, { tier: 2 }); C.furnish('bunk', 861, 214, 870, 228, { tier: 1 });
+  for (let x = 724; x < 750; x += 8) w.prop('dg_bigpipe', x, 178, 0, { solid: true });                 // pipe rack
+  for (let z = 210; z < 260; z += 8) w.prop('dg_bigpipe', 727, z, PI / 2, { solid: true, scale: 0.8 });
+  for (let x = 786; x < 830; x += 8) w.prop('dg_bigpipe', x, 214.5, 0, { scale: 0.7, solid: true });
+  w.prop('dg_scaffold', 700, 150, 0, { solid: true }); w.prop('dg_scaffold', 778, 186, PI / 2, { solid: true });
+  w.prop('dg_crane', 744, 202, 0.6, { solid: true }); w.lamp(744, 202, { y: 22, model: null, color: 0xff3020, intensity: 1.0, range: 7, flicker: 0.6 });
+  for (const [x, z] of [[738, 186], [700, 182], [790, 160], [848, 236]]) w.prop('dg_tankS', x, z, 0, { solid: true });
   C.loot(760, 175, 50, ['crate', 'toolbox', 'ammo_box', 'crate', 'trash', 'locker', 'toolbox'], 1, { avoid: (x, z) => !C.inDam(x, z, -2) });
   C.clutter(800, 175, 50, 22, ['barrel', 'crate', 'dg_container', 'dg_containerB', 'pipe', 'dg_bigpipe', 'debris', 'dg_scaffold'], { avoid: (x, z) => !C.inDam(x, z, -2) || C.distLine(x, z, HIGHWAY) < 6 });
   for (const [x, z] of [[730, 140], [760, 150], [796, 170], [846, 200], [870, 224], [740, 186], [760, 228], [660, 190]]) C.flood(x, z);
@@ -1088,7 +1175,7 @@ function eastPOIs(C) {
   w.prop('dg_bigwreck', 862, 368, 2.2, { solid: true }); w.container('arc_husk', 856, 374, 0, { tier: 2 });
   w.prop('dg_truck', 752, 372, 0.1, { solid: true }); w.container('car_trunk', 752, 376, 0.1, { tier: 1 });
   for (const [x, z, r] of [[720, 330, 0.4], [820, 330, 2.1], [700, 470, 1.0], [850, 560, 0.2], [780, 520, 2.6], [900, 450, 1.5]]) w.prop('husk', x, z, r, { solid: true });
-  C.loot(800, 430, 110, ['arc_husk', 'arc_crate', 'crate', 'arc_husk', 'trash', 'ammo_box', 'arc_crate', 'toolbox'], 1, { avoid: (x, z) => !pointInPoly(x, z, BASIN) || w.groundAt(x, z) < -0.2 });
+  C.loot(800, 430, 110, ['arc_husk', 'arc_crate', 'crate', 'arc_husk', 'trash', 'ammo_box', 'arc_crate', 'toolbox'], 1, { avoid: (x, z) => !C.basinAt(x, z) || w.groundAt(x, z) < -0.2 });
   for (const [x, z] of [[700, 330], [770, 400], [840, 466], [760, 510], [880, 380], [826, 300]]) w.lamp(x, z, { y: 4.4, color: 0xffb070, intensity: 1.1, range: 12, flicker: 0.5 });
   // ---------------- east hills: farm ruins, power line
   C.bld({ x: 1000, z: 560, w: 12, d: 9, wall: 'brick', tint: 0xb0a090, roof: 'roofTile', roofShape: 'gable', floor: 'wood', name: 'Hill Farmhouse', blend: 2, doors: [{ side: 's', at: 4, w: 1.8, door: true }, { side: 'w', at: 3, w: 2, sill: 1 }] });
@@ -1134,7 +1221,7 @@ function roadsideAndOutskirts(C) {
 // ==================================================================================== VEGETATION + ROCKS
 function vegetation(C) {
   const { w, rng } = C;
-  const swampDeep = (x, z) => pointInPoly(x, z, SWAMP) && w.groundAt(x, z) < SWAMP_WATER - 0.75;
+  const swampDeep = (x, z) => C.swampAt(x, z) && w.groundAt(x, z) < SWAMP_WATER - 0.75;
   const avoidBase = (x, z) => C.blocked(x, z) || C.nearRoad(x, z, 1) || C.inDam(x, z, 3) || C.distLine(x, z, WBB) < 7 || C.distLine(x, z, EBB) < 7 || BOARDWALKS.some(b => C.distLine(x, z, b) < 2.2);
   // dense swamp forest
   const swampForest = [[170, 210], [300, 196], [420, 206], [560, 228], [600, 262], [592, 300], [572, 330], [552, 372], [536, 402], [470, 410], [420, 402], [362, 406], [345, 450], [320, 512], [292, 548], [226, 548], [180, 522], [172, 452], [176, 380], [172, 300]];
@@ -1163,14 +1250,14 @@ function vegetation(C) {
     [510, 120, 18, 10, 2.4], [560, 70, 20, 12, 2.2], [620, 40, 18, 9, 2.6], [760, 70, 30, 14, 2.6], [830, 100, 30, 14, 2.8], [1060, 80, 30, 14, 3], [960, 60, 30, 12, 2.6],
     [1000, 400, 30, 14, 2.4], [1060, 330, 24, 10, 2.4], [980, 480, 22, 9, 2.2], [880, 610, 30, 12, 2], [940, 650, 30, 12, 2.2], [1050, 700, 30, 12, 2.6], [930, 780, 30, 12, 2.4],
     [640, 760, 22, 10, 2.2], [420, 760, 24, 10, 2.2], [200, 740, 30, 12, 2.2], [60, 690, 30, 12, 2.4], [380, 650, 18, 8, 2], [800, 330, 30, 8, 1.6], [740, 500, 20, 6, 1.5]]) outcrop(x, z, r, n, s);
-  w.scatter('rock', [0, 0, W, H], 520, { solid: true, seed: 405, scale: 1.2, scaleVar: 0.6, avoid: (x, z) => avoidBase(x, z) || pointInPoly(x, z, SWAMP) });
+  w.scatter('rock', [0, 0, W, H], 520, { solid: true, seed: 405, scale: 1.2, scaleVar: 0.6, avoid: (x, z) => avoidBase(x, z) || C.swampAt(x, z) });
   // ground cover
   w.scatter('dg_reeds', SWAMP, 1300, { seed: 501, scaleVar: 0.4, avoid: (x, z) => { const g = w.groundAt(x, z); return g > SWAMP_WATER + 0.25 || g < SWAMP_WATER - 0.7 || C.blocked(x, z); } });
   w.scatter('dg_lily', SWAMP, 340, { seed: 502, avoid: (x, z) => w.groundAt(x, z) > SWAMP_WATER - 0.25 || C.blocked(x, z) });
   for (const p of w.props) if (p.kind === 'dg_lily') { p.opts.yAbs = SWAMP_WATER + 0.02; }
   w.scatter('dg_reeds', BASIN, 220, { seed: 503, avoid: (x, z) => { const g = w.groundAt(x, z); return g > 0.25 || g < -0.6; } });
   w.scatter('dg_grass', SWAMP, 1400, { seed: 504, avoid: (x, z) => w.groundAt(x, z) < SWAMP_WATER || C.blocked(x, z) });
-  w.scatter('dg_grass', [0, 0, W, H], 2600, { seed: 505, avoid: (x, z) => C.inDam(x, z, 1) || C.nearRoad(x, z, 0) || C.blocked(x, z) || w.groundAt(x, z) < 0.3 || pointInPoly(x, z, SWAMP) });
+  w.scatter('dg_grass', [0, 0, W, H], 2600, { seed: 505, avoid: (x, z) => C.inDam(x, z, 1) || C.nearRoad(x, z, 0) || C.blocked(x, z) || w.groundAt(x, z) < 0.3 || C.swampAt(x, z) });
   w.scatter('dg_log', SWAMP, 70, { solid: true, seed: 506, avoid: avoidBase });
   w.scatter('dg_stump', SWAMP, 60, { solid: true, seed: 507, avoid: avoidBase });
   w.scatter('dg_toxic', SWAMP, 30, { solid: true, seed: 508, avoid: avoidBase });
@@ -1263,7 +1350,7 @@ function markers(C) {
   // loot tier zones
   w.zone('Outskirts', [[0, 0], [W, 0], [W, H], [0, H]], { tier: 1 });
   const Z = (name, tier, x0, z0, x1, z1) => w.zone(name, [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], { tier });
-  Z('Power Generation Complex', 2, 628, 86, 884, 236); Z('Controlled Access Zone', 3, 646, 208, 692, 244); Z('Pipeline Tower', 2, 712, 186, 772, 268);
+  w.zone('Power Generation Complex', PG_POLY, { tier: 2 }); Z('Controlled Access Zone', 3, 646, 208, 692, 244); Z('Pipeline Tower', 2, 712, 186, 772, 268);
   Z('Floodgates', 2, 550, 322, 654, 456); Z('Control Tower', 3, 584, 458, 630, 484); Z('Research & Administration', 3, 558, 496, 602, 536);
   Z('Primary Facility', 2, 470, 424, 556, 500); Z('Water Treatment Control', 2, 362, 400, 470, 502); Z('Hydroponic Dome Complex', 2, 460, 186, 560, 296);
   Z('Testing Annex', 3, 704, 600, 756, 664); Z('Pattern House', 2, 660, 30, 716, 78); Z('Rubie Residence', 2, 320, 50, 392, 116); Z('Pale Apartments', 2, 226, 140, 286, 196);

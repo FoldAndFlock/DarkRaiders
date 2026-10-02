@@ -6,6 +6,12 @@ import { registerProp, Vox } from '../engine/models.js';
 // deterministic hash for voxel colour noise (no Math.random: geometry must match on every client)
 const hsh = (x, y, z) => { let h = (x * 374761393 + y * 668265263 + z * 2147483647) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 const pick = (cols, x, y, z) => cols[Math.floor(hsh(x, y, z) * cols.length)];
+function cyl(v, cx, cz, y0, y1, r, c) {
+  for (let y = y0; y <= y1; y++) for (let z = Math.floor(cz - r); z <= cz + r; z++) for (let x = Math.floor(cx - r); x <= cx + r; x++) {
+    const dx = x + 0.5 - cx, dz = z + 0.5 - cz; if (dx * dx + dz * dz <= r * r) v.set(x, y, z, typeof c === 'function' ? c(x, y, z) : c);
+  }
+  return v;
+}
 
 const STONE = [0xd8d0bc, 0xccc4ae, 0xe2dac6];
 const TERRA = [0xb4643c, 0xa85a36, 0xc0704a];
@@ -70,7 +76,7 @@ function cypress() {
   const greens = [0x2a4424, 0x34502a, 0x24381e];
   for (let y = 3; y < 52; y++) {
     const k = (y - 3) / 49, r = 0.8 + Math.sin(Math.min(1, k * 1.25) * Math.PI) * 4.4 * (1 - k * 0.35);
-    v.cyl(7, 7, y, y, r, (x, yy, z) => pick(greens, x, yy, z));
+    cyl(v, 7, 7, y, y, r, (x, yy, z) => pick(greens, x, yy, z));
   }
   return v.build();
 }
@@ -135,13 +141,13 @@ function stall(c1, c2, seed = 1) {
 
 function fountain() {
   const v = new Vox(34, 22, 34, 0.18, [17, 0, 17]);
-  v.cyl(17, 17, 0, 3, 16.5, (x, y, z) => pick(STONE, x, y, z));
-  v.cyl(17, 17, 1, 3, 15, 0x3a7a8a);                                   // water in basin
-  v.cyl(17, 17, 3, 3, 15, (x, y, z) => (hsh(x, y, z) < 0.3 ? 0x5aa0b0 : 0x3a8090));
-  v.cyl(17, 17, 0, 9, 2.5, (x, y, z) => pick(STONE, x, y, z));          // central column
-  v.cyl(17, 17, 10, 11, 7, (x, y, z) => pick(STONE, x, y, z));          // upper bowl
-  v.cyl(17, 17, 11, 11, 5.6, 0x4a90a0);
-  v.cyl(17, 17, 12, 16, 1.5, (x, y, z) => pick(STONE, x, y, z));
+  cyl(v, 17, 17, 0, 3, 16.5, (x, y, z) => pick(STONE, x, y, z));
+  cyl(v, 17, 17, 1, 3, 15, 0x3a7a8a);                                   // water in basin
+  cyl(v, 17, 17, 3, 3, 15, (x, y, z) => (hsh(x, y, z) < 0.3 ? 0x5aa0b0 : 0x3a8090));
+  cyl(v, 17, 17, 0, 9, 2.5, (x, y, z) => pick(STONE, x, y, z));          // central column
+  cyl(v, 17, 17, 10, 11, 7, (x, y, z) => pick(STONE, x, y, z));          // upper bowl
+  cyl(v, 17, 17, 11, 11, 5.6, 0x4a90a0);
+  cyl(v, 17, 17, 12, 16, 1.5, (x, y, z) => pick(STONE, x, y, z));
   v.sphere(17, 18, 17, 2.4, 0xc8c0a8);
   // sand drifted into the basin on one side
   v.box(2, 3, 10, 9, 4, 24, (x, y, z) => (Math.hypot(x - 17, z - 17) < 15.5 ? pick(SANDC, x, y, z) : -1));
@@ -260,9 +266,9 @@ function streetSign() {
 
 function planter(seed = 1) {
   const v = new Vox(10, 14, 10, 0.1, [5, 0, 5]);
-  for (let y = 0; y < 7; y++) { const r = 3.2 + y * 0.25; v.cyl(5, 5, y, y, r, (x, yy, z) => pick(TERRA, x, yy, z)); }
-  v.cyl(5, 5, 7, 7, 4.6, 0xa85a36);
-  v.cyl(5, 5, 6, 6, 3.6, 0x3a2a1e);
+  for (let y = 0; y < 7; y++) { const r = 3.2 + y * 0.25; cyl(v, 5, 5, y, y, r, (x, yy, z) => pick(TERRA, x, yy, z)); }
+  cyl(v, 5, 5, 7, 7, 4.6, 0xa85a36);
+  cyl(v, 5, 5, 6, 6, 3.6, 0x3a2a1e);
   const flower = [0xd83a4a, 0xe8c83a, 0xe86aa8, 0xf0f0e0][seed % 4];
   v.sphere(5, 9, 5, 3.4, (x, y, z) => (hsh(x, y, z) < 0.2 ? flower : hsh(x, z, y) < 0.3 ? -1 : 0x4a6a2e), 0.8);
   return v.build();
@@ -270,8 +276,8 @@ function planter(seed = 1) {
 
 function vase() {
   const v = new Vox(10, 14, 10, 0.1, [5, 0, 5]);
-  for (let y = 0; y < 13; y++) { const r = y < 2 ? 2 : y < 9 ? 2.5 + Math.sin((y - 1) / 8 * Math.PI) * 2 : y < 11 ? 1.6 : 2.2; v.cyl(5, 5, y, y, r, (x, yy, z) => pick(TERRA, x, yy, z)); }
-  v.cyl(5, 5, 12, 12, 1.2, 0x3a2a1e);
+  for (let y = 0; y < 13; y++) { const r = y < 2 ? 2 : y < 9 ? 2.5 + Math.sin((y - 1) / 8 * Math.PI) * 2 : y < 11 ? 1.6 : 2.2; cyl(v, 5, 5, y, y, r, (x, yy, z) => pick(TERRA, x, yy, z)); }
+  cyl(v, 5, 5, 12, 12, 1.2, 0x3a2a1e);
   return v.build();
 }
 
@@ -330,7 +336,7 @@ function column() {
   for (let y = 3; y < 28; y++) {
     const top = 22 + Math.floor(hsh(y, 2, 3) * 6);
     if (y > top) continue;
-    v.cyl(5, 5, y, y, 3.3, (x, yy, z) => ((x + z) % 3 === 0 ? 0xbab29e : pick(STONE, x, yy, z)));
+    cyl(v, 5, 5, y, y, 3.3, (x, yy, z) => ((x + z) % 3 === 0 ? 0xbab29e : pick(STONE, x, yy, z)));
   }
   return v.build();
 }
@@ -351,7 +357,7 @@ function bench() {
 
 function cafeTable(seed = 1) {
   const v = new Vox(16, 8, 16, 0.1, [8, 0, 8]);
-  v.cyl(8, 8, 7, 7, 3.4, 0xe0dccc); v.box(7, 0, 7, 8, 6, 8, 0x3a3a3a);
+  cyl(v, 8, 8, 7, 7, 3.4, 0xe0dccc); v.box(7, 0, 7, 8, 6, 8, 0x3a3a3a);
   const ch = [0x2a5a8a, 0xc84a2a, 0x3a6a3a][seed % 3];
   for (const [x, z] of [[1, 7], [13, 7]]) { v.box(x, 4, z - 1, x + 2, 4, z + 2, ch); v.box(x + (x < 8 ? 0 : 2), 5, z - 1, x + (x < 8 ? 0 : 2), 7, z + 2, ch); v.box(x, 0, z - 1, x, 3, z - 1, 0x3a3a3a); }
   return v.build();
@@ -441,10 +447,10 @@ function rails() {
 
 function cistern() {
   const v = new Vox(46, 22, 46, 0.18, [23, 0, 23]);
-  v.cyl(23, 23, 0, 16, 22, (x, y, z) => (y % 5 === 0 ? 0x8a867c : pick(CONC, x, y, z)));
-  v.cyl(23, 23, 16, 17, 22.4, 0x6a665e);
-  v.cyl(23, 23, 17, 18, 20, (x, y, z) => pick(SANDC, x, y, z));
-  v.cyl(23, 23, 18, 20, 4, 0x7a766e); v.cyl(23, 23, 20, 20, 2.5, 0x3a3a3a);
+  cyl(v, 23, 23, 0, 16, 22, (x, y, z) => (y % 5 === 0 ? 0x8a867c : pick(CONC, x, y, z)));
+  cyl(v, 23, 23, 16, 17, 22.4, 0x6a665e);
+  cyl(v, 23, 23, 17, 18, 20, (x, y, z) => pick(SANDC, x, y, z));
+  cyl(v, 23, 23, 18, 20, 4, 0x7a766e); cyl(v, 23, 23, 20, 20, 2.5, 0x3a3a3a);
   return v.build();
 }
 
@@ -467,7 +473,7 @@ function scaffold() {
 
 function bell() {
   const v = new Vox(12, 14, 12, 0.1, [6, 0, 6]);
-  for (let y = 0; y < 10; y++) v.cyl(6, 6, y, y, 5 - y * 0.35, 0x8a6a2a);
+  for (let y = 0; y < 10; y++) cyl(v, 6, 6, y, y, 5 - y * 0.35, 0x8a6a2a);
   v.box(5, 10, 5, 6, 13, 6, 0x3a3a3a);
   return v.build();
 }

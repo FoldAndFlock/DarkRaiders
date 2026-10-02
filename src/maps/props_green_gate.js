@@ -62,20 +62,24 @@ P('gg_gatepylon', () => {
   v.glow(C.gR).glow(C.gY);
   return v.build();
 }, { solid: [4, 4, 24] });
-// Gate wall: 24 m long (x) x 6 m thick (z) x 14 m tall; concrete base, green steel, top beams.
+// Gate wall: 24 m long (x) x 12 m deep (z) x 15 m tall; concrete base, green steel faces, and the
+// row of heavy top beams that reads as stripes from above (as on the reference map).
 P('gg_gatewall', () => {
-  const v = new Vox(48, 30, 12, 0.5, [24, 0, 6]);
-  v.box(0, 0, 0, 47, 9, 11, (x, y, z) => (y % 4 === 0 ? C.concS : C.conc));
-  hazardBand(v, 0, 9, 0, 47, 9, 11, 2);
-  v.box(0, 10, 1, 47, 25, 10, C.green);
-  for (let x = 0; x < 48; x += 6) v.box(x, 10, 0, x, 25, 11, C.greenD);
-  for (const y of [14, 20]) v.box(0, y, 0, 47, y, 11, C.greenD);
-  v.box(0, 26, 0, 47, 26, 11, C.steelD);
-  for (const z of [0, 3, 6, 9]) v.box(0, 27, z, 47, 28, z + 1, C.steel);      // the striped beams seen from above
-  for (let x = 2; x < 48; x += 8) v.box(x, 23, 11, x + 1, 23, 11, C.gY);
+  const v = new Vox(48, 31, 24, 0.5, [24, 0, 12]);
+  v.box(0, 0, 0, 47, 9, 23, (x, y, z) => (y % 4 === 0 ? C.concS : C.conc));
+  hazardBand(v, 0, 9, 0, 47, 9, 23, 2);
+  for (const [z0, z1] of [[0, 4], [19, 23]]) {
+    v.box(0, 10, z0, 47, 25, z1, C.green);
+    for (let x = 0; x < 48; x += 6) v.box(x, 10, z0, x, 25, z1, C.greenD);
+    for (const y of [14, 20]) v.box(0, y, z0, 47, y, z1, C.greenD);
+  }
+  v.box(0, 10, 5, 47, 22, 18, C.concS);
+  v.box(0, 26, 0, 47, 26, 23, C.steelD);
+  for (const z of [1, 6, 11, 16, 21]) v.box(0, 27, z - 1, 47, 29, z + 1, (x, y) => (y === 29 ? C.steelL : C.steel));
+  for (let x = 2; x < 48; x += 8) { v.box(x, 23, 23, x + 1, 23, 23, C.gY); v.box(x, 23, 0, x + 1, 23, 0, C.gY); }
   v.glow(C.gY);
   return v.build();
-}, { solid: [12, 3, 14] });
+}, { solid: [12, 6, 15] });
 // Gate leaf: sliding green steel door 16 x 2 x 12 m.
 P('gg_gateleaf', () => {
   const v = new Vox(32, 24, 4, 0.5, [16, 0, 2]);
@@ -538,3 +542,16 @@ P('gg_cabinet', () => { const v = new Vox(9, 12, 6, 0.1, [4.5, 0, 3]); v.box(0, 
 P('gg_fridge', () => { const v = new Vox(7, 18, 7, 0.1, [3.5, 0, 3.5]); v.box(0, 0, 0, 6, 17, 6, 0xd8d8d0); v.box(5, 8, 6, 5, 12, 6, C.steelD); v.box(0, 13, 6, 6, 13, 6, C.steelL); return v.build(); }, { solid: [0.35, 0.35, 1.8] });
 P('gg_altar', () => { const v = new Vox(22, 11, 9, 0.1, [11, 0, 4.5]); v.box(0, 0, 0, 21, 9, 8, 0xc8bca0); v.box(1, 10, 1, 20, 10, 7, C.white); for (const x of [3, 18]) { v.box(x, 11 - 1, 4, x, 10, 4, C.haz); } return v.build(); }, { solid: [1.1, 0.45, 1] });
 P('gg_pew', () => { const v = new Vox(30, 9, 6, 0.1, [15, 0, 3]); v.box(0, 4, 1, 29, 4, 5, C.wood); v.box(0, 5, 5, 29, 8, 5, C.wood); for (const x of [0, 29]) v.box(x, 0, 1, x, 8, 5, C.woodD); return v.build(); }, { solid: [1.5, 0.3, 0.8] });
+
+// ------------------------------------------------------------------ ROAD MARKINGS + SMALL KIT (flat, rotatable along diagonal roads)
+P('gg_lane', () => { const v = new Vox(26, 1, 2, 0.1, [13, 0, 1]); v.box(0, 0, 0, 25, 0, 1, 0xd8d4c4); return v.build(); }, { cast: false });
+P('gg_laney', () => { const v = new Vox(26, 1, 2, 0.1, [13, 0, 1]); v.box(0, 0, 0, 25, 0, 1, 0xd8a828); return v.build(); }, { cast: false });
+P('gg_stopline', () => { const v = new Vox(40, 1, 5, 0.1, [20, 0, 2.5]); v.box(0, 0, 0, 39, 0, 4, 0xd8d4c4); return v.build(); }, { cast: false });
+P('gg_chevron', () => { const v = new Vox(30, 1, 30, 0.1, [15, 0, 15]); for (let z = 0; z < 30; z++) for (let x = 0; x < 30; x++) if ((((x + z) / 5) | 0) % 2 === 0 && x > 1 && x < 28) v.set(x, 0, z, z < 2 || z > 27 ? 0xd8a828 : 0xd8a828); return v.build(); }, { cast: false });
+P('gg_cone', () => { const v = new Vox(5, 8, 5, 0.1, [2.5, 0, 2.5]); v.box(0, 0, 0, 4, 0, 4, C.black); for (let y = 1; y < 8; y++) { const r = y < 4 ? 1 : 0; v.box(2 - (y < 6 ? 1 : 0), y, 2 - (y < 6 ? 1 : 0), 2 + (y < 6 ? 1 : 0), y, 2 + (y < 6 ? 1 : 0), y === 4 || y === 5 ? C.white : 0xe86a20); } return v.build(); }, { cast: true });
+P('gg_curb', () => { const v = new Vox(40, 3, 5, 0.1, [20, 0, 2.5]); v.box(0, 0, 0, 39, 2, 4, (x) => ((x / 5 | 0) % 2 ? C.haz : C.concL)); return v.build(); }, { solid: [2, 0.25, 0.3] });
+P('gg_flag', () => { const v = new Vox(14, 70, 3, 0.1, [1, 0, 1.5]); v.box(0, 0, 1, 1, 69, 1, C.steelL); v.box(2, 56, 1, 13, 66, 1, (x, y) => (y > 61 ? C.green : (y > 58 ? C.white : C.green))); return v.build(); }, { solid: [0.1, 0.1, 7] });
+P('gg_fence', () => { const v = new Vox(30, 20, 1, 0.1, [15, 0, 0.5]); for (const x of [0, 29]) v.box(x, 0, 0, x, 19, 0, C.steelD); for (let y = 2; y < 19; y++) for (let x = 1; x < 29; x++) if ((x + y) % 3 === 0 || (x - y + 60) % 3 === 0) v.set(x, y, 0, 0x7a8288); v.box(0, 19, 0, 29, 19, 0, C.steel); return v.build(); }, { solid: [1.5, 0.08, 2] });
+P('gg_laundry', () => { const v = new Vox(40, 24, 2, 0.1, [20, 0, 1]); v.box(0, 0, 1, 0, 23, 1, C.woodD); v.box(39, 0, 1, 39, 23, 1, C.woodD); v.box(1, 22, 1, 38, 22, 1, C.steelL); for (let i = 0; i < 6; i++) v.box(3 + i * 6, 15 + (i % 2) * 2, 0, 6 + i * 6, 21, 0, [C.white, C.cloth1, C.cloth3, C.cream, C.cloth2, 0x8a9aa8][i]); return v.build(); }, { solid: [0.1, 0.1, 2.2] });
+P('gg_planter', () => { const v = new Vox(10, 8, 10, 0.1, [5, 0, 5]); v.box(1, 0, 1, 8, 4, 8, 0xa8623c); v.box(2, 4, 2, 7, 4, 7, 0x3a2a1a); v.sphere(5, 6, 5, 3.2, (x, y, z) => ((x + y + z) % 4 ? 0x4a7a2e : 0xd84a3a), 0.8); return v.build(); }, { solid: [0.45, 0.45, 0.8] });
+P('gg_bench', () => { const v = new Vox(16, 8, 5, 0.1, [8, 0, 2.5]); v.box(0, 4, 0, 15, 4, 4, C.woodL); v.box(0, 5, 4, 15, 7, 4, C.woodL); for (const x of [1, 14]) v.box(x, 0, 0, x, 3, 4, C.steelD); return v.build(); }, { solid: [0.8, 0.25, 0.8] });

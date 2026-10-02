@@ -22,7 +22,7 @@ Object.assign(FAMILY_REP, {
   grenade: 'shrapnel_grenade', smoke: 'smoke_grenade', key: 'damn_grounds_staff_room_key', metalParts: 'metal_parts',
   gun_rifle: 'rattlr', gun_energy: 'afelion', gun_pistol: 'burleta', gun_smg: 'stitchr', gun_shotgun: 'el_torro',
   gun_launcher: 'hullkracker', component: 'mechanical_components', arc_part: 'ark_powercell', salvage: 'radio',
-  trinket: 'rubber_duck', quest: 'celestas_journal', blueprint: 'rattlr_blueprint', augment: 'combat_mk_1',
+  trinket: 'rubber_duck', quest: 'celestas_journal', blueprint: 'tempesta_blueprint', augment: 'combat_mk_1',
   mod_muzzle: 'compensator_i', mod_mag: 'extended_medium_mag_i', mod_grip: 'vertical_grip_i', mod_stock: 'stable_stock_i',
   adrenaline: 'adrenaline_shot', defib: 'defibrillator', shieldRecharger: 'shield_recharger', lightstick: 'green_light_stick',
   trap: 'gas_grenade_trap', mine: 'explosive_mine', gadget: 'noisemaker', instrument: 'recorder', battery: 'battery',
@@ -67,20 +67,19 @@ function drawBlueprint(g, id, it) {
   g.s(20, 3, 0x9ab8e8); g.s(19, 2, PAPER_D); g.s(20, 4, PAPER_D);
   const tgt = blueprintTarget(id, it);
   if (tgt) {
-    const src = itemIconPixels(tgt);
-    // silhouette mask (exclude outline ring) -> edge = ink, interior = light fill
+    // mini (16px) line drawing of the target: white contour, interior in blueprint tones by luminance
+    const src = itemIconPixels(tgt).scaled(16);
     const m = (x, y) => { const v = src.get(x, y); return v !== -1 && v !== OUT; };
-    const tmp = new PB();
-    for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) {
+    const lum = v => (((v >> 16) & 255) * 0.3 + ((v >> 8) & 255) * 0.59 + (v & 255) * 0.11) / 255;
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
       if (!m(x, y)) continue;
       const edge = !m(x - 1, y) || !m(x + 1, y) || !m(x, y - 1) || !m(x, y + 1);
-      tmp.s(x, y, edge ? INK : FILL);
+      const l = lum(src.get(x, y));
+      g.s(x + 4, y + 3, edge ? INK : l > 0.62 ? 0xc8dcfa : l > 0.36 ? FILL : 0x4a7ad0);
     }
-    // shrink a little toward the centre if it touches the paper border
-    g.blit(tmp, 0, 0);
   }
   // tiny title block
-  g.r(15, 18, 19, 19, mix(PAPER, INK, 0.5), 'flat');
+  g.r(14, 19, 19, 20, mix(PAPER, INK, 0.35), 'flat'); g.r(15, 19, 18, 19, mix(PAPER, INK, 0.6), 'flat');
 }
 
 function build(id) {

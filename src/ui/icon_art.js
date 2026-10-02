@@ -4,6 +4,8 @@
 //   FAMILY_ART[iconFamily](g, item, id, rnd)  family drawers with per-item variation
 import { PB, PAL, OUT, K, col, mix, dk, lt, grey, hue, rng, hashStr } from './icon_kit.js';
 import * as GEAR from './icon_art_gear.js';
+import * as MATS from './icon_art_mats.js';
+import * as LOOT from './icon_art_loot.js';
 
 
 
@@ -319,14 +321,8 @@ for (const [id, fn] of Object.entries(GUN_ART)) ITEM_ART[id] = (g) => { fn(g); g
 
 // ======================================================================== families
 export const FAMILY_ART = {};
-for (const M of [GEAR]) { Object.assign(ITEM_ART, M.ART); Object.assign(FAMILY_ART, M.FAM); }
+for (const M of [GEAR, MATS, LOOT]) { Object.assign(ITEM_ART, M.ART); Object.assign(FAMILY_ART, M.FAM); }
 for (const [id, fn] of Object.entries(GUN_ART)) ITEM_ART[id] = (g) => { fn(g); g.centre(); };
 
-// generic fallback: a little crate/box tinted by id hash
-export function fallbackArt(g, it, id, rnd) {
-  const h = hashStr(id) % 360;
-  const base = hue(0xa07848, h, 0.8);
-  g.r(5, 7, 18, 18, base);
-  g.r(5, 7, 18, 9, lt(base, 0.2));
-  g.r(10, 7, 13, 18, dk(base, 0.2), 'flat');
-}
+// generic fallback for ids without bespoke art or a family drawer: hashed shape + hue
+export function fallbackArt(g, it, id) { LOOT.hashedArt(g, it, id); }

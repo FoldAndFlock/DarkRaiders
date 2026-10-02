@@ -547,7 +547,6 @@ FAM.mod_stock = (g, it, id) => {
   } else {
     const t = tierN(id), body = [0, 0x34343c, 0x8a7a54, 0x4a5464][t];
     g.p([5, 6, 22, 7, 22, 11, 10, 15, 5, 18], body);
-    g.p([9, 9, 17, 9, 11, 13, 9, 13], -1 === 0 ? 0 : body);
     for (let y = 10; y <= 12; y++) for (let x = 10; x <= 16; x++) if (x - 10 < (13 - y) * 2.2) g.clear(x, y);
     g.rr(2, 5, 5, 19, K.rubber, 'cylV', 1);
     g.r(19, 8, 21, 8, acc, 'flat');

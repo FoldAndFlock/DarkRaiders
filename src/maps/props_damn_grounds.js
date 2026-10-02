@@ -123,13 +123,19 @@ reg('dg_willow', () => {
 
 // bald cypress with buttress roots + hanging moss (~9 m)
 reg('dg_cypress', () => {
-  const v = new Vox(22, 62, 22, 0.15, [11, 0, 11]), r = R(33);
-  for (let y = 0; y < 46; y++) { const rr = y < 6 ? 3.6 - y * 0.35 : 1.4; v.cyl(11, 11, y, y, rr, y % 5 === 0 ? P.barkD : 0x5a4636); }
-  for (const [dx, dz] of [[5, 0], [-5, 1], [1, 5], [-1, -5]]) line(v, 11, 2, 11, 11 + dx, 0, 11 + dz, P.barkD);
-  for (let k = 0; k < 6; k++) { const y = 26 + k * 6; v.sphere(11 + (r() - .5) * 6, y, 11 + (r() - .5) * 6, 5.5 - k * 0.55, (x, yy, z) => (x + yy * 2 + z) % 6 === 0 ? 0x4a5a2a : (yy % 3 ? 0x2e4426 : 0x3a5230), 0.55); }
-  for (let i = 0; i < 26; i++) { const x = 4 + Math.floor(r() * 14), z = 4 + Math.floor(r() * 14); let top = -1; for (let y = 61; y > 20; y--) if (v.solid(x, y, z)) { top = y; break; } if (top > 0) v.box(x, top - 5 - Math.floor(r() * 5), z, x, top, z, 0x7a8a6a); }
+  const v = new Vox(30, 60, 30, 0.15, [15, 0, 15]), r = R(33);
+  for (let y = 0; y < 44; y++) { const rr = y < 7 ? 4.4 - y * 0.42 : 1.5 - y * 0.008; v.cyl(15, 15, y, y, rr, y % 5 === 0 ? P.barkD : 0x5e4a38); }
+  for (const [dx, dz] of [[7, 1], [-7, 2], [1, 7], [-2, -7], [5, -5]]) line(v, 15, 3, 15, 15 + dx, 0, 15 + dz, P.barkD);
+  for (const [dx, dz] of [[9, 4], [-8, -6], [3, -9]]) v.box(15 + dx, 0, 15 + dz, 15 + dx, 1, 15 + dz, P.barkD);   // knees
+  const layers = [[30, 10, 0, 0], [37, 12, 3, -2], [44, 10, -3, 3], [50, 7, 1, 1], [55, 4, 0, 0]];
+  for (const [y, rad, ox, oz] of layers) for (let z = 0; z < 30; z++) for (let x = 0; x < 30; x++) {
+    const d = Math.hypot(x + .5 - 15 - ox, z + .5 - 15 - oz); if (d > rad + (x * 7 + z * 13) % 3 * 0.5) continue;
+    const th = d < rad * 0.6 ? 3 : 2;
+    for (let yy = y; yy < y + th; yy++) v.set(x, yy, z, (x * 3 + z + yy) % 7 === 0 ? 0x4e6230 : (yy === y ? 0x26381e : (x + z) % 4 ? 0x30482a : 0x3a5430));
+  }
+  for (let i = 0; i < 40; i++) { const a = r() * 6.283, d = 5 + r() * 6, x = Math.round(15 + Math.cos(a) * d), z = Math.round(15 + Math.sin(a) * d); let top = -1; for (let y = 59; y > 20; y--) if (v.solid(x, y, z)) { top = y; break; } if (top > 0) v.box(x, top - 4 - Math.floor(r() * 6), z, x, top - 1, z, r() < 0.5 ? 0x8a9a78 : 0x7a8a6a); }
   return v.build();
-}, { solid: [0.4, 0.4, 6] });
+}, { solid: [0.45, 0.45, 6] });
 
 reg('dg_log', () => {
   const v = new Vox(44, 6, 8, 0.1, [22, 0, 4]);
@@ -189,14 +195,14 @@ reg('dg_fusebox', () => {
 }, { solid: [0.5, 0.25, 1.6] });
 
 reg('dg_generator', () => {
-  const v = new Vox(52, 36, 30, 0.1, [26, 0, 15]);
-  v.box(0, 0, 0, 51, 3, 29, P.concD);
-  for (let x = 4; x < 48; x++) for (let y = 4; y < 34; y++) for (let z = 3; z < 27; z++) {
-    const dy = (y - 18) / 14, dz = (z - 15) / 12; if (dy * dy + dz * dz <= 1) v.set(x, y, z, x % 10 === 0 ? P.steelD : (y > 26 ? 0x5a7a8a : 0x4a6a7a));
+  const v = new Vox(35, 24, 20, 0.15, [17.5, 0, 10]);
+  v.box(0, 0, 0, 34, 1, 19, P.concD);
+  for (let x = 3; x < 32; x++) for (let y = 2; y < 23; y++) for (let z = 2; z < 18; z++) {
+    const dy = (y - 12) / 9.5, dz = (z - 10) / 8; if (dy * dy + dz * dz <= 1) v.set(x, y, z, x % 7 === 0 ? P.steelD : (y > 17 ? 0x5a7a8a : 0x4a6a7a));
   }
-  v.box(2, 4, 8, 4, 28, 22, P.steelD); v.box(47, 4, 8, 49, 28, 22, P.steelD);
-  for (let x = 6; x < 46; x += 2) v.set(x, 18, 27, P.yellow);
-  v.box(20, 34, 12, 30, 35, 18, P.steel); v.box(23, 20, 27, 27, 23, 28, P.gAmber); v.glow(P.gAmber);
+  v.box(1, 2, 5, 2, 19, 15, P.steelD); v.box(32, 2, 5, 33, 19, 15, P.steelD);
+  for (let x = 4; x < 31; x += 2) v.set(x, 12, 18, P.yellow);
+  v.box(13, 22, 8, 20, 23, 12, P.steel); v.box(15, 13, 18, 18, 15, 19, P.gAmber); v.glow(P.gAmber);
   return v.build();
 }, { solid: [2.5, 1.4, 3.3] });
 
@@ -237,18 +243,17 @@ reg('dg_pipetower', () => {
   const S = 0.25, v = new Vox(34, 80, 34, S, [17, 0, 17]);
   v.cyl(17, 17, 0, 3, 16, P.concD);
   for (let y = 4; y < 72; y++) v.cyl(17, 17, y, y, 11.5, y % 10 === 0 ? P.steelD : (y > 60 ? 0x8a8a82 : (y % 20 < 10 ? 0x9a9482 : 0x8a8474)));
-  for (let y = 4; y < 72; y++) for (let z = 0; z < 34; z++) for (let x = 0; x < 34; x++) { const d = Math.hypot(x + .5 - 17, z + .5 - 17); if (d < 10.3 && v.get(x, y, z) !== -1) v.set(x, y, z, -1); }
   for (const [px, pz] of [[2, 17], [32, 17], [17, 2], [8, 6]]) for (let y = 0; y < 74; y++) v.cyl(px, pz, y, y, 1.6, y % 12 === 0 ? P.rust : 0x6a7a7a);
-  for (const y of [24, 48, 70]) { v.cyl(17, 17, y, y, 16, P.steel); v.cyl(17, 17, y, y, 11.5, -1); for (let a = 0; a < 24; a++) { const x = 17 + Math.cos(a / 24 * 6.283) * 15.5, z = 17 + Math.sin(a / 24 * 6.283) * 15.5; v.box(x, y + 1, z, x, y + 3, z, P.yellow); } }
+  for (const y of [24, 48, 70]) { v.cyl(17, 17, y, y, 16, P.steel); v.cyl(17, 17, y, y, 11.5, 0x8a8474); for (let a = 0; a < 24; a++) { const x = 17 + Math.cos(a / 24 * 6.283) * 15.5, z = 17 + Math.sin(a / 24 * 6.283) * 15.5; v.box(x, y + 1, z, x, y + 3, z, P.yellow); } }
   v.cyl(17, 17, 72, 74, 12.5, P.steelD); v.box(16, 75, 16, 18, 79, 18, P.steel); v.box(16, 79, 16, 18, 79, 18, P.gRed);
   v.glow(P.gRed);
   return v.build();
 }, { solid: [3, 3, 18] });
 
 reg('dg_bigpipe', () => {
-  const v = new Vox(80, 26, 26, 0.1, [40, 0, 13]);
-  for (let x = 0; x < 80; x++) for (let y = 0; y < 26; y++) for (let z = 0; z < 26; z++) { const d = Math.hypot(y - 12.5, z - 12.5); if (d < 12.5 && d > 10.5) v.set(x, y, z, x % 20 < 2 ? P.steelD : (y > 18 ? 0x6a7a7a : 0x5a6a6a)); }
-  for (let x = 0; x < 80; x += 20) v.box(x, 0, 2, x + 1, 1, 23, P.concD);
+  const v = new Vox(54, 17, 17, 0.15, [27, 0, 8.5]);
+  for (let x = 0; x < 54; x++) for (let y = 0; y < 17; y++) for (let z = 0; z < 17; z++) { const d = Math.hypot(y - 8.5, z - 8.5); if (d < 8.3) v.set(x, y, z, x % 13 < 1 ? P.steelD : (y > 12 ? 0x6a7a7a : 0x5a6a6a)); }
+  for (let x = 2; x < 54; x += 13) v.box(x, 0, 1, x + 1, 1, 15, P.concD);
   return v.build();
 }, { solid: [4, 1.25, 2.4] });
 
@@ -334,11 +339,11 @@ reg('dg_antennamast', () => {
 
 // ---------------------------------------------------------------- industrial clutter
 function container(color, dark) {
-  const v = new Vox(61, 26, 24, 0.1, [30.5, 0, 12]);
-  v.box(0, 0, 0, 60, 25, 23, (x, y, z) => (x % 3 === 0 ? dark : color));
-  v.box(0, 0, 0, 0, 25, 23, dark); v.box(60, 0, 0, 60, 25, 23, P.steelD); v.box(60, 3, 11, 60, 22, 12, P.steel);
-  v.box(0, 25, 0, 60, 25, 23, (x, y, z) => ((x + z) % 9 === 0 ? 0x5a4a3a : color));
-  for (let i = 0; i < 18; i++) v.set((i * 23) % 60, 24 - (i % 5), (i * 7) % 2 ? 0 : 23, P.rustD);
+  const v = new Vox(31, 13, 12, 0.2, [15.5, 0, 6]);
+  v.box(0, 0, 0, 30, 12, 11, (x, y, z) => (x % 2 === 0 ? dark : color));
+  v.box(0, 0, 0, 0, 12, 11, dark); v.box(30, 0, 0, 30, 12, 11, P.steelD); v.box(30, 1, 5, 30, 11, 6, P.steel);
+  v.box(0, 12, 0, 30, 12, 11, (x, y, z) => ((x + z) % 7 === 0 ? 0x5a4a3a : color));
+  for (let i = 0; i < 12; i++) v.set((i * 11) % 30, 11 - (i % 4), (i * 7) % 2 ? 0 : 11, P.rustD);
   return v.build();
 }
 reg('dg_container', () => container(0x9a4a2e, 0x7a3a22), { solid: [3.05, 1.2, 2.6] });
@@ -346,12 +351,12 @@ reg('dg_containerB', () => container(0x2e5a7a, 0x22465e), { solid: [3.05, 1.2, 2
 reg('dg_containerG', () => container(0x4e6a3e, 0x3a5230), { solid: [3.05, 1.2, 2.6] });
 
 reg('dg_truck', () => {
-  const v = new Vox(24, 28, 72, 0.1, [12, 0, 36]);
-  v.box(1, 3, 0, 22, 5, 71, 0x2a2a2a);
-  v.box(1, 6, 52, 22, 20, 71, 0x7a6a3a); v.box(3, 14, 71, 20, 19, 71, P.glassD); v.box(1, 21, 54, 22, 22, 70, 0x6a5a32);
-  v.box(0, 6, 0, 23, 26, 49, (x, y, z) => (z % 6 === 0 ? 0x5a5040 : 0x6e6448)); v.box(2, 26, 2, 21, 26, 47, -1); v.box(2, 8, 2, 21, 25, 47, -1);
-  for (const z of [6, 18, 40, 62]) { v.box(0, 0, z, 2, 5, z + 6, P.black); v.box(21, 0, z, 23, 5, z + 6, P.black); }
-  for (let i = 0; i < 30; i++) v.set((i * 7) % 24, 6 + (i * 5) % 20, (i * 13) % 50, P.rust);
+  const v = new Vox(16, 19, 48, 0.15, [8, 0, 24]);
+  v.box(1, 2, 0, 14, 3, 47, 0x2a2a2a);
+  v.box(1, 4, 35, 14, 13, 47, 0x7a6a3a); v.box(2, 9, 47, 13, 12, 47, P.glassD); v.box(1, 14, 36, 14, 14, 46, 0x6a5a32);
+  v.box(0, 4, 0, 15, 17, 33, (x, y, z) => (z % 4 === 0 ? 0x5a5040 : 0x6e6448)); v.box(1, 6, 1, 14, 17, 32, -1);
+  for (const z of [4, 12, 27, 41]) { v.box(0, 0, z, 1, 3, z + 4, P.black); v.box(14, 0, z, 15, 3, z + 4, P.black); }
+  for (let i = 0; i < 20; i++) v.set((i * 7) % 16, 4 + (i * 5) % 13, (i * 13) % 33, P.rust);
   return v.build();
 }, { solid: [1.2, 3.6, 2.4] });
 
@@ -404,12 +409,12 @@ reg('dg_rubble', () => {
 
 // broken slab with rebar (6x4 m)
 reg('dg_slab', () => {
-  const v = new Vox(60, 22, 40, 0.1, [30, 0, 20]), r = R(43);
-  for (let x = 0; x < 60; x++) for (let z = 0; z < 40; z++) {
-    if ((x > 50 && z > 30 - (x - 50) * 2) || (x < 6 && z < 10 - x)) continue;
-    const y0 = Math.round(x * 0.25); v.box(x, y0, z, x, y0 + 4, z, (x + z) % 13 === 0 ? P.stain : (y0 + z) % 6 ? P.conc : P.concD);
+  const v = new Vox(34, 11, 20, 0.2, [15, 0, 10]), r = R(43);
+  for (let x = 0; x < 30; x++) for (let z = 0; z < 20; z++) {
+    if ((x > 25 && z > 15 - (x - 25) * 2) || (x < 3 && z < 5 - x)) continue;
+    const y0 = Math.round(x * 0.25); v.box(x, y0, z, x, y0 + 2, z, (x + z) % 13 === 0 ? P.stain : (y0 + z) % 6 ? P.conc : P.concD);
   }
-  for (let i = 0; i < 10; i++) { const z = 3 + i * 3.6; line(v, 59, 19, z, 66, 20 + r() * 2, z + (r() - .5) * 3, P.rustD); }
+  for (let i = 0; i < 6; i++) { const z = 2 + i * 3; line(v, 29, 9, z, 33, 10, z + (r() - .5) * 2, P.rustD); }
   return v.build();
 }, { solid: [2.8, 1.9, 1.5] });
 
@@ -435,9 +440,9 @@ reg('dg_hedgehog', () => {
 }, { solid: [0.7, 0.7, 1.2] });
 
 reg('dg_tent', () => {
-  const v = new Vox(40, 26, 50, 0.1, [20, 0, 25]);
-  for (let z = 0; z < 50; z++) for (let x = 0; x < 40; x++) { const y = Math.round(24 - Math.abs(x - 19.5) * 1.15); if (y >= 0) v.box(x, Math.max(0, y - 1), z, x, y, z, (z % 10 === 0) ? 0x4a4e36 : (x < 20 ? 0x5e6644 : 0x545a3c)); }
-  for (let x = 12; x < 28; x++) for (let y = 0; y < 14; y++) if (Math.abs(x - 19.5) < (14 - y) * 0.6) v.set(x, y, 49, 0x2a2a20);
+  const v = new Vox(27, 17, 33, 0.15, [13.5, 0, 16.5]);
+  for (let z = 0; z < 33; z++) for (let x = 0; x < 27; x++) { const y = Math.round(16 - Math.abs(x - 13) * 1.15); if (y >= 0) v.box(x, Math.max(0, y - 1), z, x, y, z, (z % 7 === 0) ? 0x4a4e36 : (x < 13 ? 0x5e6644 : 0x545a3c)); }
+  for (let x = 8; x < 19; x++) for (let y = 0; y < 9; y++) if (Math.abs(x - 13) < (9 - y) * 0.6) v.set(x, y, 32, 0x2a2a20);
   return v.build();
 }, { solid: [2.0, 2.5, 2.4] });
 

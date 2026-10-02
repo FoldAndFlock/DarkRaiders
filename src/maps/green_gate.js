@@ -61,8 +61,9 @@ const POND = [[96, 384], [122, 378], [140, 392], [136, 414], [112, 420], [94, 40
 const HWY_W = [[262, 606], [300, 578], [340, 547], [380, 515], [415, 487], [444, 461]];
 const HWY_C = [cp(-209, 0), cp(-150, 0), cp(-100, 0), cp(-40, 0)];
 const R_SOUTH = [[300, 642], [350, 646], [400, 636], [450, 621], [500, 628], [540, 650], [580, 664], [620, 672], [660, 684], [690, 668], [722, 636], [760, 598], [800, 568], [835, 540], [862, 505], [876, 465], [874, 420], [880, 380], [890, 345], [905, 312], [935, 284], [962, 268]];
-const R_VILLAGE = [[180, 58], [215, 62], [250, 54], [290, 68], [330, 90], [370, 100], [410, 112], [450, 126], [488, 142], [520, 158], [545, 175]];
-const R_VNORTH = [[290, 68], [296, 40], [303, 14]];
+const R_VILLAGE = [[176, 60], [210, 64], [240, 66], [270, 67], [300, 68], [330, 76], [360, 92], [380, 100], [440, 101], [480, 101], [502, 122], [522, 150], [545, 175]];
+const R_VNORTH = [[303, 10], [293, 22], [279, 33], [264, 42], [260, 52], [258, 64]];
+const R_VSOUTH = [[240, 66], [244, 86], [242, 104], [234, 122], [215, 142], [190, 150]];
 const R_WEST = [[452, 392], [440, 340], [446, 290], [452, 245], [446, 200], [438, 160], [430, 122]];
 const R_CHK_S = [cp(-150, 30), [478, 470], [486, 520], [498, 575], [505, 625]];
 const R_BENCH = [[545, 175], [600, 178], [610, 232], [612, 236]];
@@ -112,10 +113,10 @@ export default {
       if (d < -34) return null;
       if (d < 0) { const t = 1 + d / 34; return 3.2 * t * t * (0.6 + N1(x, z, 30)); }
       const n = N1(x, z, 46), n2 = N2(x, z, 14);
-      let h = 4.5 + Math.min(d, 46) * 0.9 + n * 12 + n2 * 3 + Math.max(0, d - 46) * 0.25;
+      let h = 4.5 + Math.min(d, 46) * 0.9 + n * 12 + n2 * 3 + Math.min(14, Math.max(0, d - 46) * 0.2);
       const st = 3.4, q = h / st, f = q - Math.floor(q);
       h = (Math.floor(q) + ss(0.5, 0.86, f)) * st;
-      return h;
+      return h + 8 * ss(0, 2.4, d);          // sheer limestone cliff along the whole boundary
     }, 'add');
 
     // --- bench + peak (soft pass, low areas, hard pass -> cliffs only where low areas cut in)
@@ -147,9 +148,10 @@ export default {
     // reserve POI footprints + roads before scattering outcrops
     const RES = [[235, 18, 378, 108], [378, 50, 530, 162], [520, 128, 632, 292], [548, 84, 706, 352], [640, 58, 800, 160], [630, 150, 800, 402], [836, 54, 1000, 236],
       [880, 262, 975, 372], [612, 466, 704, 540], [628, 540, 720, 612], [398, 540, 585, 672], [566, 676, 662, 762], [236, 268, 320, 322], [282, 186, 324, 224], [138, 132, 198, 188],
-      [90, 250, 280, 500], [255, 560, 345, 615], [885, 400, 925, 460]];
+      [90, 250, 280, 500], [255, 560, 345, 615], [885, 400, 925, 460], [0, 588, 262, 672]];
     for (const r of RES) mark(...r, 4);
-    markPoly(CHK_POLY, 4); markPoly(YARD, 4);
+    markPoly(CHK_POLY, 4); markPoly(YARD, 4 | 1); markPoly(PLAZA, 1);
+    markPoly([cp(-14, -52), cp(12, -52), cp(12, 52), cp(-14, 52)], 1 | 4);
     for (const [pts, hw] of [[HWY_W, 9], [HWY_C, 10], [R_SOUTH, 6], [R_VILLAGE, 5], [R_VNORTH, 4], [R_WEST, 5], [R_CHK_S, 5], [R_BENCH, 5], [R_PEAK, 6], [R_EAST, 5], [R_FORT, 5]]) markLine(pts, hw, 1);
     markLine(CREEK, 9, 8); markPoly(LAKE_NE, 8); markPoly(LAKE_SW, 8); markPoly(GORGE, 8); markPoly(POND, 8);
 
@@ -165,6 +167,7 @@ export default {
         for (let i = 0; i <= np; i++) { const a = a0 + span * i / np; pts.push([cx + Math.cos(a) * rad, cz + Math.sin(a) * rad * R(0.85, 1.1)]); }
         if (!pts.every(([x, z]) => inPlay(x, z) && free(x, z, wd / 2 + 3, 15))) continue;
         w.ridge(pts, wd, hh, 1.7, 'add');
+        w.path(pts, wd + 6, rng() < 0.5 ? 'gravel' : 'dirt');
         w.path(pts, wd + 1.5, 'rock');
         markLine(pts, wd / 2 + 2, 4 | 2);
         outcrops.push({ pts, wd, hh }); made++;
@@ -190,14 +193,29 @@ export default {
     }
     // the yard behind the gate (sunk into the bench), then tunnel ramps later
     w.raisePoly(YARD, TUN_Y, 0, 'set');
-    w.road(resample(HWY_W, 5), 12, 'asphalt', { edge: 'concrete', edgeW: 0.6, level: false });
-    w.road(resample([cp(-212, 0), cp(4, 0), [606, 290], [626, 262], [637, 240]], 5), 15, 'asphalt', { edge: 'concrete', edgeW: 1, level: false });
-    roadL(R_SOUTH, 6, 'asphalt', { smooth: 4 });
+    w.road(resample(HWY_W, 5), 12, 'concrete', { edge: 'gravel', edgeW: 0.8, level: false });
+    w.road(resample([cp(-212, 0), cp(4, 0), [606, 290], [626, 262], [637, 240]], 5), 15, 'concrete', { edge: 'gravel', edgeW: 1, level: false });
+    // painted lane markings (flat rotatable props: the terrain atlas can't draw diagonal lines)
+    const dashLine = (pts, kind = 'gg_lane', period = 6, from = 0) => {
+      for (let k = 0; k < pts.length - 1; k++) {
+        const [ax, az] = pts[k], [bx, bz] = pts[k + 1], L = Math.hypot(bx - ax, bz - az), rot = Math.atan2(-(bz - az), bx - ax);
+        for (let s = from; s < L; s += period) w.prop(kind, ax + (bx - ax) * s / L, az + (bz - az) * s / L, rot, { y: 0.03 });
+      }
+    };
+    const offLine = (pts, o) => pts.map(([x, z], i) => { const [ax, az] = pts[Math.max(0, i - 1)], [bx, bz] = pts[Math.min(pts.length - 1, i + 1)], L = Math.hypot(bx - ax, bz - az) || 1; return [x - (bz - az) / L * o, z + (bx - ax) / L * o]; });
+    dashLine(HWY_W, 'gg_laney', 7); dashLine(offLine(HWY_W, 3), 'gg_lane', 7, 3); dashLine(offLine(HWY_W, -3), 'gg_lane', 7, 3);
+    dashLine(offLine(HWY_W, 5.6), 'gg_lane', 2.4); dashLine(offLine(HWY_W, -5.6), 'gg_lane', 2.4);
+    const HC2 = [cp(-212, 0), cp(-152, 0)];
+    dashLine(HC2, 'gg_laney', 7); dashLine(offLine(HC2, 3.6), 'gg_lane', 7, 3); dashLine(offLine(HC2, -3.6), 'gg_lane', 7, 3);
+    dashLine(offLine(HC2, 7), 'gg_lane', 2.4); dashLine(offLine(HC2, -7), 'gg_lane', 2.4);
+    const RS = roadL(R_SOUTH, 6, 'concrete', { smooth: 4 }); dashLine(RS, 'gg_laney', 8);
     roadL(R_VILLAGE, 5, 'gravel', { edge: 'dirt', smooth: 2 });
     roadL(R_VNORTH, 4, 'gravel', { edge: 'dirt' });
+    roadL(R_VSOUTH, 4, 'gravel', { edge: 'dirt', smooth: 2 });
+    w.path(resample([[441, 58], [441, 100]], 4), 4, 'gravel'); markLine([[441, 58], [441, 100]], 2.5, 1);
     roadL(R_WEST, 5, 'gravel', { edge: 'dirt', smooth: 3 });
-    roadL(R_CHK_S, 6, 'asphalt', { smooth: 3 });
-    roadL(R_BENCH, 6, 'asphalt', { level: false });
+    dashLine(roadL(R_CHK_S, 6, 'concrete', { smooth: 3 }), 'gg_laney', 8);
+    roadL(R_BENCH, 6, 'concrete', { level: false });
     roadL(R_PEAK, 6, 'gravel', { level: false });
     roadL(R_EAST, 5, 'gravel', { smooth: 3 });
     roadL(R_FORT, 4, 'dirt', { edge: null, smooth: 2 });
@@ -315,34 +333,33 @@ export default {
     {
       const at = (s, t = 0) => [GC[0] + UV[0] * s + NV[0] * t, GC[1] + UV[1] * s + NV[1] * t];
       const ROT = -PI / 4;   // local +x along the gate (SE), local +z faces the Checkpoint (SW)
-      for (const s of [-44, -12, 12, 44]) { const [x, z] = at(s); w.prop('gg_gatepylon', x, z, ROT, { solid: [3.8, 3.8, 24] }); mark(x - 6, z - 6, x + 6, z + 6, 2 | 4); }
+      for (const s of [-44, -12, 12, 44]) { const [x, z] = at(s); w.prop('gg_gatepylon', x, z, ROT, { scale: 1.35, solid: [3.7, 3.7, 23.7] }); mark(x - 8, z - 8, x + 8, z + 8, 2 | 4); }
       for (const s of [-28, 28]) { const [x, z] = at(s); w.prop('gg_gatewall', x, z, ROT, {}); }
-      for (const s of [-22, 22]) { const [x, z] = at(s, -4.2); w.prop('gg_gateleaf', x, z, ROT, {}); }
-      diagCollide(...at(-48, 0), ...at(-8.5, 0), 2.2, 14, 0.9);
-      diagCollide(...at(8.5, 0), ...at(48, 0), 2.2, 14, 0.9);
-      diagCollide(...at(-28, -4.2), ...at(-15, -4.2), 0.9, 12, 0.8);
-      diagCollide(...at(15, -4.2), ...at(28, -4.2), 0.9, 12, 0.8);
+      for (const s of [-24, 24]) { const [x, z] = at(s, -7.4); w.prop('gg_gateleaf', x, z, ROT, {}); }
+      for (const t of [-3.2, 3.2]) { diagCollide(...at(-50, t), ...at(-7, t), 2.3, 15, 0.9); diagCollide(...at(7, t), ...at(50, t), 2.3, 15, 0.9); }
+      diagCollide(...at(-31, -7.4), ...at(-17, -7.4), 0.9, 12, 0.8);
+      diagCollide(...at(17, -7.4), ...at(31, -7.4), 0.9, 12, 0.8);
       // floodlights on the pylons' checkpoint side + beacon lights
-      for (const s of [-44, -12, 12, 44]) { const [x, z] = at(s, -6.5); w.lamp(x, z, { y: 9, model: null, color: 0xd8f0ff, intensity: 1.6, range: 14 }); }
+      for (const s of [-44, -12, 12, 44]) { const [x, z] = at(s, -8.5); w.lamp(x, z, { y: 9, model: null, color: 0xd8f0ff, intensity: 1.6, range: 14 }); }
       const [gx, gz] = at(0, -10); w.lamp(gx, gz, { y: 12, model: null, color: 0x9affc8, intensity: 0.9, range: 12 });
-      w.paintPoly('concrete', [at(-50, -9), at(50, -9), at(50, 5), at(-50, 5)]);
-      w.road(resample([at(-8, -12), at(-8, 6)], 2), 1.2, 'hazard', { edge: null, level: false });
-      w.road(resample([at(8, -12), at(8, 6)], 2), 1.2, 'hazard', { edge: null, level: false });
-      w.road(resample([at(-8, 2), at(8, 2)], 2), 1, 'hazard', { edge: null, level: false });
+      w.paintPoly('concrete', [at(-52, -12), at(52, -12), at(52, 8), at(-52, 8)]);
+      for (let s = -6; s <= 6; s += 3) w.prop('gg_chevron', ...at(s, -1), ROT, { y: 0.03 });
+      for (let s = -6; s <= 6; s += 4) w.prop('gg_stopline', ...at(s, -11), ROT, { y: 0.03 });
       // staging inside the gate mouth (checkpoint side)
       for (const [s, t] of [[-5, -16], [4, -20], [-2, -26]]) { const [x, z] = at(s, t); w.prop('gg_barrier', x, z, ROT + (rng() - 0.5) * 0.3, { solid: true }); }
-      w.arkSpawn('sentinel', ...at(12, 0), { count: 1, perch: 'gate_pylon', y: 24 });
-      w.arkSpawn('sentinel', ...at(-44, 0), { count: 1, perch: 'gate_pylon', y: 24 });
+      w.arkSpawn('sentinel', ...at(12, 0), { count: 1, perch: 'gate_pylon', y: 32 });
+      w.arkSpawn('sentinel', ...at(-44, 0), { count: 1, perch: 'gate_pylon', y: 32 });
       w.poi('outer_gates', 'Outer Gates', ...at(0, -2), 44, { tier: 3, aliases: ['outer_gates'] });
     }
 
     // ======================================================================== 5. CHECKPOINT
     {
       w.paintPoly('concrete', PLAZA);
-      w.paintPoly('asphalt', [cp(-152, -30), cp(-10, -30), cp(-10, 30), cp(-152, 30)]);
-      for (const b of [-20, -8, 8, 20]) w.path(resample([cp(-150, b), cp(-60, b)], 4), 0.5, 'gravel');
-      w.road(resample([cp(-152, 0), cp(-12, 0)], 4), 1, 'hazard', { edge: null, level: false });
-      for (const a of [-86, -40]) w.road(resample([cp(a, -30), cp(a, 30)], 4), 0.8, 'hazard', { edge: null, level: false });
+      for (const b of [-30, -20, -8, 8, 20, 30]) dashLine([cp(-150, b), cp(-96, b)], 'gg_lane', 2.4);
+      for (const b of [-14, -2, 2, 14, 25]) dashLine([cp(-150, b), cp(-100, b)], b === -2 || b === 2 ? 'gg_laney' : 'gg_lane', 6);
+      dashLine([cp(-80, -2), cp(-12, -2)], 'gg_laney', 3.2); dashLine([cp(-80, 2), cp(-12, 2)], 'gg_laney', 3.2);
+      for (const a of [-84, -38]) dashLine([cp(a, -30), cp(a, 30)], 'gg_stopline', 4.4);
+      for (const b of [-26, -14, 14, 26]) w.prop('gg_chevron', ...cp(-97, b), -PI / 4, { y: 0.03 });
       const RB = -PI / 4, RV = 3 * PI / 4;
       // inspection line: kiosks between lanes + boom barriers
       for (const b of [-20, -8, 8, 20]) { const [x, z] = cp(-92, b); w.prop('gg_toll', x, z, RB, { solid: true }); w.lamp(x, z, { y: 3.4, model: null, color: 0xfff0c0, intensity: 0.9, range: 7 }); }
@@ -358,32 +375,34 @@ export default {
       for (const [a, b] of [[-118, 34], [-44, -10], [-76, 30]]) w.prop('husk', ...cp(a, b), rng() * 6, { solid: true });
       w.container('arc_husk', ...cp(-44, -12), 0, { tier: 2, poi: 'checkpoint' });
       // shipping containers stacked along the edges
-      for (const [a, b, k] of [[-150, -40, 'gg_container'], [-150, -36, 'gg_container2'], [-144, 42, 'gg_container3'], [-26, -42, 'gg_container2'], [-30, 40, 'gg_container']]) w.prop(k, ...cp(a, b), PI / 4, { solid: true });
-      // buildings in echelon along both edges (axis-aligned blocks stepping along the diagonal)
-      const CK = [
-        { a: -140, b: -40, w: 15, d: 10, kind: 'barracks', name: 'Barracks West' },
-        { a: -116, b: -40, w: 14, d: 10, kind: 'office', name: 'Customs Office' },
-        { a: -90, b: -42, w: 16, d: 10, kind: 'security', name: 'Inspection Hall', tier: 2 },
-        { a: -64, b: -40, w: 14, d: 10, kind: 'home', name: 'Mess Hall', cont: 'home' },
-        { a: -140, b: 40, w: 15, d: 10, kind: 'industrial', name: 'Vehicle Bay' },
-        { a: -116, b: 40, w: 14, d: 10, kind: 'office', name: 'Medical Post', cont: 'medical' },
-        { a: -90, b: 42, w: 16, d: 10, kind: 'security', name: 'Armoury', tier: 2 },
-        { a: -64, b: 40, w: 14, d: 10, kind: 'barracks', name: 'Barracks East' },
-        { a: -40, b: -38, w: 12, d: 9, kind: 'office', name: 'Radio Room', cont: 'lab' },
-        { a: -40, b: 38, w: 12, d: 9, kind: 'industrial', name: 'Generator Shed' },
-      ];
+      // buildings in echelon along both edges: axis-aligned blocks stepping along the diagonal so the
+      // long NW / SE halls of the reference read as continuous saw-tooth wings
       CONT.medical = ['medical_bag', 'medical_bag', 'cabinet', 'locker', 'trash'];
-      for (const c of CK) {
-        const [cx, cz] = cp(c.a, c.b), x = Math.round(cx - c.w / 2), z = Math.round(cz - c.d / 2);
-        const toLanes = c.b < 0 ? (c.a < -100 ? 's' : 'e') : (c.a < -100 ? 'n' : 'w');
-        const doors = [{ side: toLanes, at: (toLanes === 's' || toLanes === 'n' ? c.w : c.d) / 2 - 0.9, w: 1.8 }, { side: c.b < 0 ? 'n' : 's', at: 2, w: 1.6 },
-          ...winRow(c.b < 0 ? 'e' : 'w', c.d, 1.4, 3.4), ...winRow(c.b < 0 ? 's' : 'n', c.w, 5, 4)].filter((d, i, arr) => !arr.some((e, j) => j < i && e.side === d.side && Math.abs(e.at - d.at) < 2.4));
-        const o = { x, z, w: c.w, d: c.d, storeys: 1, h: 3.4, wall: c.kind === 'industrial' ? 'corrugated' : 'concrete', floor: 'tiles', roof: 'roofTar', tint: 0xd0d8d0, name: c.name, doors,
-          inner: [[Math.round(c.w * 0.6), 0, Math.round(c.w * 0.6), c.d, [{ at: c.d / 2 - 0.8, w: 1.6 }]]] };
-        house(o, c.kind, { tier: c.tier ?? 1, cont: c.cont, poi: 'checkpoint' });
+      const CK = [
+        [-148, 'barracks', 'Barracks', 1], [-128, 'office', 'Customs Office', 1], [-108, 'security', 'Inspection Hall', 2], [-88, 'home', 'Mess Hall', 1], [-68, 'office', 'Records Office', 1], [-48, 'office', 'Radio Room', 2],
+      ];
+      const CK2 = [
+        [-148, 'industrial', 'Vehicle Bay', 1], [-128, 'office', 'Medical Post', 1, 'medical'], [-108, 'security', 'Armoury', 2], [-88, 'barracks', 'Barracks East', 1], [-68, 'industrial', 'Workshop', 1], [-48, 'industrial', 'Generator Shed', 1],
+      ];
+      for (const [list, bb] of [[CK, -41], [CK2, 41]]) for (const [aa, kind, name, tier, cont] of list) {
+        const [cx, cz] = cp(aa, bb), ww = 18, dd = 12, x = Math.round(cx - ww / 2), z = Math.round(cz - dd / 2);
+        // NW wing: lanes lie to the south-east -> doors on s/e ; SE wing: lanes to the north-west -> doors on n/w
+        const fs = bb < 0 ? 's' : 'n', fe = bb < 0 ? 'e' : 'w', bs = bb < 0 ? 'n' : 's';
+        const doors = [{ side: fs, at: 3, w: 1.8 }, { side: fe, at: 5, w: 1.8 }, { side: bs, at: 13, w: 1.6 }, ...winRow(fs, ww, 7, 3.4, 1.6), ...winRow(fe, dd, 1.2, 3, 1.4).filter(d => d.at > 7.5 || d.at + d.w < 4.6)];
+        const o = { x, z, w: ww, d: dd, storeys: kind === 'industrial' ? 1 : 2, h: kind === 'industrial' ? 4.4 : 6.2, wall: kind === 'industrial' ? 'corrugated' : 'concrete', floor: kind === 'industrial' ? 'concrete' : 'tiles',
+          roof: 'roofTar', tint: kind === 'industrial' ? 0xb8c8c0 : 0xd8dcd0, name, doors: doors.filter((d, i, arr) => !arr.some((e, j) => j < i && e.side === d.side && d.at < e.at + e.w + 0.4 && e.at < d.at + d.w + 0.4)),
+          inner: [[10, 0, 10, dd, [{ at: 5, w: 1.6 }]], [0, 6, 10, 6, [{ at: 4, w: 1.6 }]]], roofExtras: [[2, 2, 5, 4, 0.9], [12, 7, 16, 10, 0.7]] };
+        house(o, kind, { tier, cont, poi: 'checkpoint', density: 32 });
       }
+      // chain-link perimeter along both outer edges (gaps for the side gates)
+      for (const bb of [-53, 53]) for (let aa = -150; aa < -14; aa += 3) { if (Math.abs(aa + 100) < 4 || Math.abs(aa + 60) < 4) continue; w.prop('gg_fence', ...cp(aa + 1.5, bb), PI / 4, { solid: [1.5, 0.15, 2] }); }
+      // traffic cones, lane dividers, sandbagged MG nest near the gate, flags
+      for (let i = 0; i < 40; i++) { const aa = R(-150, -20), bb = R(-30, 30); w.prop('gg_cone', ...cp(aa, bb), rng() * 6, {}); }
+      for (const bb of [-14, 14]) for (let aa = -150; aa < -100; aa += 3.2) w.prop('gg_curb', ...cp(aa, bb), PI / 4, { solid: true });
+      for (const [aa, bb] of [[-24, -48], [-24, 48], [-150, -30], [-150, 30]]) w.prop('gg_flag', ...cp(aa, bb), 0, { solid: true });
+      for (const [aa, bb, k] of [[-150, -52, 'gg_container'], [-146, -52, 'gg_container2'], [-134, 52, 'gg_container3'], [-30, -50, 'gg_container2'], [-30, 50, 'gg_container'], [-112, -52, 'gg_crates'], [-80, 52, 'gg_pallet']]) w.prop(k, ...cp(aa, bb), PI / 4, { solid: true });
       // watchtowers at the plaza corners (turrets / sentinel perches) + floodlight masts
-      for (const [a, b] of [[-152, -50], [-152, 50], [-16, -52], [-16, 52]]) { const [x, z] = cp(a, b); w.prop('gg_watchtower', x, z, 0, { solid: true }); mark(x - 3, z - 3, x + 3, z + 3, 2); w.arkSpawn('turret', x, z, { perch: 'watchtower', y: 8.5 }); }
+      for (const [a, b] of [[-158, -50], [-158, 50], [-20, -56], [-20, 56]]) { const [x, z] = cp(a, b); w.prop('gg_watchtower', x, z, 0, { solid: true }); mark(x - 3, z - 3, x + 3, z + 3, 2); w.arkSpawn('turret', x, z, { perch: 'watchtower', y: 8.5 }); }
       for (const [a, b] of [[-130, -32], [-130, 32], [-100, -32], [-100, 32], [-70, -32], [-70, 32], [-44, -30], [-44, 30], [-150, 0], [-20, 0]]) { const [x, z] = cp(a, b); w.lamp(x, z, { y: 7.6, model: 'gg_lightmast', color: 0xe8f4ff, intensity: 1.5, range: 15 }); }
       // forested south-west half of the Checkpoint (the reference polygon covers dense woods)
       const FW = [cp(-158, -44), cp(-158, -12), cp(-236, -12), cp(-236, -36)], FE = [cp(-158, 12), cp(-158, 46), cp(-236, 40), cp(-236, 12)];
@@ -401,17 +420,20 @@ export default {
     }
 
     // ======================================================================== 6. UPPER BENCH: tunnels, Headhouse, Reception, Warehouse
-    const TUN = { wall: 'damConcrete', floor: 'concrete', roof: 'damConcrete', thick: 0.6, h: 4.2, blend: 0, floorY: TUN_Y, peek: 0.86, facade: false, parapet: false, vents: 0, tint: 0xc8c8c0 };
+    const TUN = { wall: 'damConcrete', floor: 'concrete', roof: 'moss', thick: 0.6, h: BENCH_Y - TUN_Y + 0.5, blend: 0, floorY: TUN_Y, peek: 0.9, facade: false, parapet: false, vents: 0, tint: 0xc8c8c0 };
+    // soil-covered cut-and-cover roof with ventilation grates every ~20 m
+    const grates = (len, along = 'z', wdt = 18) => { const out = []; for (let s = 8; s < len - 4; s += 20) { const e = along === 'z' ? [wdt / 2 - 1.5, s, wdt / 2 + 1.5, s + 2.2, 0.5] : [s, wdt / 2 - 1.5, s + 2.2, wdt / 2 + 1.5, 0.5]; e.tex = 'metalPanel'; out.push(e); } return out; };
     const full = (side, len) => ({ side, at: 0.6, w: len - 1.2, lintel: false });
     {
       // Traffic Tunnel main corridor (yard -> north cave-in), 22 m wide
-      const T1 = { ...TUN, x: 626, z: 92, w: 22, d: 148, name: 'Traffic Tunnel',
+      const T1 = { ...TUN, x: 626, z: 92, w: 22, d: 148, name: 'Traffic Tunnel', roofExtras: grates(148, 'z', 22),
         doors: [full('s', 22), { side: 'e', at: 30.6, w: 16.8, lintel: false }, { side: 'e', at: 92.6, w: 10.8, lintel: false }, { side: 'w', at: 90.6, w: 16.8, lintel: false }],
         inner: [[10.6, 20, 10.6, 30, []], [10.6, 50, 10.6, 62, []], [10.6, 104, 10.6, 116, []]] };
       bldg(T1);
       for (let z = 100; z < 236; z += 15) tunnelLamp(637, z, 3.6);
       w.paint('asphalt', 628, 92, 646, 240);
-      for (let z = 96; z < 238; z += 4) w.paint('hazard', 636.6, z, 637.4, z + 2);
+      for (let z = 108; z < 236; z += 6) w.prop('gg_laney', 637, z, PI / 2, { y: 0.03 });
+      for (let z = 110; z < 236; z += 9) { w.prop('gg_lane', 631.5, z, PI / 2, { y: 0.03 }); w.prop('gg_lane', 642.5, z, PI / 2, { y: 0.03 }); }
       w.prop('gg_rubble', 637, 98, 0.2, { solid: true }); w.prop('gg_rubble', 631, 104, 2.1, { solid: true }); w.prop('gg_rubble', 643, 101, 4.0, { solid: true });
       for (const [x, z, r, k] of [[632, 130, PI, 'gg_truck'], [642, 160, 0.1, 'car'], [631, 176, PI + 0.2, 'gg_van'], [643, 214, 0.05, 'gg_bus'], [630, 222, PI, 'car']]) vehicle(k, x, z, r);
       // the armoured patrol car (key room 'patrol_car')
@@ -429,7 +451,7 @@ export default {
       w.poi('traffic_tunnel', 'Traffic Tunnel', 637, 165, 40, { tier: 3, aliases: ['traffic_tunnel'], underground: true });
 
       // NE branch -> Data Vault
-      bldg({ ...TUN, x: 648, z: 122, w: 94, d: 18, name: 'Vault Passage', doors: [full('w', 18), full('e', 18)], inner: [[30, 0, 30, 6, []], [30, 12, 30, 18, []], [62, 0, 62, 6, []], [62, 12, 62, 18, []]] });
+      bldg({ ...TUN, x: 648, z: 122, w: 94, d: 18, name: 'Vault Passage', roofExtras: grates(94, 'x', 18), doors: [full('w', 18), full('e', 18)], inner: [[30, 0, 30, 6, []], [30, 12, 30, 18, []], [62, 0, 62, 6, []], [62, 12, 62, 18, []]] });
       w.paint('concrete', 648, 122, 742, 140);
       for (let x = 660; x < 740; x += 16) tunnelLamp(x, 131);
       for (const [x, z, k] of [[652, 124, 'toolbox'], [676, 138, 'crate'], [700, 124, 'electronics'], [724, 138, 'locker']]) w.container(k, x, z, 0, { tier: 2, poi: 'traffic_tunnel' });
@@ -450,7 +472,7 @@ export default {
       w.poi('data_vault', 'Data Vault', 757, 130, 26, { tier: 3, aliases: ['data_vault'] });
 
       // Security Wing (W branch) + Confiscation Room; south leg exits through the cliff onto the Checkpoint
-      const SW1 = { ...TUN, x: 546, z: 182, w: 80, d: 18, name: 'Security Wing',
+      const SW1 = { ...TUN, x: 546, z: 182, w: 80, d: 18, name: 'Security Wing', roofExtras: grates(80, 'x', 18),
         doors: [full('e', 18), { side: 'w', at: 0.6, w: 16.8, lintel: false }, { side: 'n', at: 32, w: 6, lintel: false }],
         inner: [[14, 0, 14, 10, [{ at: 4, w: 2, door: true, locked: 'confiscation_room' }]], [0, 10, 14, 10, []],
           [20, 0, 20, 6, []], [26, 0, 26, 6, []], [32, 0, 32, 6, []], [38, 0, 38, 6, []], [14, 6, 38, 6, [{ at: 2, w: 1.6, door: true }, { at: 8, w: 1.6, door: true }, { at: 14, w: 1.6, door: true }, { at: 20, w: 1.6, door: true }]],
@@ -464,7 +486,7 @@ export default {
       w.prop('gg_desk', 598, 197.6, PI, { solid: true }); w.prop('gg_lockers', 603, 192.9, 0, { solid: true }); w.prop('gg_console', 594, 192.9, 0, { solid: true });
       for (let x = 566; x < 626; x += 15) tunnelLamp(x, 196);
       w.paint('metalPanel', 546, 182, 626, 200);
-      const SW2 = { ...TUN, x: 530, z: 182, w: 16, d: 90, name: 'Security Wing South', doors: [{ side: 'e', at: 0.6, w: 16.8, lintel: false }, { side: 's', at: 2.6, w: 10.8, lintel: false }],
+      const SW2 = { ...TUN, x: 530, z: 182, w: 16, d: 90, name: 'Security Wing South', roofExtras: grates(90, 'z', 16), doors: [{ side: 'e', at: 0.6, w: 16.8, lintel: false }, { side: 's', at: 2.6, w: 10.8, lintel: false }],
         inner: [[0, 40, 6, 40, []], [10, 40, 16, 40, []], [0, 64, 5, 64, []], [11, 64, 16, 64, []]] };
       bldg(SW2);
       for (let z = 196; z < 270; z += 16) tunnelLamp(538, z);
@@ -522,7 +544,7 @@ export default {
       w.poi('headhouse', 'Headhouse', 676, 190, 32, { tier: 2, aliases: ['headhouse'] });
 
       // Maintenance Wing: yard -> sunk Warehouse hangar -> north to the vault, south-east to the cliff portal
-      bldg({ ...TUN, x: 652, z: 286, w: 60, d: 16, name: 'Maintenance Wing', doors: [full('w', 16), full('e', 16)], inner: [[20, 0, 20, 5, []], [20, 11, 20, 16, []], [40, 0, 40, 5, []], [40, 11, 40, 16, []]] });
+      bldg({ ...TUN, x: 652, z: 286, w: 60, d: 16, name: 'Maintenance Wing', roofExtras: grates(60, 'x', 16), doors: [full('w', 16), full('e', 16)], inner: [[20, 0, 20, 5, []], [20, 11, 20, 16, []], [40, 0, 40, 5, []], [40, 11, 40, 16, []]] });
       for (let x = 660; x < 712; x += 15) tunnelLamp(x, 294);
       w.prop('gg_pipes', 672, 287.6, 0, { solid: true }); w.prop('gg_pipes', 700, 300.4, PI, { solid: true });
       for (const [x, z, k] of [[656, 288, 'toolbox'], [684, 300, 'locker'], [708, 288, 'electronics']]) w.container(k, x, z, 0, { tier: 2, poi: 'maintenance_wing' });
@@ -539,10 +561,10 @@ export default {
       for (const [x, z] of [[730, 270], [760, 270], [730, 300], [760, 300]]) w.lamp(x, z, { y: 6.8, model: null, color: 0xfff0d0, intensity: 1.2, range: 14 });
       w.ramp(740.6, 237, 751.4, 256.4, BENCH_Y, TUN_Y, 'z'); w.paint('concrete', 740, 237, 752, 256);
       w.ramp(780.4, 283.6, 797, 292.4, TUN_Y, BENCH_Y, 'x'); w.paint('concrete', 780, 283, 797, 293);
-      bldg({ ...TUN, x: 756, z: 150, w: 14, d: 106, name: 'Maintenance Wing North', doors: [full('n', 14), full('s', 14)], inner: [[0, 40, 4, 40, []], [10, 40, 14, 40, []]] });
+      bldg({ ...TUN, x: 756, z: 150, w: 14, d: 106, name: 'Maintenance Wing North', roofExtras: grates(106, 'z', 14), doors: [full('n', 14), full('s', 14)], inner: [[0, 40, 4, 40, []], [10, 40, 14, 40, []]] });
       for (let z = 160; z < 256; z += 16) tunnelLamp(763, z);
       for (const [x, z, k] of [[758, 170, 'toolbox'], [768, 210, 'electronics'], [758, 240, 'locker']]) w.container(k, x, z, 0, { tier: 2, poi: 'maintenance_wing' });
-      bldg({ ...TUN, x: 768, z: 322, w: 14, d: 56, name: 'Maintenance Wing South', doors: [full('n', 14), { side: 's', at: 2.6, w: 8.8, lintel: false }], inner: [[0, 28, 4, 28, []], [10, 28, 14, 28, []]] });
+      bldg({ ...TUN, x: 768, z: 322, w: 14, d: 56, name: 'Maintenance Wing South', roofExtras: grates(56, 'z', 14), doors: [full('n', 14), { side: 's', at: 2.6, w: 8.8, lintel: false }], inner: [[0, 28, 4, 28, []], [10, 28, 14, 28, []]] });
       for (let z = 330; z < 378; z += 16) tunnelLamp(775, z);
       w.prop('gg_portal', 775, 379.5, 0, {}); w.ramp(768.5, 378.4, 781.5, 392, TUN_Y, w.groundAt(775, 398), 'z'); w.paint('concrete', 768, 378, 782, 392);
       for (const [x, z, k] of [[770, 340, 'toolbox'], [780, 360, 'arc_crate']]) w.container(k, x, z, 0, { tier: 2, poi: 'maintenance_wing' });
@@ -558,7 +580,7 @@ export default {
       for (const [x, z] of [[708, 246], [790, 246], [790, 330], [700, 330]]) lightPost(x, z, 0xe8f4ff, 'gg_lightmast', 7.6, 1.4, 14);
       for (const [x, z, k, r] of [[800, 300, 'gg_container3', 0.1], [806, 312, 'gg_container', 1.6], [700, 236, 'gg_truck', 1.4], [727, 336, 'gg_crates', 0], [812, 262, 'gg_pallet', 0]]) w.prop(k, x, z, r, { solid: true });
       w.prop('gg_airshaft', 806, 283, 0, { solid: true }); w.lamp(806, 283, { y: 5, model: null, color: 0x40ff80, intensity: 0.9, range: 8 });
-      w.extract('warehouse_airshaft', 'Warehouse Airshaft', 806, 283, { kind: 'airshaft' });
+      w.extract('warehouse_airshaft', 'Warehouse Airshaft', 806, 288.5, { kind: 'airshaft' });
       w.arkSpawn('rocketeer', 760, 230, { count: 1, patrol: [[700, 220], [820, 230], [820, 340], [700, 340]] });
       w.arkSpawn('wasp', 740, 330, { count: 3, patrol: [[710, 330], [790, 330], [790, 250], [710, 250]] });
       w.zone('Warehouse Complex', [[700, 226], [820, 226], [820, 330], [700, 330]], { tier: 2 });
@@ -577,7 +599,8 @@ export default {
       w.arkSpawn('snitch', 660, 360, { count: 1, patrol: [[640, 365], [700, 385], [640, 420]] });
       w.poi('gate_control_room', 'Gate Control Room', 662, 337, 26, { tier: 3, aliases: ['gate_control_room'] });
 
-      // the yard: tunnel mouth staging area
+      // the yard: tunnel mouth staging area (+ stair ramp up to the bench pocket west of the tunnel)
+      w.ramp(603.6, 226, 612.4, 241.6, BENCH_Y, TUN_Y, 'z'); w.paint('concrete', 603, 226, 613, 242);
       w.paintPoly('concrete', YARD);
       for (const [x, z, k, r] of [[600, 262, 'gg_container', PI / 4], [612, 252, 'gg_container2', PI / 4], [640, 300, 'gg_truck', 0.2], [622, 296, 'gg_crates', 0], [605, 278, 'gg_barrier', PI / 4], [632, 268, 'gg_barrier', 0.4], [645, 255, 'gg_generator', 0]]) w.prop(k, x, z, r, { solid: true });
       for (const [x, z, k] of [[618, 252, 'crate'], [644, 310, 'toolbox'], [600, 270, 'ammo_box']]) w.container(k, x, z, 0, { tier: 2, poi: 'outer_gates' });
@@ -606,7 +629,9 @@ export default {
       w.paint('gravel', 848, 186, 912, 194); w.paint('gravel', 898, 174, 912, 186);
       w.ramp(862, 112, 868, 168, PEAK_Y, BENCH_Y, 'z'); w.paint('dirt', 862, 112, 868, 168);
       w.paintPoly('grass', PEAK);
-      w.paint('tiles', 884, 80, 972, 168);
+      w.paint('gravel', 884, 100, 972, 132); w.paint('concrete', 940, 76, 972, 120);
+      w.paint('tiles', 896, 102, 928, 130); w.path(resample([[905, 190], [905, 160], [912, 132]], 4), 5, 'gravel'); w.path(resample([[866, 120], [884, 116]], 4), 3, 'dirt');
+      for (let i = 0; i < 26; i++) { const x = R(872, 984), z = R(70, 176); if (free(x, z, 1.5, 3) && pointInPoly(x, z, PEAK)) w.prop(pick(['gg_bush', 'gg_flowers', 'gg_grass', 'gg_rock_s', 'gg_cypress', 'gg_olive']), x, z, rng() * 6, { solid: true, scale: R(0.7, 1) }); }
       // retaining walls + railings along the plateau edges
       for (const [a, b, c, d] of [[870, 172, 898, 173], [912, 178, 976, 179], [976, 120, 977, 176], [868, 74, 868.8, 110]]) w.block(a, b, c, d, 1.0, 'concrete', { y0: PEAK_Y - 0.1 });
       // monastery-hotel complex (pilgrims' refuge) around a cloister
@@ -644,47 +669,88 @@ export default {
 
     // ======================================================================== 8. THE VILLAGE (NW)
     {
-      w.paintPoly('gravel', [[372, 94], [402, 92], [408, 118], [376, 120]]);   // piazza
-      w.prop('gg_well', 389, 106, 0, { solid: true });
-      const VH = [
-        [258, 42, 12, 10, 2], [274, 54, 12, 11, 2], [300, 58, 12, 12, 2], [282, 74, 11, 10, 1], [296, 86, 12, 9, 2], [312, 34, 12, 10, 2], [356, 14, 16, 11, 2],
-        [240, 64, 11, 12, 1], [262, 88, 10, 10, 1], [336, 98, 12, 10, 2], [350, 76, 12, 10, 2], [334, 50, 11, 12, 2],
-        [398, 58, 14, 12, 2], [416, 64, 12, 12, 3], [400, 124, 12, 11, 2], [440, 106, 12, 12, 2], [456, 112, 14, 11, 2], [444, 128, 12, 10, 1], [462, 134, 12, 12, 2], [420, 88, 12, 10, 2], [434, 70, 11, 10, 1],
-        [372, 40, 12, 10, 1], [470, 96, 12, 10, 1],
-      ];
-      const tints = [0xf0e0c8, 0xe8d0b0, 0xd8c8b0, 0xf0d8c0, 0xe0c8a8, 0xd0c0a8, 0xf0e8d8];
-      VH.forEach(([x, z, ww, dd, st], i) => {
-        const front = (i % 3 === 0) ? 'n' : 's', len = ww;
-        const doors = [{ side: front, at: Math.max(1, len / 2 - 0.9 + (i % 2 ? 2 : -2)), w: 1.6 }, { side: i % 2 ? 'e' : 'w', at: 2, w: 1.4 }, ...winRow(front === 'n' ? 's' : 'n', ww, 1.5, 3.4, 1.2), ...winRow(i % 2 ? 'w' : 'e', dd, 2.5, 3.6, 1.2)];
-        const inner = ww >= 11 ? [[Math.round(ww * 0.55), 0, Math.round(ww * 0.55), dd, [{ at: dd / 2 - 0.8, w: 1.6 }]]] : [];
-        if (dd >= 10 && ww >= 12) inner.push([0, Math.round(dd * 0.5), Math.round(ww * 0.55), Math.round(dd * 0.5), [{ at: 1.2, w: 1.4 }]]);
-        const o = { x, z, w: ww, d: dd, storeys: st, wall: i % 4 === 1 ? 'brick' : 'plaster', floor: i % 2 ? 'wood' : 'tiles', roof: 'roofTile', roofShape: 'gable', tint: tints[i % tints.length], doors: doors.filter(d => d.at + d.w < (d.side === 'n' || d.side === 's' ? ww : dd) - 0.4), inner, name: 'Village House' };
-        if (x === 300 && z === 58) {   // the locked key house (Green Gate Village Key)
-          o.name = 'Village Key House'; o.doors = [{ side: 's', at: 5, w: 1.6, door: true, locked: 'village' }, ...winRow('n', 12, 2, 4, 1.2)];
-          o.inner = [[6, 0, 6, 12, [{ at: 5, w: 1.6 }]]];
-          bldg(o); w.keyRoom('village', x, z, x + ww, z + dd, null, { name: 'Village Key House', poi: 'village' });
-          furnish(o, 'home', { tier: 3, room: 'village', poi: 'village', cont0: 6, cont: 'office' });
-        } else house(o, 'home', { tier: i % 5 === 0 ? 2 : 1, poi: 'village' });
-        if (rng() < 0.6) w.prop(pick(['gg_flowers', 'gg_woodpile', 'barrel', 'gg_cart', 'bush']), x + ww + 1.5, z + dd * rng(), 0, { solid: false });
-      });
-      // village chapel on the piazza
-      const VC = { x: 378, z: 72, w: 12, d: 18, storeys: 2, h: 6.8, wall: 'plaster', floor: 'tiles', roof: 'roofTile', roofShape: 'gable', tint: 0xf0e8d8, name: 'Village Chapel', doors: [{ side: 's', at: 4.8, w: 2.4 }, ...winRow('w', 18, 3, 5, 1), ...winRow('e', 18, 3, 5, 1)] };
-      bldg(VC); for (let r = 0; r < 4; r++) w.prop('gg_pew', 384, 78 + r * 3, PI, { solid: true }); w.prop('gg_altar', 384, 74, PI, { solid: true });
-      w.container('basket', 380, 74, 0, { tier: 1, poi: 'village' }); w.container('cabinet', 388, 74, 0, { tier: 2, poi: 'village' });
-      w.block(390, 72, 394, 76, 11, 'plaster', { tint: 0xf0e8d8 }); w.block(389.6, 71.6, 394.4, 76.4, 0.8, 'roofTile', { y0: w.groundAt(392, 74) + 10.8, collide: false });
-      // the boom box (quest) on a terrace table + market stalls
-      w.prop('gg_table', 396, 112, 0, { solid: true }); w.prop('gg_tarp', 396, 112, 0, { solid: false }); w.container('electronics', 397, 113, 0, { tier: 1, poi: 'village', note: 'boom_box' });
-      for (const [x, z] of [[376, 100], [404, 98]]) { w.prop('gg_table', x, z, 0, { solid: true }); w.container(pick(['basket', 'crate']), x, z + 1.4, 0, { tier: 1, poi: 'village' }); }
-      // cypresses, stone terrace walls, street lamps, gardens
-      for (const [x, z] of [[252, 38], [271, 70], [295, 52], [328, 70], [346, 94], [366, 70], [395, 52], [432, 98], [452, 142], [476, 128], [414, 118], [306, 100], [248, 84], [480, 110]]) w.prop('gg_cypress', x, z, 0, { solid: true, scale: R(0.8, 1.15) });
-      for (const [ax, az, bx, bz] of [[236, 98, 290, 108], [320, 112, 372, 118], [392, 136, 440, 148], [470, 150, 500, 158], [228, 58, 236, 98]]) { const n = Math.round(Math.hypot(bx - ax, bz - az) / 2); for (let i = 0; i < n; i++) { const x = ax + (bx - ax) * i / n, z = az + (bz - az) * i / n; w.block(x, z, x + 2.1, z + 0.8, 1.1, 'plaster', { tint: 0xb0a088 }); } }
-      for (const [x, z] of [[252, 58], [300, 74], [342, 94], [372, 98], [408, 110], [436, 122], [470, 136], [404, 74], [316, 48]]) lightPost(x, z, 0xffd090);
-      for (let i = 0; i < 26; i++) { const x = R(240, 500), z = R(20, 160); if (free(x, z, 1.5, 3)) w.prop(pick(['gg_flowers', 'gg_grass', 'bush', 'gg_bush', 'barrel', 'gg_woodpile', 'gg_haybale']), x, z, rng() * 6, { solid: false }); }
-      for (let i = 0; i < 14; i++) { const x = R(240, 500), z = R(20, 160); if (free(x, z, 2, 3)) w.container(pick(['trash', 'basket', 'plant', 'crate']), x, z, 0, { tier: 1, poi: 'village' }); }
-      w.prop('gg_truck', 330, 82, 1.2, { solid: true }); w.prop('car', 448, 120, 1.9, { solid: true }); w.prop('gg_van', 262, 60, 0.4, { solid: true }); w.prop('gg_cart', 386, 92, 0.3, { solid: true });
+      const tints = [0xf0e0c8, 0xe8d0b0, 0xd8c8b0, 0xf0d8c0, 0xe0c8a8, 0xd0c0a8, 0xf0e8d8, 0xe8c8a0];
+      const roofT = [0xb8aca0, 0xa89a8c, 0xc8b8a8, 0x9a8c80, 0xd0c4b4, 0xb0a090];   // weathered stone-grey tiles (reference roofs read pale grey)
+      let vi = 0;
+      const cleanDoors = (o) => {
+        const len = sd => (sd === 'n' || sd === 's' ? o.w : o.d);
+        const out = [];
+        for (const d of o.doors) { if (d.at < 0.4 || d.at + d.w > len(d.side) - 0.4) continue; if (out.some(e => e.side === d.side && d.at < e.at + e.w + 0.5 && e.at < d.at + d.w + 0.5)) continue; out.push(d); }
+        o.doors = out; return o;
+      };
+      // front = side facing the lane; row houses (attached) get no side windows
+      const vhouse = (x, z, ww, dd, st, front, o2 = {}) => {
+        const i = vi++, back = { n: 's', s: 'n', e: 'w', w: 'e' }[front];
+        const fl = front === 'n' || front === 's' ? ww : dd;
+        const sides = front === 'n' || front === 's' ? ['w', 'e'] : ['n', 's'];
+        const doors = [{ side: front, at: clamp(fl / 2 - 0.8 + ((i % 3) - 1) * 2, 1, fl - 2.6), w: 1.6, ...(o2.locked ? { door: true, locked: o2.locked } : {}) }];
+        if (!o2.locked) doors.push({ side: back, at: 1.2, w: 1.4 });
+        doors.push(...winRow(front, fl, 1.0, 3.0, 1.2), ...winRow(back, fl, 2.8, 3.4, 1.2));
+        if (o2.detached) for (const sd of sides) doors.push(...winRow(sd, sd === 'n' || sd === 's' ? ww : dd, 2, 3.6, 1.2));
+        const inner = [];
+        if (ww >= 11) inner.push([Math.round(ww * 0.55), 0, Math.round(ww * 0.55), dd, [{ at: dd / 2 - 0.8, w: 1.6 }]]);
+        if (dd >= 11 && ww >= 11) inner.push([0, Math.round(dd * 0.5), Math.round(ww * 0.55), Math.round(dd * 0.5), [{ at: 1.0, w: 1.4 }]]);
+        const o = cleanDoors({ x, z, w: ww, d: dd, storeys: st, wall: o2.wall || (i % 5 === 2 ? 'brick' : 'plaster'), floor: i % 2 ? 'wood' : 'tiles', roof: 'roofTile', roofShape: 'gable',
+          tint: tints[i % tints.length], roofTint: roofT[i % roofT.length], doors, inner, name: o2.name || 'Village House', blend: 1.5 });
+        if (o2.locked) {
+          bldg(o); w.keyRoom(o2.locked, x, z, x + ww, z + dd, null, { name: o.name, poi: 'village' });
+          furnish(o, 'home', { tier: 3, room: o2.locked, poi: 'village', cont0: 6, cont: 'office' });
+        } else house(o, 'home', { tier: i % 6 === 0 ? 2 : 1, poi: 'village' });
+        // doorstep clutter
+        const [fx, fz] = front === 's' ? [x + ww * 0.3, z + dd + 1.4] : front === 'n' ? [x + ww * 0.7, z - 1.4] : front === 'w' ? [x - 1.4, z + dd * 0.3] : [x + ww + 1.4, z + dd * 0.7];
+        if (rng() < 0.7) w.prop(pick(['gg_planter', 'gg_planter', 'barrel', 'gg_woodpile', 'gg_bench', 'gg_flowers']), fx, fz, front === 'n' || front === 's' ? 0 : PI / 2, { solid: true });
+        return o;
+      };
+      const row = (x0, z0, specs, front, o2) => { let x = x0; for (const [ww, dd, st] of specs) { vhouse(x, z0, ww, dd, st, front, o2); x += ww; } };
+      // west cluster (around the walled lane)
+      vhouse(244, 44, 12, 10, 2, 's', { detached: true });
+      row(264, 49, [[13, 12, 2], [12, 12, 3]], 's');
+      vhouse(292, 30, 10, 10, 2, 'w', { detached: true });
+      vhouse(313, 38, 12, 12, 2, 's', { detached: true });
+      row(330, 50, [[11, 11, 2], [12, 11, 2]], 's');
+      vhouse(357, 16, 18, 11, 2, 's', { detached: true, name: 'Village Barn', wall: 'brick' });
+      vhouse(326, 12, 10, 8, 1, 'e', { detached: true });
+      vhouse(252, 76, 11, 10, 2, 'n', { detached: true });
+      row(277, 74, [[11, 13, 2], [11, 13, 2]], 'n');
+      vhouse(312, 80, 13, 12, 2, 'n', { detached: true, locked: 'village', name: 'Village Key House' });
+      vhouse(336, 96, 12, 10, 1, 'n', { detached: true });
+      // east cluster (compact block; main street z≈101, cross lane x≈441)
+      vhouse(389, 84, 13, 11, 2, 's');
+      row(404, 81, [[11, 13, 2], [11, 13, 3], [11, 13, 2]], 's');
+      row(400, 62, [[12, 13, 2], [12, 13, 2]], 's');
+      vhouse(447, 64, 12, 12, 2, 'w', { detached: true });
+      vhouse(459, 76, 11, 10, 1, 'w', { detached: true });
+      vhouse(447, 84, 12, 11, 2, 'w');
+      row(386, 106, [[13, 12, 2]], 'n'); row(404, 106, [[12, 11, 2]], 'n'); vhouse(424, 110, 13, 12, 2, 'n', { detached: true });
+      row(446, 107, [[15, 12, 3], [15, 12, 2]], 'n');
+      vhouse(404, 124, 10, 9, 1, 'n', { detached: true }); vhouse(420, 128, 11, 10, 1, 'n', { detached: true });
+      row(446, 125, [[12, 12, 2], [13, 12, 2]], 'n');
+      vhouse(484, 126, 16, 13, 2, 'e', { detached: true, name: 'Village Inn' });
+      vhouse(452, 141, 10, 10, 1, 'n', { detached: true });
+      // chapel + piazza (boom box quest table, market stalls, well)
+      w.paint('tiles', 346, 104, 366, 130); w.paint('gravel', 344, 102, 346, 132);
+      const VC = { x: 366, z: 108, w: 12, d: 18, storeys: 2, h: 6.8, wall: 'plaster', floor: 'tiles', roof: 'roofTile', roofShape: 'gable', tint: 0xf0e8d8, name: 'Village Chapel', doors: [{ side: 'w', at: 7.8, w: 2.4 }, ...winRow('e', 18, 3, 5, 1), ...winRow('s', 12, 3, 5, 1)] };
+      bldg(VC); for (let r = 0; r < 4; r++) w.prop('gg_pew', 373, 113 + r * 3, 0, { solid: true }); w.prop('gg_altar', 373, 110, 0, { solid: true });
+      w.container('basket', 368, 110, 0, { tier: 1, poi: 'village' }); w.container('cabinet', 377, 124, 0, { tier: 2, poi: 'village' });
+      w.block(374, 104, 378, 108, 11, 'plaster', { tint: 0xf0e8d8 }); w.block(373.6, 103.6, 378.4, 108.4, 0.8, 'roofTile', { y0: w.groundAt(376, 106) + 10.8, collide: false });
+      w.prop('gg_well', 355, 117, 0, { solid: true });
+      w.prop('gg_table', 350, 108, 0, { solid: true }); w.prop('gg_tarp', 350, 108, 0, {}); w.container('electronics', 351, 109.4, 0, { tier: 1, poi: 'village', note: 'boom_box' });
+      for (const [x, z] of [[350, 125], [360, 126]]) { w.prop('gg_table', x, z, 0, { solid: true }); w.prop('gg_tarp', x, z, 0, {}); w.container(pick(['basket', 'crate']), x, z + 1.4, 0, { tier: 1, poi: 'village' }); }
+      for (const [x, z] of [[347, 112], [347, 120]]) w.prop('gg_bench', x, z, PI / 2, { solid: true });
+      w.prop('gg_shrine', 362, 104, 0, { solid: true });
+      // walled lane, terrace walls, laundry lines, cypresses, lamps
+      const stoneWall = (ax, az, bx, bz, h = 1.1) => { const n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / 1.6)); for (let i = 0; i < n; i++) { const x = ax + (bx - ax) * (i + 0.5) / n, z = az + (bz - az) * (i + 0.5) / n; w.block(x - 0.8, z - 0.4, x + 0.8, z + 0.4, h, 'plaster', { tint: 0xa89880 }); } };
+      for (const [ax, az, bx, bz] of [[300, 8, 290, 20], [306, 14, 296, 26], [288, 22, 277, 30], [296, 28, 284, 38], [228, 98, 236, 120], [250, 100, 248, 118], [262, 96, 296, 98], [380, 132, 440, 136], [470, 150, 500, 154], [300, 118, 340, 112], [232, 30, 244, 40]]) stoneWall(ax, az, bx, bz);
+      for (const [x, z, r] of [[270, 66.2, 0], [420, 77.8, 0], [455, 121.5, 0], [415, 120.5, 0], [300, 60, PI / 2]]) w.prop('gg_laundry', x, z, r, { solid: true });
+      for (const [x, z] of [[240, 40], [262, 66], [306, 54], [328, 66], [346, 92], [366, 100], [384, 58], [432, 98], [476, 120], [470, 140], [410, 120], [306, 100], [248, 88], [480, 104], [344, 132], [382, 132], [398, 78], [300, 26]]) w.prop('gg_cypress', x, z, 0, { solid: true, scale: R(0.8, 1.15) });
+      for (const [x, z] of [[230, 70], [360, 60], [470, 60], [338, 110], [260, 110]]) w.prop('gg_olive', x, z, rng() * 6, { solid: true });
+      for (const [x, z] of [[230, 64], [262, 64], [300, 64], [330, 72], [358, 88], [384, 97], [410, 97], [438, 104], [470, 104], [500, 118], [256, 30], [286, 36], [441, 70]]) lightPost(x, z, 0xffd090);
+      for (let i = 0; i < 30; i++) { const x = R(236, 504), z = R(12, 158); if (free(x, z, 1.5, 3)) w.prop(pick(['gg_flowers', 'gg_grass', 'gg_bush', 'barrel', 'gg_woodpile', 'gg_haybale', 'gg_cart', 'gg_planter']), x, z, rng() * 6, { solid: true }); }
+      for (let i = 0; i < 16; i++) { const x = R(236, 504), z = R(12, 158); if (free(x, z, 2, 3)) w.container(pick(['trash', 'basket', 'plant', 'crate']), x, z, 0, { tier: 1, poi: 'village' }); }
+      vehicle('gg_truck', 216, 70, 1.4); vehicle('car', 386, 94.5, 1.6); vehicle('gg_van', 286, 64, 1.55); vehicle('car', 500, 108, 0.7);
       w.arkSpawn('wasp', 300, 70, { count: 2, patrol: [[250, 50], [340, 60], [360, 110], [270, 100]] });
       w.arkSpawn('wasp', 430, 100, { count: 2, patrol: [[390, 60], [480, 100], [450, 150], [390, 130]] });
-      w.arkSpawn('pop', 300, 90, { count: 2 }); w.arkSpawn('tick', 420, 70, { count: 2, habitat: 'indoor' }); w.arkSpawn('fireball', 360, 30, { count: 2 });
+      w.arkSpawn('pop', 300, 90, { count: 2 }); w.arkSpawn('tick', 420, 90, { count: 2, habitat: 'indoor' }); w.arkSpawn('fireball', 360, 30, { count: 2 });
       w.arkSpawn('leaper', 380, 140, { count: 1, radius: 30 });
       w.arkSpawn('snitch', 330, 40, { patrol: [[260, 30], [400, 30], [400, 90]] });
       w.zone('Village', [[245, 22], [278, 18], [432, 44], [520, 108], [505, 166], [300, 125], [238, 60]], { tier: 2 });
@@ -698,7 +764,7 @@ export default {
     {
       // Barren Clearing: scorched clearing with the Baron husk + Bilgun's shelter
       w.paintCircle('dirt', 168, 158, 22, 0.4, 3); w.paintCircle('mud', 176, 166, 8, 0.5, 4);
-      w.prop('gg_husk_big', 176, 166, 0.7, { solid: true }); w.container('barron_husk', 176, 166, 0, { tier: 3, poi: 'barren_clearing' });
+      w.prop('gg_husk_big', 176, 166, 0.7, { solid: true }); w.container('barron_husk', 176, 171.5, 0, { tier: 3, poi: 'barren_clearing' });
       house({ x: 150, z: 140, w: 8, d: 7, h: 2.8, wall: 'wood', floor: 'wood', roof: 'corrugated', name: "Bilgun's Shelter", doors: [{ side: 's', at: 3, w: 1.4 }, { side: 'e', at: 2.5, w: 1.2, sill: 1 }] }, 'camp', { tier: 2, poi: 'barren_clearing', cont0: 2 });
       for (let i = 0; i < 10; i++) w.prop(pick(['gg_stump', 'deadTree', 'gg_logs', 'gg_rock_s']), R(150, 190), R(140, 178), rng() * 6, { solid: true });
       w.arkSpawn('surveyor', 165, 150, { count: 1, patrol: [[165, 150], [130, 200], [200, 210], [210, 130]] });
@@ -733,7 +799,7 @@ export default {
       // Adorned Wreckage: fallen ARK hull rings, engines and the Deforestr husk
       for (const [x, z, k, r] of [[205, 346, 'gg_wreck_ring', 0.5], [152, 377, 'gg_wreck_ring', 1.9], [112, 362, 'gg_wreck_ring', -0.6], [147, 404, 'gg_wreck_ring', 2.6], [176, 266, 'gg_wreck_ring', 0.2],
         [131, 440, 'gg_wreck_engine', 0.4], [258, 480, 'gg_wreck_ring', 1.2], [186, 392, 'gg_wreck_fin', 0.9], [232, 330, 'gg_wreck_fin', -0.4], [168, 420, 'gg_wreck_engine', 2.1]]) { w.prop(k, x, z, r, { solid: true }); mark(x - 5, z - 5, x + 5, z + 5, 2); w.paintCircle('dirt', x, z, 7, 0.5, x); }
-      w.prop('gg_husk_big', 214, 372, 2.2, { solid: true, scale: 1.25 }); w.container('deforestr_husk', 214, 372, 0, { tier: 3, poi: 'adorned_wreckage' });
+      w.prop('gg_husk_big', 214, 372, 2.2, { solid: true, scale: 1.25 }); w.container('deforestr_husk', 214, 378.5, 0, { tier: 3, poi: 'adorned_wreckage' });
       for (let i = 0; i < 18; i++) { const x = R(100, 270), z = R(250, 490); if (free(x, z, 2, 2)) { w.prop(pick(['debris', 'husk', 'gg_rubble', 'debris']), x, z, rng() * 6, { solid: true }); } }
       for (const [x, z] of [[198, 352], [160, 380], [120, 368], [222, 368], [240, 344]]) w.container(pick(['arc_crate', 'arc_husk', 'toolbox', 'crate']), x, z, 0, { tier: 2, poi: 'adorned_wreckage' });
       house({ x: 236, z: 336, w: 9, d: 7, h: 3.0, wall: 'corrugated', floor: 'concrete', roof: 'corrugated', name: 'Salvage Hut', doors: [{ side: 's', at: 3, w: 1.8 }] }, 'industrial', { tier: 2, poi: 'adorned_wreckage', cont0: 2 });
@@ -745,7 +811,7 @@ export default {
       w.poi('adorned_wreckage', 'Adorned Wreckage', 205, 360, 50, { tier: 2, aliases: ['adorned_wreckage'] });
       // Forest Airshaft
       w.prop('gg_airshaft', 273, 472, 0.3, { solid: true }); w.lamp(273, 472, { y: 5, model: null, color: 0x40ff80, intensity: 0.9, range: 8 }); mark(266, 465, 280, 479, 2 | 4);
-      w.extract('forest_airshaft', 'Forest Airshaft', 273, 472, { kind: 'airshaft' });
+      w.extract('forest_airshaft', 'Forest Airshaft', 273, 477.5, { kind: 'airshaft' });
     }
 
     // ======================================================================== 10. HIGHWAY COLLAPSE (SW)
@@ -861,10 +927,10 @@ export default {
       w.poi('maintenance_bunker', 'Maintenance Bunker', 635, 514, 24, { tier: 2, aliases: ['maintenance_bunker'] });
       // Overlook Airshaft on its knoll
       w.prop('gg_airshaft', 680, 486, 0, { solid: true }); w.lamp(680, 486, { y: 5, model: null, color: 0x40ff80, intensity: 0.9, range: 8 });
-      w.extract('overlook_airshaft', 'Overlook Airshaft', 680, 486, { kind: 'airshaft' });
+      w.extract('overlook_airshaft', 'Overlook Airshaft', 680, 491.5, { kind: 'airshaft' });
       // Cliffside Airshaft at the foot of the bench cliff
       w.prop('gg_airshaft', 460, 218, 0, { solid: true }); w.lamp(460, 218, { y: 5, model: null, color: 0x40ff80, intensity: 0.9, range: 8 }); mark(452, 210, 468, 226, 2 | 4);
-      w.extract('cliffside_airshaft', 'Cliffside Airshaft', 460, 218, { kind: 'airshaft' });
+      w.extract('cliffside_airshaft', 'Cliffside Airshaft', 460, 223.5, { kind: 'airshaft' });
       // Broken Earth: a trail of destruction — craters, upturned slabs, downed ARK machines
       w.paintPoly('mud', [[706, 528], [722, 540], [672, 590], [632, 622], [616, 610], [660, 566]]);
       for (const [x, z, k, r] of [[690, 550, 'gg_husk_big', 0.8], [656, 578, 'husk', 1.2], [638, 600, 'husk', 2.0], [710, 538, 'gg_rubble', 0.4], [668, 566, 'gg_slab', 0.7], [646, 590, 'gg_slab', 2.2], [700, 560, 'gg_rock_l2', 1.0], [628, 612, 'gg_rubble', 2.4]])
@@ -911,12 +977,13 @@ export default {
     // ======================================================================== 13. VEGETATION + DRESSING
     {
       const avoidT = (x, z) => !inPlay(x, z) || !free(x, z, 1.2, 3) || (occ(x, z) & 8);
+      const avoidS = (x, z) => avoidT(x, z) || (occ(x, z) & 4);
       // dense west forest (Trapper's Glade / Raider's Refuge woods) — leaving the clearings open
       const WF = [[176, 186], [250, 150], [330, 160], [348, 240], [340, 330], [320, 400], [300, 470], [230, 500], [182, 450], [190, 330], [150, 260]];
       const clearings = [[168, 158, 30], [304, 206, 16], [282, 292, 22], [205, 360, 34], [273, 472, 12], [216, 306, 8]];
       const inClear = (x, z) => clearings.some(([cx, cz, r]) => Math.hypot(x - cx, z - cz) < r);
       w.paintPoly('forest', WF);
-      w.forest(WF, 3.2, ['pine', 'gg_pinebig', 'gg_spruce', 'tree', 'gg_spruce'], { avoid: (x, z) => avoidT(x, z) || inClear(x, z), undergrowth: false });
+      w.forest(WF, 2.7, ['pine', 'gg_pinebig', 'gg_spruce', 'tree', 'gg_spruce'], { avoid: (x, z) => avoidT(x, z) || inClear(x, z), undergrowth: false });
       w.scatter('gg_fern', WF, 900, { avoid: (x, z) => avoidT(x, z), solid: false });
       w.scatter('bush', WF, 500, { avoid: (x, z) => avoidT(x, z), solid: false });
       // highway collapse woods
@@ -930,7 +997,7 @@ export default {
       // sparse trees everywhere else (open rocky valley), heavier toward the boundary
       const kinds = ['pine', 'tree', 'gg_spruce', 'gg_birch', 'deadTree', 'gg_pinebig'];
       for (let i = 0; i < 2600; i++) {
-        const x = R(40, 1080), z = R(10, 815); if (avoidT(x, z)) continue;
+        const x = R(40, 1080), z = R(10, 815); if (avoidS(x, z)) continue;
         const d = dAt(x, z), p = d > -40 ? 0.85 : (N1(x, z, 60) > 0.55 ? 0.6 : 0.16);
         if (rng() > p) continue;
         w.prop(pick(kinds), x, z, rng() * 6, { solid: true, scale: R(0.8, 1.25) });
@@ -965,9 +1032,11 @@ export default {
         const n = N1(x, z, 26), n2 = N2(x, z, 9), d = dAt(x, z);
         if (t !== 0) return null;   // only over grass
         if (d > 4) return n2 > 0.62 ? 'gravel' : (n > 0.5 ? 'rock' : 'moss');
-        if (n > 0.66) return 'moss';
-        if (n < 0.28 && n2 > 0.5) return 'dirt';
-        if (n2 > 0.74) return 'gravel';
+        const big = N2(x, z, 85), rocky = big > 0.52 && !(occ(x, z) & 4);
+        if (rocky) { if (n2 > 0.66) return 'rock'; if (n2 > 0.48) return 'gravel'; if (n < 0.4) return 'dirt'; return null; }
+        if (n > 0.68) return 'moss';
+        if (n < 0.3 && n2 > 0.45) return 'dirt';
+        if (n2 > 0.72) return 'gravel';
         return null;
       });
       // ARK husks + debris strewn across the valley; raider caches & field loot outdoors
