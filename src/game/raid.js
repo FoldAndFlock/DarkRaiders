@@ -311,7 +311,9 @@ export class RaidGame {
         const x = this.extractsData[it.ref];
         if (x?.state === 'open') return;
         if (this.extractsData.some(h => h.kind === 'hatch' && h.state === 'open')) { this.hudMsg('ANOTHER HATCH IS OPEN', '#e84a30'); return; }
-        const k = ['raider_hatch_key'].find(id => countLoadout(lo, id) > 0);
+        // the map's needsKey (an item id or a key room such as 'raider_hatch'), any raider hatch key otherwise
+        const want = x?.needsKey || 'raider_hatch_key';
+        const k = Object.keys(ITEMS).find(id => (id === want || id === 'raider_hatch_key' || (ITEMS[id].key && (ITEMS[id].key.room === want || ITEMS[id].key.room === 'raider_hatch'))) && countLoadout(lo, id) > 0);
         if (!k) { this.hudMsg('REQUIRES A RAIDER HATCH KEY', '#e84a30'); return; }
         takeFrom([lo.backpack, lo.safe, lo.quick], k, 1);
         this.hudMsg('HATCH OPEN - STEP IN (15S)', '#68e088');

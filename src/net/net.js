@@ -243,7 +243,7 @@ export class Net {
         else if (e.type === 'ark') { if (near || (e.st === 'alert' && Math.abs(e.x - me.x) < 110)) ents.push(packArk(e)); }
         else if (near) ents.push(packOther(e));
       }
-      this.t.send(pid, { k: 'snap', t: sim.t, tl: sim.timeLeft, ents, x: sim.extracts.map(x => [x.state, +x.t.toFixed(1), x.callDur || 0]), d: sim.doors.map(d => d.open ? 1 : 0), ended: sim.raidEnded });
+      this.t.send(pid, { k: 'snap', t: sim.t, tl: sim.timeLeft, ents, x: sim.extracts.map(x => x.used ? [x.state, +x.t.toFixed(1), x.callDur || 0, 1] : [x.state, +x.t.toFixed(1), x.callDur || 0]), d: sim.doors.map(d => d.open ? 1 : 0), ended: sim.raidEnded });
     }
   }
   checkAllDone() {
@@ -294,7 +294,7 @@ export class Net {
     const g = this.game; if (!g) return;
     g.timeLeft = m.tl; g.simTime = m.t;
     // extract state + timer (+ call length for the countdown displays) mirror the host every snapshot
-    m.x.forEach(([st, t, cd], i) => { const x = g.extractsData[i]; if (!x) return; x.state = st; x.t = t; if (cd) x.callDur = cd; });
+    m.x.forEach(([st, t, cd, used], i) => { const x = g.extractsData[i]; if (!x) return; x.state = st; x.t = t; if (cd) x.callDur = cd; if (used) x.used = true; });
     m.d.forEach((o, i) => { if (g.doorsData[i] && g.doorsData[i].open !== !!o) { g.doorsData[i].open = !!o; g.view?.setDoor(i, !!o); } });
     const now = performance.now();
     const seen = new Set();

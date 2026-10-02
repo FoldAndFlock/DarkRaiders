@@ -530,11 +530,12 @@ export class View {
       const st = g.extractState?.(x.i), noun = extractNoun(x.kind), dc = Math.hypot(P.call[0] - me.x, P.call[1] - me.z);
       const at = { ref: x.i, x: P.call[0], z: P.call[1] };
       if (x.kind === 'hatch') {
-        if (dc > 2.4) continue;
-        if (st === 'offline') consider({ ...at, kind: 'offline', time: 999, label: 'HATCH OFFLINE (MAP CONDITION)' }, dc);
-        else if (st === 'open') consider({ ...at, kind: 'info', time: 999, label: `HATCH OPEN - STEP IN (${Math.ceil(x.t || 0)}S)` }, dc);
-        else if (g.extractsData.some(h => h.kind === 'hatch' && h.state === 'open')) consider({ ...at, kind: 'info', time: 999, label: 'ANOTHER HATCH IS OPEN' }, dc);
-        else consider({ ...at, kind: 'hatch', time: 2.5, label: 'OPEN RAIDER HATCH (KEY)' }, dc);
+        if (dc > (P.callR || 2.4)) continue;
+        const dh = Math.max(0, dc - 0.6);       // the hatch is big: its prompt reaches past the usual 2.1 m
+        if (st === 'offline') consider({ ...at, kind: 'offline', time: 999, label: 'HATCH OFFLINE (MAP CONDITION)' }, dh);
+        else if (st === 'open') consider({ ...at, kind: 'info', time: 999, label: `HATCH OPEN - STEP IN (${Math.ceil(x.t || 0)}S)` }, dh);
+        else if (g.extractsData.some(h => h.kind === 'hatch' && h.state === 'open')) consider({ ...at, kind: 'info', time: 999, label: 'ANOTHER HATCH IS OPEN' }, dh);
+        else consider({ ...at, kind: 'hatch', time: 2.5, label: 'OPEN RAIDER HATCH (KEY)' }, dh);
         continue;
       }
       if (dc < (P.callR || 1.8)) {

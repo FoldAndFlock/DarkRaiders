@@ -353,7 +353,7 @@ function beamMesh() {
       ${BAYER}
       void main(){
         float band = step(0.55, fract(vWy * 1.6 - uTime * 2.2));
-        float a = uA * (0.22 + 0.4 * band) * (0.35 + 0.65 * (1.0 - vH));
+        float a = uA * (0.35 + 0.55 * band) * (0.45 + 0.55 * (1.0 - vH));
         if (bay(gl_FragCoord.xy) >= a * 1.8) discard;
         gl_FragColor = vec4(uCol, a);
       }`,
@@ -987,7 +987,8 @@ function buildAirshaft(R) {
   R.part(S.house, R.root, 0, 0, 0, { group: 'shell' }); R.part(S.cons);
   R.xg = R.part(S.xg); R.tape = R.part(S.tape);
   R.disps = [R.display(R.root, -0.35, 2.1875, 2.125, 0.1, 0, 'shell')];
-  R.ship = R.g(R.root); R.part(S.ship, R.ship);
+  R.ship = R.g(R.root); R.ship.rotation.y = -Math.PI / 2;     // nose toward +z (the camera), fan pods either side of the shaft
+  R.shipBody = R.g(R.ship); R.part(S.ship, R.shipBody);
   R.beam = beamMesh(); R.root.add(R.beam);
   R.rope = R.part(S.rope, R.root); R.hook = R.part(S.hook, R.root);
   R.ship.visible = R.beam.visible = R.rope.visible = R.hook.visible = false;
@@ -1000,11 +1001,11 @@ function animAirshaft(R, dt, st, t, el, ctx) {
   // dropship: flies in over the last 8 s of the call, hovers through open + closing, lifts the raiders
   // (first 1.6 s of gone) then climbs away
   let sx = null, sy = H, sz = 0, pitch = 0, roll = 0;
-  if (st === 'called' && t < 8) { const u = 1 - t / 8, e = 1 - (1 - u) ** 3; sx = -46 * (1 - e); sy = H + 20 * (1 - e) ** 1.6; sz = -10 * (1 - e); pitch = 0.22 * (1 - e) - 0.12 * Math.sin(Math.PI * e); }
+  if (st === 'called' && t < 8) { const u = 1 - t / 8, e = 1 - (1 - u) ** 3; sx = -12 * (1 - e); sy = H + 20 * (1 - e) ** 1.6; sz = -46 * (1 - e); pitch = 0.22 * (1 - e) - 0.12 * Math.sin(Math.PI * e); }
   else if (st === 'open' || st === 'closing') { sx = 0; sy = H + 0.15 * Math.sin(T * 1.6); roll = 0.03 * Math.sin(T * 1.1); }
-  else if (st === 'gone') { const u = sat((el - 1.6) / 6.0); if (u < 1) { sx = 52 * u * u; sy = H + 0.15 * Math.sin(T * 1.6) + 22 * u ** 1.5; sz = 8 * u * u; pitch = -0.2 * sat(u * 4); } }
+  else if (st === 'gone') { const u = sat((el - 1.6) / 6.0); if (u < 1) { sx = 8 * u * u; sy = H + 0.15 * Math.sin(T * 1.6) + 22 * u ** 1.5; sz = 52 * u * u; pitch = -0.2 * sat(u * 4); } }
   R.ship.visible = sx != null;
-  if (sx != null) { R.ship.position.set(sx, sy, sz); R.ship.rotation.set(roll, 0, pitch); }
+  if (sx != null) { R.ship.position.set(sx, sy, sz); R.shipBody.rotation.set(roll, 0, pitch); }
   R.shipY = sy;
   // winch beam + line: lowered while it waits, brightening as it departs, the pull in the first 1.6 s of gone
   const hover = sx === 0 || (st === 'gone' && el < 1.6);
@@ -1028,7 +1029,7 @@ function animAirshaft(R, dt, st, t, el, ctx) {
   R.stateLamps(st, t, T);
   R.col('edge', st === 'called' ? COL.amber : st === 'open' ? COL.green : st === 'closing' ? COL.red : COL.amber, st === 'called' ? (blink(2) ? 1.3 : 0.25) : st === 'open' ? 1.1 : st === 'closing' ? (blink(3) ? 1.4 : 0.2) : 0.12);
   // lights: engine pods, beam, status
-  if (sx != null) for (const s of [-1, 1]) R.light(ctx, sx, sy - 0.8, sz + s * 3.0, COL.engine, 1.2, 7, 1.3);
+  if (sx != null) for (const s of [-1, 1]) R.light(ctx, sx + s * 3.0, sy - 0.8, sz, COL.engine, 1.2, 7, 1.3);
   if (ba > 0.05) R.light(ctx, 0, 1.4, 0, COL.blue, 1.6 * ba + 0.4, 5.5, 1.4);
   if (st === 'idle') R.light(ctx, 2.6, 1.7, 2.6, COL.green, 0.45, 2.8, 1.0);
   else if (st === 'called') R.light(ctx, 2.6, 1.7, 2.7, COL.amber, 0.55, 3.2, 1.1);

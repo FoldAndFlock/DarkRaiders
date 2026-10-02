@@ -53,6 +53,7 @@ export default {
     w.poi('depot', 'Depot', 105, 80, 18); w.poi('plateau', 'Plateau', 212, 50, 25); w.poi('pond', 'Pond', 70, 190, 25);
     w.extract('north_lift', 'North Lift', 128, 12, { kind: 'elevator' });
     w.extract('pond_hatch', 'Pond Hatch', 110, 200, { kind: 'hatch' });
+    w.extract('test_airshaft', 'Test Airshaft', 60, 104, { kind: 'airshaft' });   // sandbox: dropship extract
     w.spawnPoint(30, 128); w.spawnPoint(230, 128); w.spawnPoint(128, 240);
     w.arkSpawn('wasp', 150, 150, { count: 2, patrol: [[150, 150], [190, 120], [140, 100]] });
     w.arkSpawn('tick', 110, 90, { count: 2 });
