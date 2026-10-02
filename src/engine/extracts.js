@@ -49,8 +49,8 @@
 //          platform (true) raised 0.375 m platform slab (+ collision); platformLen (14); platformDepth (2.75)
 //          how far the slab reaches behind the point; trainDir (1) +1 = arrives from -x, leaves toward +x.
 //   structure: false  (world.js) no collision boxes.
-// Triangle budget (visible): elevator ~11k, hatch ~3k, metro ~16k incl. the car, airshaft ~12k
-// (tools/extractgallery.html prints exact counts).
+// Triangles (all parts, greedy-merged): elevator ~11.2k, hatch ~3.9k, metro ~15.8k incl. the car,
+// airshaft ~7.7k (tools/extractgallery.html prints exact counts).
 import * as THREE from '../../vendor/three.module.js';
 import { Vox } from './voxel.js';
 import { litVox, GU } from './materials.js';
@@ -781,7 +781,8 @@ function animMetro(R, dt, st, t, el, ctx) {
   R.bar.visible = R.xg.visible = off;
   // lamps: windows, head/tail lights, edge lamps, signals, console, departure board
   const moving = tx != null && st !== 'open', blink = (hz) => (T * hz) % 1 < 0.5;
-  R.col('win', COL.warm, st === 'open' ? 1.15 : moving ? (Math.random() < 0.04 ? 0.4 : 1.0) : 0.9);
+  const nk = ctx.L?.isNight ? 0.5 : 1;   // night glow boost would wash the warm windows out to white
+  R.col('win', COL.warm, nk * (st === 'open' ? 1.15 : moving ? (Math.random() < 0.04 ? 0.4 : 1.0) : 0.9));
   const lead = dir > 0 ? 'headB' : 'headA', tail = dir > 0 ? 'headA' : 'headB';
   R.col(lead, COL.white, 1.5); R.col(tail, COL.red, 1.1);
   if (st === 'called') { R.col('edge', COL.amber, t < 10 ? (blink(2) ? 1.3 : 0.2) : 0.3); R.col('sig', COL.amber, 1.2); R.col('screen', COL.amber, blink(2.5) ? 1.1 : 0.6); R.col('ready', COL.amber, 1); }
@@ -1052,9 +1053,8 @@ class Rig {
     const dur = st === 'called' ? this.callDur : DUR[st];
     if (dur == null) this.tl = 0;
     else if (typeof t === 'number' && isFinite(t)) {   // follow the authoritative timer smoothly between sim ticks
-      const tt = clamp(t, 0, dur);
-      this._tl = this._tl == null || Math.abs(this._tl - tt) > 0.15 ? tt : Math.max(0, this._tl - dt);
-      this.tl = this._tl;
+      const tt = clamp(t, 0, dur), p = this._tl == null ? tt : this._tl - dt;   // never drifts > 1 tick from it (pause-safe)
+      this.tl = this._tl = Math.abs(p - tt) > 1 ? tt : clamp(p, Math.max(0, tt - 0.04), tt + 0.04);
     } else this.tl = Math.max(0, dur - this.age);
     this.el = dur == null ? this.age : dur - this.tl;
     this.time += dt;

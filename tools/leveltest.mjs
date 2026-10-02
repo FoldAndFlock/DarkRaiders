@@ -32,10 +32,10 @@ const R = await p.evaluate(() => {
   const li = w.ladders.findIndex(l => l.bid === H.id); const L = w.ladders[li];
   out.ladder = { y0: +L.y0.toFixed(2), y1: +L.y1.toFixed(2), topFloor: +gr.floorAt(L.x1, L.z1, L.y1).toFixed(2) };
   // 4) tunnel: lid surface, floor, stairwell
-  const [tx, tz] = w.local(T, 20, 4);
+  const [tx, tz] = w.local(T, 20, 11);
   out.tunnel = { floorY: +T.floorY.toFixed(2), roofY: +T.roofY.toFixed(2), surface: +gr.floorAt(tx, tz, 1e9).toFixed(2), inside: +gr.floorAt(tx, tz, T.floorY + 0.2).toFixed(2), insideAt: gr.insideAt(tx, tz, T.floorY, w.buildings) === T.id, onLid: gr.insideAt(tx, tz, T.roofY + 0.02, w.buildings) };
   // walk down the stairwell from the surface: the stair runs x 0.8..(0.8+len), top at the west end
-  let [ux, uz] = w.local(T, 1.2, 1.9);
+  let [ux, uz] = w.local(T, 1.6, 10.7);
   const dpos = walk({ x: ux, z: uz, y: T.roofY + 0.02 }, 0.1, 0, 100);
   out.tunnelWalk = { lx: +(dpos.x - T.x0).toFixed(2), y: +(dpos.y - T.floorY).toFixed(2) };
   // 5) bridge: on top and underneath
@@ -57,8 +57,8 @@ await shot('groundfloor', () => { const g = window.app.game, w = g.world, H = w.
 await shot('upstairs', () => { const g = window.app.game, w = g.world, H = w.buildings.find(b => b.name === 'Two-Storey House'), [x, z] = w.local(H, 4, 5); Object.assign(g.me, { x, z, y: H.floorY + 3.2 }); });
 await shot('roof', async () => { const g = window.app.game, w = g.world, H = w.buildings.find(b => b.name === 'Two-Storey House'); const li = w.ladders.findIndex(l => l.bid === H.id), L = w.ladders[li]; Object.assign(g.me, { x: L.x0, z: L.z0, y: L.y0 }); await g.doInteract({ kind: 'ladder', ref: li, up: true }); window.__roofY = g.me.y; });
 console.log('after ladder me.y', await p.evaluate(() => window.__roofY?.toFixed(2)));
-await shot('lid', () => { const g = window.app.game, w = g.world, T = w.buildings.find(b => b.name === 'Test Tunnel'), [x, z] = w.local(T, 16, 4); Object.assign(g.me, { x, z, y: T.roofY + 0.02 }); });
-await shot('tunnel', () => { const g = window.app.game, w = g.world, T = w.buildings.find(b => b.name === 'Test Tunnel'), [x, z] = w.local(T, 16, 4); Object.assign(g.me, { x, z, y: T.floorY }); });
+await shot('lid', () => { const g = window.app.game, w = g.world, T = w.buildings.find(b => b.name === 'Test Tunnel'), [x, z] = w.local(T, 16, 8); Object.assign(g.me, { x, z, y: T.roofY + 0.02 }); });
+await shot('tunnel', () => { const g = window.app.game, w = g.world, T = w.buildings.find(b => b.name === 'Test Tunnel'), [x, z] = w.local(T, 16, 10); Object.assign(g.me, { x, z, y: T.floorY }); });
 await shot('bridge', () => { const g = window.app.game, w = g.world; Object.assign(g.me, { x: 170, z: 151, y: w.groundAt(170, 151) }); });
 await shot('bridgetop', () => { const g = window.app.game; Object.assign(g.me, { x: 170, z: 150, y: 5 }); });
 const st = await p.evaluate(() => { const g = window.app.game; return { y: g.me.y.toFixed(2), inside: g.world.inside, it: g.view.findInteractable(g.me, g.pc)?.label || null }; });

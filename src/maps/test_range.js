@@ -31,11 +31,11 @@ export default {
       stairs: [{ x: 11.6, z: 1.6, w: 1.6, dir: 's', from: 0, to: 1 }],
       ladders: [{ side: 'e', at: 7.5 }],
       containers: [['cabinet', 3, 2, 0, { storey: 1, tier: 2 }], ['desk', 5, 8, 0, { storey: 1 }], ['locker', 2, 8, 0]] });
-    w.building({ x: 204, z: 36, w: 34, d: 8, under: 5, wall: 'concrete', floor: 'concrete', roof: 'grass', name: 'Test Tunnel',
-      stairs: [{ x: 0.8, z: 0.8, w: 2.2, dir: 'w', from: 0, to: 'top' }],
-      containers: [['crate', 22, 4], ['ammo_box', 30, 2]] });
-    w.extract('test_metro', 'Test Metro', 32, 40, { kind: 'metro' });
-    w.extracts[w.extracts.length - 1].x = 232; w.extracts[w.extracts.length - 1].z = 40;
+    w.building({ x: 204, z: 36, w: 36, d: 13, under: 5, wall: 'concrete', floor: 'concrete', roof: 'grass', name: 'Test Tunnel',
+      stairs: [{ x: 1.2, z: 9.6, w: 2.2, dir: 'w', from: 0, to: 'top' }],
+      containers: [['crate', 22, 11], ['ammo_box', 30, 11.5]] });
+    // metro platform: face PI puts the track along the far (north) wall, train doors toward the camera
+    w.extract('test_metro', 'Test Metro', 222, 44.5, { kind: 'metro', face: Math.PI });
     w.bridge([[150, 150], [190, 150]], 4, 5);
     w.ladder(150.6, 152.6, null, 150.6, 150.5, 5, 0);
     w.keyRoom('depot_office', 105, 74, 114, 81, null);

@@ -10,7 +10,7 @@ import { GU, litVox } from '../engine/materials.js';
 import { SURF } from '../engine/world.js';
 import { coneColor } from '../engine/cones.js';
 import { ARK } from '../data/arc.js';
-import { ITEMS } from './items.js';
+import { ITEMS, reloadSoundFor } from './items.js';
 import { Vox } from '../engine/voxel.js';
 
 const tmpV = new THREE.Vector3();
@@ -18,6 +18,18 @@ const TEAM_COL = [0x30d0d0, 0xf0a030, 0xe84a30, 0x9a70ff];
 const SURF_FX = { [SURF.dirt]: 0x6a5a40, [SURF.concrete]: 0x8a8a84, [SURF.metal]: 0xffd080, [SURF.sand]: 0xc0a070, [SURF.water]: 0xb0c8d0, [SURF.wood]: 0x7a5a3a, [SURF.grass]: 0x4a6a2e, [SURF.tile]: 0x9a948a };
 const SURF_SND = { [SURF.dirt]: 'step_grass', [SURF.concrete]: 'step_concrete', [SURF.metal]: 'step_metal', [SURF.sand]: 'step_sand', [SURF.water]: 'step_water', [SURF.wood]: 'step_wood', [SURF.grass]: 'step_grass', [SURF.tile]: 'step_concrete' };
 const HIT_SND = { [SURF.metal]: 'hit_metal', [SURF.wood]: 'hit_wood', [SURF.dirt]: 'hit_dirt', [SURF.grass]: 'hit_dirt', [SURF.sand]: 'hit_dirt' };
+// ARK audio fingerprints (src/audio/sfx_ark.js) by ARK kind / model
+const ARK_ALERT = { wazp: 'wazp_alert', hornett: 'hornit_alert', fyrefly: 'hornit_alert', tikk: 'tikk_alert', popp: 'popp_alert', komet: 'popp_alert',
+  fyreball: 'fyreball_alert', shreddr: 'fyreball_alert', snytch: '', spottr: 'turret_lock', turrett: 'turret_lock', sentinal: 'sentinal_lock',
+  surveyr: 'surveyr_alert', rocketier: 'rocketier_alert', turbyne: 'rocketier_alert', vaporiser: 'vaporiser_alert', leapr: 'leapr_screech',
+  bastian: 'bastian_alert', bombardeer: 'bombadier_alert', queene: 'queen_roar', matriark: 'queen_roar' };
+const ARK_TELE = { wazp: 'wazp_whine', hornett: 'hornit_lock', fyrefly: 'wazp_whine', popp: 'popp_fuse', komet: 'popp_fuse', fyreball: 'fyreball_ignite',
+  shreddr: 'turret_spin', snytch: 'snytch_call', turrett: 'turret_spin', sentinal: 'sentinal_charge', rocketier: 'rocketier_lock', turbyne: 'rocketier_lock',
+  vaporiser: 'sentinal_charge', leapr: 'leapr_charge', bastian: 'bastian_screech' };
+const ARK_SHOT = { wazp: 'wazp_shot', fyrefly: 'fyrefly_shot', hornett: 'hornit_zap', turrett: 'turret_shot', shreddr: 'turret_shot', bastian: 'bastian_shot' };
+const ARK_LOOP = { wasp: 'wazp_loop', hornet: 'hornit_loop', rocketeer: 'rocketier_loop', snitch: 'snytch_loop', pop: 'popp_roll_loop', fireball: 'popp_roll_loop',
+  surveyor: 'surveyr_loop', leaper: 'ark_hum_loop', bastion: 'ark_hum_loop', bombardier: 'ark_hum_loop', queen: 'ark_hum_loop' };
+const ARK_STEP = { tick: ['tikk_skitter', 0.5, 1], leaper: ['bastian_step', 0.55, 1.35], bastion: ['bastian_step', 0.95, 1], bombardier: ['bastian_step', 0.8, 0.85], queen: ['leapr_stomp', 1.2, 0.8] };
 const TRACER = { rifle: 0xffe0a0, smg: 0xffe8b0, pistol: 0xffe8c0, shotgun: 0xffd090, sniper: 0xfff0d0, heavy: 0xffd080, energy: 0x60d8ff, launcher: 0xffa040, ark: 0xff6040, laser: 0xff3020 };
 
 let projGeo = null;
@@ -145,8 +157,9 @@ export class View {
   updLoop(v, name, active) {
     const me = this.g.me;
     const near = me && Math.hypot(v.px - me.x, v.pz - me.z) < 38;
+    if (v.loop && v.loopName !== name) { try { v.loop.stop(); } catch (e) { /* */ } v.loop = null; }   // state changed the loop sound
     if (active && near && name) {
-      if (!v.loop) v.loop = this.g.audio?.loop?.(name, { x: v.px, z: v.pz }) || null;
+      if (!v.loop) { v.loop = this.g.audio?.loop?.(name, { x: v.px, z: v.pz }) || null; v.loopName = name; }
       else v.loop.setPos?.(v.px, v.pz);
     } else if (v.loop) { try { v.loop.stop(); } catch (e) { /* */ } v.loop = null; }
   }
@@ -203,8 +216,7 @@ export class View {
   }
   updArk(v, e, dt) {
     const def = ARK[e.kind] || {};
-    const LOOP = { wasp: 'wazp_loop', hornet: 'hornit_loop', rocketeer: 'rocketier_loop', snitch: 'wazp_loop', pop: 'popp_roll_loop' };
-    this.updLoop(v, LOOP[def.model], e.st !== 'dead' && !e.dormant && (def.model !== 'pop' || e.st === 'alert'));
+    this.arkAudio(v, e, def, dt);
     const t = performance.now() / 1000;
     const alt = e.alt || 0;
     const bob = def.flying ? Math.sin(t * 3 + e.id) * 0.08 : 0;
@@ -232,6 +244,26 @@ export class View {
     }
     // eye glow
     if (!e.dormant) this.L.light(v.px, v.py + alt + 0.5, v.pz, v.coneCol || (e.st === 'alert' ? 0xff2a10 : 0xffa020), 0.35, 2.2, 0.8);
+  }
+  // per-frame ARK audio: state-dependent loop, wind-up/telegraph cue, lost-target cue, walker steps, Pop proximity beeps
+  arkAudio(v, e, def, dt) {
+    const A = this.g.audio, model = def.model, kind = e.kind, live = e.st !== 'dead' && !e.dormant;
+    let loop = kind === 'spottr' ? 'spottr_loop' : ARK_LOOP[model];
+    if (model === 'fireball') loop = v.flameAt && performance.now() - v.flameAt < 400 ? 'fyreball_flame_loop' : (e.st === 'alert' || v.spd > 0.3 ? loop : null);
+    if (model === 'pop' && e.st !== 'alert') loop = null;
+    this.updLoop(v, loop, live);
+    if (!A || !live) { v.tele0 = 0; v.st0 = e.st; return; }
+    const me = this.g.me, d = me ? Math.hypot(v.px - me.x, v.pz - me.z) : 1e9, tele = e.tele || 0, at = { x: v.px, z: v.pz };
+    if (tele > 0.02 && !(v.tele0 > 0.02) && ARK_TELE[kind] && d < 90) A.play(ARK_TELE[kind], at);
+    v.tele0 = tele;
+    if (v.st0 === 'alert' && e.st === 'search' && d < 50) A.play('ark_lost', at);
+    v.st0 = e.st;
+    const st = ARK_STEP[model];
+    if (st && (v.spd || 0) > 0.3 && d < 70) { v.stepT = (v.stepT ?? 0) - dt; if (v.stepT <= 0) { v.stepT = st[1]; A.play(st[0], { ...at, pitch: st[2] }); } }
+    if (model === 'pop' && e.st === 'alert' && tele <= 0.02 && d < 32) {   // beeps speed up as it closes in
+      v.beepT = (v.beepT ?? 0) - dt;
+      if (v.beepT <= 0) { v.beepT = Math.min(0.6, Math.max(0.08, d / 14)); A.play('popp_beep', at); }
+    }
   }
   telegraphLaser(v, e, tele) {
     const def = ARK[e.kind] || {}, alt = e.alt || 0;
@@ -288,7 +320,7 @@ export class View {
         const mine = ev.s === g.meId;
         const col = TRACER[ev.k] || TRACER.rifle;
         if (!mine || !g.predicted) {
-          A?.play(ev.snd || (ev.k === 'ark' ? 'gun_smg' : 'gun_rifle'), { x: ox, z: oz });
+          A?.play(ev.snd || (ev.k === 'ark' ? ARK_SHOT[this.vis.get(ev.s)?.e?.kind] || 'turret_shot' : 'gun_rifle'), { x: ox, z: oz });
           this.flash(ox, oy, oz, ev.k === 'laser' ? 0xff3020 : ev.k === 'energy' ? 0x60d8ff : 0xffd890, ev.k === 'laser' ? 3 : 1.8, 7, 0.06, 2.5);
           for (const h of ev.hits) fx.tracers.add(ox, oy, oz, h.h[0], h.h[1], h.h[2], col, ev.k === 'laser' ? 0.25 : 0.07);
           const v = this.vis.get(ev.s); if (v?.model) v.model.kick(0.6);
@@ -312,7 +344,7 @@ export class View {
         const d = g.me ? Math.hypot(ev.x - g.me.x, ev.z - g.me.z) : 99;
         this.shake = Math.max(this.shake, Math.max(0, 0.6 - d / 40) * (ev.r / 3));
         if (d < 20) this.L.flashBoost = Math.max(this.L.flashBoost, (1 - d / 20) * 0.35);
-        A?.play(ev.r > 3.5 ? 'explosion_big' : 'explosion_small', { x: ev.x, z: ev.z });
+        A?.play(ev.k === 'stomp' ? 'leapr_stomp' : ev.k === 'shock' ? (ev.r >= 6 ? 'queen_pulse' : 'leapr_pulse') : ev.r > 3.5 ? 'explosion_big' : 'explosion_small', { x: ev.x, z: ev.z });
         A?.duck?.(0.5, 0.6);
         break;
       }
@@ -325,7 +357,7 @@ export class View {
         break;
       }
       case 'crash': fx.smoke(ev.x, 2, ev.z, 8, true, 0.6); fx.sparks(ev.x, 2, ev.z, 20, 0xffa040, 5); break;
-      case 'alert': if (g.me && Math.hypot(ev.x - g.me.x, ev.z - g.me.z) < 45) A?.play('ark_alert', { x: ev.x, z: ev.z }); g.onAlert?.(ev); break;
+      case 'alert': { const snd = ARK_ALERT[ev.kind] ?? 'ark_alert'; if (snd && g.me && Math.hypot(ev.x - g.me.x, ev.z - g.me.z) < 90) A?.play(snd, { x: ev.x, z: ev.z }); g.onAlert?.(ev); break; }
       case 'hurt': {
         if (ev.id === g.meId) { g.onHurt?.(ev); A?.play('hurt'); }
         const v = this.vis.get(ev.id); if (v) fx.parts.emit({ x: v.px, y: v.py + 1.1, z: v.pz, vy: 1, life: 0.4, size: 3, size1: 6, color: 0xa02818, alpha: 0.8, shape: 1, grav: 4 });
@@ -360,13 +392,14 @@ export class View {
       case 'emote': g.onEmote?.(ev); break;
       case 'warn': g.banner(ev.msg, '#e84a30', null, 4); A?.play('raid_warning'); break;
       case 'raidover': A?.play('raid_end_siren'); break;
-      case 'leap': { const gy = this.floorNear(ev.x, ev.z, ev.y); fx.rings.add(ev.x, gy, ev.z, 3.5, 0xff4020, ev.T + 0.2, 1); A?.play('leapr_jump', this.posOf(ev.id)); break; }
+      case 'leap': { const gy = this.floorNear(ev.x, ev.z, ev.y); fx.rings.add(ev.x, gy, ev.z, 3.5, 0xff4020, ev.T + 0.2, 1); A?.play(ARK[this.vis.get(ev.id)?.e?.kind]?.model === 'tick' ? 'tikk_leap' : 'leapr_jump', this.posOf(ev.id)); break; }
       case 'latch': if (ev.tgt === g.meId) g.hudMsg('TIKK LATCHED! DODGE ROLL TO SHAKE IT', '#e84a30'); break;
-      case 'mortar': { const gy = this.floorNear(ev.x, ev.z, ev.y); fx.rings.add(ev.x, gy, ev.z, 4, 0xff2010, ev.t, 1); A?.play('bombadier_mortar', this.posOf(ev.id)); break; }
+      case 'mortar': { const gy = this.floorNear(ev.x, ev.z, ev.y); fx.rings.add(ev.x, gy, ev.z, 4, 0xff2010, ev.t, 1); A?.play('bombadier_mortar', this.posOf(ev.id)); A?.play('mortar_whistle', { x: ev.x, z: ev.z, delay: Math.max(0, (ev.t || 2.4) - 1.12) }); break; }
       case 'rockets': A?.play('rocket_launch', this.posOf(ev.id)); break;
       case 'alarm': A?.play('snytch_alarm', { x: ev.x, z: ev.z }); g.feed('SNYTCH RAISED THE ALARM - REINFORCEMENTS INBOUND', '#e84a30'); break;
-      case 'flame': if (Math.random() < 0.5) { const v = this.vis.get(ev.id); if (v) for (let i = 0; i < 4; i++) { const a = v.e.f + (Math.random() - .5) * 0.8, s = 6 + Math.random() * 4; fx.glow.emit({ x: v.px, y: v.py + 0.5, z: v.pz, vx: Math.sin(a) * s, vy: 0.5, vz: Math.cos(a) * s, life: 0.45, size: 6, size1: 12, color: 0xffd060, color1: 0xc02000, shape: 1, drag: 2 }); } } break;
-      case 'reload': A?.play('reload_start', this.posOf(ev.id)); break;
+      case 'flame': { const fv = this.vis.get(ev.id); if (fv) fv.flameAt = performance.now(); }   // drives the burner loop in arkAudio()
+        if (Math.random() < 0.5) { const v = this.vis.get(ev.id); if (v) for (let i = 0; i < 4; i++) { const a = v.e.f + (Math.random() - .5) * 0.8, s = 6 + Math.random() * 4; fx.glow.emit({ x: v.px, y: v.py + 0.5, z: v.pz, vx: Math.sin(a) * s, vy: 0.5, vz: Math.cos(a) * s, life: 0.45, size: 6, size1: 12, color: 0xffd060, color1: 0xc02000, shape: 1, drag: 2 }); } } break;
+      case 'reload': A?.play(reloadSoundFor(this.vis.get(ev.id)?.e?.wid), this.posOf(ev.id)); break;
       case 'strikeWarn': { const gy = this.world.grid.floorAt(ev.x, ev.z, 1e9); fx.rings.add(ev.x, gy, ev.z, ev.r, 0x80c8ff, ev.t, 1); this.flash(ev.x, gy + 8, ev.z, 0x80b0ff, 0.6, ev.r * 2, ev.t, 2); break; }
       case 'strike': {
         const gy = this.world.groundAt(ev.x, ev.z);
