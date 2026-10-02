@@ -145,12 +145,26 @@ export class Input {
     addEventListener('wheel', (e) => { this.mouse.wheel += Math.sign(e.deltaY); }, { passive: true });
     addEventListener('gamepadconnected', (e) => this.onConnect(e.gamepad));
     addEventListener('gamepaddisconnected', (e) => this.onDisconnect(e.gamepad));
-    // poll every animation frame (before the raid frame: this loop is registered first), also in menus
-    const loop = () => {
-      requestAnimationFrame(loop);
+    // poll every animation frame, also in menus
+    this._loop = () => {
+      this._raf = 0;
       try { this.poll(); } catch (err) { if (!this._pollErr) { this._pollErr = true; console.error('gamepad poll failed', err); } }
+      this.schedule();
     };
-    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(loop);
+    this.schedule();
+  }
+  // No frame request may be pending while a raid loads: a frame requested before that long synchronous work
+  // runs after it with a stale timestamp, and the raid's first frame (requested at the end of loading)
+  // would share it - a negative frame time (camera fly-off, red flash). Wait it out (max 60 s) on a timer.
+  schedule() {
+    if (this._raf || this._idle || typeof requestAnimationFrame !== 'function') return;
+    const g = window.app?.game, loading = !!g && !g.running && !g.ended;
+    if (loading && (this._loadSince ??= performance.now()) > performance.now() - 60000) {
+      this._idle = setTimeout(() => { this._idle = 0; this.schedule(); }, 100);
+      return;
+    }
+    if (!loading) this._loadSince = null;
+    this._raf = requestAnimationFrame(this._loop);
   }
 
   // ------------------------------------------------------------------ actions
@@ -189,7 +203,7 @@ export class Input {
   // stick aim direction while a stick is pushed (virtual aim stick first), else null (legacy API)
   padAimDir() {
     const v = this.virtual.aim; if (v && Math.hypot(v.x, v.z) > 0.15) { this.usingTouch = true; return { x: v.x, z: v.z }; }
-    const A = this._aim; if (!A.live || this.padMenu || A.x == null) return null;
+    const A = this._aim; if (!this.usingPad || !A.live || this.padMenu || A.x == null) return null;
     return { x: A.x * A.m, z: A.z * A.m };
   }
   endFrame() {

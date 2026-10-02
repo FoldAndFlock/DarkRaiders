@@ -374,10 +374,14 @@ export class ArkBrain {
     const e = this.e, sim = this.sim, g = sim.grid;
     let H = e.y + e.alt;
     this.pathT -= dt;
-    if (!this.path || this.pathT <= 0 || !this.goal || Math.hypot(this.goal[0] - tx, this.goal[1] - tz) > 2) {
+    const dg = Math.hypot(tx - e.x, tz - e.z);
+    // re-plan: periodically, or when the goal moved (a lot, relative to how far it is); budgeted per sim tick
+    if ((!this.path || this.pathT <= 0 || !this.goal || Math.hypot(this.goal[0] - tx, this.goal[1] - tz) > Math.max(2, dg * 0.3)) && sim.pathBudget > 0) {
+      sim.pathBudget--;
       this.goal = [tx, tz]; this.pathT = 1.2 + sim.rng() * 0.6;
       this.path = this.flyPath(tx, tz, g.floorAt(e.x, e.z, H - this.fh), ty ?? sim.spawnY(tx, tz));
     }
+    if (!this.path) this.path = [[tx, tz, ty ?? e.y]];
     let wp = this.path[0];
     while (wp && Math.hypot(wp[0] - e.x, wp[1] - e.z) < 0.7 && this.path.length > 1) { this.path.shift(); wp = this.path[0]; }
     const d = Math.hypot(tx - e.x, tz - e.z), cf = g.floorAt(e.x, e.z, H - this.fh);
@@ -392,7 +396,7 @@ export class ArkBrain {
         // fine-grid detour to the target (or the farthest coarse waypoint within reach), else glance along the wall
         let gp = [tx, tz];
         if (d > 22) { gp = null; for (const q of this.path) if (Math.hypot(q[0] - e.x, q[1] - e.z) < 22) gp = q; }
-        const fp = gp && this.fineFind(gp[0], gp[1], cf);
+        const fp = gp && this.sim.pathBudget-- > 0 ? this.fineFind(gp[0], gp[1], cf) : null;
         if (fp) { this.path = fp; this.pathT = 3; wp = this.path[0]; }
         else { this.pathT = 0; LP.wf = 1.2; LP.side = -LP.side; }
       }
@@ -422,7 +426,9 @@ export class ArkBrain {
     try { raw = nav.find(e.x, e.z, tx, tz, 2500, sy, ty); } finally { nav.smooth = sm; }
     if (!raw || !raw.length) return [[tx, tz, ty]];
     const pts = [];
-    for (const p of raw) { const q = this.clearSpot(p[0], p[1], p[2]); if (q) pts.push(q); }
+    for (let k = 0; k < raw.length; k++) {                      // nudge the next 40 points; later ones on re-plan
+      const p = raw[k], q = k < 40 ? this.clearSpot(p[0], p[1], p[2]) : p; if (q) pts.push(q);
+    }
     const last = pts[pts.length - 1];
     if (!last || Math.hypot(last[0] - tx, last[1] - tz) > 0.3) pts.push([tx, tz, ty]);
     const out = []; let a = [e.x, e.z, sy], i = 0;

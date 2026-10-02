@@ -188,11 +188,12 @@ export class HUD {
   }
 
   prompt(p) {
-    const w = textWidth(p.text) + 26, x = Math.round(this.W / 2 - w / 2), y = Math.round(this.H * 0.64);
+    const key = String(p.key ?? 'E'), kw = Math.max(11, textWidth(key) + 6);
+    const w = textWidth(p.text) + kw + 15, x = Math.round(this.W / 2 - w / 2), y = Math.round(this.H * 0.64);
     this.panel(x, y, w, 15, UI.yellow);
-    this.x.fillStyle = UI.yellow; this.x.fillRect(x + 3, y + 3, 11, 9);
-    this.text(p.key || 'E', x + 9, y + 4, { color: '#1a1a1a', align: 'center', shadow: null });
-    this.text(p.text, x + 19, y + 4, { color: UI.cream });
+    this.x.fillStyle = UI.yellow; this.x.fillRect(x + 3, y + 3, kw, 9);
+    this.text(key, x + 3 + kw / 2, y + 4, { color: '#1a1a1a', align: 'center', shadow: null });
+    this.text(p.text, x + kw + 8, y + 4, { color: UI.cream });
     if (p.progress != null) { this.x.fillStyle = UI.yellow; this.x.fillRect(x, y + 15, Math.round(w * p.progress), 2); }
   }
 

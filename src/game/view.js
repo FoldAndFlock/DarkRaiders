@@ -187,7 +187,7 @@ export class View {
       // the departure (closing), then they extract
       const shut = extractGateClosed(st, typeof x.t === 'number' ? x.t : null, x.kind);
       if (x.gates?.length) this.world.setExtractGate?.(x, shut);
-      if (shut && x.gates?.length && me && (me.st === 'alive' || me.st === 'downed') && inGateZone(x, me.x, me.y, me.z) && !(st === 'closing' && inCabin(x, me.x, me.y, me.z))) {
+      if (shut && st !== 'open' && x.gates?.length && me && (me.st === 'alive' || me.st === 'downed') && inGateZone(x, me.x, me.y, me.z) && !(st === 'closing' && inCabin(x, me.x, me.y, me.z))) {
         const P = x.pts, ex = P.entry[0], ez = P.entry[1];
         me.x = ex; me.z = ez; me.y = this.world.grid.floorAt(ex, ez, (P.cabin?.y ?? xv.y) + 0.6);
         if (g.pc) { g.pc.vy = 0; g.pc.fallFrom = null; }

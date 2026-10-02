@@ -26,6 +26,8 @@ export class RaidUI {
       if (e.key === 'Escape') this.closeChat();
     });
     inp.addEventListener('input', () => { this.chatInput = inp.value; });
+    // touch: tapping away from the on-screen keyboard closes the chat (no Escape key on a phone)
+    inp.addEventListener('blur', () => { if (this.chatOpen && touchEnabled()) setTimeout(() => { if (this.chatOpen) this.closeChat(); }, 120); });
     if (game.profile && !game.profile.seenIntro) this.showIntro();
   }
   showIntro() {
@@ -281,7 +283,10 @@ export class RaidUI {
     }
     p.appendChild(vol);
     p.appendChild(settingsRows({ sfx: (n) => g.audio?.play(n), onChange: () => { if (g.o.settings) { /* persisted by settings.js */ } } }));
-    p.appendChild(el('div', 'label', touchEnabled() ? 'LEFT THUMB: MOVE (PUSH PAST THE RING TO SPRINT)  -  RIGHT STICK: AIM, PAST HALFWAY FIRES  -  FIRE / AIM / USE / RELOAD / ROLL / CROUCH / SWAP / THROW AROUND IT  -  TAP THE HUD QUICK SLOTS TO USE ITEMS' : 'WASD MOVE  SHIFT SPRINT  C CROUCH  SPACE ROLL  LMB FIRE  RMB AIM  R RELOAD  Q SWAP  E INTERACT  1-6 QUICK USE  G GRENADE  F FLASHLIGHT  TAB INVENTORY  M MAP  Z PING  H EMOTE  ENTER CHAT'));
+    const inp = g.o.input, mode = inp?.mode;
+    let keys = 'WASD MOVE  SHIFT SPRINT  C CROUCH  SPACE ROLL  LMB FIRE  RMB AIM  R RELOAD  Q SWAP  E INTERACT  1-6 QUICK USE  G GRENADE  F FLASHLIGHT  TAB INVENTORY  M MAP  Z PING  H EMOTE  ENTER CHAT';
+    try { if (inp?.controlsText) keys = inp.controlsText(mode === 'pad' ? 'pad' : 'kbm') || keys; } catch (e) { /* older input module */ }
+    p.appendChild(el('div', 'label', touchEnabled() && mode !== 'pad' ? 'LEFT THUMB: MOVE (PUSH PAST THE RING TO SPRINT)  -  RIGHT STICK: AIM, PAST HALFWAY FIRES  -  FIRE / AIM / USE / RELOAD / ROLL / CROUCH / SWAP / THROW AROUND IT  -  TAP THE HUD QUICK SLOTS TO USE ITEMS' : keys));
     const ab = el('button', 'danger', 'ABANDON RAID (LOSE LOADOUT)');
     ab.onclick = () => { if (confirm('Abandon the raid? Your loadout (except the safe pocket) will be lost.')) { this.closePause(); g.onLocalDeath(); } };
     p.appendChild(ab);

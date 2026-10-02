@@ -56,9 +56,10 @@ const G = (p, fn, arg) => p.evaluate(fn, arg);
   await wait(300);
   // walk with the left stick + sprint past the rim
   const s0 = await G(p, () => ({ x: window.app.game.me.x, z: window.app.game.me.z }));
-  await T.down(1, 140, 290); await T.move(1, 200, 290); await wait(1200);
+  await T.down(1, 140, 290); await T.move(1, 200, 290);
+  await p.waitForFunction((x0) => window.app.game.me.x - x0 > 1.5, s0.x, { timeout: 10000 }).catch(() => {});
   const s1 = await G(p, () => ({ x: window.app.game.me.x, z: window.app.game.me.z, mode: window.app.input.mode, sprint: window.app.game.me.sprint }));
-  ok(s1.x - s0.x > 1, 'left stick walks east', `dx=${(s1.x - s0.x).toFixed(2)} dz=${(s1.z - s0.z).toFixed(2)} mode=${s1.mode}`);
+  ok(s1.x - s0.x > 1.5 && Math.abs(s1.z - s0.z) < 0.5, 'left stick walks east', `dx=${(s1.x - s0.x).toFixed(2)} dz=${(s1.z - s0.z).toFixed(2)} mode=${s1.mode}`);
   ok(s1.mode === 'touch', 'input.mode is touch');
   await T.move(1, 140 + 62 * 1.45, 290); await wait(500);
   const sp = await G(p, () => ({ sprint: window.app.game.me.sprint, v: [...window.app.input.virtual.down] }));
@@ -137,11 +138,10 @@ const G = (p, fn, arg) => p.evaluate(fn, arg);
   const bp0 = await G(p, () => window.app.game.pc.lo.backpack.filter(Boolean).length);
   if (lootN0) {
     const lc = await G(p, () => { const c = [...document.querySelectorAll('.cell')].find(c => c._ref?.c === 'loot' && c._stack); const r = c.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
-    await G(p, () => { window.__tlog = []; for (const t of ['pointerdown', 'pointerup', 'pointercancel', 'click']) document.addEventListener(t, (e) => window.__tlog.push(t + ':' + (e.pointerType || '') + ':' + String(e.target.className).slice(0, 20) + ':' + Math.round(e.timeStamp)), true); });
     await T.tap(lc[0], lc[1]);
     await p.waitForFunction((n) => (window.app.game.ui.lootItems?.length ?? 0) < n, lootN0, { timeout: 8000 }).catch(() => {});
     const bp1 = await G(p, () => window.app.game.pc.lo.backpack.filter(Boolean).length);
-    ok(bp1 > bp0 || (await G(p, () => window.app.game.ui.lootItems.length)) < lootN0, 'tap on a loot item takes it', `backpack ${bp0} -> ${bp1} ` + await G(p, () => JSON.stringify(window.__tlog)) + JSON.stringify(lc));
+    ok(bp1 > bp0 || (await G(p, () => window.app.game.ui.lootItems.length)) < lootN0, 'tap on a loot item takes it', `backpack ${bp0} -> ${bp1}`);
   } else console.log('  (container was empty)');
   // inventory: tap an item, then tap an empty backpack slot -> moved
   const cellAt = (pred) => G(p, (pred) => { const f = new Function('r', 's', 'return ' + pred); const c = [...document.querySelectorAll('#ui .cell')].find(c => c._ref && f(c._ref, c._stack)); if (!c) return null; const r = c.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }, pred);

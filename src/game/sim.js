@@ -47,7 +47,7 @@ export class Sim {
     }
     if (fx.hatchesDisabled) for (const x of this.extracts) if (x.kind === 'hatch') x.state = 'offline';
     this.nextStrike = 8;
-    this.seekBudget = 0;
+    this.seekBudget = 0; this.pathBudget = 4;
     for (const x of this.extracts) this._gate(x);    // cabin doors shut while idle (after the nav saw them open)
   }
 
@@ -130,6 +130,7 @@ export class Sim {
   tick(dt) {
     this.t += dt; this.timeLeft -= dt;
     this.seekBudget = 6;                       // ARK firing-position searches allowed this tick (whole sim)
+    this.pathBudget = 4;                       // flyer low-flight path plans allowed this tick (whole sim)
     this._rehash();
     const players = this.players().filter(p => p.st === 'alive' || p.st === 'downed');
     for (const e of [...this.entities.values()]) {
@@ -579,7 +580,7 @@ export class Sim {
     if (!x.gates?.length) return;
     const closed = extractGateClosed(x.state, x.t, x.kind);
     this.world.setExtractGate(x, closed);
-    if (!closed) return;
+    if (!closed || x.state === 'open') return;        // (the first instant of open: doors still parting, nobody is put out)
     const keep = x.state === 'closing', P = x.pts;
     this.near(x.x, x.z, x.kind === 'metro' ? 24 : 8, (e) => {
       if (e.st === 'dead' || e.st === 'out' || (e.type === 'raider' && !e.bot) || (e.type === 'ark' && (e.def.flying || e.brain?.fixed))) return;

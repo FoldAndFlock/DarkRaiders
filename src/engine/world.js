@@ -634,7 +634,7 @@ export class World {
       const k = hs ? cost(sz, hs) : cost(sz, -1) + cost(sz, 1);
       if (k < bc) { bc = k; best = [sz, hs]; if (!k) break; }
     }
-    return { u, v, sz: best[0], hinges: dbl ? [-1, 1] : [best[1]], L, T, inset, vt, open };
+    return { u, v, sz: best[0], hinges: dbl ? [-1, 1] : [best[1]], L, T, inset, vt, open, cost: bc };
   }
   /*
    building({ x, z, w, d, storeys=1, storeyH=3.2, h?, wall, floor, roof, roofTint, tint, thick, rot,
@@ -787,11 +787,11 @@ export class World {
       for (let i = 0; i < m; i++) {
         const t = (i + 0.5) / m, cx = ax + (bx - ax) * t, cz = az + (bz - az) * t, R = rotFrame(cx, cz, a);
         this.block(cx - pl / 2, cz - pt / 2, cx + pl / 2, cz + pt / 2, h - 0.12, texName, { ...vo, R, capF: 2 });
-        this.block(cx - pl / 2, cz - 0.1, cx + pl / 2, cz + 0.1, 0.12, texName, { ...vo, R, rel0: h - 0.12, capF: 3 });
+        this.block(cx - pl / 2, cz - 0.13, cx + pl / 2, cz + 0.13, 0.12, texName, { ...vo, R, rel0: h - 0.12, capF: 3 });
       }
       for (let i = k === 0 ? 0 : 1; i <= m; i++) {
         const px = ax + (bx - ax) * i / m, pz = az + (bz - az) * i / m;
-        this.block(px - 0.12, pz - 0.12, px + 0.12, pz + 0.12, h + 0.1, texName, { ...vo, R: rotFrame(px, pz, a), capF: 11 });
+        this.block(px - 0.15, pz - 0.15, px + 0.15, pz + 0.15, h + 0.1, texName, { ...vo, R: rotFrame(px, pz, a), capF: 11 });
       }
     }
   }

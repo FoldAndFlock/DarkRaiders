@@ -81,18 +81,25 @@ export function initSettings(app) {
   addEventListener('resize', () => { clearTimeout(t); t = setTimeout(apply, 60); apply(); });
   window.matchMedia?.('(pointer: coarse)')?.addEventListener?.('change', apply);
 }
-// adopt the profile's values (or seed a new profile with the current ones)
+// profile <-> device: these are display preferences of this device, so the localStorage mirror wins
+// when it exists (a change made mid-raid is only saved to the profile after the raid); otherwise the
+// profile's values are adopted, and a new profile is seeded with the current ones
 export function syncProfile(p) {
   if (!p) return;
   p.settings = p.settings || {};
-  if (p.settings.uiScale != null) S.ui = normUi(p.settings.uiScale); else p.settings.uiScale = S.ui;
-  if (p.settings.touch != null) S.touch = normTouch(p.settings.touch); else p.settings.touch = S.touch;
+  if (lsGet(LS_UI) == null && p.settings.uiScale != null) S.ui = normUi(p.settings.uiScale);
+  if (lsGet(LS_TOUCH) == null && p.settings.touch != null) S.touch = normTouch(p.settings.touch);
+  p.settings.uiScale = S.ui; p.settings.touch = S.touch;
   lsSet(LS_UI, S.ui); lsSet(LS_TOUCH, S.touch);
   apply();
 }
 function persist() {
   const p = S.app?.profile;
-  if (p) { p.settings = p.settings || {}; p.settings.uiScale = S.ui; p.settings.touch = S.touch; try { S.app.save?.(); } catch (e) { /* */ } }
+  if (p) {
+    p.settings = p.settings || {}; p.settings.uiScale = S.ui; p.settings.touch = S.touch;
+    // not mid-raid: the raid mutates the loadout in place and the profile is saved on the results screen
+    if (!S.app.game?.running) { try { S.app.save?.(); } catch (e) { /* storage disabled */ } }
+  }
   lsSet(LS_UI, S.ui); lsSet(LS_TOUCH, S.touch);
 }
 export function setUiScale(v) { S.ui = normUi(v); persist(); apply(); }

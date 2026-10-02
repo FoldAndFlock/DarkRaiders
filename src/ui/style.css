@@ -105,6 +105,9 @@ html.touchui .cell.wide img { width: calc(var(--px) * 52px); }
 .hub.hub-short .sk-wrap { overflow: auto; align-items: start; }
 .hub.hub-short .sk-br { height: auto; }
 .hub.hub-narrow .bench-head .hp-b { grid-template-columns: minmax(0, 1fr); gap: calc(var(--u) * 3); }
+/* touch: taller hub tabs */
+.hub.hub-touch .hub-head { grid-template-rows: calc(var(--u) * 32) calc(var(--u) * 24); }
+.hub.hub-touch .hh-tabs .tab { padding-top: calc(var(--u) * 5); padding-bottom: calc(var(--u) * 4); }
 .hub.hub-xnarrow .hh-who { padding-left: calc(var(--u) * 5); }
 .hub.hub-xnarrow .hh-xp span { display: none; }
 

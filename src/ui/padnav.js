@@ -20,6 +20,7 @@ const FOCUSABLE = 'button, input, select, textarea, a[href], [tabindex], [data-t
 const TEXTY = 'input[type=text], input[type=search], input[type=number], input[type=password], input:not([type]), textarea';
 const PREFER = ['[autofocus]', '.pn-dlg .pn-def', '.hub-menu .mi', '.hm-btns button.primary', '.hm-btns button.ghost', '.hh-tabs .tab.on', 'button.primary', '.cell', 'button'];
 const REPEAT_DELAY = 360, REPEAT_RATE = 110;
+const BACK_RE = /^\s*(<|BACK\b|CANCEL\b|CLOSE\b|X\s*$)/i;   // buttons B presses on screens without their own back handling
 const ABORT = { padnavAbort: true };   // thrown out of a native dialog stub to stop the click handler
 
 let instance = null;
@@ -121,7 +122,8 @@ function badgeURL(name, style, input) {
 }
 
 const CSS = `
-.pn-focus { outline: calc(var(--px, 2) * 2px) solid #f0c030 !important; outline-offset: calc(var(--px, 2) * -2px) !important; }
+.pn-focus { outline: calc(var(--px, 2) * 2px) solid #f0c030 !important; outline-offset: calc(var(--px, 2) * -2px) !important;
+  box-shadow: inset 0 0 0 calc(var(--px, 2) * 3px) #141414 !important; }
 .pn-held { outline: calc(var(--px, 2) * 2px) solid #58c8f0 !important; outline-offset: calc(var(--px, 2) * -2px) !important; }
 .pn-held.pn-focus { outline-color: #f0c030 !important; box-shadow: inset 0 0 0 calc(var(--px, 2) * 4px) rgba(88, 200, 240, 0.55) !important; }
 .pn-hint { position: fixed; z-index: 400; pointer-events: none; display: flex; gap: calc(var(--px, 2) * 7px); align-items: center;
@@ -159,10 +161,12 @@ class PadNav {
   update(st, dt, now) {
     const sc = st && this.input.mode === 'pad' ? this.findScope() : null;
     if (!sc) { if (this.on) this.sleep(); return false; }
-    if (!this.on || sc !== this.scopeEl) this.enterScope(sc, st);
+    const waking = !this.on;
+    if (waking || sc !== this.scopeEl) this.enterScope(sc, st);
     this.on = true;
     this.validate(sc);
-    this.handle(st, dt, now, sc);
+    // the press that switches to the pad (or reaches a menu that was open already) only shows the focus
+    if (!waking) this.handle(st, dt, now, sc);
     this.updateHint(sc, now);
     return true;
   }
@@ -225,9 +229,11 @@ class PadNav {
     let pick = null;
     if (this.want) { pick = list.find(e => e.matches(this.want)) || null; this.want = null; }
     const m = this.mem.get(this.scopeKey(sc));
-    if (!pick && this.cur && this.curScope === sc) { const s = sigOf(this.cur); pick = list.find(e => sigOf(e) === s) || null; }
+    // an element like the lost one (several alike, e.g. 'SELL 1' rows: the one nearest to where focus was)
+    const bySig = (s) => { const same = list.filter(e => sigOf(e) === s); return same.length > 1 && m?.at ? nearest(same, m.at) : same[0] || null; };
+    if (!pick && this.cur && this.curScope === sc) pick = bySig(sigOf(this.cur));
     // same screen again: the same element, else (re-rendered in place) the one nearest to where focus was
-    if (!pick && m) pick = list.find(e => sigOf(e) === m.sig) || (m.at && m.el === sc ? nearest(list, m.at) : null);
+    if (!pick && m) pick = bySig(m.sig) || (m.at && m.el === sc ? nearest(list, m.at) : null);
     if (!pick) pick = preferred(list);
     this.setFocus(pick, true, true);
     if (this.held) this.reheld(sc);
@@ -386,7 +392,7 @@ class PadNav {
       if (resume) this.click(resume); else this.input.inject('menu');
       return;
     }
-    const b = this.collect(sc).find(e => e.tagName === 'BUTTON' && /^\s*(<|BACK\b|CANCEL\b|CLOSE\b|X\s*$)/i.test(e.textContent));
+    const b = this.collect(sc).find(e => e.tagName === 'BUTTON' && BACK_RE.test(e.textContent));
     if (b) { this.click(b); return; }
     this.key('Escape');
   }
@@ -418,9 +424,13 @@ class PadNav {
   }
   scroll(sc, st, dt) {
     const t = this.scrollTarget(sc); if (!t) return;
-    const px = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px')) || 2;
-    t.scrollTop += st.ry * 480 * px * dt;
-    if (t.scrollWidth > t.clientWidth + 2) t.scrollLeft += st.rx * 480 * px * dt;
+    const px = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px')) || 2, v = 480 * px * dt;
+    // accumulate: browsers round scroll offsets, so slow (partial-tilt) scrolling would otherwise stall
+    const a = this.sAcc || (this.sAcc = { x: 0, y: 0 });
+    a.y += st.ry * v; a.x += t.scrollWidth > t.clientWidth + 2 ? st.rx * v : 0;
+    const dy = Math.trunc(a.y), dx = Math.trunc(a.x);
+    if (dy) { t.scrollTop += dy; a.y -= dy; }
+    if (dx) { t.scrollLeft += dx; a.x -= dx; }
     this.scrollEl = t;
   }
   // the stick let go: if the focus scrolled out of its list, pick the nearest visible entry
@@ -528,6 +538,9 @@ class PadNav {
         scroll: !!this.scrollTarget(sc),
         raid: !!(window.app?.game?.running && !window.app.game.ended),
       };
+      // B only shows where it leads somewhere
+      const x = this.ctx;
+      x.back = x.raid || sc === this.dlg || sc.matches('.hub-menu, .hub-modal') || (c && c.matches(TEXTY) && document.activeElement === c) || [...sc.querySelectorAll('button')].some(b => BACK_RE.test(b.textContent));
     }
     const x = this.ctx, items = [];
     if (this.held) items.push(['A', 'PLACE'], ['Y', x.raid ? 'DROP' : 'CANCEL'], ['B', 'CANCEL']);
@@ -535,7 +548,7 @@ class PadNav {
       if (c) items.push(['A', c.matches(TEXTY) ? 'TYPE' : c.tagName === 'SELECT' ? 'NEXT' : 'SELECT']);
       if (c?.classList.contains('cell') && c._stack) items.push(['X', 'MOVE'], ['Y', x.raid ? 'USE / QUICK' : 'ACTIONS']);
       if (c?.matches('input[type=range], select')) items.push(['DPADLR', 'ADJUST']);
-      items.push(['B', sc === this.dlg ? 'CANCEL' : x.raid ? 'CLOSE' : 'BACK']);
+      if (x.back) items.push(['B', sc === this.dlg ? 'CANCEL' : x.raid ? 'CLOSE' : 'BACK']);
     }
     if (x.tabs) items.push(['LB', ''], ['RB', 'TABS']);
     if (x.sub) items.push(['LT', ''], ['RT', 'FILTER']);

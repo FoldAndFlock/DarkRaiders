@@ -1297,7 +1297,7 @@ export class Hub {
     const cols = R.columns || 5, rows = R.rows || 7;
     const px = parseFloat(getComputedStyle(this.root).getPropertyValue('--px')) || 2;
     const bw = (this.body.clientWidth || 1600) / px, bh = (this.body.clientHeight || 900) / px;
-    const CW = Math.max(32, Math.min(48, Math.floor(((bw - 14 - 176 - 18) / 3 - 24) / cols)));
+    const CW = Math.max(this.root.classList.contains('hub-narrow') ? 28 : 32, Math.min(48, Math.floor(((bw - 14 - 176 - 18) / 3 - 24) / cols)));
     const RH = Math.max(this.root.classList.contains('hub-short') ? 31 : 34, Math.min(60, Math.floor((bh - 104) / rows)));
     for (const [bid, br] of branches) {
       const spent = branchSpent(p, bid);

@@ -474,7 +474,8 @@ export class RaidGame {
     const a = this.pc.aim, s = this.R.worldToScreen(a.x, (me?.y || 0) + 1.1, a.z);
     return { x: s.x, y: s.y, dim: input.mode === 'touch' && !this.o.input.virtual.fire && !this.touch?.aim };
   }
-  keyLabel(action, def) { try { const l = this.o.input.label?.(action); return l && l !== '?' ? String(l).toUpperCase().slice(0, 3) : def; } catch (e) { return def; } }
+  // short key / button label for HUD prompts ('E', 'A', 'LB+X'); the HUD bar shows hold progress itself
+  keyLabel(action, def) { try { const l = this.o.input.label?.(action); return l && l !== '?' ? String(l).toUpperCase().replace(/^HOLD\s+/, '').slice(0, 5) : def; } catch (e) { return def; } }
   drawHUD(dt) {
     const me = this.me, pc = this.pc, R = this.R;
     for (const f of this.feedList) f.ttl -= dt;
