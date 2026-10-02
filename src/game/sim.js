@@ -181,9 +181,10 @@ export class Sim {
   }
   canSee(obs, tgt, eyeY) {
     const ty = tgt.y + (tgt.alt || 0) + (tgt.crouch ? 0.8 : 1.3);
-    // roofs aren't in the occlusion grid: an observer above roof level can't see into a building it isn't in
+    // roofs aren't in the occlusion grid: an observer above roof level (on it, over it or beside it)
+    // can't see a target inside the building below
     const bi = this.grid.indoorAt(tgt.x, tgt.z);
-    if (bi >= 0 && this.grid.indoorAt(obs.x, obs.z) !== bi) { const b = this.world.buildings[bi]; if (b && eyeY > b.floorY + b.h - 0.2) return false; }
+    if (bi >= 0) { const b = this.world.buildings[bi]; if (b && eyeY > b.floorY + b.h - 0.2 && ty < b.floorY + b.h) return false; }
     if (!this.grid.los(obs.x, eyeY, obs.z, tgt.x, ty, tgt.z)) return false;
     if (this.smokeBetween(obs.x, obs.z, tgt.x, tgt.z)) return false;
     return true;

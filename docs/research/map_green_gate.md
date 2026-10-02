@@ -121,17 +121,29 @@ Maintenance Wing → Maintenance Hall → pit → Data Vault, Hall SE → Wareho
 onto the east fields; Headhouse connector off the band. Surface entrances: Security Wing stair, Headhouse ramp
 + stair, yard stair to the Headhouse terrace, Data Vault stair, Warehouse NE/SW ramps, Control Room ramp, portal.
 
-## Perched ARK (engine `y` / `yAbs`)
-| perch | where | height | notes |
+## Perched ARK (engine `y` / `yAbs`, facing `f`)
+Every fixed Sentinel/turret has `f` (0 = +z/south, `atan2(dx, dz)`), its starting heading and sweep centre,
+aimed over its intended field.
+| perch | where | height | faces |
 |---|---|---|---|
-| gate sentry balcony (`gg_gatebalcony`) | Outer Gates, reference Sentinel icon | 8 m above the plaza | on the sliding leaf's face; pylon tops (32 m) / wall walk (15 m) drew it 12–26 m up-screen, out of view |
-| perch tower (`gg_perchtower`, deck 7 m) | 4 Checkpoint corners (turrets), west of the Checkpoint, above the Cliffside Airshaft, east of the Headhouse, north of the Pilgrim Hostel (Sentinels) | 7 m | legs-only collision so the deck sees out; deck floodlight |
-| white lookout tower (`gg_perchtower_w`) | south of the Warehouse (quest) | 7 m | turret |
-| Headhouse drum rim | east rim block | 12.75 m abs | the reference icon is on the roof, but roofs aren't in the LOS grid, so a roof Sentinel would see and laser straight down into the hall |
-| tunnel floor | Traffic Tunnel Sentinel stands on the floor | 0 m | an indoor eye above ~10 m would see out over the tunnel walls (the v1 fort-tower Sentinel was dropped: the reference has no Sentinel icon at the fort) |
+| gate sentry balcony (`gg_gatebalcony`) | Outer Gates, reference Sentinel icon | 8 m above the plaza | the Checkpoint plaza (SW, back to the gate); pylon tops (32 m) / wall walk (15 m) drew it 12–26 m up-screen, out of view |
+| perch tower (`gg_perchtower`, deck 7 m) | 4 Checkpoint corners (turrets) | 7 m | the plaza centre |
+| perch tower | west of the Checkpoint (Sentinel icon) | 7 m | the plaza's west woods + highway (ESE) |
+| perch tower | above the Cliffside Airshaft (Sentinel icon) | 7 m | the airshaft and its approach (S) |
+| perch tower | east of the Headhouse (Sentinel icon) | 7 m | the Warehouse yard (SW) |
+| white lookout tower (`gg_perchtower_w`) | south of the Warehouse (quest) | 7 m, turret | the east fields (S) |
+| Headhouse roof edge | south roof-edge railing, reference icon | 13.65 m abs | south over the ramp, plaza and Maintenance Hall roof |
+| Pilgrim Hostel roof edge | cloister-side parapet, reference icon | 9.85 m above the plateau | the cloister and the west ramp |
+| Traffic Tunnel floor | Sentinel + turret near the north cave-in | 0 m | down the band toward the yard |
+| Security Wing turret | by the Confiscation Room | 0 m | down the wing toward its yard door |
 
-Checked in real raids: each perched unit's `e.y` matches its perch, the model stands on the deck/balcony,
-and the vision cones sweep from up there (screenshots at noon and night/fog).
+**Roof perches and `sim.canSee`:** the engine hides a building's interior from observers above its roof only
+when the observer's (x, z) is *outside* that building. A Sentinel standing on the roof centre is inside the
+footprint and could still see (and laser) players in the hall below, which the raid check confirmed
+(`canSee: true`). Both roof Sentinels therefore stand on the roof edge just outside the footprint. Checked
+in a raid with `sim.canSee`: Headhouse, player inside → false, outside on the plaza → true; Hostel, player
+inside → false, in the cloister → true, inside the Research Annex → false. Right under the Headhouse's 3.35 m
+concrete collar is a natural dead zone.
 
 ## Conditions
 * **Harvester**: `spawnBoss: 'queene'` lands on `harvester_site` (411, 286), a scorched clearing west of the
@@ -172,11 +184,8 @@ condition-only) · 8 extracts · 23 spawns · 26 POIs (2 hidden boss arenas) · 
 * The gate pylons are scaled down to 32 m and the valley floor is slightly flattened so the Checkpoint and
   highway stay readable at the 40 × 22 m camera.
 
-## Engine wishes (v2; the v1 wishes 1–5 are done)
-1. Fixed-ARK facing: `arkSpawn(..., { f })`, or a sweep centre, so a Sentinel on a wall balcony sweeps away
-   from the wall instead of starting at a random heading.
-2. Roof occlusion for LOS (or a per-building "roof blocks sight" flag), so Sentinels can sit on the reference
-   roof icons without seeing into the rooms below.
-3. A walkable roof deck / second height layer for the ground above the tunnels.
-4. `harvester` set-piece placement at the `bossPoi` arena (`spawnStructure`).
-5. `mapview` overview: honour `hideLabel` and draw `keyRoom.poly` / rotated building outlines.
+## Engine wishes (v3; the v1 wishes and v2 wishes 1–2 are done)
+1. `sim.canSee` roof rule: also apply when the observer stands *on* the same building (its eye above
+   floorY + h), so a Sentinel can sit at the centre of a roof icon without seeing into the room below.
+2. A walkable roof deck / second height layer for the ground above the tunnels.
+3. `harvester` set-piece placement at the `bossPoi` arena (`spawnStructure`).
