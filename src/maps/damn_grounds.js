@@ -822,7 +822,7 @@ function damComplex(C) {
   const ghW = C.dbld({ u: -98, v: -190, w: 16, d: 26, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Generator Hall West Wing', wall: 'concrete', floor: 'metalPanel', tint: 0xe0d8c8,
     doors: [{ side: 's', at: 5, w: 3.2 }, { side: 'w', at: 6, w: 2.4, door: true }, { side: 'e', at: 4, w: 2, door: true }, { side: 'e', at: 18, w: 2.4 }, { side: 'n', at: 4, w: 3, sill: 1.1 }, { side: 's', at: 11, w: 2.4, sill: 1.1 }],
     inner: [[0, 13, 16, 13, [{ at: 6, w: 1.8 }]], [0, 13, 16, 13, [{ at: 9, w: 1.8 }], 1]],
-    stairs: [{ x: 0.6, z: 15.4, w: 1.4, dir: 'n', from: 0, to: 1 }], ladders: [{ side: 'n', at: 11 }] });
+    stairs: [{ x: 0.8, z: 15.4, w: 1.8, dir: 'n', from: 0, to: 1 }], ladders: [{ side: 'n', at: 11 }] });
   C.F(ghW, 'control', 0, 0, 16, 13, { tier: 2 }); C.F(ghW, 'workshop', 0, 13, 16, 26, { tier: 2 });
   C.F(ghW, 'office', 0, 0, 16, 13, { tier: 2, storey: 1 }); C.F(ghW, 'security', 0, 13, 16, 26, { tier: 2, storey: 1 });
   const gh = C.B.gh = C.dbld({ u: -82, v: -190, w: 28, d: 26, h: 8.4, floorY: HIGH, blend: 0.5, name: 'Generator Hall', wall: 'concrete', floor: 'metalPanel', tint: 0xd8d0c0,
@@ -836,14 +836,14 @@ function damComplex(C) {
   const ghE = C.dbld({ u: -54, v: -190, w: 12, d: 26, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Generator Hall East Wing', wall: 'concrete', floor: 'metalPanel', tint: 0xe0d8c8,
     doors: [{ side: 'e', at: 5, w: 2.4, door: true }, { side: 'w', at: 8, w: 2.4, door: true }, { side: 'e', at: 20.6, w: 2, door: true }, { side: 'n', at: 4, w: 3, sill: 1.1 }, { side: 's', at: 4, w: 3, sill: 1.1 }],
     inner: [[0, 12, 12, 12, [{ at: 5, w: 1.8 }]]],
-    stairs: [{ x: 10.0, z: 14.4, w: 1.4, dir: 'n', from: 0, to: 1 }], ladders: [{ side: 'n', at: 8 }] });
+    stairs: [{ x: 9.4, z: 14.4, w: 1.8, dir: 'n', from: 0, to: 1 }], ladders: [{ side: 'n', at: 8 }] });
   C.F(ghE, 'storage', 0, 0, 12, 12, { tier: 2 }); C.F(ghE, 'security', 0, 12, 12, 26, { tier: 2 }); C.F(ghE, 'server', 0, 0, 12, 26, { tier: 2, storey: 1 });
   C.lift('north_complex_elevator', 'North Complex Elevator', 706, 140, -PI / 6);
   // Power Control: 2 storeys, roof ladder (Sentinal on the roof), the vent shaft + power switch beside the stairs
   const pc = C.B.pc = C.dbld({ u: -12, v: -182, w: 26, d: 22, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Power Control', tint: 0xd8d0c0, floor: 'tiles',
     doors: [{ side: 's', at: 4, w: 2, door: true }, { side: 'w', at: 10, w: 2 }, { side: 'e', at: 6, w: 2.4, door: true }, { side: 'n', at: 4, w: 3, sill: 1.1 }, { side: 'n', at: 16, w: 3, sill: 1.1 }, { side: 's', at: 16.5, w: 3, sill: 1.1 }],
     inner: [[12, 0, 12, 22, [{ at: 9, w: 1.8 }]], [12, 11, 26, 11, [{ at: 6, w: 1.6 }]], [12, 0, 12, 22, [{ at: 4, w: 1.8 }], 1]],
-    stairs: [{ x: 15, z: 19.9, w: 1.4, dir: 'e', from: 0, to: 1 }], ladders: [{ side: 'w', at: 17 }] });
+    stairs: [{ x: 15, z: 19.2, w: 1.8, dir: 'e', from: 0, to: 1 }], ladders: [{ side: 'w', at: 17 }] });
   C.F(pc, 'control', 0, 0, 12, 22, { tier: 2 }); C.F(pc, 'office', 12, 0, 26, 11, { tier: 2 }); C.F(pc, 'storage', 12, 11, 26, 22, { tier: 1 });
   C.F(pc, 'server', 0, 0, 12, 22, { tier: 2, storey: 1 }); C.F(pc, 'office', 12, 0, 26, 22, { tier: 2, storey: 1 });
   C.P(pc, 'dg_ventbox', 23.6, 18.4, 0, { solid: true }); C.P(pc, 'dg_switch', 21.7, 21.4, PI, { solid: true });
@@ -921,7 +921,7 @@ function damComplex(C) {
   const pp = C.B.pp = C.dbld({ u: 28, v: -108, w: 20, d: 18, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Pipeline Pumphouse', roof: 'corrugated', floor: 'metalPanel',
     doors: [{ side: 's', at: 4, w: 2.4, door: true }, { side: 'e', at: 7, w: 2.4 }, { side: 'w', at: 4, w: 2, door: true }, { side: 'e', at: 12, w: 2, door: true, storey: 1 }],
     inner: [[11, 0, 11, 18, [{ at: 8, w: 1.8 }]], [11, 0, 11, 18, [{ at: 4, w: 1.8 }], 1]],
-    stairs: [{ x: 18.0, z: 10.6, w: 1.4, dir: 'n', from: 0, to: 1 }] });
+    stairs: [{ x: 12.8, z: 0.8, w: 1.6, dir: 'e', from: 0, to: 1 }] });
   C.F(pp, 'industrial', 0, 0, 11, 18, { tier: 2 });
   C.P(pp, 'dg_pump', 4, 6, PI / 2, { solid: true }); C.P(pp, 'dg_valve', 7.5, 13, 0, { solid: true });     // "the valve"
   C.F(pp, 'control', 11, 0, 20, 18, { tier: 2 });
@@ -989,7 +989,7 @@ function damComplex(C) {
   const ih = C.dbld({ u: -28, v: 96, w: 22, d: 16, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Intake House', floor: 'metalPanel',
     doors: [{ side: 's', at: 10, w: 2.4, door: true }, { side: 'e', at: 5, w: 2, door: true }, { side: 'w', at: 6, w: 3, sill: 1.1 }],
     inner: [[0, 8, 22, 8, [{ at: 14, w: 1.8 }]]],
-    stairs: [{ x: 2, z: 14.0, w: 1.4, dir: 'e', from: 0, to: 1 }] });
+    stairs: [{ x: 2, z: 13.4, w: 1.8, dir: 'e', from: 0, to: 1 }] });
   C.F(ih, 'industrial', 0, 0, 22, 8, { tier: 2, extra: [['toolbox', 1]] });
   C.P(ih, 'dg_pump', 6, 3.5, 0, { solid: true }); C.P(ih, 'dg_valve', 15, 3.5, 0, { solid: true });
   C.F(ih, 'office', 0, 8, 22, 16, { tier: 1 }); C.F(ih, 'office', 0, 0, 22, 16, { tier: 2, storey: 1 });
@@ -1004,7 +1004,7 @@ function damComplex(C) {
   const pfW = C.dbld({ u: -46, v: 158, w: 18, d: 26, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Primary Facility Offices', wall: 'concrete', tint: 0xd8d2c4, floor: 'tiles',
     doors: [{ side: 's', at: 8, w: 3.2 }, { side: 'w', at: 10, w: 2.4, door: true }, { side: 'e', at: 4, w: 2, door: true }, { side: 'e', at: 18, w: 2.4 }, { side: 'n', at: 12, w: 3, sill: 1.1 }, { side: 's', at: 14, w: 2.4, sill: 1.1 }],
     inner: [[0, 13, 18, 13, [{ at: 7, w: 1.8 }]], [0, 13, 18, 13, [{ at: 12, w: 1.8 }], 1]],
-    stairs: [{ x: 0.6, z: 15.4, w: 1.4, dir: 'n', from: 0, to: 1 }], ladders: [{ side: 'n', at: 5 }] });
+    stairs: [{ x: 0.8, z: 15.4, w: 1.8, dir: 'n', from: 0, to: 1 }], ladders: [{ side: 'n', at: 5 }] });
   C.F(pfW, 'office', 0, 0, 18, 13, { tier: 2 }); C.F(pfW, 'workshop', 0, 13, 18, 26, { tier: 2 });
   C.F(pfW, 'office', 0, 0, 18, 13, { tier: 2, storey: 1 }); C.F(pfW, 'lab', 0, 13, 18, 26, { tier: 2, storey: 1 });
   const pf = C.B.pf = C.dbld({ u: -28, v: 158, w: 22, d: 26, h: 8.4, floorY: HIGH, blend: 0.5, name: 'Primary Facility', wall: 'concrete', tint: 0xd8d2c4, floor: 'metalPanel',
@@ -1017,13 +1017,13 @@ function damComplex(C) {
   const pfE = C.dbld({ u: -6, v: 158, w: 16, d: 26, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Primary Facility Workshops', wall: 'concrete', tint: 0xd8d2c4, floor: 'metalPanel',
     doors: [{ side: 'w', at: 11, w: 2.4, door: true }, { side: 'e', at: 10, w: 2.4, door: true }, { side: 's', at: 4, w: 3, sill: 1.1 }, { side: 'n', at: 6, w: 3, sill: 1.1 }],
     inner: [[0, 13, 16, 13, [{ at: 6, w: 1.8 }]]],
-    stairs: [{ x: 14.0, z: 15.4, w: 1.4, dir: 'n', from: 0, to: 1 }] });
+    stairs: [{ x: 13.4, z: 15.4, w: 1.8, dir: 'n', from: 0, to: 1 }] });
   C.F(pfE, 'industrial', 0, 0, 16, 13, { tier: 2, extra: [['crate', 1]] }); C.F(pfE, 'workshop', 0, 13, 16, 26, { tier: 1 });
   C.F(pfE, 'storage', 0, 0, 16, 26, { tier: 1, storey: 1, extra: [['ammo_box', 1]] });
   const pa = C.dbld({ u: -44, v: 196, w: 32, d: 18, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Primary Facility Annex', tint: 0xe0d8c8, floor: 'tiles',
     doors: [{ side: 'n', at: 6, w: 2, door: true }, { side: 'w', at: 8, w: 2, door: true }, { side: 's', at: 24, w: 2, door: true }, { side: 'e', at: 6, w: 3, sill: 1.1 }, { side: 's', at: 8, w: 3, sill: 1.1 }],
     inner: [[16, 0, 16, 18, [{ at: 4, w: 1.8 }]], [16, 9, 32, 9, [{ at: 6, w: 1.6 }]], [16, 0, 16, 18, [{ at: 12, w: 1.8 }], 1]],
-    stairs: [{ x: 0.6, z: 11.4, w: 1.4, dir: 'n', from: 0, to: 1 }] });
+    stairs: [{ x: 0.8, z: 11.4, w: 1.8, dir: 'n', from: 0, to: 1 }] });
   C.F(pa, 'office', 0, 0, 16, 18, { tier: 2 }); C.F(pa, 'medical', 16, 0, 32, 9, { tier: 2 }); C.F(pa, 'storage', 16, 9, 32, 18, { tier: 1 });
   C.F(pa, 'medical', 0, 0, 16, 18, { tier: 2, storey: 1 }); C.F(pa, 'office', 16, 0, 32, 18, { tier: 1, storey: 1 });
   C.fieldDepot(...L(-32, 230), G.a);
@@ -1037,7 +1037,7 @@ function damComplex(C) {
       { side: 'n', at: 26, w: 3, sill: 1.0 }, { side: 'n', at: 34, w: 3, sill: 1.0 }, { side: 's', at: 4, w: 3, sill: 1.1 }, { side: 's', at: 36, w: 3, sill: 1.1 }],
     inner: [[0, 12, 44, 12, [{ at: 20.8, w: 2.4 }]], [14, 12, 14, 28, [{ at: 6.5, w: 1.8 }]], [30, 12, 30, 28, [{ at: 6.5, w: 1.8 }]],
       [0, 12, 44, 12, [{ at: 6, w: 2 }, { at: 30, w: 2 }], 1], [22, 12, 22, 28, [{ at: 8, w: 1.8 }], 1]],
-    stairs: [{ x: 6, z: 0.7, w: 1.4, dir: 'e', from: 0, to: 1 }] });
+    stairs: [{ x: 6, z: 0.8, w: 1.6, dir: 'e', from: 0, to: 1 }] });
   C.F(ct, 'control', 0, 0, 44, 12, { tier: 2 });
   C.F(ct, 'security', 0, 12, 14, 28, { tier: 2 }); C.F(ct, 'office', 14, 12, 30, 28, { tier: 1, mul: 0.7 }); C.F(ct, 'storage', 30, 12, 44, 28, { tier: 1 });
   C.F(ct, 'office', 0, 0, 44, 12, { tier: 2, storey: 1 }); C.F(ct, 'office', 0, 12, 22, 28, { tier: 1, storey: 1 }); C.F(ct, 'security', 22, 12, 44, 28, { tier: 2, storey: 1 });
@@ -1047,8 +1047,9 @@ function damComplex(C) {
       ...[1, 2, 3].flatMap(k => [{ side: 'n', at: 4.8, w: 2.4, sill: 1.0, storey: k }, { side: 'e', at: 9, w: 2, sill: 1.0, storey: k }, { side: 'w', at: 9, w: 2, sill: 1.0, storey: k }]),
       ...win4('n', [0.8, 4.8, 8.8]), ...win4('w', [0.8, 4.8, 8.8]), ...win4('s', [0.8, 4.8]), { side: 'e', at: 0.8, w: 2.4, sill: 0.9, top: 2.9, storey: 4 }],
     inner: [[8.5, 0, 8.5, 12, [{ at: 9, w: 2, door: true, locked: 'control_tower' }], 4]],
-    stairs: [{ x: 0.8, z: 2.5, w: 1.4, dir: 'n', from: 0, to: 1 }, { x: 9.8, z: 2.5, w: 1.4, dir: 's', from: 1, to: 2 }, { x: 0.8, z: 2.5, w: 1.4, dir: 'n', from: 2, to: 3 }, { x: 9.8, z: 2.5, w: 1.4, dir: 's', from: 3, to: 4 }],
-    ladders: [{ x: 10.6, z: 10.8, from: 4, to: 'top' }] });
+    stairs: [{ x: 0.8, z: 2.5, w: 1.4, dir: 'n', from: 0, to: 1 }, { x: 9.8, z: 2.5, w: 1.4, dir: 's', from: 1, to: 2 }, { x: 0.8, z: 2.5, w: 1.4, dir: 'n', from: 2, to: 3 }, { x: 9.8, z: 2.5, w: 1.4, dir: 's', from: 3, to: 4 }] });
+  // roof hatch ladder from the top landing (lands beside the hatch on the roof, not in it)
+  { const [x0, z0] = C.Wp(tw, 10.6, 10.9), [x1, z1] = C.Wp(tw, 10.6, 9.6); w.ladder(x0, z0, C.storeyY(tw, 4), x1, z1, C.roofY(tw), -G.a); tw.keep.push([4, 9.2, 9.4, 12, 12]); }
   for (let k = 0; k < 4; k++) C.IL(tw, 6, 6, 0xfff0d0, 1.2, 8, 2.7, k);
   C.Cn(tw, 'locker', 5.5, 11.2, PI, { tier: 1, storey: 1 }); C.Cn(tw, 'cabinet', 5.5, 11.2, PI, { tier: 1, storey: 3 }); C.Cn(tw, 'ammo_box', 6, 0.8, 0, { tier: 1, storey: 2 });
   C.F(tw, 'control', 0, 0, 8.5, 12, { tier: 3, storey: 4, room: 'control_tower', extra: [['security_locker', 1], ['weapon_case', 1], ['electronics', 1], ['safe', 1]], li: 1.4 });
@@ -1065,7 +1066,7 @@ function damComplex(C) {
       [0, 28, 48, 28, [{ at: 6, w: 1.8, door: true, locked: 'staff_room' }, { at: 23, w: 2.4 }, { at: 40, w: 1.8 }]], [17, 28, 17, 42, []], [31, 28, 31, 42, []],
       [0, 14, 48, 14, [{ at: 6, w: 1.8 }, { at: 23, w: 1.8 }, { at: 40, w: 1.8 }], 1], [16, 0, 16, 14, [{ at: 6, w: 1.6 }], 1],
       [0, 30, 48, 30, [{ at: 20, w: 2 }, { at: 40, w: 1.8 }], 1], [17, 30, 17, 42, [{ at: 6, w: 1.8 }], 1], [31, 30, 31, 42, [{ at: 6, w: 1.8 }], 1]],
-    stairs: [{ x: 10, z: 26.0, w: 1.4, dir: 'e', from: 0, to: 1 }], ladders: [{ side: 'e', at: 30 }],
+    stairs: [{ x: 10, z: 25.4, w: 1.8, dir: 'e', from: 0, to: 1 }], ladders: [{ side: 'e', at: 30 }],
     roofExtras: [[6, 4, 14, 10, 1.4], [33, 30, 41, 38, 1.4]] });
   C.F(ra, 'lab', 0, 0, 16, 14, { tier: 2 });                     // Lab 2
   C.F(ra, 'server', 16, 0, 32, 14, { tier: 2 }); C.F(ra, 'lab', 32, 0, 48, 14, { tier: 2 });
@@ -1144,7 +1145,7 @@ function northPOIs(C) {
     doors: [{ side: 's', at: 10, w: 2, door: true }, { side: 'e', at: 8, w: 1.6, door: true }, { side: 's', at: 3, w: 2.4, sill: 0.9 }, { side: 's', at: 19, w: 2.4, sill: 0.9 }, { side: 'n', at: 3, w: 2.4, sill: 0.9 }, { side: 'n', at: 11, w: 2.4, sill: 0.9 }, { side: 'n', at: 19, w: 2.4, sill: 0.9 }, { side: 'w', at: 4, w: 2, sill: 0.9 }],
     inner: [[8, 0, 8, 12, [{ at: 7, w: 1.6 }]], [16, 0, 16, 12, [{ at: 7, w: 1.6 }]], [16, 6, 24, 6, [{ at: 3, w: 1.6 }]],
       [8, 0, 8, 12, [{ at: 4, w: 1.6 }], 1], [16, 0, 16, 12, [{ at: 4, w: 1.6 }], 1]],
-    stairs: [{ x: 9.35, z: 10.1, w: 1.4, dir: 'e', from: 0, to: 1 }] });
+    stairs: [{ x: 9.35, z: 9.5, w: 1.8, dir: 'e', from: 0, to: 1 }] });
   C.F(ph, 'bedroom', 0, 0, 8, 12, { tier: 2 }); C.F(ph, 'living', 8, 0, 16, 12, { tier: 2 }); C.F(ph, 'office', 16, 0, 24, 6, { tier: 2 }); C.F(ph, 'storage', 16, 6, 24, 12, { tier: 1 });
   C.F(ph, 'bedroom', 0, 0, 8, 12, { tier: 2, storey: 1 }); C.F(ph, 'living', 8, 0, 16, 12, { tier: 1, storey: 1 }); C.F(ph, 'office', 16, 0, 24, 12, { tier: 2, storey: 1, extra: [['cabinet', 1]] });
   const pk = C.dbld({ u: -80, v: -262, w: 8, d: 12, wall: 'brick', roof: 'roofTile', roofShape: 'gable', name: 'Pattern House Kitchen', doors: [{ side: 'w', at: 4, w: 1.6, door: true }, { side: 's', at: 3, w: 2, sill: 0.9 }] });
@@ -1162,7 +1163,7 @@ function northPOIs(C) {
     doors: [{ side: 's', at: 12, w: 2, door: true }, { side: 'n', at: 22, w: 1.6, door: true }, { side: 's', at: 3, w: 2.4, sill: 0.9 }, { side: 's', at: 21, w: 2.4, sill: 0.9 }, { side: 'w', at: 6, w: 2, sill: 0.9 }, { side: 'e', at: 14, w: 2, sill: 0.9 }, { side: 'n', at: 4, w: 2.4, sill: 0.9 }],
     inner: [[10, 0, 10, 22, [{ at: 8.6, w: 1.6 }, { at: 15, w: 1.6 }]], [18, 0, 18, 22, [{ at: 4, w: 1.8 }, { at: 15, w: 1.6 }]], [0, 12, 10, 12, []], [18, 11, 28, 11, [{ at: 5, w: 1.6 }]],
       [10, 0, 10, 22, [{ at: 9, w: 1.6 }, { at: 15, w: 1.6 }], 1], [0, 12, 10, 12, [], 1], [18, 0, 18, 22, [{ at: 8.5, w: 1.6 }, { at: 15, w: 1.6 }], 1], [18, 11, 28, 11, [], 1]],
-    stairs: [{ x: 10.6, z: 2, w: 1.4, dir: 's', from: 0, to: 1 }] });
+    stairs: [{ x: 10.7, z: 2, w: 1.8, dir: 's', from: 0, to: 1 }] });
   C.F(rv, 'bedroom', 0, 0, 10, 12, { tier: 2 }); C.F(rv, 'medical', 0, 12, 10, 22, { tier: 1, mul: 0.7 });
   C.F(rv, 'living', 10, 0, 18, 22, { tier: 2 }); C.F(rv, 'kitchen', 18, 0, 28, 11, { tier: 1 }); C.F(rv, 'office', 18, 11, 28, 22, { tier: 2 });
   C.F(rv, 'bedroom', 0, 0, 10, 12, { tier: 2, storey: 1, extra: [['suitcase', 1]] }); C.F(rv, 'bedroom', 0, 12, 10, 22, { tier: 1, storey: 1 });
@@ -1173,7 +1174,7 @@ function northPOIs(C) {
   const rg = C.gbld(RU, { x: 368, z: 98, w: 20, d: 14, storeys: 2, wall: 'plaster', tint: 0xe0d0c0, floor: 'tiles', roof: 'roofTile', roofShape: 'gable', name: 'Rubie Guesthouse',
     doors: [{ side: 's', at: 4, w: 1.8, door: true }, { side: 'n', at: 12, w: 1.6, door: true }, { side: 's', at: 12, w: 2.4, sill: 0.9 }],
     inner: [[10, 0, 10, 14, [{ at: 6, w: 1.6 }]], [10, 0, 10, 14, [{ at: 6, w: 1.6 }], 1]],
-    stairs: [{ x: 2, z: 0.7, w: 1.4, dir: 'e', from: 0, to: 1 }] });
+    stairs: [{ x: 2, z: 0.8, w: 1.6, dir: 'e', from: 0, to: 1 }] });
   C.F(rg, 'kitchen', 0, 0, 10, 14, { tier: 1 }); C.F(rg, 'bedroom', 10, 0, 20, 14, { tier: 2 });
   C.F(rg, 'living', 0, 0, 10, 14, { tier: 1, storey: 1 }); C.F(rg, 'bedroom', 10, 0, 20, 14, { tier: 2, storey: 1 });
   const inRU = (x, z) => { const [X, Z] = GL(RU, x, z); return X > 350 && X < 390 && Z > 52 && Z < 88; };
@@ -1193,7 +1194,7 @@ function westPOIs(C) {
   const paA = C.B.pale = C.gbld(PA, { x: 250, z: 146, w: 30, d: 14, storeys: 3, wall: 'plaster', tint: 0xd8d4c8, floor: 'wood', roof: 'roofTar', name: 'Pale Apartments A',
     doors: [{ side: 's', at: 4, w: 1.6, door: true }, { side: 's', at: 14, w: 1.6, door: true }, { side: 's', at: 24, w: 1.6, door: true }, { side: 'n', at: 3, w: 2.2, sill: 1 }, { side: 'n', at: 13, w: 2.2, sill: 1 }, { side: 'n', at: 23, w: 2.2, sill: 1 }, { side: 'w', at: 5, w: 2, sill: 1 }],
     inner: [[10, 0, 10, 14, []], [20, 0, 20, 14, []], [0, 7, 10, 7, [{ at: 6, w: 1.6 }]], [10, 7, 20, 7, [{ at: 2, w: 1.6 }]], [20, 7, 30, 7, [{ at: 6, w: 1.6 }]], ...flatWalls(1), ...flatWalls(2)],
-    stairs: [{ x: 11.3, z: 0.7, w: 1.4, dir: 'e', from: 0, to: 1 }, { x: 13.3, z: 4.5, w: 1.4, dir: 'w', from: 1, to: 2 }], ladders: [{ side: 'n', at: 27 }] });
+    stairs: [{ x: 11.3, z: 0.8, w: 1.6, dir: 'e', from: 0, to: 1 }, { x: 13.3, z: 4.4, w: 1.6, dir: 'w', from: 1, to: 2 }], ladders: [{ side: 'n', at: 27 }] });
   for (let k = 0; k < 3; k++) for (let u = 0; u < 3; u++) {
     C.F(paA, u === 1 ? 'kitchen' : 'bedroom', u * 10, 0, u * 10 + 10, 7, { tier: 1, storey: k, mul: k ? 0.8 : 1 });
     C.F(paA, 'living', u * 10, 7, u * 10 + 10, 14, { tier: u === 2 || k === 2 ? 2 : 1, storey: k, mul: k ? 0.8 : 1 });
@@ -1202,7 +1203,7 @@ function westPOIs(C) {
     doors: [{ side: 'n', at: 5, w: 1.6, door: true }, { side: 'n', at: 18, w: 1.6, door: true }, { side: 's', at: 4, w: 2.2, sill: 1 }, { side: 's', at: 18, w: 2.2, sill: 1 }, { side: 'e', at: 6, w: 2, sill: 1 }],
     inner: [[13, 0, 13, 14, []], [0, 7, 13, 7, [{ at: 9, w: 1.6 }]], [13, 7, 26, 7, [{ at: 2, w: 1.6 }]],
       ...[1, 2].flatMap(k => [[13, 0, 13, 14, [{ at: 10, w: 1.6 }], k], [0, 7, 13, 7, [{ at: 9, w: 1.6 }], k], [13, 7, 26, 7, [{ at: 4, w: 1.6 }], k]])],
-    stairs: [{ x: 6.4, z: 0.7, w: 1.4, dir: 'e', from: 0, to: 1 }, { x: 1.6, z: 4.6, w: 1.4, dir: 'e', from: 1, to: 2 }] });
+    stairs: [{ x: 6.4, z: 0.8, w: 1.6, dir: 'e', from: 0, to: 1 }, { x: 1.6, z: 4.4, w: 1.6, dir: 'e', from: 1, to: 2 }] });
   C.F(paB, 'living', 0, 0, 13, 7, { tier: 1 }); C.F(paB, 'bedroom', 0, 7, 13, 14, { tier: 2 });
   C.F(paB, 'kitchen', 13, 0, 26, 7, { tier: 1 }); C.F(paB, 'bunk', 13, 7, 26, 14, { tier: 1 });
   for (const k of [1, 2]) { C.F(paB, 'living', 0, 0, 13, 7, { tier: 1, storey: k, mul: 0.7 }); C.F(paB, 'bedroom', 0, 7, 13, 14, { tier: k, storey: k }); C.F(paB, 'bedroom', 13, 0, 26, 14, { tier: 1, storey: k }); }
@@ -1219,7 +1220,7 @@ function westPOIs(C) {
   const bw = C.B.ben = C.gbld(BW, { x: 324, z: 190, w: 20, d: 16, storeys: 2, wall: 'brick', tint: 0xd8c8b0, floor: 'wood', roof: 'metalPanel', roofTint: 0x9ad6e6, peek: 0.55, name: "Ben Welda's Sunroof",
     doors: [{ side: 'w', at: 6, w: 1.8, door: true }, { side: 's', at: 13, w: 1.8, door: true }, { side: 's', at: 4, w: 2.4, sill: 0.9 }, { side: 'n', at: 6, w: 2.4, sill: 0.9 }, { side: 'n', at: 14, w: 2.4, sill: 0.9 }],
     inner: [[10, 0, 10, 16, [{ at: 6, w: 1.6 }]], [10, 8, 20, 8, [{ at: 3, w: 1.6 }]], [10, 0, 10, 16, [{ at: 4, w: 1.6 }], 1]],
-    stairs: [{ x: 0.6, z: 9, w: 1.4, dir: 'n', from: 0, to: 1 }] });
+    stairs: [{ x: 0.75, z: 9, w: 1.6, dir: 'n', from: 0, to: 1 }] });
   C.F(bw, 'living', 0, 0, 10, 16, { tier: 2 }); C.F(bw, 'bedroom', 10, 0, 20, 8, { tier: 2 }); C.F(bw, 'kitchen', 10, 8, 20, 16, { tier: 1 });
   C.F(bw, 'living', 0, 0, 10, 16, { tier: 1, storey: 1, mul: 0.6 }); C.F(bw, 'bedroom', 10, 0, 20, 16, { tier: 2, storey: 1, extra: [['suitcase', 1]] });
   const bg = C.gbld(BW, { x: 346, z: 194, w: 10, d: 10, wall: 'corrugated', roof: 'corrugated', floor: 'concrete', name: "Welda's Garage", doors: [{ side: 's', at: 2, w: 3.2 }, { side: 'w', at: 3, w: 1.6 }] });
@@ -1240,7 +1241,7 @@ function westPOIs(C) {
     C.inLight(cx, cz, kind === 'archive' ? 0x90c0ff : 0xe0a0ff, 1.2, r + 3, 3.5);
     if (s > 0.8) {
       for (const [dx, dz, rot] of [[-3.2, -2.2, 0], [3.2, -2.2, 0], [-3.2, 2.2, PI], [3.2, 2.2, PI]]) w.prop(kind === 'archive' && dx > 0 ? 'dg_server' : 'dg_hydrorack', cx + dx, cz + dz, rot, { solid: true });
-      if (kind === 'archive') { w.prop('dg_console', cx - 4.3, cz, PI / 2, { solid: true }); w.container('electronics', cx + 2, cz + 4.6, PI, { tier: 3 }); w.container('electronics', cx - 4.8, cz + 2.4, PI / 2, { tier: 2 }); }
+      if (kind === 'archive') { w.prop('dg_console', cx - 4.3, cz, PI / 2, { solid: true }); w.container('electronics', cx + 2, cz + 4.6, PI, { tier: 3 }); w.container('electronics', cx - 2.0, cz - 4.4, 0, { tier: 2 }); }
       w.container('plant', cx - 1.2, cz + 0.2, 0, { tier: 2 }); w.container('plant', cx + 1.4, cz - 0.4, 0, { tier: 1 }); w.container('basket', cx + 4.6, cz + 2.6, 0, { tier: 1 });
     } else {
       w.prop('dg_planter', cx - 1.4, cz - 1.2, 0, { solid: true, scale: 0.8 }); w.container('plant', cx + 1, cz + 1, 0, { tier: 2 });
@@ -1305,7 +1306,7 @@ function westPOIs(C) {
     doors: [{ side: 'e', at: 26, w: 2.4, door: true }, { side: 's', at: 22, w: 2, door: true }, { side: 'n', at: 14, w: 3 }, { side: 'e', at: 8, w: 3, sill: 1.1 }, { side: 'w', at: 10, w: 3, sill: 1.1 }, { side: 'w', at: 26, w: 3, sill: 1.1 }, { side: 'e', at: 36, w: 3, sill: 1.1 }],
     inner: [[0, 20, 32, 20, [{ at: 14, w: 2.4 }]], [0, 32, 32, 32, [{ at: 6, w: 1.8, door: true, locked: 'surveillance' }, { at: 24, w: 1.8 }]], [16, 32, 16, 44, []],
       [0, 20, 32, 20, [{ at: 10, w: 2 }], 1], [0, 32, 32, 32, [{ at: 8, w: 1.8 }, { at: 26, w: 1.8 }], 1], [16, 32, 16, 44, [{ at: 6, w: 1.6 }], 1]],
-    stairs: [{ x: 20, z: 20.6, w: 1.4, dir: 'e', from: 0, to: 1 }], ladders: [{ side: 'e', at: 4 }] });
+    stairs: [{ x: 20, z: 20.75, w: 1.6, dir: 'e', from: 0, to: 1 }], ladders: [{ side: 'e', at: 4 }] });
   for (const lx of [5, 11, 17]) C.P(wtc, 'dg_pump', lx, 6, PI / 2, { solid: true });
   C.P(wtc, 'dg_valve', 28, 13, 0, { solid: true }); C.P(wtc, 'dg_bigpipe', 12, 17.5, 0, { solid: true, scale: 0.6 });
   C.Cn(wtc, 'toolbox', 4, 18, 0, { tier: 2 }); C.Cn(wtc, 'crate', 30, 2, 0, { tier: 1 }); C.Cn(wtc, 'locker', 2, 12, PI / 2, { tier: 1 });
@@ -1395,7 +1396,7 @@ function southPOIs(C) {
   const sc = C.B.sub = C.gbld(SS, { x: 370, z: 550, w: 18, d: 16, storeys: 2, name: 'Substation Control', tint: 0xd0ccc0, floor: 'tiles', floorY: MID + 0.2, blend: 2,
     doors: [{ side: 'w', at: 10, w: 2, door: true }, { side: 's', at: 12, w: 2.4, door: true }, { side: 'n', at: 6, w: 3, sill: 1.1 }, { side: 'e', at: 6, w: 3, sill: 1.1 }],
     inner: [[9, 0, 9, 16, [{ at: 10, w: 1.8 }]], [9, 8, 18, 8, [{ at: 4, w: 1.6 }]], [9, 0, 9, 16, [{ at: 4, w: 1.6 }], 1]],
-    stairs: [{ x: 0.6, z: 1.6, w: 1.4, dir: 's', from: 0, to: 1 }], ladders: [{ side: 'e', at: 13 }] });
+    stairs: [{ x: 0.75, z: 1.6, w: 1.8, dir: 's', from: 0, to: 1 }], ladders: [{ side: 'e', at: 13 }] });
   C.F(sc, 'control', 0, 0, 9, 16, { tier: 2 }); C.F(sc, 'server', 9, 0, 18, 8, { tier: 2 }); C.F(sc, 'workshop', 9, 8, 18, 16, { tier: 1 });
   C.F(sc, 'office', 0, 0, 9, 16, { tier: 1, storey: 1 }); C.F(sc, 'server', 9, 0, 18, 16, { tier: 2, storey: 1 });
   const sh = C.gbld(SS, { x: 392, z: 556, w: 8, d: 7, wall: 'brick', roof: 'corrugated', name: 'Switch Hut', floor: 'concrete', floorY: MID + 0.2, blend: 1.5, doors: [{ side: 's', at: 3, w: 1.6, door: true }] });
@@ -1456,7 +1457,7 @@ function southPOIs(C) {
       [40, 0, 40, 40, [{ at: 6, w: 1.8 }, { at: 24, w: 1.8, door: true, locked: 'testing_annex' }]], [40, 14, 56, 14, []],
       [16, 0, 16, 40, [{ at: 9, w: 1.8 }, { at: 30, w: 1.8 }], 1], [0, 20, 16, 20, [{ at: 6, w: 1.8 }], 1], [40, 0, 40, 40, [{ at: 6, w: 1.8 }, { at: 24, w: 1.8 }], 1],
       [16, 26, 40, 26, [{ at: 14, w: 2 }], 1], [40, 20, 56, 20, [{ at: 6, w: 1.8 }], 1]],
-    stairs: [{ x: 20, z: 38, w: 1.4, dir: 'e', from: 0, to: 1 }], ladders: [{ side: 'w', at: 10 }],
+    stairs: [{ x: 20, z: 37.4, w: 1.8, dir: 'e', from: 0, to: 1 }], ladders: [{ side: 'w', at: 10 }],
     roofExtras: [[20, 6, 30, 16, 2.2], [44, 30, 52, 36, 1.0]] });
   C.F(ta, 'medical', 0, 0, 16, 20, { tier: 2, extra: [['medical_bag', 1]] });
   C.F(ta, 'commercial', 0, 20, 16, 40, { tier: 1, extra: [['cabinet', 1]] });
@@ -1534,7 +1535,7 @@ function eastPOIs(C) {
   const ph = C.B.pump = C.gbld(PH, { x: 892, z: 290, w: 22, d: 14, storeys: 2, name: 'Pump House', wall: 'brick', tint: 0xc0b0a0, floor: 'concrete', roof: 'corrugated', floorY: LOW + 0.7, blend: 1.5,
     doors: [{ side: 'w', at: 8, w: 2.4, door: true }, { side: 's', at: 16, w: 2, door: true }, { side: 'n', at: 4, w: 3, sill: 1.1 }],
     inner: [[13, 0, 13, 14, [{ at: 9, w: 1.8 }]], [13, 0, 13, 14, [{ at: 9, w: 1.8 }], 1]],
-    stairs: [{ x: 20, z: 1.6, w: 1.4, dir: 's', from: 0, to: 1 }], ladders: [{ side: 'n', at: 6 }] });
+    stairs: [{ x: 19.4, z: 1.6, w: 1.8, dir: 's', from: 0, to: 1 }], ladders: [{ side: 'n', at: 6 }] });
   for (const lx of [5, 10]) C.P(ph, 'dg_pump', lx, 4, 0, { solid: true });
   C.Cn(ph, 'toolbox', 4, 12, 0, { tier: 2 }); C.Cn(ph, 'crate', 11, 12, 0, { tier: 1 });
   C.IL(ph, 7, 7, 0xffd090, 1.0, 9);

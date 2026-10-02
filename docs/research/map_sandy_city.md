@@ -53,20 +53,34 @@ POI `id` = snake_case of the tweaked display name; `aliases` = snake_case of the
 | eastern_station | Eastern Station | — | 552, 616 | 14 | 1 |
 | southern_station | Southern Station | — | 451, 737 | 14 | 1 |
 
-## Extracts (reference positions)
-| id | name | kind | x, z |
-|---|---|---|---|
-| northern_station | Northern Station | metro | 425, 303 |
-| western_station | Western Station | metro | 310, 477 |
-| eastern_station | Eastern Station | metro | 552, 616 |
-| southern_station | Southern Station | metro | 451, 737 |
-| collapsed_supermarket_hatch | Collapsed Supermarket Hatch | hatch (`raider_hatch_key`) | 475, 167 |
-| train_station_hatch | Train Station Hatch | hatch | 252, 344 |
-| highway_overpass_hatch | Highway Overpass Hatch | hatch | 524, 516 |
-| old_town_hatch | Old Town Hatch | hatch | 306, 658 |
+## Extracts
+Reference positions in brackets; the metro halls are searched outward from them for a free, level
+30 × 15 m site (axis-aligned so the stairwells sit on the 2 m nav grid), so the platforms land a few metres off.
 
-Metro entrances are `sc_metro` stairwells with an "M" totem + green beacon; twelve sealed secondary
-metro stairs (`sc_metro_stairs`) dot the town where the reference shows stair icons.
+| id | name | kind | built at x, z (reference) | face |
+|---|---|---|---|---|
+| northern_station | Northern Station | metro, platform 2.3 m below street | 428, 303 (425, 303) | −π/2 (track to the west) |
+| western_station | Western Station | metro | 304, 479 (310, 477) | −π/2 |
+| eastern_station | Eastern Station | metro | 541, 630 (552, 616) | 0 (track to the south) |
+| southern_station | Southern Station | metro | 444, 732 (451, 737) | 0 |
+| collapsed_supermarket_hatch | Collapsed Supermarket Hatch | hatch (`raider_hatch_key`) | 476, 168 (475, 167) | toward the most open side |
+| train_station_hatch | Train Station Hatch | hatch | 252, 344 | " |
+| highway_overpass_hatch | Highway Overpass Hatch | hatch | 524, 516 | " |
+| old_town_hatch | Old Town Hatch | hatch | 306, 658 | " |
+
+**Metro stations are real underground halls** (World `under: 5`): a 30 × 15 m tiled hall whose lid is the
+street paving. Two 4 m stair flights (one per end) climb from the hall floor straight up to the street;
+their openings are fenced by rust railings with a gap at the street end, an `sc_metro_sign` totem (red "M"
+box + blue line plate) and a lamppost at each entrance. Inside: pillars, benches, departure sign, kiosk,
+locker/trash/backpack loot and ceiling lights (`lamp({ yAbs })`). The `extract(..., { kind: 'metro', face,
+trackZ: 3, trackLen: 28, platformLen: 18 })` stands at hall-local (15, 9); the extract set adds the raised
+platform, the 28 m track along the hall 3 m in front of the point, signals, roundel, ticket-machine
+console and the 12 m car that slides in. A 16 × 8 m block around the point is kept free of our props;
+dark tunnel mouths sit in both end walls where the track meets them. Twelve sealed secondary metro stairs
+(`sc_metro_stairs`) still dot the town where the reference shows stair icons.
+
+**Raider hatches**: only the extract set's hatch (no extra props), a 3 × 3 m steel apron, an amber
+lamppost behind it and 2.4 m kept clear; `face` points to the most open of 8 directions.
 
 ## Key rooms (ids match the key items in `src/data/items.js`)
 Key wings are rotated buildings; `keyRoom` records carry the world bounding box plus `polys` (exact rotated
@@ -74,22 +88,26 @@ footprints, one per wing).
 
 | room id | where | bbox (x0,z0 – x1,z1) | locked doors | tier-3 containers |
 |---|---|---|---|---|
-| hospital | Hospital, middle wing (reference "Hospital Key" icon), rotated 56° | 432,216 – 471,257 | 3 | 10 |
+| hospital | Hospital, middle wing, **3rd floor only** (game: up the main wing's stairs, along the hallway, locked door); rotated 56° | 432,216 – 471,257 | 2 (storey 2, from both neighbouring wings) | 10 |
 | space_travel | whole Space Travel block (2 wings), rotated 59° | 508,349 – 561,412 | 4 | 16 |
-| town_hall | Town Hall centre wing (north door by the key icon), rotated −30° | 457,496 – 496,534 | 4 | 10 |
+| town_hall | Town Hall centre wing, ground floor + first floor (north door by the key icon), rotated −30° | 457,496 – 496,534 | 5 (3 ground, 2 upstairs) | 10 |
 | residential | Plaza Rossa west house (master-key icon by Main Street) | 403,687 – 422,710 | 8 total | 8 |
-| residential | Grandiosa Apartments, north half of the north block | 204,575 – 233,616 | (shared) | 8 |
+| residential | Grandiosa Apartments, north half of the north block, all three walkable floors | 204,575 – 233,616 | (shared, incl. 2 upstairs) | 8 |
 | residential | Piazza Arbusta south block, west wing | 559,622 – 593,653 | (shared) | 8 |
 
-Every opening into a key wing is a `door: true, locked: <id>` (exterior doors and the internal doorways to
-the neighbouring wings). Reachability (headless Chromium, 0.5 m grid, locked door leaves rasterised in their
-rotated frame): **0 interior cells of any key wing reachable from a spawn without the key**.
+Every opening into a key area is a `door: true, locked: <id>` (exterior doors and the internal doorways to
+the neighbouring wings, on every storey where the wings connect). `keyRoom` records carry `floorYs` (the
+lowest locked floor per wing; the Hospital's is the 3rd floor). Key wings never get roof ladders or roof
+hatches, their upper windows have 1 m sills, and their own stairs stop below a storey-gated key floor.
+Reachability (headless Chromium, multi-level flood on the 0.5 m grid with ladders, every locked door closed):
+**0 surfaces of any key area reachable from a spawn without the key**. Upstairs doorways between wings are
+offset from the ground-floor doorway because a grid cell holds only one door blocker.
 
 ## Other gameplay markers
 * 19 player spawns (reference spawn icons; the east one sits on the Corso deck at the map edge).
 * ARK: 98 always-on spawn groups + 30 condition-gated ones (128 total).
-  * Sentinels on the Town Hall roof and the overpass (reference icons; both snapped to the real roof /
-    deck height with `yAbs`), plus Red Tower, Bell Tower and Hospital roofs; 8 roof / deck turrets.
+  * Sentinels on the Town Hall roof and the overpass (reference icons), plus Red Tower, Bell Tower and
+    Hospital roofs; 8 roof / deck turrets — all spawned on the real roof / deck surface (`surface: true`).
   * 16 wasp pairs + 6 hornets on patrol loops over plazas and streets; ticks in POI rooms; pops,
     fireballs and shredders in the lanes; snitches + surveyors in the dunes; rocketeers along the highway
     and dune rims; leapers / bastions / two bombardier+spotter pairs in the open dunes.
@@ -108,7 +126,7 @@ rotated frame): **0 interior cells of any key wing reachable from a spawn withou
 * Three fixed **Barron husks** (`barron_husk`, tier 3) half-buried in the dunes west of the rail yard,
   in the NE olive clearing and in the southern dunes (the wiki notes Baron Husks have fixed locations).
 * Field depots (with field crates) at the Hospital forecourt, Plaza Rossa west and Sandy Properties.
-* ~840 containers (≈290 T1 / 450 T2 / 100 T3); loot themed per building kind (medical in the hospital,
+* ~775 containers (≈230 T1 / 410 T2 / 135 T3; ~190 upstairs, on roofs or in the metro halls); loot themed per building kind (medical in the hospital,
   electronics/servers in Research + Space Travel, books/desks in Library + Town Hall, toolboxes in the
   warehouses/depots, car trunks on the highway, raider caches at the highway camp, plants in groves).
 * Zones: Dunes (1), Old Town (2), and the reference's outlined high-value areas (3): Hospital,
@@ -122,9 +140,9 @@ rotated frame): **0 interior cells of any key wing reachable from a spawn withou
   cover the paving; dunes pile against the windward side of edge buildings.
 * **Buried buildings**: complexes flagged `sunk` sit low with sand piled against them; 24 `BURIED` houses
   are solid plaster masses with stepped tile roofs/attic windows poking out of the dunes.
-* **Corso da Vinchi** (elevated highway): a walkable deck in the heightfield (5.2 m above the town) from
-  the east edge through Piazza Arbusta, over the old town, curving SW to the map corner; side walls,
-  parapets, pilasters; four collapsed spans where old streets pass under (rubble slabs + leaning pillar at
+* **Corso da Vinchi** (elevated highway, ~5.2 m above the town) from the east edge through Piazza Arbusta,
+  over the old town, curving SW to the map corner: a real overpass slab on piers where it is high (walk
+  under it), a heightfield embankment with side walls and pilasters where it is low; parapets throughout; four collapsed spans where old streets pass under (rubble slabs + leaning pillar at
   each broken end); nine sand drifts ramp up onto the deck. Traffic jam of Fiat-style wrecks, buses,
   barriers, husks; Abandoned Highway Camp (tents, tarps, campfire, raider caches, sandbags) on the deck.
 * **Marino rail line**: tracks north of the station, a platform canopy with wagons, then a brick viaduct
@@ -145,20 +163,44 @@ rotated frame): **0 interior cells of any key wing reachable from a spawn withou
   bell, cypress avenue, spiral ramp of the Parking Garage, three round cisterns NW of the station,
   container yards (Su Duranti, Warehouse), gas-station canopy with pumps.
 
+## Levels (pass 3: multi-level world)
+* **Upper floors** (real slabs, BSP rooms, furniture and loot per storey, sill windows, doorways between
+  wings on each common storey): Hospital (3 floors, key room on the 3rd), Town Hall (2), Library + annex,
+  Galleria, Research, Space Travel (key, 2), Grandiosa Apartments (3), Dune's End Block, Marino Station,
+  Santa Marta Houses. Stairs are 3.8 m flights (2.2 m in small wings) alternating sides; other storeys stay
+  visual (dressed facades). Upstairs loot gets a small tier bump; ~190 containers sit upstairs, on roofs or
+  underground.
+* **Parking Garage**: three parking decks + a roof deck joined by 4 m stair flights; columns, parked cars
+  with trunks, barriers and lights on every deck, abandoned cars and a raider cache on the roof.
+* **Towers**: the Red Tower and the church Bell Tower are climbable all the way (stairs on every storey,
+  crates on the landings, weapon case at the top) with a Sentinel on the walkable roof.
+* **Rooftop routes**: flat roofs are walkable; POI wings and some core blocks get exterior roof ladders;
+  neighbouring flat roofs within 9 m are joined by wooden planks (`bridge()`, same height) or a plank + ladder
+  (up to one storey higher); every roof cluster gets a ladder from the street (12 planks, ~60 ladders,
+  ~100 of 179 roofs reachable). The Hospital rooftop cache sits on the main wing roof.
+* **Corso da Vinchi overpass**: wherever the deck stands > 1.6 m above the old street it is a real
+  `bridge()` slab (0.9 m thick) on pier pairs with cap beams every 18 m, so the street network continues
+  underneath; low stretches stay an embankment. The four collapsed spans keep their broken ends and rubble;
+  the sand drifts run under the slab edge so they meet the deck flush (all deck sections reachable).
+* **Perches**: Sentinels / turrets on the Town Hall, Hospital, Red Tower, Bell Tower, Galleria, Grandiosa,
+  Library, Research, Space Travel, Warehouse and Marino Station roofs and on the overpass deck use
+  `{ surface: true }` (real roof / deck surface).
+
 ## Deviations (forced by the top-down / engine model)
-* No walkable upper floors or snap-hook rooftop traversal: buildings are one walkable floor + visual
-  storeys (2–7). Rooftop routes of the original are replaced by the walkable highway/rail decks and dune
-  ramps.
+* Ziplines / snap hooks are replaced by ladders and planks; the Town Hall's secret one-way window exit
+  is not modelled.
 * Footprints are rectangles (or rows of rectangles); L- and V-shaped reference blocks (Santa Marta,
   Town Hall annex) are 2–3 rotated rectangles meeting at the corner, with small gaps where they abut.
 * Rotations are folded into ±45°, so a block traced at 60° is built as a −30° block with its long side
   running the other way; footprint and orientation match, only the "front" side differs.
 * Collapsed highway spans are placed where the reference's old streets cross under the Corso; the original
   has more continuous ramps to the overpass.
-* Metro stations are surface stairwells (no underground), hatches use the shared `hatch` prop.
+* Rotated buildings keep their flights in their own frame; the AI's 2 m nav grid climbs ~75 % of them
+  (axis-aligned halls, garage, towers up to the 4-layer nav limit); players can use all of them.
 * Display names follow the quest table (`Marino`, `Piazza Romana`, `Sandy Properties`, `Santa Marta`,
   `Grandiosa`, `Su Duranti`, `Piazza Arbusta`) plus `Plaza Rossa`, `Corso da Vinchi`.
 
 ## Budget (headless Chromium, SwiftShader)
-179 buildings, ~18.7 k props, ~840 containers, 128 ARK groups (98 always on), ~660 lamps;
-build + finalize ≈ 2.0–2.7 s at normal load (map `build()` ≈ 0.8–1.0 s).
+183 buildings (incl. 4 metro halls), ~19.6 k props, ~775 containers (≈230 T1 / 410 T2 / 135 T3),
+128 ARK groups (96 always on), ~800 lamps, 61 ladders; map `build()` ≈ 1.1–1.6 s, build + finalize
+≈ 3.7–4.3 s with the machine under load (4 cores, load average ~4).

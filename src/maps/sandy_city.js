@@ -600,6 +600,8 @@ function buildComplexes(ctx) {
           if (si.horiz !== ti.horiz || Math.abs(si.fixed - ti.fixed) > 0.01) continue;
           const a = Math.max(si.a, ti.a), b = Math.min(si.b, ti.b);
           if (b - a < 4) continue;
+          // a grid cell holds one door blocker, so upstairs doorways never sit above the ground one or each other
+          const g0 = Math.min(3, b - a - 1.2), used = [[(a + b) / 2 - g0 / 2 - 0.4, (a + b) / 2 + g0 / 2 + 0.4]];
           for (let lv = 1; lv < Math.min(plan[k].lv, plan[j].lv); lv++) {
             const gw = 1.8;
             const resOf = (S, pl) => (pl.f || []).filter(f => f.from === lv || f.to === lv).map(f => [S.x0 + f.res[0], S.z0 + f.res[1], S.x0 + f.res[2], S.z0 + f.res[3]]);
@@ -607,10 +609,12 @@ function buildComplexes(ctx) {
             let at = null;
             for (let d = 0; d <= (b - a) / 2 && at == null; d += 0.5) for (const sgn of [1, -1]) {
               const c = (a + b) / 2 + sgn * d; if (c - gw / 2 < a + 0.8 || c + gw / 2 > b - 0.8) continue;
+              if (used.some(([u0, u1]) => c + gw / 2 + 0.4 > u0 && c - gw / 2 - 0.4 < u1)) continue;
               const box = si.horiz ? [c - gw / 2 - 0.6, si.fixed - 1.6, c + gw / 2 + 0.6, si.fixed + 1.6] : [si.fixed - 1.6, c - gw / 2 - 0.6, si.fixed + 1.6, c + gw / 2 + 0.6];
               if (!res.some(r => box[0] < r[2] && box[2] > r[0] && box[1] < r[3] && box[3] > r[1])) { at = c - gw / 2; break; }
             }
             if (at == null) continue;
+            used.push([at, at + gw]);
             const lock = (lv >= keyLvOf(k)) !== (lv >= keyLvOf(j)) ? o.key : null;
             upConn.push([sg, T, side, at, gw, lv, lock]);
           }
@@ -1374,10 +1378,9 @@ function metroStation(ctx, id, name, rx, rz, opts = {}) {
   ctx.occ.markPoly([[-1.5, -1.5], [L + 1.5, -1.5], [L + 1.5, D + 1.5], [-1.5, D + 1.5]].map(([lx, lz]) => L2(lx, lz)), 99990);
   // ---- inside: track bed + tunnel mouths, pillars, benches, lights, signs, a little loot
   const inH = { inHall: true }, face = -rot;
-  w.paintPoly('metalPanel', [L2(1, 10.4), L2(L - 1, 10.4), L2(L - 1, 13.6), L2(1, 13.6)]);
-  for (let lx = 2; lx < 6.5; lx += 4) w.prop('sc_rails', ...L2(lx, 12), Math.PI / 2 - rot, inH);
-  for (let lx = 24.5; lx < L - 1.5; lx += 4) w.prop('sc_rails', ...L2(lx, 12), Math.PI / 2 - rot, inH);
-  for (const lx of [1.0, L - 1.15]) w.block(cx - L / 2 + lx, cz - D / 2 + 10.3, cx - L / 2 + lx + 0.15, cz - D / 2 + 13.7, 3.8, 'roofTar', { y0: floor, R, collide: false, cast: false, tint: 0x303030 });
+  // (platform, track, signals, benches, roundel and the sliding car come from the metro extract set:
+  //  28 m of track along the hall at local z 12, so only the dark tunnel mouths in the end walls are ours)
+  for (const lx of [0.95, L - 1.05]) w.block(cx - L / 2 + lx, cz - D / 2 + 10.2, cx - L / 2 + lx + 0.1, cz - D / 2 + 13.9, 3.8, 'roofTar', { y0: floor, R, collide: false, cast: false, tint: 0x202020 });
   for (const lx of [10.5, 15, 19.5]) w.block(cx - L / 2 + lx - 0.4, cz - D / 2 + 2.2, cx - L / 2 + lx + 0.4, cz - D / 2 + 3.0, ST_UNDER, 'concrete', { y0: floor, R, tint: 0xd8d0c4 });
   for (const lx of [12.75, 17.25]) w.prop('sc_bench', ...L2(lx, 4.2), face, inH);
   for (const lx of [6, 15, 24]) w.lamp(...L2(lx, 7.5), { yAbs: floor + 3.6, color: 0xe8f0ff, intensity: 1.3, range: 12, flicker: rng() < 0.4 ? 0.4 : 0, model: null });
@@ -1389,7 +1392,7 @@ function metroStation(ctx, id, name, rx, rz, opts = {}) {
   w.container(rng() < 0.5 ? 'backpack' : 'suitcase', ...L2(25.2, 9.4), face, { tier: 2, inHall: true });
   // ---- the extract on the platform, facing the track
   const [ex, ez] = L2(L / 2, 9);
-  w.extract(id, name, ex, ez, { kind: 'metro', face });
+  w.extract(id, name, ex, ez, { kind: 'metro', face, trackZ: 3, trackLen: L - 2, platformLen: 18 });
   // ---- street level: railings round both stairwells, M totems + lamps at the entrances
   const rail = (x0, z0, x1, z1) => w.block(cx - L / 2 + x0, cz - D / 2 + z0, cx - L / 2 + x1, cz - D / 2 + z1, 1.0, 'rust', { y0: surf + 0.02, R, xray: false });
   for (const [xa, xb, xe] of [[1.0, 9.1, 9.1], [L - 9.1, L - 1.0, L - 9.25]]) {
@@ -1870,6 +1873,8 @@ function markers(ctx) {
   }
   for (const [n, fx, fz] of [['Red Tower', 0.62, 0.5], ['Bell Tower', 0.7, 0.3], ['Hospital', 0.5, 0.5]]) { const r = roofOf(n, fx, fz); if (r) w.arkSpawn('sentinel', r[0], r[1], r[2]); }
   for (const n of ['Galleria', 'Grandiosa Apartments', 'Library']) { const r = roofOf(n, 0.6, 0.4); if (r) w.arkSpawn('turret', r[0], r[1], r[2]); }
+  // the Hospital rooftop cache (reached in the game by zipline / snap hook; here by the main wing's roof ladder)
+  { const r = roofOf('Hospital', 0.72, 0.5, 0); if (r) w.container('raider_cache', r[0], r[1], 0, { tier: 3, surface: true }); }
   for (const n of ['Research', 'Space Travel', 'Warehouse', 'Marino Station']) { const r = roofOf(n, 0.3, 0.6); if (r) w.arkSpawn('turret', r[0], r[1], r[2]); }
   { const [x, z] = pointAt(HIGHWAY, 735); w.arkSpawn('turret', x, z, { surface: true }); }
   // drones patrolling the plazas and streets

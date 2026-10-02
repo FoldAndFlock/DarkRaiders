@@ -85,7 +85,7 @@ const C = {
   m0: 0xcfc4a6, m1: 0xb5aa8c, m2: 0x9a907a,       // faded cream (metro car)
   p0: 0xa25a3e, p1: 0x8a4a33, p2: 0xb86c4c,       // faded red-orange (metro car)
   g0: 0x46503f, g1: 0x37402f, g2: 0x5a6650,       // olive (hatch lid)
-  weld: 0x8f8170, weld2: 0xb7a88f, glass: 0x1c2a33, glass2: 0x3c5664,
+  weld: 0x6a6158, weld2: 0x9a8c78, glass: 0x1c2a33, glass2: 0x3c5664,
 };
 // glow channels: voxels in these colours go to per-rig meshes whose material colour animates
 const G = {
@@ -575,7 +575,7 @@ function hatchWheelVox() {
 }
 function hatchWeldVox() {
   const v = new XB(0.0625, -0.75, 0.1875, -0.75, 0.75, 0.25, 0.75);
-  v.cylY(0, 0, 0.1875, 0.25, 0.69, (X, Y, Z, i, j, k) => (hash3(i, 0, k, 2) < 0.35 ? C.weld2 : C.weld), 0.56);
+  v.cylY(0, 0, 0.1875, 0.25, 0.68, (X, Y, Z, i, j, k) => (hash3(i, 0, k, 2) < 0.3 ? C.weld2 : C.weld), 0.58);
   return v;
 }
 function hatchTapeVox() {
@@ -818,7 +818,7 @@ function asHousingVox() {
   const conc = (i, j, k) => (i % 8 === 0 || k % 8 === 0 ? C.c0 : hash3(i >> 1, j >> 2, k >> 1, 6) < 0.15 ? C.c2 : C.c1);
   // back block with the fan well, louvres; roof slab + raised fan collar
   v.box(-1.75, 0, -2.75, 1.75, 2.25, -0.75, (X, Y, Z, i, j, k) => (Y < 0.25 ? C.c0 : conc(i, j, k)));
-  v.box(-1.875, 2.25, -2.875, 1.875, 2.5, -0.625, (X, Y, Z, i, j, k) => (Y < 2.375 ? C.c1 : Math.abs(X) > 1.75 || Z < -2.75 || Z > -0.75 ? C.c2 : (i + k) % 9 === 0 ? C.c2 : C.s1));
+  v.box(-1.875, 2.25, -2.875, 1.875, 2.5, -0.625, (X, Y, Z, i, j, k) => (Y < 2.375 ? C.c1 : Math.abs(X) > 1.75 || Z < -2.75 || Z > -0.75 ? C.c2 : hash3(i, j, k, 11) < 0.08 ? C.c0 : C.s1));
   v.cylY(0, -1.875, 2.5, 2.625, 0.8125, C.s2, 0.6875);
   v.cylY(0, -1.875, 1.75, 2.5, 0.6875, -1);
   v.cylY(0, -1.875, 1.625, 1.75, 0.6875, C.k1);

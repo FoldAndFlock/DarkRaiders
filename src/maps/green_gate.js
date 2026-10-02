@@ -54,7 +54,6 @@ const PLAZA = [cp(-10, -47), cp(-10, 47), cp(-152, 47), cp(-152, -47)];
 // gate frame (a, b): a along NV (north-east, into the complex), b along UV (south-east, along the gate).
 // The reference's Security Wing, Maintenance Wing, Warehouse zone, Control Room and Checkpoint all sit on
 // this 45° grid; the Traffic Tunnel band runs at its own ~84° (NNE).
-const toGF = (x, z) => [(x - GC[0]) * NV[0] + (z - GC[1]) * NV[1], (x - GC[0]) * UV[0] + (z - GC[1]) * UV[1]];
 // open-sky tunnel yard behind the gate (TUN_Y): gate mouth, Security Wing apron, band mouth, Maintenance Wing mouth
 const YARD = [[1, -46], [49, -59], [85, -59], [72, -34], [84, -13], [84, 8], [64, 24], [46, 38], [41, 39], [41, 59], [1, 59]].map(([a, b]) => cp(a, b));
 // Traffic Tunnel band: south mouth on the yard -> north cave-in
@@ -444,18 +443,20 @@ export default {
     // open-deck perch tower (deck top 7.0 m); only the legs collide so the deck's ARK sees out
     // facing (sim convention: 0 = +z/south, atan2(dx, dz)) toward a world point — fixed ARK sweep about it
     const faceTo = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);
-    const perchTower = (x, z, arkKind = null, model = 'gg_perchtower', f = null) => {
-      w.prop(model, x, z, 0, {});
-      for (const [dx, dz] of [[-1.55, -1.55], [1.55, -1.55], [-1.55, 1.55], [1.55, 1.55]]) w.prop('gg_col', x + dx, z + dz, 0, { y: -0.5, solid: [0.25, 0.25, 7.5] });
+    // yb: absolute base height for a tower standing on a tunnel lid (the heightfield there is the hall floor)
+    const perchTower = (x, z, arkKind = null, model = 'gg_perchtower', f = null, yb = null) => {
+      const Y = (y) => (yb == null ? { y } : { yAbs: yb + y });
+      w.prop(model, x, z, 0, yb == null ? {} : { yAbs: yb });
+      for (const [dx, dz] of [[-1.55, -1.55], [1.55, -1.55], [-1.55, 1.55], [1.55, 1.55]]) w.prop('gg_col', x + dx, z + dz, 0, { ...Y(-0.5), solid: [0.25, 0.25, 7.5] });
       // walkable 4 x 4 m deck (top 7.0 m) with railings, a gap where the south-face ladder arrives
-      w.prop('gg_col', x, z, 0, { y: 6.5, solid: [2.0, 2.0, 0.5] });
-      w.prop('gg_col', x, z - 1.95, 0, { y: 7.0, solid: [2.0, 0.08, 1.0] });
-      w.prop('gg_col', x - 1.95, z, 0, { y: 7.0, solid: [0.08, 2.0, 1.0] }); w.prop('gg_col', x + 1.95, z, 0, { y: 7.0, solid: [0.08, 2.0, 1.0] });
-      w.prop('gg_col', x - 1.35, z + 1.95, 0, { y: 7.0, solid: [0.65, 0.08, 1.0] }); w.prop('gg_col', x + 1.35, z + 1.95, 0, { y: 7.0, solid: [0.65, 0.08, 1.0] });
+      w.prop('gg_col', x, z, 0, { ...Y(6.5), solid: [2.0, 2.0, 0.5] });
+      w.prop('gg_col', x, z - 1.95, 0, { ...Y(7.0), solid: [2.0, 0.08, 1.0] });
+      w.prop('gg_col', x - 1.95, z, 0, { ...Y(7.0), solid: [0.08, 2.0, 1.0] }); w.prop('gg_col', x + 1.95, z, 0, { ...Y(7.0), solid: [0.08, 2.0, 1.0] });
+      w.prop('gg_col', x - 1.35, z + 1.95, 0, { ...Y(7.0), solid: [0.65, 0.08, 1.0] }); w.prop('gg_col', x + 1.35, z + 1.95, 0, { ...Y(7.0), solid: [0.65, 0.08, 1.0] });
       w.ladder(x, z + 2.55, null, x, z + 1.45, null, 0);
       mark(x - 3, z - 3, x + 3, z + 4, 2 | 4);
-      if (arkKind) perched(arkKind, x, z - 0.4, 'perch_tower', 7.0, f == null ? {} : { f });
-      w.lamp(x + 1.6, z + 1.6, { y: 7.8, model: null, color: 0xe8f4ff, intensity: 1.6, range: 14 });
+      if (arkKind) perched(arkKind, x, z - 0.4, 'perch_tower', 7.0, { ...(f == null ? {} : { f }), ...(yb == null ? {} : { yAbs: yb + 7.0 }) });
+      w.lamp(x + 1.6, z + 1.6, yb == null ? { y: 7.8, model: null, color: 0xe8f4ff, intensity: 1.6, range: 14 } : { yAbs: yb + 7.8, model: null, color: 0xe8f4ff, intensity: 1.6, range: 14 });
     };
     // extraction sites: the engine draws the lift head / hatch at the marker (engine/extracts.js); keep its clear zone
     // (5 m airshaft, 2 m hatch) and dress around it — pad, fence arc behind, floodlights either side, vent housing
@@ -661,7 +662,11 @@ export default {
       house(gfDef(164, 180, 98, 110, { h: 3.4, wall: 'corrugated', roof: 'corrugated', floor: 'concrete', name: 'Loading Office', floorY: BENCH_Y, doors: [{ side: 'w', at: 4, w: 1.8 }, { side: 'n', at: 9, w: 3 }, ...winRow('s', 16, 2, 4)] }), 'industrial', { tier: 2, poi: 'warehouse_complex' });
       house(gfDef(162, 176, 62, 72, { h: 3.4, wall: 'concrete', roof: 'roofTar', floor: 'tiles', name: 'Dispatch', floorY: BENCH_Y, doors: [{ side: 'w', at: 4, w: 1.8 }, ...winRow('e', 10, 2, 3)] }), 'office', { tier: 2, poi: 'warehouse_complex' });
       w.prop('gg_siren', 792, 250, 0, { solid: true });
-      perchTower(800, 192, 'sentinel', 'gg_perchtower', faceTo(800, 192, 746, 289));      // reference Sentinel icon east of the Headhouse, over the Maintenance Hall lid
+      // reference Sentinel icon east of the Headhouse: a lookout tower standing on the Maintenance Hall lid, beside a
+      // small concrete pump hut (solid, on the lid)
+      perchTower(774, 193, 'sentinel', 'gg_perchtower', faceTo(774, 193, 746, 289), BENCH_Y);
+      { const HR2 = rotFrame(768, 206, -0.5); w.block(763.5, 202.5, 772.5, 209.5, 3.0, 'concrete', { y0: BENCH_Y - 0.1, R: HR2, tint: 0xd8d8d0 });
+        w.block(763.2, 202.2, 772.8, 209.8, 0.25, 'roofTar', { y0: BENCH_Y + 2.9, R: HR2, collide: false }); w.prop('gg_pipes', 767, 211.6, -0.5, { yAbs: BENCH_Y, solid: true }); }
       perchTower(745, 344, 'turret', 'gg_perchtower_w', faceTo(745, 344, 760, 420));      // the white lookout tower south of the Warehouse (quest)
       for (const [a, b] of [[166, 72], [196, 112], [120, 128], [84, 62]]) lightPost(...cp(a, b), 0xe8f4ff, 'gg_lightmast', 6.5, 2.6, 21);
       for (const [a, b, k, r] of [[188, 74, 'gg_container3', PI / 4], [196, 124, 'gg_container', -PI / 4], [176, 84, 'gg_truck', PI / 4 + 0.2], [130, 130, 'gg_crates', 0], [184, 96, 'gg_pallet', 0]]) w.prop(k, ...cp(a, b), r, { solid: true });
@@ -873,16 +878,19 @@ export default {
         { x: 918, z: 136, w: 18, d: 16, storeys: 1, h: 3.6, wall: 'concrete', roof: 'roofTar', name: 'Generator House', kind: 'industrial', doors: [{ side: 'w', at: 6, w: 2.4 }, { side: 'n', at: 4, w: 1.8 }] },
       ];
       for (const p of PK) house(gDef({ ...p, floor: p.kind === 'lab' ? 'tiles' : 'wood' }), p.kind, { tier: 2, poi: 'pilgrims_peak', cont: p.kind === 'lab' ? 'lab' : undefined });
-      // communication tower + its locked basement room (key room 'communication_tower')
-      const CT = gDef({ x: 948, z: 84, w: 16, d: 14, storeys: 1, h: 3.6, wall: 'concrete', floor: 'metalPanel', roof: 'metalPanel', name: 'Comms Tower Base',
+      // communication tower + its locked basement room (key room 'communication_tower') on the plateau's north-east
+      // shoulder, where the reference draws the lattice tower, the key icon and the Sentinel
+      const CT = gDef({ x: 917, z: 66, w: 16, d: 14, storeys: 1, h: 3.6, wall: 'concrete', floor: 'metalPanel', roof: 'metalPanel', name: 'Comms Tower Base',
         doors: [{ side: 's', at: 2, w: 2 }, { side: 'w', at: 8, w: 1.8 }], inner: [[8, 0, 8, 14, [{ at: 9, w: 2, door: true, locked: 'communication_tower' }]]] });
       bldg(CT);
       keyRoomL('communication_tower', CT, 8, 0, 16, 14, { name: 'Communication Tower Basement', poi: 'pilgrims_peak' });
-      for (const [x, z, k] of [[958, 86, 'electronics'], [962, 86, 'safe'], [962, 92, 'weapon_case'], [958, 96, 'electronics'], [962, 96.5, 'security_locker']]) gCont(k, x, z, { tier: 3, room: 'communication_tower', poi: 'pilgrims_peak' });
-      gProp('gg_server', 958.5, 90, PI / 2); gProp('gg_console', 952, 85, 0); gCont('desk', 951, 95, { tier: 2, poi: 'pilgrims_peak' });
-      w.lamp(...gP(960, 91), { y: 3.2, model: null, color: 0x80c8ff, intensity: 1.2, range: 7 });
+      for (const [x, z, k] of [[927, 68, 'electronics'], [931, 68, 'safe'], [931, 74, 'weapon_case'], [927, 78, 'electronics'], [931, 78.5, 'security_locker']]) gCont(k, x, z, { tier: 3, room: 'communication_tower', poi: 'pilgrims_peak' });
+      gProp('gg_server', 927.5, 72, PI / 2); gProp('gg_console', 921, 67, 0); gCont('desk', 920, 77, { tier: 2, poi: 'pilgrims_peak' });
+      w.lamp(...gP(929, 73), { y: 3.2, model: null, color: 0x80c8ff, intensity: 1.2, range: 7 });
+      // reference Sentinel icon: on the tower base roof (3.85 m) at its west corner, over the hostel's north yard
+      { const [sx, sz] = gP(918.6, 78.4); perched('sentinel', sx, sz, 'comms_roof', 3.6 + 0.25, { f: faceTo(sx, sz, 872, 118) }); }
       // the 31 m lattice comms tower is climbable: ladders to its 10 m and 20 m platforms (terminal + loot on top)
-      { const [tx, tz] = gP(970, 92), tg = PEAK_Y;
+      { const [tx, tz] = gP(925, 60), tg = PEAK_Y;
         w.prop('gg_commtower', tx, tz, 0, {});
         for (const sx of [-2.0, 2.0]) for (const sz of [-2.0, 2.0]) w.prop('gg_col', tx + sx, tz + sz, 0, { y: -0.5, solid: [0.25, 0.25, 10.5] });
         for (const sx of [-1.5, 1.5]) for (const sz of [-1.5, 1.5]) w.prop('gg_col', tx + sx, tz + sz, 0, { yAbs: tg + 10.25, solid: [0.2, 0.2, 9.75] });
@@ -894,6 +902,9 @@ export default {
         w.lamp(tx, tz, { yAbs: tg + 30, model: null, color: 0xff3020, intensity: 1.0, range: 10, flicker: 0.5 });
         w.lamp(tx, tz + 0.5, { yAbs: tg + 22, model: null, color: 0xe8f4ff, intensity: 1.2, range: 8 });
         mark(tx - 4, tz - 4, tx + 4, tz + 4, 2 | 4); }
+      // the complex's south-east wing (reference: the white roofs continue down to the plateau's SE corner)
+      house(gDef({ x: 948, z: 84, w: 18, d: 16, storeys: 2, h: 6.4, wall: 'plaster', roof: 'roofTile', floor: 'wood', tint: 0xe0d4c0, name: 'Pilgrim Lodge',
+        doors: [{ side: 'w', at: 6, w: 2 }, { side: 's', at: 12, w: 1.8 }, ...winRow('e', 16, 2, 4), ...winRow('n', 18, 2, 4)], inner: [[9, 0, 9, 16, [{ at: 11, w: 1.8 }]]] }), 'home', { tier: 2, poi: 'pilgrims_peak' });
       gProp('gg_dish', 950, 104, 2.4); gProp('gg_dish', 965, 108, -2.2);
       // cloister court: well, olive trees, shrine
       gProp('gg_well', 913, 116, 0); gProp('gg_shrine', 900, 120, 0);
@@ -901,9 +912,6 @@ export default {
       for (const [x, z] of [[884, 100], [884, 150], [940, 160], [972, 150], [960, 128]]) lightPost(...gP(x, z), 0xffd8a0);
       gProp('gg_container2', 950, 150, 0.3); gProp('gg_generator', 940, 132, 0); gProp('gg_crates', 945, 158, 0);
       for (let i = 0; i < 26; i++) { const [x, z] = gP(R(872, 984), R(70, 176)); if (free(x, z, 1.5, 3) && pointInPoly(x, z, PEAK)) w.prop(pick(['gg_bush', 'gg_flowers', 'gg_grass', 'gg_rock_s', 'gg_cypress', 'gg_olive']), x, z, rng() * 6, { solid: true, scale: R(0.7, 1) }); }
-      // reference Sentinel icon: on the Pilgrim Hostel roof (3 storeys, 9.85 m) by its north edge, sweeping west over the
-      // footpath ramp and the plateau's north side (the roof itself screens the cloister and the rooms below)
-      perched('sentinel', ...gP(917, 86), 'hostel_roof', 0, { yAbs: PEAK_Y + 9.6 + 0.25, f: faceTo(...gP(917, 86), 862, 110) });
       // Locked Gate condition: security-code printer + its rocket escort
       gProp('gg_printer', 932, 120, 0); gCont('electronics', 932, 121.4, { tier: 2, poi: 'pilgrims_peak', note: 'security_code_printer' });
       w.arkSpawn('rocketeer', 925, 130, { count: 2, condition: 'locked_gate', patrol: [[880, 100], [960, 80], [970, 160], [890, 170]] });
