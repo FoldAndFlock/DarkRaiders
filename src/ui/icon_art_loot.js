@@ -1,7 +1,8 @@
 // Icon art: salvage valuables, trinkets and quest items (one drawing per item) + hashed fallback.
-import { K, mix, dk, lt, hue, hashStr, rng, PB } from './icon_kit.js';
-import { GL, puff, spark, canister, recolorRows, arcs } from './icon_art_gear.js';
-import { gear, hexagon, rotor, ARC } from './icon_art_mats.js';
+import { K, dk, lt, hue, hashStr, rng, PB } from './icon_kit.js';
+import { GL, puff, spark, recolorRows, arcs } from './icon_art_gear.js';
+import { gear, hexagon, rotor } from './icon_art_mats.js';
+import { GUN_GRIDS, GP } from './icon_art_guns.js';
 
 export const ART = {}, FAM = {};
 const rep = (n, v) => Array(n).fill(v);
@@ -345,16 +346,15 @@ ART.ruined_handcuffs = (g, it, id, r) => {
   g.r(10, 11, 14, 12, K.gunL); g.r(4, 15, 6, 18, K.chrome); g.r(17, 13, 20, 15, K.chrome);
   g.damage(r, { amt: 1, rust: true });
 };
-ART.ruined_parachute = (g, it, id, r) => {
+ART.ruined_parachute = (g, _it, _id, r) => {
   g.e(12, 9, 10.5, 7, 0xf07a20); for (let y = 9; y < 24; y++) for (let x = 0; x < 24; x++) g.clear(x, y);
   for (let x = 4; x <= 19; x += 5) recolorRows(g, 2, 8, 0xf0ece0, 0, x, x + 2);
   for (let x = 4; x <= 19; x += 5) g.r(x, 2, x + 2, 8, 0xf0ece0, 'soft');
   for (const x of [2, 7, 12, 17, 21]) g.l(x, 9, 12, 19, 0xc8c4b8);
   g.r(10, 19, 13, 21, 0x5a6a3c); g.damage(r, { amt: 0.7 }); g.clear(14, 3); g.clear(15, 4);
 };
-ART.ruined_riot_shield = (g, it, id, r) => {
+ART.ruined_riot_shield = g => {
   g.rr(4, 1, 19, 22, 0x9ab8c8, 'soft', 3);
-  g.r(5, 6, 18, 8, 0x2a2a30, 'flat'); g.glyph(['###.###.#..#.###.###', '#.#.#.#.#..#.#...#..'], 5, 6, 0xe8e8e8);
   g.r(5, 6, 18, 8, 0x2a2a40, 'flat'); g.r(6, 7, 17, 7, 0xe8e8e8, 'flat');
   g.pl([8, 22, 10, 16, 9, 12, 12, 10], 0xf0f8ff); g.pl([10, 16, 14, 15, 16, 18], 0xf0f8ff);
   g.r(5, 2, 5, 20, 0xc8e0ec, 'flat');
@@ -365,7 +365,7 @@ ART.ruined_tactical_vest = (g, it, id, r) => {
   g.r(11, 8, 12, 12, 0x2e3a22, 'flat'); g.damage(r, { amt: 0.9 });
 };
 ART.rusted_bolts = (g, it, id, r) => {
-  for (const [x, y, a] of [[4, 6, 1], [10, 3, 0], [15, 8, 1]]) {
+  for (const [x, y] of [[4, 6], [10, 3], [15, 8]]) {
     g.r(x, y, x + 4, y + 2, 0x9a9ea8); g.r(x + 1, y + 3, x + 3, y + 14, 0x8a8e98, 'cylV');
     for (let k = y + 5; k <= y + 13; k += 2) g.r(x + 1, k, x + 3, k, 0x6a6e78, 'flat');
   }
@@ -438,9 +438,9 @@ ART.turbo_pump = g => {
   g.r(14, 3, 21, 8, K.steel, 'cylH'); g.r(20, 2, 22, 9, K.gunL); g.r(2, 19, 6, 22, K.gun);
 };
 ART.unusable_weapon = (g, it, id, r) => {
-  g.bar(2, 15, 20, 10, 2.2, 0x6a5a4a); g.p([1, 14, 7, 13, 7, 17, 1, 19], 0x6a4a2a);
-  g.r(8, 11, 13, 14, 0x5a5048); g.r(11, 15, 12, 18, 0x4a4038); g.bar(20, 10, 22, 13, 2, 0x6a5a4a);
-  g.damage(r, { amt: 1.6, rust: true });
+  g.g(GUN_GRIDS.rattlr, GP); g.centre();
+  for (let y = 0; y < 24; y++) for (let x = 13; x < 24; x++) { const v = g.get(x, y); if (v !== -1) g.s(x, y + (x > 16 ? 1 : 0), v); }
+  g.damage(r, { amt: 1.5, rust: true });
 };
 ART.water_filter = g => {
   g.lathe(12, 1, [[8, 0x3a98f0], [12, 0x3a98f0], ...rep(17, [12, 0xe8f0f4]), [12, 0x3a98f0], [8, 0x3a98f0]]);
@@ -630,7 +630,6 @@ ART.vintage_steering_wheel = g => {
 };
 
 // ======================================================================== quest items
-const QUEST = 0xf0c838;
 ART.celestas_journal = g => {
   g.rr(4, 2, 19, 21, 0x6a3a5a, 'bevel', 1); g.r(17, 3, 19, 20, 0xe8dcbc, 'flat'); for (let y = 4; y <= 19; y += 2) g.s(18, y, 0xc8bc9c);
   g.r(4, 10, 21, 12, 0x3a2030); g.r(20, 10, 21, 12, BR);

@@ -5,7 +5,7 @@ import { Renderer, markEntity, PX_PER_M } from '../src/engine/renderer.js';
 import { Lighting } from '../src/engine/lighting.js';
 import { RaiderModel, OUTFITS, voxMesh } from '../src/engine/models.js';
 import { GU } from '../src/engine/materials.js';
-import { gunModelGeo, GUN_MODEL_IDS, gunMuzzle } from '../src/engine/guns.js';
+import { gunModelGeo, gunMuzzle } from '../src/engine/guns.js';
 import { ITEMS } from '../src/data/items.js';
 import { drawText } from '../src/ui/pixelfont.js';
 
@@ -47,7 +47,7 @@ export async function renderGuns(root) {
       d.renderOrder = 10; d.position.set(px, py, z); R.scene.add(d);
     };
     const mz = gunMuzzle(id);
-    const ct = Math.cos(tilt), st = Math.sin(tilt);
+    const ct = Math.cos(tilt);
     marker(0xffe040, x, 1.1); marker(0xff4040, x + mz[2] * MAG, 1.1 + mz[1] * MAG * ct);
     labels.push({ id, x: x - 2.2, y: 0, z: z + 1.5, name: ITEMS[id].name, cls: ITEMS[id].weapon.class, rarity: ITEMS[id].rarity });
   });

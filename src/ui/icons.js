@@ -8,7 +8,7 @@
 //   itemIconDataURL(itemId, { rarityFrame })       for DOM <img>/CSS (use image-rendering: pixelated)
 //   itemIconPixels(itemId)                         DOM-free PB (colour ints, -1 = transparent)
 import { ITEMS } from '../data/items.js';
-import { PB, OUT, mix, dk, lt, rng } from './icon_kit.js';
+import { PB, OUT, mix, dk, rng } from './icon_kit.js';
 import { ITEM_ART, FAMILY_ART, fallbackArt } from './icon_art.js';
 
 export const ICON_SIZE = 24;

@@ -1,5 +1,5 @@
 // Icon art: ammo, shields, meds, grenades, light sticks, traps, mines, gadgets, keys, mods, augments.
-import { K, mix, dk, lt, hue, hashStr, rng } from './icon_kit.js';
+import { K, mix, dk, lt, rng } from './icon_kit.js';
 
 export const ART = {}, FAM = {};
 export const RAR = { common: 0xa8a8a0, uncommon: 0x5cc860, rare: 0x3a98f0, epic: 0xc058f0, legendary: 0xf0b828 };
@@ -184,7 +184,7 @@ function recharger(g, glow, glyph, glyphC) {
   g.glyph(glyph, 10, 9, glyphC);
   g.lathe(12, 18, [[10, K.steel], [10, K.gun]]);
 }
-ART.shield_recharger = g => recharger(g, 0x48c8f0, GL.shield.map(r => r.slice(0, 4)), 0xffffff);
+ART.shield_recharger = g => recharger(g, 0x48c8f0, ['####', '####', '####', '.##.'], 0xffffff);
 ART.surge_shield_recharger = g => { recharger(g, 0x70e8ff, ['..#', '.#.', '###', '.#.', '#..'], K.yellow); g.glyph(GL.boltS, 18, 2, K.yellow); g.glyph(GL.boltS, 3, 4, K.yellow); };
 ART.integrated_shield_recharger = g => {
   g.r(2, 10, 21, 14, K.dark, 'cylH');
@@ -463,8 +463,9 @@ FAM.mod_grip = (g, it, id) => {
   const rail = (x0, x1, y) => { g.r(x0, y, x1, y + 2, K.gun); for (let x = x0 + 1; x < x1; x += 2) g.s(x, y, K.dark); };
   if (id.startsWith('angled')) {
     rail(3, 20, 5);
-    g.p([5, 8, 20, 8, 20, 10, 14, 18, 9, 18], body);
-    g.l(10, 17, 15, 17, acc); g.l(15, 11, 12, 15, dk(body, 0.3));
+    g.p([5, 8, 19, 8, 19, 19, 15, 19], body);
+    g.r(15, 18, 18, 18, acc, 'flat'); g.l(8, 9, 15, 17, lt(body, 0.3));
+    for (const y of [11, 14]) g.r(17, y, 18, y, dk(body, 0.4), 'flat');
   } else if (id.startsWith('vertical')) {
     rail(5, 18, 4);
     g.rr(8, 7, 15, 21, body, 'cylV', 1);
@@ -516,11 +517,12 @@ FAM.mod_mag = (g, it, id) => {
     for (let y = 5; y < h; y += 3) g.s(12, y, K.black);
     g.r(8, 2 + h, 15, 3 + h, acc);
   } else if (id.includes('medium')) {
-    const pts = []; const y1 = 2 + h;
-    g.p([7, 2, 13, 2, 13 + t + 3, y1, 13 + t - 3, y1 + 1], 0x3a3c44);
-    g.r(8, 1, 12, 2, BR);
-    g.p([13 + t - 4, y1, 13 + t + 4, y1 - 1, 13 + t + 4, y1 + 1, 13 + t - 4, y1 + 2], acc);
-    for (let k = 0; k < 4; k++) g.s(10 + k * (t + 2) / 4 + k, 5 + k * 3, K.black);
+    const L = h + 1, pts = [], pts2 = [];
+    for (let i = 0; i <= L; i++) { const y = 2 + i, off = (i / L) * (i / L) * (4 + t); pts.push(6 + off, y); pts2.unshift(12 + off, y); }
+    g.p([...pts, ...pts2], 0x3a3c44);
+    g.r(7, 1, 11, 2, BR); g.s(9, 0, CU);
+    const ex = 6 + 4 + t; g.r(Math.floor(ex) - 1, 3 + L, Math.floor(ex) + 7, 4 + L, acc);
+    for (let i = 3; i < L; i += 3) { const off = (i / L) * (i / L) * (4 + t); g.s(10 + off, 2 + i, K.black); }
   } else {
     g.rr(5, 3, 18, 3 + h, 0x34343c, 'bevel', 1);
     g.r(6, 1, 17, 3, 0xc8382a, 'cylH'); g.r(6, 3, 17, 3, BR, 'flat');
@@ -566,15 +568,17 @@ const AUGGLYPH = { cautious: GL.eye, safekeeper: GL.lock, survivor: GL.heart, ag
 FAM.augment = (g, it, id) => {
   const line = Object.keys(AUG).find(k => id.startsWith(k)) || 'free';
   const core = AUG[line], mk = +(/mk_(\d)/.exec(id)?.[1] || 0);
-  const plate = [0x4a4e48, 0x4a5048, 0x44464e, 0x3a3a44][mk];
-  g.r(6, 1, 8, 6, K.dark); g.r(15, 1, 17, 6, K.dark);
-  g.rr(4, 4, 19, 21, plate, 'bevel', 2);
-  g.r(2, 14, 21, 16, K.dark, 'cylH'); g.r(2, 15, 3, 15, K.steel, 'flat'); g.r(20, 15, 21, 15, K.steel, 'flat');
-  if (mk === 3) { g.r(5, 5, 18, 5, K.brass, 'flat'); g.r(5, 20, 18, 20, dk(K.brass, 0.2), 'flat'); }
-  g.c(12, 10.5, 5, dk(plate, 0.4), 'flat');
-  g.c(12, 10.5, 4, core, 'sphere');
-  const variant = /\(?(\w+)\)?$/.exec(it.name || '')?.[1]?.toLowerCase();
-  const gl = AUGGLYPH[variant] || { looting: GL.bag, combat: GL.crosshair, tactical: GL.shield, free: null }[line];
-  if (gl) g.glyph(gl, 12 - Math.floor(gl[0].length / 2), 11 - Math.floor(gl.length / 2), mix(core, 0x101018, 0.8));
-  g.r(7, 17, 16, 18, dk(plate, 0.25), 'flat'); for (let x = 8; x <= 15; x += 2) g.s(x, 17, core);
+  const plate = [0x5a5e58, 0x56604a, 0x4a4e5a, 0x3e3e4a][mk];
+  g.p([4, 2, 8, 2, 12, 6, 16, 2, 20, 2, 21, 21, 3, 21], plate, 'soft');
+  g.r(4, 2, 7, 2, lt(plate, 0.3), 'flat'); g.r(16, 2, 19, 2, lt(plate, 0.3), 'flat');
+  if (mk === 3) { g.l(8, 3, 11, 6, K.brass); g.l(15, 3, 12, 6, K.brass); }
+  g.r(3, 17, 21, 19, K.dark, 'cylH');
+  for (const x of [4, 17]) { g.rr(x, 15, x + 3, 20, dk(plate, 0.15), 'bevel', 1); g.r(x, 15, x + 3, 15, dk(plate, 0.35), 'flat'); }
+  g.r(11, 17, 13, 19, K.steel, 'bevel');
+  g.rr(7, 7, 16, 15, 0x1a1a20, 'bevel', 1);
+  g.r(8, 8, 15, 14, mix(core, 0x101014, 0.75), 'flat');
+  const variant = /\((\w+)\)$/.exec(it.name || '')?.[1]?.toLowerCase();
+  const gl = AUGGLYPH[variant] || { looting: GL.bag, combat: GL.crosshair, tactical: GL.shield, free: ['.###.', '#####', '#####', '.###.'] }[line];
+  g.glyph(gl, 12 - Math.ceil(gl[0].length / 2), 11 - Math.floor(gl.length / 2), lt(core, 0.2));
+  for (let x = 8; x <= 15; x += 2) g.s(x, 14, core);
 };

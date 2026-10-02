@@ -1,6 +1,6 @@
 // Icon art: crafting materials, components, nature items and ARK machine parts.
-import { K, mix, dk, lt, hue, hashStr, rng } from './icon_kit.js';
-import { GL, puff, spark, canister, recolorRows } from './icon_art_gear.js';
+import { K, mix, dk, lt, hashStr, rng } from './icon_kit.js';
+import { GL, spark, recolorRows } from './icon_art_gear.js';
 
 export const ART = {}, FAM = {};
 const rep = (n, v) => Array(n).fill(v);
@@ -27,7 +27,6 @@ export function rotor(g, cx, cy, r, blades, c, hub, phase = 0.4, w = 2.4) {
   for (let i = 0; i < blades; i++) { const a = phase + i * Math.PI * 2 / blades; g.bar(cx, cy, cx + Math.cos(a) * r, cy + Math.sin(a) * r, w, c); }
   g.c(cx + 0.5, cy + 0.5, 2.6, hub); g.c(cx + 0.5, cy + 0.5, 1, dk(hub, 0.5), 'flat');
 }
-function glowDot(g, x, y, c) { g.s(x, y, lt(c, 0.6)); g.s(x - 1, y, c); g.s(x + 1, y, c); g.s(x, y - 1, c); g.s(x, y + 1, c); }
 
 // ---------------------------------------------------------------- basic materials
 ART.metal_parts = g => {
@@ -224,8 +223,8 @@ ART.wires = g => {
   g.bar(16, 15, 20, 20, 1.6, K.red); g.bar(17, 13, 21, 17, 1.6, K.blue); g.s(20, 21, BR); g.s(22, 18, BR);
 };
 ART.power_cable = g => {
-  for (let i = 0; i < 3; i++) g.o(10, 11, 2.5 + i * 2.6, 4.2 + i * 2.6, i % 2 ? 0x2a2a30 : 0x3a3a44, 'flat', 0.85);
-  g.bar(15, 15, 18, 18, 2.6, 0x2a2a30); g.rr(17, 17, 22, 22, K.yellow, 'bevel', 1); g.dots([19, 19, 20, 20], K.dark);
+  for (let i = 0; i < 3; i++) g.o(10, 11, 2.5 + i * 2.6, 4.2 + i * 2.6, i % 2 ? 0x4a4a56 : 0x62626e, 'flat', 0.85);
+  g.bar(15, 15, 18, 18, 2.6, 0x4a4a56); g.rr(17, 17, 22, 22, K.yellow, 'bevel', 1); g.dots([19, 19, 20, 20], K.dark);
 };
 ART.oil = g => {
   g.e(10, 15, 7, 6, 0x3a5a3a); g.r(3, 15, 17, 20, 0x3a5a3a, 'cylV');
@@ -386,7 +385,7 @@ ART.ark_motion_core = g => motionCore(g);
 ART.damaged_ark_motion_core = (g, it, id, r) => { motionCore(g); g.damage(r, { amt: 1.2 }); };
 ART.ark_coolant = g => coolant(g, 0x30c8f0);
 ART.impure_ark_coolant = g => coolant(g, 0x6a8a48, true);
-ART.ark_flex_rubber = g => rubberCoil(g, 0x2e2e36);
+ART.ark_flex_rubber = g => { rubberCoil(g, 0x3e3e4a); g.dots([12, 3, 12, 21], ARC.hot); };
 ART.degraded_ark_rubber = (g, it, id, r) => { rubberCoil(g, 0x5a5a5e); g.damage(r, { amt: 1.2 }); };
 ART.ark_performance_steel = g => ingots(g, 0x8a9ab8);
 ART.rusty_ark_steel = (g, it, id, r) => { ingots(g, 0x8a7a6a); g.damage(r, { amt: 1.4, rust: true }); };
@@ -416,8 +415,14 @@ ART.wazp_driver = g => arkRotor(g, ARC.rust, false);
 ART.damaged_wazp_driver = (g, it, id, r) => { arkRotor(g, ARC.rust, false); g.damage(r, { amt: 1.3 }); };
 ART.hornett_driver = g => arkRotor(g, 0xe08a28, true);
 ART.damaged_hornett_driver = (g, it, id, r) => { arkRotor(g, 0xe08a28, true); g.damage(r, { amt: 1.3 }); };
-ART.rocketier_driver = g => nozzle(g, ARC.hot, 0xfff0a0);
-ART.damaged_rocketier_driver = (g, it, id, r) => { nozzle(g, null); g.damage(r, { amt: 1.3, char: true }); };
+function thruster(g, flame) {
+  g.r(8, 1, 15, 4, ARC.body); g.r(6, 3, 17, 5, ARC.plate); g.r(10, 5, 13, 7, ARC.dark);
+  g.p([9, 7, 14, 7, 18, 16, 5, 16], 0x8a5a3a, 'cylV'); g.r(5, 16, 18, 17, ARC.dark);
+  for (const y of [10, 13]) recolorRows(g, y, y, 0x5a3a22, 0.45);
+  if (flame) { g.p([6, 18, 17, 18, 14, 23, 12, 21, 9, 23], ARC.hot, 'flat'); g.p([8, 18, 15, 18, 12, 21], 0xfff0a0, 'flat'); }
+}
+ART.rocketier_driver = g => thruster(g, true);
+ART.damaged_rocketier_driver = (g, it, id, r) => { thruster(g, false); g.damage(r, { amt: 1.3, char: true }); };
 function tikk(g) {
   for (const [x0, x1] of [[6, 2], [9, 6], [14, 17], [17, 21]]) g.pl([x0, 14, x1, 17, x1, 21], ARC.dark);
   g.e(12, 11, 7.5, 5.5, ARC.body); g.e(12, 9, 5, 2.6, ARC.plate);

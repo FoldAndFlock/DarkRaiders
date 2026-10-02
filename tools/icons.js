@@ -32,9 +32,11 @@ for (const id of Object.keys(ITEMS)) {
 function iconGrid(zoom, withNames, title) {
   const h = document.createElement('h2'); h.textContent = title; root.appendChild(h);
   const groups = q.get('flat') === '1' ? [['', ids]] : [...fams];
+  const flow = document.createElement('div'); flow.className = 'flow'; root.appendChild(flow);
   for (const [fam, list] of groups) {
-    if (fam) { const h3 = document.createElement('h3'); h3.textContent = `${fam} (${list.length})`; root.appendChild(h3); }
-    const grid = document.createElement('div'); grid.className = 'grid'; root.appendChild(grid);
+    const box = document.createElement('div'); box.className = 'fam'; flow.appendChild(box);
+    if (fam) { const h3 = document.createElement('h3'); h3.textContent = `${fam} (${list.length})`; box.appendChild(h3); }
+    const grid = document.createElement('div'); grid.className = 'grid'; box.appendChild(grid);
     for (const id of list) {
       const it = ITEMS[id];
       const cell = document.createElement('div'); cell.className = 'cell';
