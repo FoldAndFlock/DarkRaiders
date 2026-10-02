@@ -22,6 +22,32 @@
 // whose colour multiplier animates: eyeMat (sensor eyes: amber idle -> red alert, flare on
 // telegraph, flicker when stunned), hotMat (weak points: slow "breathing" glow) and teleMat
 // (laser/telegraph emitters). Voxels are routed to those meshes by colour (AK.EYE*, AK.HOT*, AK.YEL).
+//
+// Breakable parts: setBroken(zoneKey) hides / darkens / swaps-in a charred stub for the part that
+// sits nearest that hitzone (keys come from def.hitzones exactly as sim.js expands them; unknown
+// keys fall back to name + index, so it never throws). Model notes (weak points in CAPS):
+//   wasp       quad rotors in guard rings (ROTORS hide on break, hull lists towards them)
+//   hornet     light armour slab + flush visor at the front, armoured front rotors, BARE GLOWING
+//              REAR ROTORS; Fyrefly variant: flamer + yellow FUEL TANK whose cover opens on attack
+//   snitch     big searchlight (turns to gaze, amber -> red on alert), alarm beacon; Spottr: laser pod
+//   tick       six IK legs (tripod gait), amber pod, beeping eye; tucks legs when leaping/latching
+//   pop        rolling bomb: yellow band + glowing slot over a non-rolling eye core; Komet splits
+//   fireball   rolling armoured ball; stops, hinges its top shell open -> white-hot CORE + flame
+//   shredder   (fireball key, behavior 'shredder') hover orb, spinning shrapnel ring, BLUE THRUSTERS
+//   turret     hazard base, yawing head + pitching twin barrels (alternating recoil), GLOWING REAR PACK
+//   sentinel   lattice mast, yawing sniper head (4 yellow converge emitters), CANISTER behind the mast
+//   surveyor   rolling plated ball; when stopped the top plate opens and the blue CORE + antenna rise
+//   rocketeer  gunship: 4 ducted fans (THRUSTERS), rocket pods, EYEBROW over the scanner, BACK
+//              CANISTER; Vaporiser: laser pods + BELLY PANEL over the core; Turbyne: own rig
+//   leaper     4 IK legs with glowing YELLOW KNEES, eye + visor plate, iris over the top CORE (opens
+//              while stunned after landing), crouches on telegraph, tucks legs mid-leap
+//   bastion    sloped front armour with eye row, 2 gatlings (spin when firing), YELLOW KNEES,
+//              GLOWING REAR CANISTER that reveals the red REAR CORE
+//   bombardier mortar (recoils), shell magazine, uplink dish, YELLOW KNEES, REAR CANISTER
+//   queen      4 colossal IK legs (YELLOW KNEES), 4 armour PLATES, head + sweep laser (gaze),
+//              red reactor CORE in a top well (swells as plates fall); Matriark adds MISSILE PODS
+// Triangle budget (visible): small/medium ARK 1.7k-14k, heavies <= ~15.5k, Queene/Matriark ~43k.
+// tools/arkgallery.html renders every model (zoom / state / rear / broken params) for review.
 import * as THREE from '../../vendor/three.module.js';
 import { Vox } from './voxel.js';
 import { litVox } from './materials.js';
