@@ -167,7 +167,7 @@ P('gg_lightmast', () => {   // floodlight mast (use as lamp model)
   for (const x of [1, 5, 9]) { v.box(x, 78, 1, x + 3, 81, 4, C.steelL); v.box(x, 78, 5, x + 3, 80, 5, C.gW); }
   v.glow(C.gW);
   return v.build();
-}, { solid: [0.2, 0.2, 7.5] });
+}, { solid: [0.2, 0.2, 5.5] });
 P('gg_siren', () => {       // emergency siren on a pole
   const v = new Vox(10, 62, 10, 0.1, [5, 0, 5]);
   v.box(4, 0, 4, 5, 54, 5, C.steelD); v.box(2, 0, 2, 7, 1, 7, C.concD);
@@ -555,3 +555,24 @@ P('gg_fence', () => { const v = new Vox(30, 20, 1, 0.1, [15, 0, 0.5]); for (cons
 P('gg_laundry', () => { const v = new Vox(40, 24, 2, 0.1, [20, 0, 1]); v.box(0, 0, 1, 0, 23, 1, C.woodD); v.box(39, 0, 1, 39, 23, 1, C.woodD); v.box(1, 22, 1, 38, 22, 1, C.steelL); for (let i = 0; i < 6; i++) v.box(3 + i * 6, 15 + (i % 2) * 2, 0, 6 + i * 6, 21, 0, [C.white, C.cloth1, C.cloth3, C.cream, C.cloth2, 0x8a9aa8][i]); return v.build(); }, { solid: [0.1, 0.1, 2.2] });
 P('gg_planter', () => { const v = new Vox(10, 8, 10, 0.1, [5, 0, 5]); v.box(1, 0, 1, 8, 4, 8, 0xa8623c); v.box(2, 4, 2, 7, 4, 7, 0x3a2a1a); v.sphere(5, 6, 5, 3.2, (x, y, z) => ((x + y + z) % 4 ? 0x4a7a2e : 0xd84a3a), 0.8); return v.build(); }, { solid: [0.45, 0.45, 0.8] });
 P('gg_bench', () => { const v = new Vox(16, 8, 5, 0.1, [8, 0, 2.5]); v.box(0, 4, 0, 15, 4, 4, C.woodL); v.box(0, 5, 4, 15, 7, 4, C.woodL); for (const x of [1, 14]) v.box(x, 0, 0, x, 3, 4, C.steelD); return v.build(); }, { solid: [0.8, 0.25, 0.8] });
+
+// ------------------------------------------------------------------ CRASH DEBRIS
+P('gg_hullplate', () => {    // curved hull panel half-buried in the ground
+  const v = new Vox(30, 10, 18, 0.2, [15, 0, 9]); const r = hrng(71);
+  for (let x = 0; x < 30; x++) for (let z = 0; z < 18; z++) { const y = Math.round(Math.sin(z / 17 * Math.PI) * 6 + (x % 9 === 0 ? 1 : 0)); const c = (x + z) % 11 === 0 ? C.rust : (z % 6 === 0 ? C.steelD : 0xc8c2b4); v.set(x, y, z, c); v.set(x, Math.max(0, y - 1), z, C.steelL); }
+  for (let i = 0; i < 6; i++) { const x = 2 + r() * 26 | 0, z = 2 + r() * 14 | 0; v.box(x, 0, z, x + 1, 9, z, C.steelD); }
+  return v.build();
+}, { solid: [2.8, 1.6, 1.4] });
+P('gg_strut', () => {        // bent structural girder
+  const v = new Vox(44, 12, 4, 0.2, [22, 0, 2]);
+  for (let x = 0; x < 44; x++) { const y = Math.round(Math.max(0, 10 - Math.abs(x - 26) * 0.5)); v.box(x, y, 1, x, y + 1, 2, x % 6 === 0 ? C.steelD : C.rust); if (x % 4 === 0) v.box(x, Math.max(0, y - 2), 1, x, y, 2, C.steel); }
+  return v.build();
+}, { solid: [3.5, 0.4, 1.4] });
+P('gg_lantern', () => { const v = new Vox(5, 16, 5, 0.1, [2.5, 0, 2.5]); v.box(2, 0, 2, 2, 11, 2, C.woodD); v.box(1, 11, 1, 3, 14, 3, C.gO); v.box(1, 15, 1, 3, 15, 3, C.steelD); v.glow(C.gO); return v.build(); }, { solid: [0.15, 0.15, 1.4] });
+P('gg_totem', () => {        // raider shrine of ARK parts adorned with cloth
+  const v = new Vox(12, 30, 12, 0.1, [6, 0, 6]);
+  v.box(5, 0, 5, 6, 26, 6, C.woodD); v.box(2, 18, 2, 9, 23, 9, 0x3a3c42); v.box(4, 20, 9, 7, 21, 9, C.gR); v.box(3, 24, 3, 8, 26, 8, 0x5a5e66);
+  for (let y = 6; y < 18; y += 3) v.box(0, y, 5, 11, y, 6, [C.cloth1, C.cloth2, C.cloth3, C.cloth4][y % 4]);
+  v.glow(C.gR);
+  return v.build();
+}, { solid: [0.5, 0.5, 2.6] });

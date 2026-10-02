@@ -199,11 +199,13 @@ export function scrappie(p) {
 export function scrappieLevelDef(p) { return SCRAPPY.levels[scrappie(p).level - 1]; }
 export function scrappieNext(p) { return SCRAPPY.levels[scrappie(p).level] || null; }
 export function scrappieFull(p) { return scrappie(p).raids >= (SCRAPPY.capacityRaids || 5); }
-// Call once per completed raid (extracted OR died). raidTime in seconds: yields scale up to 15 min topside.
-export function scrappieOnRaidEnd(p, raidTime = 900, rng = Math.random) {
+// Call once per completed raid (extracted OR died). `raid` = seconds spent topside, or the raid result
+// object ({ time } in seconds). Yields scale up to 15 min topside.
+export function scrappieOnRaidEnd(p, raid = 900, rng = Math.random) {
   const sc = scrappie(p);
   if (scrappieFull(p)) return no('Scrappie\'s nest is full - collect his haul');
-  const f = Math.max(0, Math.min(1, (raidTime || 0) / 900));
+  const secs = raid && typeof raid === 'object' ? (raid.time ?? raid.raidTime ?? 900) : raid;
+  const f = Number.isFinite(+secs) ? Math.max(0, Math.min(1, +secs / 900)) : 1;
   const add = [];
   for (const [id, mn, mx] of scrappieLevelDef(p).yields) {
     if (!ITEMS[id]) continue;

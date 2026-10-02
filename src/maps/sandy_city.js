@@ -111,9 +111,9 @@ const FLATS = [
 
 // Elevated highway "Corso da Vinci": centreline from the east edge, through Piazza Arbusto, over the
 // old town and curving away south-west past the Abandoned Highway Camp to the corner of the map.
-const HIGHWAY = [[904, 572], [850, 566], [800, 558], [748, 554], [700, 549], [660, 545], [622, 541], [570, 538], [530, 540], [505, 543],
+const HIGHWAY = [[899, 572], [850, 566], [800, 558], [748, 554], [700, 549], [660, 545], [622, 541], [570, 538], [530, 540], [505, 543],
   [478, 549], [455, 556], [428, 564], [402, 573], [378, 581], [352, 590], [330, 600], [312, 613], [292, 632], [272, 655], [255, 680],
-  [240, 705], [222, 735], [204, 768], [186, 804], [168, 842], [150, 880], [136, 910]];
+  [240, 705], [222, 735], [204, 768], [186, 804], [168, 842], [150, 880], [141, 899]];
 const HW_W = 11;          // deck width
 // collapsed spans (arc-length windows along HIGHWAY) where the old streets pass underneath
 const HW_GAPS = [[262, 276], [372, 385], [452, 465], [560, 572]];
@@ -122,7 +122,7 @@ const HW_RAMPS = [[150, 1], [214, -1], [330, 1], [418, -1], [505, 1], [642, -1],
 
 // Marano rail line: north out of the station, south through the yard and onto the long viaduct SW.
 const RAIL = [[304, 22], [288, 52], [262, 88], [250, 140], [247, 200], [245, 256], [245, 346], [236, 382], [214, 430], [196, 482],
-  [180, 540], [166, 600], [152, 660], [138, 720], [126, 790], [114, 860], [104, 912]];
+  [180, 540], [166, 600], [152, 660], [138, 720], [126, 790], [114, 860], [106, 899]];
 const RAIL_VIADUCT_FROM = 540;   // arc length where the rail climbs onto its viaduct
 
 // Building complexes: [cx, cz, length, width, angleDeg(long axis, +x toward +z), storeys, kind, opts]
@@ -150,7 +150,7 @@ const B = [
   [624, 281, 38, 26, 30, 2, 'h', { sunk: 1 }],
   [657, 285, 25, 10, 60, 1, 'r'],
   // ---- hospital and the north-west lanes
-  [453, 240, 109, 30, 58.5, 4, 'm', { name: 'Hospital', poi: 'hospital', key: 'hospital', keySeg: 1 }],
+  [[412, 198], [432, 188], [491, 275], 4, 'm', { name: 'Hospital', poi: 'hospital', key: 'hospital', keySeg: 1 }],
   [366, 238, 18, 14, 0, 1, 'r'],
   [286, 200, 16, 12, 0, 1, 'h', { sunk: 1.5 }],
   [267, 256, 24, 19, -20, 2, 'h'],
@@ -286,17 +286,17 @@ const GROVES = [
   { pts: [[790, 396], [880, 400], [890, 560], [806, 548]], d: 1.2, k: 'mix' },
   { pts: [[720, 600], [758, 600], [758, 648], [720, 648]], d: 2.4, k: 'olive' },
   { pts: [[700, 680], [800, 676], [806, 790], [756, 760], [704, 712]], d: 1.6, k: 'mix' },
-  { pts: [[464, 800], [572, 796], [578, 920], [462, 916]], d: 2.0, k: 'olive' },
-  { pts: [[560, 778], [640, 776], [644, 920], [560, 920]], d: 1.8, k: 'olive' },
-  { pts: [[706, 846], [802, 846], [806, 900], [712, 900]], d: 1.6, k: 'olive' },
-  { pts: [[330, 822], [424, 826], [426, 900], [330, 900]], d: 0.9, k: 'mix' },
+  { pts: [[464, 800], [572, 796], [578, 896], [462, 896]], d: 2.0, k: 'olive' },
+  { pts: [[560, 778], [640, 776], [644, 896], [560, 896]], d: 1.8, k: 'olive' },
+  { pts: [[706, 846], [802, 846], [806, 896], [712, 896]], d: 1.6, k: 'olive' },
+  { pts: [[330, 822], [424, 826], [426, 896], [330, 896]], d: 0.9, k: 'mix' },
   { pts: [[2, 300], [126, 300], [134, 336], [118, 560], [4, 562]], d: 1.5, k: 'olive' },
   { pts: [[20, 536], [124, 540], [128, 654], [24, 650]], d: 1.4, k: 'mix' },
-  { pts: [[150, 704], [330, 700], [338, 900], [160, 900]], d: 0.6, k: 'mix' },
+  { pts: [[150, 704], [330, 700], [338, 896], [160, 896]], d: 0.6, k: 'mix' },
   { pts: [[380, 336], [452, 330], [472, 372], [470, 460], [394, 460], [378, 400]], d: 2.6, k: 'park' },
   { pts: [[292, 470], [324, 470], [324, 500], [294, 500]], d: 2.0, k: 'palm' },
   { pts: [[490, 570], [524, 572], [522, 612], [494, 608]], d: 2.2, k: 'palm' },
-  { pts: [[810, 600], [900, 610], [900, 740], [820, 720]], d: 1.0, k: 'mix' },
+  { pts: [[810, 600], [896, 610], [896, 740], [820, 720]], d: 1.0, k: 'mix' },
   { pts: [[240, 40], [300, 36], [300, 90], [246, 96]], d: 0.8, k: 'mix' },
 ];
 
@@ -366,8 +366,8 @@ const FURN = {
   ind: [['sc_cratestack', 'crate', 3], ['workbench', 'toolbox', 3], ['shelf', 'ammo_box', 1], ['barrel', null, 2], ['barrelBlue', null, 1], [null, 'locker', 1], ['lootCrate', 'crate', 1]],
   mech: [['sc_fiat', 'car_trunk', 3], ['sc_fiat2', 'car_trunk', 2], ['workbench', 'toolbox', 2], ['barrel', null, 1], ['sc_cratestack', 'crate', 1], [null, 'locker', 1]],
 };
-const KEY_LOOT = { hospital: ['medical_bag', 'security_locker', 'medical_bag', 'safe'], town_hall: ['safe', 'desk', 'security_locker', 'weapon_case'],
-  space_travel: ['electronics', 'safe', 'security_locker', 'weapon_case'], res: ['safe', 'cabinet', 'suitcase', 'weapon_case'] };
+const KEY_LOOT = { hospital: ['medical_bag', 'security_locker', 'medical_bag', 'safe', 'cabinet'], town_hall: ['safe', 'desk', 'security_locker', 'weapon_case', 'cabinet'],
+  space_travel: ['electronics', 'electronics', 'safe', 'security_locker', 'weapon_case'], res: ['safe', 'cabinet', 'suitcase', 'weapon_case', 'backpack'] };
 
 function pickW(rng, list) { let t = 0; for (const e of list) t += e[2]; let r = rng() * t; for (const e of list) { r -= e[2]; if (r <= 0) return e; } return list[list.length - 1]; }
 const R2 = v => Math.round(v * 2) / 2;
@@ -485,7 +485,7 @@ function complexFloors(ctx) {
     for (const s of C.segs) for (let i = 0; i <= 4; i++) for (let j = 0; j <= 4; j++) {
       const g = w.groundAt(lerp(s.x0, s.x1, i / 4), lerp(s.z0, s.z1, j / 4)); sum += g; n++; mn = Math.min(mn, g);
     }
-    C.floorY = C.o.sunk ? mn + 0.15 : sum / n;
+    C.floorY = C.o.sunk ? lerp(mn, sum / n, 0.55) : sum / n;
   }
 }
 
@@ -519,7 +519,7 @@ function buildComplexes(ctx) {
       const minR = C.kind === 'i' || C.kind === 'p' ? 7 : 3.6, maxR = C.kind === 'i' || C.kind === 'p' ? 22 : C.kind === 'o' ? 16 : 9;
       if (!(C.kind === 'o' && k === 0) && !(o.name === 'Red Tower' || o.name === 'Bell Tower')) bsp(rng, 0, 0, W, D, minR, maxR, walls, rooms, []);
       else rooms.push([0, 0, W, D]);
-      for (const [a, b, c, d, gl] of walls) for (const g of gl) innerGaps.push(a === c ? [s.x0 + a, s.z0 + b + g.at + g.w / 2] : [s.x0 + a + g.at + g.w / 2, s.z0 + b]);
+      for (const [a, b, c, d, gl] of walls) for (const g of gl) innerGaps.push(a === c ? [s.x0 + a, s.z0 + b + g.at + g.w / 2, true] : [s.x0 + a + g.at + g.w / 2, s.z0 + b, true]);
       // inner wall ends on each side (to keep exterior openings clear of T-junctions)
       const ends = { n: [], s: [], w: [], e: [] };
       for (const [a, b, c, d] of walls) {
@@ -532,7 +532,7 @@ function buildComplexes(ctx) {
         const si = sideInfo(s, side);
         doors.push({ side, at: R2(at - si.a), w: gw, ...extra });
         const c = at + gw / 2;
-        gapsWorld.push(si.horiz ? [c, si.fixed] : [si.fixed, c]);
+        gapsWorld.push(si.horiz ? [c, si.fixed, !extra.sill] : [si.fixed, c, !extra.sill]);
       };
       // connections to the next segment of the same complex (shared wall line)
       for (const T of C.segs) {
@@ -582,6 +582,17 @@ function buildComplexes(ctx) {
         doorPos.push([c.side, p]); made++;
         const si = sideInfo(s, c.side);
         ctx.doorsOut.push(si.horiz ? [p, si.fixed + si.out * 1.5] : [si.fixed + si.out * 1.5, p]);
+      }
+      if (!made && !gapsWorld.length) {   // sealed segment: breach the longest exposed run so its loot is reachable
+        let best = null;
+        for (const side of ['s', 'n', 'e', 'w']) for (const r of runsBy[side]) if (!best || r.b - r.a > best.r.b - best.r.a) best = { side, r };
+        if (best && best.r.b - best.r.a >= 2) {
+          const p = (best.r.a + best.r.b) / 2, gw = 1.8;
+          addGap(best.side, p - gw / 2, gw, lockId ? { door: true, locked: lockId } : {});
+          doorPos.push([best.side, p]); made++;
+          const si = sideInfo(s, best.side);
+          ctx.doorsOut.push(si.horiz ? [p, si.fixed + si.out * 1.5] : [si.fixed + si.out * 1.5, p]);
+        }
       }
       s.doorCount = made;
       // windows (sills) along exposed runs; ruins get ragged breaches instead
@@ -831,8 +842,9 @@ function furnish(ctx) {
       const W = r.x1 - r.x0, D = r.z1 - r.z0, area = W * D;
       const keyLoot = r.key ? (KEY_LOOT[r.key] || KEY_LOOT.res) : null;
       let n = r.ruin ? (rng() < 0.45 ? 1 : 0) : clamp(Math.round(area / 24 + rng() * 0.8), 1, 6);
-      if (r.key) n = Math.max(n, 3);
-      const placed = [];
+      if (r.key) n = Math.max(n, 4);
+      const placed = [], conts = [];   // furniture solid rects [x0,z0,x1,z1], container points
+      const clearOf = (x, z, m) => placed.every(([a, b, c, d]) => x < a - m || x > c + m || z < b - m || z > d + m);
       for (let i = 0, tries = 0; i < n && tries < n * 8; tries++) {
         const e = pickW(rng, table);
         const kind = e[0], info = kind ? (propInfoSafe(kind)) : { solid: [0.4, 0.3, 0.8] };
@@ -844,21 +856,31 @@ function furnish(ctx) {
         else if (side === 2) { x = r.x0 + inset; z = lerp(r.z0 + hw + 0.4, r.z1 - hw - 0.4, rng()); rot = Math.PI / 2; }
         else { x = r.x1 - inset; z = lerp(r.z0 + hw + 0.4, r.z1 - hw - 0.4, rng()); rot = -Math.PI / 2; }
         if ((side < 2 ? W : D) < hw * 2 + 1 || (side < 2 ? D : W) < hd * 2 + 1.6) continue;
-        if (r.gaps.some(([gx, gz]) => Math.hypot(gx - x, gz - z) < hw + 1.6)) continue;
-        if (placed.some(([px, pz, pr]) => Math.hypot(px - x, pz - z) < pr + hw + 0.5)) continue;
-        if (kind) w.prop(kind, x, z, rot, { solid: true });
-        placed.push([x, z, hw]);
+        if (r.gaps.some(([gx, gz, door]) => Math.hypot(gx - x, gz - z) < hw + (door ? 1.6 : 0.2))) continue;
+        const ex = side < 2 ? hw : hd, ez = side < 2 ? hd : hw;
+        const rect = [x - ex, z - ez, x + ex, z + ez];
+        if (!placed.every(([a, b, c, d]) => rect[2] < a - 0.6 || rect[0] > c + 0.6 || rect[3] < b - 0.6 || rect[1] > d + 0.6)) continue;
+        if (conts.some(([px, pz]) => px > rect[0] - 0.6 && px < rect[2] + 0.6 && pz > rect[1] - 0.6 && pz < rect[3] + 0.6)) continue;
+        if (kind) { w.prop(kind, x, z, rot, { solid: true }); placed.push(rect); }
         i++;
-        const ck = keyLoot ? keyLoot[i % keyLoot.length] : e[1];
+        const ck = keyLoot ? keyLoot[Math.floor(rng() * keyLoot.length)] : e[1];
         if (!ck) continue;
-        if (!keyLoot && rng() < ctx.lootSkip) continue;
-        if (keyLoot) { const kc = ctx.keyLoot[r.key] = (ctx.keyLoot[r.key] || 0) + 1; if (kc > (r.key === 'residential' ? 18 : 10) || i > 3) continue; }
-        // container beside the furniture (or in its place)
-        const off = kind ? hw + 0.55 : 0, sx = side < 2 ? 1 : 0, sz = side < 2 ? 0 : 1;
-        const cx = x + sx * off * (rng() < 0.5 ? 1 : -1), cz = z + sz * off * (rng() < 0.5 ? 1 : -1);
-        if (cx < r.x0 + 0.5 || cx > r.x1 - 0.5 || cz < r.z0 + 0.5 || cz > r.z1 - 0.5) continue;
+        if (!keyLoot && rng() < (C.o.poi ? ctx.lootSkip - 0.12 : ctx.lootSkip + 0.03)) continue;
+        const capKey = r.key === 'residential' ? 'res' + C.bi : r.key === 'space_travel' ? 'st' + r.seg.id : r.key, cap = { residential: 8, space_travel: 5 }[r.key] || 10;
+        if (keyLoot && ((ctx.keyLoot[capKey] || 0) >= cap || conts.length >= 2)) continue;
+        // container beside the furniture (or in its place), clear of walls, furniture and doorways
+        const sgn = rng() < 0.5 ? 1 : -1;
+        let cx = x, cz = z;
+        if (kind) { if (side < 2) cx = x + sgn * (hw + 0.6); else cz = z + sgn * (hw + 0.6); }
+        if (side < 2) cz = clamp(cz, r.z0 + 0.8, r.z1 - 0.8); else cx = clamp(cx, r.x0 + 0.8, r.x1 - 0.8);   // off the wall
+        if (cx < r.x0 + 0.8 || cx > r.x1 - 0.8 || cz < r.z0 + 0.8 || cz > r.z1 - 0.8) { if (!kind) continue; cx = x - (cx - x); cz = z - (cz - z); }
+        if (cx < r.x0 + 0.8 || cx > r.x1 - 0.8 || cz < r.z0 + 0.8 || cz > r.z1 - 0.8) continue;
+        if (!clearOf(cx, cz, 0.45) || conts.some(([px, pz]) => Math.hypot(px - cx, pz - cz) < 1)) continue;
+        if (r.gaps.some(([gx, gz, door]) => Math.hypot(gx - cx, gz - cz) < (door ? 1.4 : 0.8))) continue;
         const tier = r.key ? 3 : C.o.poi ? (rng() < 0.07 ? 3 : 2) : (rng() < 0.15 ? 2 : 1);
         w.container(ck, cx, cz, rot, { tier, room: r.key || null });
+        conts.push([cx, cz]);
+        if (keyLoot) ctx.keyLoot[capKey] = (ctx.keyLoot[capKey] || 0) + 1;
         ctx.nCont++;
       }
       // interior light for named places (night raids)
@@ -941,6 +963,8 @@ function freeSpot(ctx, x, z, r = 1.5, max = 18) {
   for (let d = 1; d <= max; d += 1) for (let a = 0; a < 12; a++) { const px = x + Math.cos(a * 0.5236) * d, pz = z + Math.sin(a * 0.5236) * d; if (ok(px, pz)) return [px, pz]; }
   return [x, z];
 }
+// sand-buried street lamp: light sits above the post so the post does not shadow its own light
+function stLamp(w, x, z, o = {}) { w.lamp(x, z, { color: 0xffd8a0, ...o, y: 2.8, model: null }); w.prop('sc_lamppost', x, z, (x * 7.31 + z) % 6.28, { solid: [0.15, 0.15, 2.1] }); }
 function ring(ctx, cx, cz, r, n, fn) { for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; fn(cx + Math.cos(a) * r, cz + Math.sin(a) * r, a, i); } }
 function metroStation(ctx, id, name, x, z, rot = 0) {
   const { w } = ctx; [x, z] = freeSpot(ctx, x, z, 3);
@@ -948,7 +972,7 @@ function metroStation(ctx, id, name, x, z, rot = 0) {
   w.prop('sc_metro', x, z, rot, {});
   w.extract(id, name, x, z, { kind: 'metro' });
   w.lamp(x + 2.2, z - 2.6, { y: 3.2, color: 0xfff0d0, intensity: 1.3, range: 10, model: null });
-  w.lamp(x - 3.2, z + 3.4, { y: 2.6, color: 0x80ffb0, intensity: 0.9, range: 7, model: 'sc_lamppost' });
+  stLamp(w, x - 3.2, z + 3.4, { color: 0x80ffb0, intensity: 0.9, range: 7 });
   return [x, z];
 }
 function hatch(ctx, id, name, x, z) {
@@ -966,7 +990,7 @@ function fountainPlaza(ctx, x, z, opts = {}) {
   w.prop('sc_fountain', x, z, 0, { solid: true });
   ring(ctx, x, z, 7.2, 4, (px, pz, a) => w.prop('sc_bench', px, pz, -a + Math.PI / 2, { solid: true }));
   ring(ctx, x, z, 9, 6, (px, pz, a, i) => { if (i % 2 === 0) w.prop(i % 4 ? 'sc_palm' : 'sc_palm3', px, pz, rng() * 6, { solid: true }); else w.prop('sc_planter', px, pz, 0, { solid: true }); });
-  if (opts.lamps !== false) ring(ctx, x, z, 11, 4, (px, pz) => w.lamp(px, pz, { y: 2.4, model: 'sc_lamppost', intensity: 1.1, range: 9 }));
+  if (opts.lamps !== false) ring(ctx, x, z, 11, 4, (px, pz) => stLamp(w, px, pz, { intensity: 1.6, range: 11 }));
   return [x, z];
 }
 function cafe(ctx, x, z, n = 4) {
@@ -993,7 +1017,7 @@ function setPieces(ctx, HW, RL) {
   w.paint('concrete', 282, 140, 336, 176);
   for (let i = 0; i < 5; i++) w.prop(i % 2 ? 'sc_container' : 'sc_container2', 286 + i * 3.2, 172, 0.05 * (i - 2), { solid: true });
   w.prop('sc_container', 330, 146, Math.PI / 2, { solid: true });
-  for (let i = 0; i < 8; i++) { const [x, z] = freeSpot(ctx, 290 + rng() * 40, 140 + rng() * 30, 1); w.prop(rng() < 0.5 ? 'sc_cratestack' : 'crate', x, z, rng() * 6, { solid: true }); if (i % 2) w.container(rng() < 0.5 ? 'crate' : 'toolbox', x + 1.2, z, 0, { tier: 2 }); }
+  for (let i = 0; i < 8; i++) { const [x, z] = freeSpot(ctx, 290 + rng() * 40, 140 + rng() * 30, 1); w.prop(rng() < 0.5 ? 'sc_cratestack' : 'crate', x, z, rng() * 6, { solid: true }); if (i % 2) w.container(rng() < 0.5 ? 'crate' : 'toolbox', x + 2, z, 0, { tier: 2 }); }
   w.fence([[280, 138], [280, 178], [338, 178]], 1.6, 'rust');
   w.lamp(300, 176, { y: 4, color: 0xffd8a0, intensity: 1.2, range: 12 });
   // ---------------- Collapsed Supermarket: car park of half-buried cars
@@ -1006,7 +1030,7 @@ function setPieces(ctx, HW, RL) {
     w.container(i % 3 === 0 ? 'basket' : i % 3 === 1 ? 'crate' : 'suitcase', x + 1.9, z, 0, { tier: 2 });
     if (rng() < 0.5) w.prop('sc_vase', x - 1.9, z + 0.4, 0, { solid: true });
   }
-  w.lamp(530, 205, { y: 2.4, model: 'sc_lamppost', intensity: 1.0, range: 10, flicker: 0.4 });
+  stLamp(w, 530, 205, { intensity: 1.0, range: 10, flicker: 0.4 });
   // ---------------- Hospital forecourt + field depot
   for (const [x, z] of FIELD_DEPOTS) {
     const [px, pz] = freeSpot(ctx, x, z, 2.2);
@@ -1081,6 +1105,9 @@ function setPieces(ctx, HW, RL) {
   w.prop('sc_wagon', 246, 300, 0, { solid: true }); w.prop('sc_wagon', 246, 323, 0.02, { solid: true });
   for (let i = 0; i < 6; i++) w.lamp(239, 258 + i * 16, { y: 3.6, color: 0xffe0b0, intensity: 1.0, range: 9, model: null, flicker: i === 3 ? 0.6 : 0 });
   w.prop('sc_streetsign', 230, 250, 0, { solid: true });
+  // the three round cisterns north-west of the station, and a derailed wagon beside them
+  for (const [x, z, sc] of [[155, 213, 2.0], [182, 221, 1.85], [152, 240, 2.4]]) { w.prop('sc_cistern', x, z, 0, { solid: true, scale: sc }); w.paintCircle('concrete', x, z, sc * 4.3, 0.05, x); }
+  w.prop('sc_wagon', 203, 258, -0.28, { solid: true }); w.container('suitcase', 206.5, 252, 0, { tier: 1 });
   // rail yard wagons south of the station (half buried)
   const yard = [[198, 405, -0.32], [178, 412, -0.3], [206, 432, -0.33], [160, 520, -0.25], [150, 548, -0.26], [146, 580, -0.24]];
   for (const [x, z, r] of yard) { w.prop('sc_wagon', x, z, r, { solid: true }); w.container('suitcase', x + 2.4, z, 0, { tier: 1 }); }
@@ -1118,17 +1145,17 @@ function setPieces(ctx, HW, RL) {
     const [x, z, tx, tz] = pointAt(HW.pts, s), side = rng() < 0.5 ? 1 : -1, off = 1.5 + rng() * 2;
     const px = x - tz * side * off, pz = z + tx * side * off, rot = Math.atan2(tx, tz) + (rng() - 0.5) * 0.6 + (rng() < 0.5 ? Math.PI : 0);
     const t = rng();
-    if (t < 0.55) { w.prop(['sc_fiat', 'sc_fiat2', 'sc_fiat3', 'sc_fiat4'][Math.floor(rng() * 4)], px, pz, rot, { solid: true }); if (rng() < 0.55) w.container('car_trunk', px + tx * 2, pz + tz * 2, rot, { tier: 1 }); }
+    if (t < 0.55) { w.prop(['sc_fiat', 'sc_fiat2', 'sc_fiat3', 'sc_fiat4'][Math.floor(rng() * 4)], px, pz, rot, { solid: true }); if (rng() < 0.55) w.container('car_trunk', px + Math.sin(rot) * 2.7, pz + Math.cos(rot) * 2.7, rot, { tier: 1 }); }
     else if (t < 0.62) w.prop('sc_bus', px, pz, rot, { solid: true });
     else if (t < 0.8) w.prop('sc_barrier', px, pz, Math.atan2(tz, -tx) + (rng() - 0.5), { solid: true });
-    else if (t < 0.9) { w.prop('husk', px, pz, rng() * 6, { solid: true }); w.container('arc_husk', px + 1.6, pz, 0, { tier: 2 }); }
+    else if (t < 0.9) { w.prop('husk', px, pz, rng() * 6, { solid: true }); w.container('arc_husk', px + 2.1, pz, 0, { tier: 2 }); }
     else w.prop('sc_rubble', px, pz, rng() * 6, { solid: true });
   }
   for (let s = 10; s < HW.total; s += 26) {
     if (HW.inGap(s)) continue;
     const [x, z, tx, tz] = pointAt(HW.pts, s);
     w.paintCircle('sand', x + (rng() - 0.5) * 6, z + (rng() - 0.5) * 6, 2 + rng() * 3.5, 0.5, s);
-    if (rng() < 0.5) w.lamp(x - tz * (HW.width / 2 - 0.6), z + tx * (HW.width / 2 - 0.6), { y: 2.4, model: 'sc_lamppost', intensity: 1.0, range: 9, flicker: rng() < 0.3 ? 0.5 : 0 });
+    if (rng() < 0.5) stLamp(w, x - tz * (HW.width / 2 - 0.6), z + tx * (HW.width / 2 - 0.6), { intensity: 1.5, range: 11, flicker: rng() < 0.3 ? 0.5 : 0 });
   }
   // ---------------- rail line: sleepers + rails on the yard and viaduct
   for (let s = 0; s < RL.total; s += 4) {
@@ -1158,6 +1185,12 @@ function vegetation(ctx) {
     for (const [k, wgt] of ks) w.scatter(k, g.pts, Math.round(n * wgt / tot), { solid: true, seed: 1000 + gi * 17 + k.length, avoid, scale: k.startsWith('sc_olive') ? 1.45 : k === 'sc_cypress' ? 1.1 : 1.25, scaleVar: 0.4 });
     w.scatter(gi % 3 ? 'sc_shrub' : 'bush', g.pts, Math.round(n * 0.5), { seed: 2000 + gi, avoid, scaleVar: 0.5 });
     w.scatter('sc_agave', g.pts, Math.round(n * 0.12), { seed: 3000 + gi, avoid });
+    // wild plants / herbs worth picking in the groves (nature loot)
+    for (let i = 0, k = 0; i < 20 && k < (g.k === 'park' ? 4 : 1 + (area > 6000 ? 1 : 0)); i++) {
+      const px = lerp(...[bounds(g.pts)[0], bounds(g.pts)[2]], rng()), pz = lerp(...[bounds(g.pts)[1], bounds(g.pts)[3]], rng());
+      if (!inPoly(px, pz, g.pts) || avoid(px, pz)) continue;
+      w.container('plant', px, pz, rng() * 6, { tier: rng() < 0.2 ? 2 : 1 }); k++;
+    }
     // dappled earth under the trees
     const [x0, z0, x1, z1] = bounds(g.pts);
     for (let i = 0; i < Math.round(area / 900); i++) { const px = lerp(x0, x1, rng()), pz = lerp(z0, z1, rng()); if (inPoly(px, pz, g.pts) && !avoid(px, pz)) w.paintCircle(g.k === 'park' ? 'grass' : rng() < 0.5 ? 'dirt' : 'sandDark', px, pz, 3 + rng() * 5, 0.6, i); }
@@ -1216,12 +1249,12 @@ function streetClutter(ctx) {
       if (cnt.car >= B.car || !lanes(x, z, 2.4)) continue;
       const sunk = ctx.low.at(x, z) < 0.8;
       const rot = rng() * 6.283, k = sunk ? (rng() < 0.5 ? 'sc_carroof' : 'sc_carroof2') : ['sc_fiat', 'sc_fiat2', 'sc_fiat3', 'sc_fiat4'][Math.floor(rng() * 4)];
-      w.prop(k, x, z, rot, { solid: true }); if (rng() < 0.3) w.container('car_trunk', x + Math.sin(rot) * 2.2, z + Math.cos(rot) * 2.2, rot, { tier: 1 });
+      w.prop(k, x, z, rot, { solid: true }); if (rng() < 0.3) w.container('car_trunk', x + Math.sin(rot) * 2.7, z + Math.cos(rot) * 2.7, rot, { tier: 1 });
       if (rng() < 0.5) { const [px, pz] = near(x, z, 3); if (!ctx.blocked(px, pz, 0.4)) w.prop('debris', px, pz, rng() * 6, {}); }
       cnt.car++;
     } else if (t < 0.2) {
       if (cnt.lamp >= B.lamp || !lanes(x, z, 1.2)) continue;
-      w.lamp(x, z, { y: 2.4, model: 'sc_lamppost', intensity: 0.95, range: 9, color: 0xffd8a0, flicker: rng() < 0.15 ? 0.6 : 0 }); cnt.lamp++;
+      stLamp(w, x, z, { intensity: 1.5, range: 11, color: 0xffd8a0, flicker: rng() < 0.15 ? 0.6 : 0 }); cnt.lamp++;
     } else if (t < 0.45) {
       if (cnt.deb >= B.deb || !lanes(x, z, 0.8)) continue;
       const k = rng(); w.prop(k < 0.4 ? 'debris' : k < 0.62 ? 'sc_rubble' : k < 0.78 ? 'sc_rubble2' : k < 0.9 ? 'sc_slab' : 'sc_slab2', x, z, rng() * 6, { solid: k > 0.4 }); cnt.deb++;
@@ -1230,7 +1263,7 @@ function streetClutter(ctx) {
       w.prop(rng() < 0.5 ? 'sc_sign' : 'sc_streetsign', x, z, rng() * 6, { solid: true }); cnt.sign++;
     } else if (t < 0.53) {
       if (cnt.husk >= B.husk || !lanes(x, z, 2)) continue;
-      w.prop('husk', x, z, rng() * 6, { solid: true }); if (rng() < 0.7) w.container('arc_husk', x + 1.6, z + 0.4, 0, { tier: 2 }); cnt.husk++;
+      w.prop('husk', x, z, rng() * 6, { solid: true }); if (rng() < 0.7) w.container('arc_husk', x + 2.1, z + 0.4, 0, { tier: 2 }); cnt.husk++;
       for (let j = 0; j < 3; j++) { const [px, pz] = near(x, z, 4); if (!ctx.blocked(px, pz, 0.4)) w.prop('debris', px, pz, rng() * 6, {}); }
     } else if (t < 0.58) {
       if (cnt.trash >= B.trash || !lanes(x, z, 1)) continue;
@@ -1249,7 +1282,7 @@ function streetClutter(ctx) {
       if (cnt.market >= B.market || !lanes(x, z, 2.5)) continue;
       for (let j = 0; j < 4; j++) { const [px, pz] = near(x, z, 2.4); if (!ctx.blocked(px, pz, 0.5)) w.prop(['crate', 'sc_vase', 'sc_planter', 'sc_cratestack', 'sc_planter2'][Math.floor(rng() * 5)], px, pz, rng() * 6, { solid: true }); }
       if (rng() < 0.5) w.prop(rng() < 0.5 ? 'sc_parasol' : 'sc_parasol2', x, z, 0, { solid: true });
-      if (rng() < 0.3) w.container('basket', x + 1.2, z, 0, { tier: 1 });
+      if (rng() < 0.3) w.container('basket', x, z + 2.9, 0, { tier: 1 });
       cnt.market++;
     } else if (t < 0.9) {
       if (cnt.weeds >= B.weeds || !lanes(x, z, 0.3)) continue;
@@ -1272,7 +1305,7 @@ function streetClutter(ctx) {
     const x = 20 + rng() * 860, z = 20 + rng() * 860;
     if (ctx.low.at(x, z) > 0.5 || ctx.blocked(x, z, 2)) continue;
     const t = rng();
-    if (t < 0.35) { w.prop('husk', x, z, rng() * 6, { solid: true }); w.container('arc_husk', x + 1.6, z, 0, { tier: 2 }); }
+    if (t < 0.35) { w.prop('husk', x, z, rng() * 6, { solid: true }); w.container('arc_husk', x + 2.1, z, 0, { tier: 2 }); }
     else if (t < 0.6) w.prop(rng() < 0.5 ? 'sc_carroof' : 'sc_carroof2', x, z, rng() * 6, { solid: true });
     else if (t < 0.75) { w.prop('arcCrate', x, z, rng() * 6, { solid: true }); w.container('arc_crate', x + 1.1, z, 0, { tier: 2 }); }
     else w.prop('sc_lamppost', x, z, 0, { solid: true, y: -1.2 });
@@ -1306,22 +1339,22 @@ const POIS = [
   ['su_duranti_warehouses', 'Su Duranti Warehouses', 306, 138, 40, 2, 'Su Durante Warehouses'],
   ['collapsed_supermarket', 'Collapsed Supermarket', 486, 186, 28, 2, 'Collapsed Supermarket'],
   ['market_ruins', 'Market Ruins', 528, 206, 34, 2, 'Market Ruins'],
-  ['hospital', 'Hospital', 452, 240, 50, 3, 'Hospital'],
-  ['dunes_ende', "Dune's Ende", 590, 226, 44, 2, "Dune's End"],
+  ['hospital', 'Hospital', 452, 238, 50, 3, 'Hospital'],
+  ['dunes_end', "Dune's End", 590, 226, 44, 2, "Dune's End"],
   ['library', 'Library', 366, 308, 46, 2, 'Library'],
   ['parking_garage', 'Parking Garage', 488, 330, 36, 2, 'Parking Garage'],
-  ['galeria', 'Galeria', 568, 318, 56, 2, 'Galleria'],
+  ['galleria', 'Galleria', 568, 318, 56, 2, 'Galleria'],
   ['research', 'Research', 500, 398, 34, 3, 'Research'],
   ['space_travel', 'Space Travel', 533, 378, 34, 3, 'Space Travel'],
-  ['marena_station', 'Marena Station', 236, 300, 50, 2, 'Marano Station'],
+  ['marino_station', 'Marino Station', 236, 300, 50, 2, 'Marano Station'],
   ['warehouse', 'Warehouse', 104, 382, 50, 2, 'Warehouse'],
-  ['marena_park', 'Marena Park', 424, 402, 42, 1, 'Marano Park'],
-  ['piazza_rome', 'Piazza Rome', 308, 458, 32, 2, 'Piazza Roma'],
-  ['burried_properties', 'Burried Properties', 690, 440, 70, 2, 'Buried Properties'],
+  ['marino_park', 'Marino Park', 424, 402, 42, 1, 'Marano Park'],
+  ['piazza_romana', 'Piazza Romana', 308, 458, 32, 2, 'Piazza Roma'],
+  ['sandy_properties', 'Sandy Properties', 690, 440, 70, 2, 'Buried Properties'],
   ['town_hall', 'Town Hall', 482, 512, 56, 3, 'Town Hall'],
   ['piazza_arbusta', 'Piazza Arbusta', 628, 556, 36, 2, 'Piazza Arbusto'],
   ['corso_da_vinchi', 'Corso da Vinchi', 420, 566, 40, 1, 'Corso da Vinci'],
-  ['santa_mara_houses', 'Santa Mara Houses', 476, 604, 48, 2, 'Santa Maria Houses'],
+  ['santa_marta_houses', 'Santa Marta Houses', 476, 604, 48, 2, 'Santa Maria Houses'],
   ['grandiosa_apartments', 'Grandiosa Apartments', 224, 622, 44, 2, 'Grandioso Apartments'],
   ['main_street', 'Main Street', 430, 670, 46, 1, 'Main Street'],
   ['abandoned_highway_camp', 'Abandoned Highway Camp', 236, 704, 36, 2, 'Abandoned Highway Camp'],
@@ -1331,6 +1364,9 @@ const POIS = [
   ['maintenance_depot', 'Maintenance Depot', 108, 640, 36, 1, 'Maintenance Depot'],
   ['old_town', 'Old Town', 304, 668, 30, 1, 'Old Town'],
 ];
+// metro stations are named places too (quests visit them); positions resolved from the placed entrances
+const STATION_POIS = [['northern_station', 'Northern Station', 'northern'], ['western_station', 'Western Station', 'western'],
+  ['eastern_station', 'Eastern Station', 'eastern'], ['southern_station', 'Southern Station', 'southern']];
 
 function markers(ctx) {
   const { w, rng } = ctx;
@@ -1338,6 +1374,7 @@ function markers(ctx) {
     const al = orig.toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
     w.poi(id, name, x, z, r, { tier, aliases: al === id ? [] : [al] });
   }
+  for (const [id, name, k] of STATION_POIS) { const m = ctx.metro[k]; if (m) w.poi(id, name, m[0], m[1], 14, { tier: 1, aliases: [] }); }
   // key rooms (one entry per locked id; staircase complexes list their segment rects)
   const byId = new Map();
   for (const k of ctx.keySegs) {
@@ -1354,7 +1391,10 @@ function markers(ctx) {
   hatch(ctx, 'train_station_hatch', 'Train Station Hatch', 252, 344);
   hatch(ctx, 'highway_overpass_hatch', 'Highway Overpass Hatch', 524, 516);
   hatch(ctx, 'old_town_hatch', 'Old Town Hatch', 306, 658);
-  for (const [x, z] of SPAWNS) { const [px, pz] = freeSpot(ctx, x, z, 1.5, 12); w.spawnPoint(px, pz); }
+  for (const [x, z] of SPAWNS) {
+    if (x > 840) { const [d, sArc] = polyDist(x, z, HIGHWAY); const pt = pointAt(HIGHWAY, sArc); w.spawnPoint(pt[0], pt[1]); continue; }   // east end: on the Corso deck
+    const [px, pz] = freeSpot(ctx, x, z, 1.5, 12); w.spawnPoint(px, pz);
+  }
 
   // ---------------------------------------------------------------- ARK
   const roofY = name => { const C = ctx.cxs.find(c => c.o.name === name); return C ? { y: C.floorY + C.storeys * 3.2 + 0.3, roof: true } : {}; };
@@ -1367,7 +1407,7 @@ function markers(ctx) {
   { const [x, z] = pointAt(HIGHWAY, 735); w.arkSpawn('turret', x, z, { y: ctx.HW.yAt(735) }); }
   // drones patrolling the plazas and streets
   const loops = [
-    ['wasp', 462, 716, [[440, 700], [486, 704], [494, 740], [448, 746]]], ['wasp', 306, 458, [[290, 446], [330, 446], [334, 482], [292, 486]]],
+    ['wasp', 448, 706, [[440, 700], [486, 704], [494, 740], [448, 746]]], ['wasp', 306, 458, [[290, 446], [330, 446], [334, 482], [292, 486]]],
     ['wasp', 424, 400, [[392, 352], [460, 360], [462, 444], [396, 444]]], ['wasp', 628, 556, [[596, 540], [668, 540], [664, 576], [600, 576]]],
     ['wasp', 528, 206, [[500, 190], [560, 186], [556, 226], [504, 226]]], ['wasp', 452, 240, [[420, 200], [480, 230], [492, 286], [430, 262]]],
     ['wasp', 568, 318, [[530, 262], [600, 300], [610, 370], [546, 340]]], ['wasp', 236, 300, [[226, 250], [262, 260], [258, 350], [216, 344]]],
@@ -1376,16 +1416,16 @@ function markers(ctx) {
     ['wasp', 705, 765, [[660, 730], [750, 730], [752, 800], [660, 800]]], ['wasp', 306, 138, [[278, 110], [340, 100], [336, 176], [282, 176]]],
     ['wasp', 438, 86, [[410, 64], [470, 70], [466, 110], [414, 110]]], ['wasp', 536, 680, [[506, 656], [570, 664], [566, 704], [510, 700]]],
   ];
-  for (const [k, x, z, p] of loops) w.arkSpawn(k, x, z, { count: 2, radius: 8, patrol: p });
+  for (const [k, x, z, p] of loops) { const [px, pz] = freeSpot(ctx, x, z, 2, 20); w.arkSpawn(k, px, pz, { count: 2, radius: 8, patrol: p }); }
   const hornets = [[482, 512, [[430, 480], [540, 470], [550, 520], [440, 548]]], [568, 318, [[540, 270], [610, 360]]], [533, 378, [[500, 350], [560, 400], [520, 430]]],
     [452, 240, [[420, 205], [490, 285]]], [705, 765, [[670, 740], [740, 790]]], [420, 566, [[330, 598], [455, 556], [570, 538], [455, 556]]]];
-  for (const [x, z, p] of hornets) w.arkSpawn('hornet', x, z, { count: 1, radius: 6, patrol: p });
+  for (const [x, z, p] of hornets) { const [px, pz] = freeSpot(ctx, x, z, 2, 24); w.arkSpawn('hornet', px, pz, { count: 1, radius: 6, patrol: p }); }
   w.arkSpawn('rocketeer', 700, 549, { count: 1, radius: 10, patrol: [[640, 545], [800, 558], [880, 568]] });
   w.arkSpawn('rocketeer', 220, 740, { count: 1, radius: 10, patrol: [[272, 655], [204, 768], [160, 860]] });
   w.arkSpawn('rocketeer', 640, 120, { count: 1, radius: 14, patrol: [[600, 80], [760, 90], [700, 160]] });
   w.arkSpawn('rocketeer', 500, 860, { count: 1, radius: 14, patrol: [[400, 860], [600, 870], [520, 820]] });
   // ground ARK in the lanes and inside buildings
-  const roomPick = (pred) => { const rs = ctx.cxs.filter(pred).flatMap(C => C.rooms).filter(r => !r.ruin && (r.x1 - r.x0) * (r.z1 - r.z0) > 20); return rs[Math.floor(rng() * rs.length)]; };
+  const roomPick = (pred) => { const rs = ctx.cxs.filter(pred).flatMap(C => C.rooms).filter(r => !r.ruin && !r.key && (r.x1 - r.x0) * (r.z1 - r.z0) > 20); return rs[Math.floor(rng() * rs.length)]; };
   for (let i = 0; i < 16; i++) { const r = roomPick(C => C.o.poi); if (r) w.arkSpawn('tick', (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2, { count: 2 + (i % 2), radius: 3 }); }
   const lanes = [[438, 160], [398, 470], [520, 460], [612, 500], [462, 664], [380, 690], [560, 650], [300, 560], [262, 420], [604, 690], [660, 610], [548, 248], [340, 260], [430, 760], [650, 470], [736, 520]];
   lanes.forEach(([x, z], i) => { const [px, pz] = freeSpot(ctx, x, z, 1.5, 15); w.arkSpawn(i % 3 === 2 ? 'fireball' : 'pop', px, pz, { count: i % 3 === 2 ? 1 : 3, radius: 6 }); });
@@ -1411,7 +1451,7 @@ function markers(ctx) {
   w.zone('Hospital', [[404, 186], [446, 176], [500, 286], [462, 300]], { tier: 3 });
   w.zone('Town Hall', [[426, 528], [548, 468], [560, 500], [438, 554]], { tier: 3 });
   w.zone('Research Campus', [[468, 340], [530, 330], [566, 400], [532, 436], [480, 430]], { tier: 3 });
-  w.zone('Galeria', [[520, 256], [566, 248], [622, 364], [584, 384]], { tier: 2 });
+  w.zone('Galleria', [[520, 256], [566, 248], [622, 364], [584, 384]], { tier: 2 });
   w.zone('Plaza Rossa', PLAZAS[0].pts, { tier: 2 });
 }
 
@@ -1422,7 +1462,7 @@ export default {
   ambient: { music: 'sandy_city', birds: false, wind: true },
   conditions: ['night_raid', 'hurricane', 'lush_blooms', 'uncovered_caches', 'husk_graveyard', 'prospecting_probes', 'close_scrutiny', 'cold_snap', 'bird_city'],
   build(w, rng) {
-    const ctx = { w, rng, occ: new Occ(), doorsOut: [], keySegs: [], metro: {}, nCont: 0, lootSkip: 0.86, keyLoot: {} };
+    const ctx = { w, rng, occ: new Occ(), doorsOut: [], keySegs: [], metro: {}, nCont: 0, lootSkip: 0.9, keyLoot: {} };
     ctx.occFreeSouth = (s, x) => ctx.occ.at(x, s.z1 + 1.2) === -1;
     ctx.decks = [];
     ctx.onDeck = (x, z) => ctx.decks.some(D => { const i = Math.round(z) * (MW + 1) + Math.round(x); return i >= 0 && i < D.arr.length && !Number.isNaN(D.arr[i]); });

@@ -163,6 +163,7 @@ function canUse(lo, use) { if (!use) return true; for (const [id, n] of Object.e
 function doUse(lo, use) { for (const [id, n] of Object.entries(use || {})) takeFrom([lo.backpack || [], lo.safe || [], lo.quick || []], id, n); }
 
 export function questEvent(p, kind, data = {}) {
+  initQuests(p);
   const changed = [];
   const lo = data.loadout || p.loadout;
   for (const d of activeQuests(p)) {
@@ -196,6 +197,7 @@ export function questEvent(p, kind, data = {}) {
 
 // up to `max` short objective lines for the HUD ({ text, done }), relevant to mapId
 export function activeObjectives(p, mapId = null, max = 4) {
+  initQuests(p);
   const open = [], done = [];
   for (const d of activeQuests(p)) {
     d.steps.forEach((step, i) => {

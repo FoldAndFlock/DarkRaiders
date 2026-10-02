@@ -66,7 +66,7 @@ const R_VNORTH = [[303, 10], [293, 22], [279, 33], [264, 42], [260, 52], [258, 6
 const R_VSOUTH = [[240, 66], [244, 86], [242, 104], [234, 122], [215, 142], [190, 150]];
 const R_WEST = [[452, 392], [440, 340], [446, 290], [452, 245], [446, 200], [438, 160], [430, 122]];
 const R_CHK_S = [cp(-150, 30), [478, 470], [486, 520], [498, 575], [505, 625]];
-const R_BENCH = [[545, 175], [600, 178], [610, 232], [612, 236]];
+const R_BENCH = [[545, 175], [576, 176.5], [600, 177], [620, 176]];
 const R_PEAK = [[760, 164], [800, 170], [835, 186], [850, 190]];
 const R_EAST = [[780, 288], [830, 300], [880, 302], [905, 312]];
 const R_FORT = [[690, 668], [668, 700], [640, 716]];
@@ -283,7 +283,7 @@ export default {
     const furnish = (o, kind, opts = {}) => {
       const { x, z } = o, ww = o.w, dd = o.d, gaps = gapsOf(o);
       const walls = (o.inner || []).map(([x0, z0, x1, z1]) => [x + x0, z + z0, x + x1, z + z1]);
-      const slots = [], m = 0.72, step = opts.step ?? 2.3;
+      const slots = [], m = 0.72, step = opts.step ?? 2.0;
       for (let s = 1.3; s < ww - 1.1; s += step) { slots.push([x + s, z + m, 0]); slots.push([x + s, z + dd - m, PI]); }
       for (let s = 1.3; s < dd - 1.1; s += step) { slots.push([x + m, z + s, PI / 2]); slots.push([x + ww - m, z + s, -PI / 2]); }
       for (const iw of walls) {   // both faces of interior walls too
@@ -308,13 +308,19 @@ export default {
           placedC++; used.push([sx, sz]);
           continue;
         }
-        if (rng() < (opts.fill ?? 0.55)) {
+        if (rng() < (opts.fill ?? 0.8)) {
           const k = pick(fl), off = (FOOT[k] || 0.6) - 0.6;   // deep items sit further from the wall
           w.prop(k, sx + Math.sin(rot) * off, sz + Math.cos(rot) * off, rot, { solid: true });
           used.push([sx, sz]);
         }
       }
-      if (opts.light !== false && ww * dd > 30) w.lamp(x + ww / 2, z + dd / 2, { y: Math.min(3.0, (o.h || 3.2) - 0.3), model: null, color: opts.lightColor ?? 0xffd8a0, intensity: opts.lightI ?? 1.3, range: Math.min(12, Math.max(ww, dd) * 0.8 + 3), flicker: opts.flicker ?? 0 });
+      // free-standing centre pieces in bigger rooms (tables, crates, workbenches)
+      if (ww >= 9 && dd >= 8 && opts.centre !== false) {
+        const ck = { home: 'gg_table', office: 'gg_desk', barracks: 'gg_table', security: 'gg_table', industrial: 'workbench', lab: 'gg_console', shed: 'gg_crates', camp: 'gg_crates', ruin: 'debris', church: 'gg_altar' }[kind] || 'gg_table';
+        const cells = [[x + ww * 0.3, z + dd * 0.5], [x + ww * 0.78, z + dd * 0.45]];
+        for (const [cx, cz] of cells) if (gaps.every(([gx, gz, gw]) => Math.hypot(cx - gx, cz - gz) > gw / 2 + 1.6) && walls.every(([a, b, c, d]) => segDist(cx, cz, a, b, c, d) > 1.4)) { w.prop(ck, cx, cz, rng() < 0.5 ? 0 : PI / 2, { solid: true }); if (kind === 'home' || kind === 'barracks') { w.prop('gg_chair', cx + 1.1, cz, -PI / 2, {}); w.prop('gg_chair', cx - 1.1, cz, PI / 2, {}); } }
+      }
+      if (opts.light !== false && ww * dd > 30) w.lamp(x + ww / 2, z + dd / 2, { y: Math.min(3.0, (o.h || 3.2) - 0.3), model: null, color: opts.lightColor ?? 0xffd8a0, intensity: opts.lightI ?? 1.7, range: Math.min(12, Math.max(ww, dd) * 0.8 + 3), flicker: opts.flicker ?? 0 });
     };
     // building + furniture in one go
     const house = (o, kind = 'home', fo = {}) => { const b = bldg(o); furnish(o, kind, fo); return b; };
@@ -326,8 +332,22 @@ export default {
       for (let i = 0; i <= n; i++) { const t = i / n; w.prop('gg_col', ax + (bx - ax) * t, az + (bz - az) * t, 0, { y: -0.5, solid: [half, half, h + 0.5] }); }
     };
     const vehicle = (kind, x, z, rot) => { w.prop(kind, x, z, rot, { solid: true }); mark(x - 3, z - 3, x + 3, z + 3, 2); };
-    const lightPost = (x, z, color = 0xffe0b0, model = 'lamp', y = 3.6, intensity = 1.8, range = 12) => w.lamp(x, z, { y, color, intensity: Math.max(intensity, 1.7), range: Math.max(range, 12), model });
-    const tunnelLamp = (x, z, y = 3.0) => w.lamp(x, z, { y, model: null, color: 0xc8e0ff, intensity: 1.6, range: 11, flicker: rng() < 0.25 ? 0.4 : 0 });
+    // scatter POI-flavoured clutter in a radius, never on roads / inside buildings
+    const clutter = (cx, cz, r, kinds, n, o = {}) => { let k = 0, t = 0; while (k < n && t++ < n * 12) { const a = rng() * PI * 2, d = Math.sqrt(rng()) * r, x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d; if (!free(x, z, o.m ?? 1.4, o.mask ?? 3) || !inPlay(x, z)) continue; w.prop(pick(kinds), x, z, rng() * PI * 2, { solid: o.solid ?? true, scale: R(o.s0 ?? 0.85, o.s1 ?? 1.15) }); mark(x - 0.8, z - 0.8, x + 0.8, z + 0.8, 2); k++; } };
+    const paintPolyN = (tex, pts, edge = 8, sc = 9) => { const id = tex; let a = 1e9, b = 1e9, c = -1e9, d = -1e9; for (const [x, z] of pts) { a = Math.min(a, x); b = Math.min(b, z); c = Math.max(c, x); d = Math.max(d, z); }
+      for (let z = Math.max(0, Math.floor(b)); z < Math.min(H, d); z++) for (let x = Math.max(0, Math.floor(a)); x < Math.min(W, c); x++) { const px = x + 0.5, pz = z + 0.5; if (!pointInPoly(px, pz, pts)) continue; if (polyEdgeDist(pts, px, pz) < N2(px, pz, sc) * edge * 1.6) continue; if (occ(px, pz) & 3) continue; w.paint(id, x, z, x + 1, z + 1); } };
+    // static ARK (Sentinels / turrets): the sim spawns them on the terrain at (x,z) and ignores perch
+    // heights, so they're placed on open ground at the foot of their perch; `perch`/`y` (metres above
+    // ground) are kept as metadata for when the engine supports elevated emplacements.
+    const perched = (kind, x, z, perch, y, o = {}) => w.arkSpawn(kind, x, z, { count: 1, radius: 0, perch, y, ...o });
+    const watchtower = (x, z, scale = 1, arkKind = null) => {
+      w.prop('gg_watchtower', x, z, 0, { scale });
+      for (const [dx, dz] of [[-1.55, -1.55], [1.55, -1.55], [-1.55, 1.55], [1.55, 1.55]]) w.prop('gg_col', x + dx * scale, z + dz * scale, 0, { y: -0.5, solid: [0.25, 0.25, 9 * scale] });
+      mark(x - 3, z - 3, x + 3, z + 3, 2);
+      if (arkKind) perched(arkKind, x, z, 'watchtower', 8.5 * scale);
+    };
+    const lightPost = (x, z, color = 0xffe0b0, model = 'lamp', y = 3.6, intensity = 2.2, range = 13) => w.lamp(x, z, { y, color, intensity: Math.max(intensity, 2.2), range: Math.max(range, 13), model });
+    const tunnelLamp = (x, z, y = 3.0) => w.lamp(x, z, { y: Math.min(y, 3.2), model: null, color: 0xffd890, intensity: 2.4, range: 12, flicker: rng() < 0.25 ? 0.4 : 0 });
 
     // ======================================================================== 4. THE OUTER GATES
     {
@@ -340,15 +360,14 @@ export default {
       diagCollide(...at(-31, -7.4), ...at(-17, -7.4), 0.9, 12, 0.8);
       diagCollide(...at(17, -7.4), ...at(31, -7.4), 0.9, 12, 0.8);
       // floodlights on the pylons' checkpoint side + beacon lights
-      for (const s of [-44, -12, 12, 44]) { const [x, z] = at(s, -8.5); w.lamp(x, z, { y: 9, model: null, color: 0xd8f0ff, intensity: 2.2, range: 16 }); }
+      for (const s of [-44, -12, 12, 44]) { const [x, z] = at(s, -8.5); w.lamp(x, z, { y: 6, model: null, color: 0xd8f0ff, intensity: 2.6, range: 21 }); }
       const [gx, gz] = at(0, -10); w.lamp(gx, gz, { y: 12, model: null, color: 0x9affc8, intensity: 0.9, range: 12 });
       w.paintPoly('concrete', [at(-52, -12), at(52, -12), at(52, 8), at(-52, 8)]);
       for (let s = -6; s <= 6; s += 3) w.prop('gg_chevron', ...at(s, -1), ROT, { y: 0.03 });
       for (let s = -6; s <= 6; s += 4) w.prop('gg_stopline', ...at(s, -11), ROT, { y: 0.03 });
       // staging inside the gate mouth (checkpoint side)
       for (const [s, t] of [[-5, -16], [4, -20], [-2, -26]]) { const [x, z] = at(s, t); w.prop('gg_barrier', x, z, ROT + (rng() - 0.5) * 0.3, { solid: true }); }
-      w.arkSpawn('sentinel', ...at(12, 0), { count: 1, perch: 'gate_pylon', y: 32 });
-      w.arkSpawn('sentinel', ...at(-44, 0), { count: 1, perch: 'gate_pylon', y: 32 });
+      perched('sentinel', ...at(12, -9), 'gate_pylon', 32); perched('sentinel', ...at(-44, -9), 'gate_pylon', 32);
       w.poi('outer_gates', 'Outer Gates', ...at(0, -2), 44, { tier: 3, aliases: ['outer_gates'] });
     }
 
@@ -402,19 +421,19 @@ export default {
       for (const [aa, bb] of [[-24, -48], [-24, 48], [-150, -30], [-150, 30]]) w.prop('gg_flag', ...cp(aa, bb), 0, { solid: true });
       for (const [aa, bb, k] of [[-150, -52, 'gg_container'], [-146, -52, 'gg_container2'], [-134, 52, 'gg_container3'], [-30, -50, 'gg_container2'], [-30, 50, 'gg_container'], [-112, -52, 'gg_crates'], [-80, 52, 'gg_pallet']]) w.prop(k, ...cp(aa, bb), PI / 4, { solid: true });
       // watchtowers at the plaza corners (turrets / sentinel perches) + floodlight masts
-      for (const [a, b] of [[-158, -50], [-158, 50], [-20, -56], [-20, 56]]) { const [x, z] = cp(a, b); w.prop('gg_watchtower', x, z, 0, { solid: true }); mark(x - 3, z - 3, x + 3, z + 3, 2); w.arkSpawn('turret', x, z, { perch: 'watchtower', y: 8.5 }); }
-      for (const [a, b] of [[-130, -32], [-130, 32], [-100, -32], [-100, 32], [-70, -32], [-70, 32], [-44, -30], [-44, 30], [-150, 0], [-20, 0]]) { const [x, z] = cp(a, b); w.lamp(x, z, { y: 7.6, model: 'gg_lightmast', color: 0xe8f4ff, intensity: 2.1, range: 16 }); }
+      for (const [a, b] of [[-158, -50], [-158, 50], [-20, -56], [-20, 56]]) watchtower(...cp(a, b), 1, 'turret');
+      for (const [a, b] of [[-130, -32], [-130, 32], [-100, -32], [-100, 32], [-70, -32], [-70, 32], [-44, -30], [-44, 30], [-150, 0], [-20, 0]]) { const [x, z] = cp(a, b); w.lamp(x, z, { y: 6.5, model: 'gg_lightmast', color: 0xe8f4ff, intensity: 2.6, range: 21 }); }
       // forested south-west half of the Checkpoint (the reference polygon covers dense woods)
       const FW = [cp(-158, -44), cp(-158, -12), cp(-236, -12), cp(-236, -36)], FE = [cp(-158, 12), cp(-158, 46), cp(-236, 40), cp(-236, 12)];
       for (const f of [FW, FE]) w.forest(f, 2.6, ['pine', 'gg_spruce', 'tree'], { avoid: (x, z) => !free(x, z, 1.2, 3) });
-      w.paintPoly('forest', FW); w.paintPoly('forest', FE);
+      paintPolyN('moss', FW, 6); paintPolyN('moss', FE, 6);
       w.arkSpawn('bastion', ...cp(-110, 0), { count: 1, radius: 30, patrol: [cp(-140, 0), cp(-40, 0)] });
       w.arkSpawn('wasp', ...cp(-80, -20), { count: 3, patrol: [cp(-140, -30), cp(-40, -30), cp(-40, 30), cp(-140, 30)] });
       w.arkSpawn('hornet', ...cp(-60, 20), { count: 2, patrol: [cp(-30, 30), cp(-120, 40), cp(-150, -20)] });
       w.arkSpawn('tick', ...cp(-92, -42), { count: 3, radius: 6, habitat: 'indoor' });
       w.arkSpawn('pop', ...cp(-64, 40), { count: 2 });
       w.arkSpawn('snitch', ...cp(-180, 20), { count: 1, patrol: [cp(-200, 0), cp(-160, 30), cp(-120, 0)] });
-      w.arkSpawn('sentinel', 414, 347, { perch: 'watchtower', y: 8.5 }); w.prop('gg_watchtower', 414, 347, 0, { solid: true });
+      watchtower(414, 347, 1, 'sentinel');
       w.zone('Checkpoint', CHK_POLY, { tier: 2 });
       w.poi('checkpoint', 'Checkpoint', ...cp(-100, 0), 80, { tier: 2, aliases: ['checkpoint'] });
     }
@@ -443,7 +462,7 @@ export default {
       for (const [x, z, k] of [[629, 150, 'toolbox'], [645, 186, 'crate'], [629, 200, 'arc_crate'], [645, 232, 'toolbox'], [629, 118, 'raider_cache'], [646, 112, 'ammo_box'], [630, 168, 'trash'], [644, 126, 'electronics']])
         w.container(k, x, z, 0, { tier: 2, poi: 'traffic_tunnel' });
       for (const [x, z] of [[631, 140], [645, 196], [631, 228], [645, 168]]) w.prop('gg_barrier', x, z, PI / 2, { solid: true });
-      w.arkSpawn('sentinel', 637, 125, { habitat: 'indoor', perch: 'tunnel_ceiling', y: 3.5 });
+      perched('sentinel', 637, 125, 'tunnel_ceiling', 3.5, { habitat: 'indoor' });
       w.arkSpawn('turret', 637, 108, { habitat: 'indoor' });
       w.arkSpawn('tick', 637, 190, { count: 3, habitat: 'indoor' });
       w.arkSpawn('pop', 637, 155, { count: 2, habitat: 'indoor' });
@@ -509,7 +528,7 @@ export default {
       w.block(536, 173, 576, 174.2, 2.2, 'damConcrete', {}); w.block(586, 173, 600, 174.2, 2.2, 'damConcrete', {});     // blast walls
       w.ramp(578.5, 172.6, 583.5, 181.6, BENCH_Y, TUN_Y, 'z');
       lightPost(534, 172); lightPost(600, 166); lightPost(596, 136);
-      w.arkSpawn('sentinel', 467, 191, { perch: 'cliff', y: 0 });
+      perched('sentinel', 492, 192, 'cliff_edge', 0);
       w.arkSpawn('wasp', 570, 160, { count: 2, patrol: [[540, 128], [610, 128], [610, 178], [540, 178]] });
       w.arkSpawn('hornet', 520, 200, { count: 1, patrol: [[500, 170], [560, 230], [620, 175]] });
       w.zone('Reinforced Reception', [[530, 128], [630, 128], [630, 205], [530, 205]], { tier: 3 });
@@ -539,7 +558,7 @@ export default {
       w.container('raider_cache', 676, 190, 0, { tier: 3, poi: 'headhouse' });
       w.lamp(676, 190, { y: 5, model: null, color: 0xc8e0ff, intensity: 1.3, range: 16 });
       w.lamp(676, 190, { y: 10.5, model: null, color: 0xff4030, intensity: 0.6, range: 8, flicker: 0.3 });
-      w.arkSpawn('sentinel', 676, 190, { perch: 'headhouse_roof', y: 13 });
+      perched('sentinel', 676, 228, 'headhouse_roof', 6);
       w.arkSpawn('pop', 676, 186, { count: 2, habitat: 'indoor' });
       w.poi('headhouse', 'Headhouse', 676, 190, 32, { tier: 2, aliases: ['headhouse'] });
 
@@ -555,6 +574,7 @@ export default {
       bldg(WH);
       for (let r = 0; r < 4; r++) for (let i = 0; i < 6; i++) w.prop('shelf', 724 + i * 4.2 + 6, 266 + r * 9 + 8, 0, { solid: true });
       for (const [x, z, k] of [[740, 300, 'gg_container'], [756, 302, 'gg_container2'], [768, 268, 'gg_crates'], [734, 312, 'gg_pallet'], [772, 300, 'gg_generator'], [746, 280, 'gg_pallet']]) w.prop(k, x, z, 0, { solid: true });
+      for (let r = 0; r < 4; r++) for (let i = 0; i < 6; i++) { const x = 730 + i * 4.2, z = 274 + r * 9 + 4.2; if (rng() < 0.55) w.prop(pick(['gg_pallet', 'gg_crates', 'barrel', 'barrelBlue', 'crate']), x + R(-0.6, 0.6), z, rng() * 6, { solid: true }); }
       for (let i = 0; i < 16; i++) { const x = R(732, 776), z = R(262, 318); if (rng() < 0.5) w.container(pick(['crate', 'toolbox', 'crate', 'arc_crate', 'electronics']), x, z, 0, { tier: 2, poi: 'warehouse_complex' }); }
       furnish({ x: 712, z: 256, w: 16, d: 18, inner: [] , doors: [{ side: 'e', at: 8, w: 2 }, { side: 's', at: 6, w: 2 }] }, 'office', { tier: 2, poi: 'warehouse_complex', light: true, cont0: 3 });
       furnish({ x: 712, z: 304, w: 16, d: 18, inner: [], doors: [{ side: 'e', at: 8, w: 2 }, { side: 'n', at: 6, w: 2 }] }, 'industrial', { tier: 2, poi: 'warehouse_complex', cont0: 3 });
@@ -575,9 +595,8 @@ export default {
       house({ x: 786, z: 256, w: 16, d: 12, h: 3.4, wall: 'corrugated', roof: 'corrugated', floor: 'concrete', name: 'Loading Office', doors: [{ side: 'w', at: 4, w: 1.8 }, { side: 's', at: 9, w: 3 }, ...winRow('n', 16, 2, 4)] }, 'industrial', { tier: 2, poi: 'warehouse_complex' });
       house({ x: 720, z: 226, w: 14, d: 10, h: 3.4, wall: 'concrete', roof: 'roofTar', floor: 'tiles', name: 'Dispatch', doors: [{ side: 's', at: 5, w: 1.8 }, ...winRow('w', 10, 2, 3)] }, 'office', { tier: 2, poi: 'warehouse_complex' });
       w.prop('gg_siren', 792, 250, 0, { solid: true });
-      w.prop('gg_watchtower', 745, 344, 0, { solid: true }); w.block(743.2, 342.2, 746.8, 345.8, 0.2, 'plaster', { y0: BENCH_Y + 8.5, collide: false });
-      w.arkSpawn('turret', 745, 344, { perch: 'watchtower', y: 8.5 });
-      for (const [x, z] of [[708, 246], [790, 246], [790, 330], [700, 330]]) lightPost(x, z, 0xe8f4ff, 'gg_lightmast', 7.6, 1.4, 14);
+      watchtower(745, 344, 1, 'turret'); w.block(743.2, 342.2, 746.8, 345.8, 0.2, 'plaster', { y0: BENCH_Y + 8.5, collide: false });   // the white lookout tower (quest)
+      for (const [x, z] of [[708, 246], [790, 246], [790, 330], [700, 330]]) lightPost(x, z, 0xe8f4ff, 'gg_lightmast', 6.5, 2.6, 21);
       for (const [x, z, k, r] of [[800, 300, 'gg_container3', 0.1], [806, 312, 'gg_container', 1.6], [700, 236, 'gg_truck', 1.4], [727, 336, 'gg_crates', 0], [812, 262, 'gg_pallet', 0]]) w.prop(k, x, z, r, { solid: true });
       w.prop('gg_airshaft', 806, 283, 0, { solid: true }); w.lamp(806, 283, { y: 5, model: null, color: 0x40ff80, intensity: 1.5, range: 9 });
       w.extract('warehouse_airshaft', 'Warehouse Airshaft', 806, 288.5, { kind: 'airshaft' });
@@ -604,9 +623,8 @@ export default {
       w.paintPoly('concrete', YARD);
       for (const [x, z, k, r] of [[600, 262, 'gg_container', PI / 4], [612, 252, 'gg_container2', PI / 4], [640, 300, 'gg_truck', 0.2], [622, 296, 'gg_crates', 0], [605, 278, 'gg_barrier', PI / 4], [632, 268, 'gg_barrier', 0.4], [645, 255, 'gg_generator', 0]]) w.prop(k, x, z, r, { solid: true });
       for (const [x, z, k] of [[618, 252, 'crate'], [644, 310, 'toolbox'], [600, 270, 'ammo_box']]) w.container(k, x, z, 0, { tier: 2, poi: 'outer_gates' });
-      for (const [x, z] of [[610, 248], [648, 270], [636, 318]]) lightPost(x, z, 0xe8f4ff, 'gg_lightmast', 7.6, 1.3, 13);
-      w.arkSpawn('bastion', 625, 275, { count: 1, radius: 14, condition: 'locked_gate' });
-      w.arkSpawn('matriarch', 641, 242, { count: 1, condition: 'matriarch' });
+      for (const [x, z] of [[610, 248], [648, 270], [636, 318]]) lightPost(x, z, 0xe8f4ff, 'gg_lightmast', 6.5, 2.6, 21);
+      w.arkSpawn('leaper', 625, 275, { count: 1, radius: 14 });
       w.zone('Gate & Tunnels', [[530, 85], [800, 85], [800, 392], [626, 347], [558, 279], [530, 272]], { tier: 3 });
 
       // church north of the Data Vault (satellite dishes on its roof — quest)
@@ -658,8 +676,7 @@ export default {
       for (const [x, z] of [[903, 108], [923, 108], [903, 126], [923, 126]]) w.prop('gg_olive', x, z, rng() * 6, { solid: true, scale: 0.7 });
       for (const [x, z] of [[884, 100], [884, 150], [940, 160], [972, 150], [960, 128]]) lightPost(x, z, 0xffd8a0);
       w.prop('gg_container2', 950, 150, 0.3, { solid: true }); w.prop('gg_generator', 940, 132, 0, { solid: true }); w.prop('gg_crates', 945, 158, 0, { solid: true });
-      w.arkSpawn('sentinel', 935, 89, { perch: 'roof', y: 10 });
-      w.arkSpawn('sentinel', 970, 92, { perch: 'comms_tower', y: 20 });
+      perched('sentinel', 913, 104, 'hostel_roof', 10); perched('sentinel', 972, 104, 'comms_tower', 20);
       w.arkSpawn('rocketeer', 920, 120, { count: 2, patrol: [[880, 90], [970, 90], [970, 170], [880, 170]] });
       w.arkSpawn('wasp', 900, 160, { count: 2, patrol: [[860, 200], [930, 200], [930, 140]] });
       w.zone("Pilgrim's Peak", PEAK, { tier: 3 });
@@ -783,14 +800,14 @@ export default {
 
       // Trapper's Glade: trapper cabins + cellar (key room 'cellar'), raider structure w/ roof plates
       w.paintCircle('moss', 282, 290, 26, 0.5, 7);
-      const TC = { x: 250, z: 294, w: 12, d: 10, h: 3.2, wall: 'wood', floor: 'wood', roof: 'roofTile', roofShape: 'gable', name: 'Trapper Cabin', doors: [{ side: 'e', at: 2, w: 1.6 }, ...winRow('s', 12, 2, 4, 1.2)], inner: [[6, 0, 6, 10, [{ at: 6, w: 1.6, door: true, locked: 'cellar' }]]] };
-      bldg(TC); w.keyRoom('cellar', 250, 294, 256, 304, null, { name: 'Glade Cellar', poi: 'trappers_glade' });
-      for (const [x, z, k] of [[251.5, 296, 'safe'], [254.5, 296, 'weapon_case'], [251.5, 302, 'plant'], [254.5, 302.5, 'raider_cache']]) w.container(k, x, z, 0, { tier: 3, room: 'cellar', poi: 'trappers_glade' });
+      const TC = { x: 250, z: 294, w: 12, d: 10, h: 3.2, wall: 'wood', floor: 'wood', roof: 'roofTile', roofShape: 'gable', name: 'Trapper Cabin', doors: [{ side: 'e', at: 2, w: 1.6 }, ...winRow('s', 12, 2, 4, 1.2)], inner: [[6, 0, 6, 10, [{ at: 6, w: 1.6, door: true }]]] };
+      bldg(TC);   // trapper's store room (not a key room in the reference)
+      for (const [x, z, k] of [[251.5, 296, 'safe'], [254.5, 296, 'weapon_case'], [251.5, 302, 'plant'], [254.5, 302.5, 'raider_cache']]) w.container(k, x, z, 0, { tier: 2, poi: 'trappers_glade' });
       furnish({ ...TC, x: 256, w: 6, inner: [] , doors: [{ side: 'e', at: 2, w: 1.6 }, { side: 'w', at: 6, w: 1.6 }] }, 'home', { tier: 1, poi: 'trappers_glade', cont0: 2 });
       house({ x: 284, z: 300, w: 9, d: 8, h: 3.0, wall: 'corrugated', floor: 'wood', roof: 'corrugated', name: 'Raider Structure', doors: [{ side: 'n', at: 3, w: 1.6 }, { side: 'w', at: 3, w: 1.2, sill: 1 }] }, 'camp', { tier: 2, poi: 'trappers_glade', cont0: 2 });
       w.prop('gg_tent', 270, 276, 0.6, { solid: true }); w.prop('gg_woodpile', 264, 292, 0, { solid: true }); w.prop('gg_campfire', 276, 288, 0, {}); w.lamp(276, 288, { y: 0.8, model: null, color: 0xff9040, intensity: 1.8, range: 9, flicker: 0.6 });
       for (const [x, z] of [[292, 280], [300, 288], [272, 312], [296, 318], [260, 282]]) w.container(pick(['plant', 'basket', 'plant']), x, z, 0, { tier: 1, poi: 'trappers_glade' });
-      for (const [x, z] of [[268, 262], [306, 270], [312, 300]]) w.prop('gg_watchtower', x, z, 0, { solid: true, scale: 0.6 });
+      for (const [x, z] of [[268, 262], [306, 270], [312, 300]]) watchtower(x, z, 0.6);
       w.arkSpawn('tick', 285, 290, { count: 2 }); w.arkSpawn('leaper', 260, 250, { radius: 40 });
       w.poi('trappers_glade', "Trapper's Glade", 282, 292, 32, { tier: 1, aliases: ['trappers_glade'] });
       w.prop('hatch', 216, 306, 0, {}); w.lamp(216, 306, { y: 1.2, model: null, color: 0xffd040, intensity: 1.4, range: 7 });
@@ -799,6 +816,11 @@ export default {
       // Adorned Wreckage: fallen ARK hull rings, engines and the Deforestr husk
       for (const [x, z, k, r] of [[205, 346, 'gg_wreck_ring', 0.5], [152, 377, 'gg_wreck_ring', 1.9], [112, 362, 'gg_wreck_ring', -0.6], [147, 404, 'gg_wreck_ring', 2.6], [176, 266, 'gg_wreck_ring', 0.2],
         [131, 440, 'gg_wreck_engine', 0.4], [258, 480, 'gg_wreck_ring', 1.2], [186, 392, 'gg_wreck_fin', 0.9], [232, 330, 'gg_wreck_fin', -0.4], [168, 420, 'gg_wreck_engine', 2.1]]) { w.prop(k, x, z, r, { solid: true }); mark(x - 5, z - 5, x + 5, z + 5, 2); w.paintCircle('dirt', x, z, 7, 0.5, x); }
+      // crash trail: the hull ploughed in from the west — gouge, plates, girders, adorned with cloth + lanterns
+      for (let i = 0; i < 9; i++) { const t = i / 8, x = 96 + t * 120, z = 336 + t * 30 + Math.sin(t * 7) * 6; w.raiseCircle(x, z, 6 + t * 3, -0.9, 0.7, 'add'); w.paintCircle(i % 2 ? 'mud' : 'dirt', x, z, 7 + t * 2, 0.5, i); }
+      for (let i = 0; i < 26; i++) { const t = rng(), x = 96 + t * 140 + R(-14, 14), z = 330 + t * 40 + R(-16, 18); if (free(x, z, 2, 3)) { w.prop(pick(['gg_hullplate', 'gg_strut', 'gg_hullplate', 'debris', 'gg_rubble', 'husk']), x, z, rng() * 6, { solid: true, scale: R(0.7, 1.1) }); mark(x - 2, z - 2, x + 2, z + 2, 2); } }
+      for (const [x, z] of [[198, 360], [160, 390], [126, 372], [226, 356], [182, 346], [150, 360]]) { w.prop('gg_lantern', x, z, 0, { solid: true }); w.lamp(x, z, { y: 1.5, model: null, color: 0xffa040, intensity: 1.4, range: 7, flicker: 0.35 }); }
+      for (const [x, z] of [[190, 372], [136, 392], [210, 336]]) w.prop('gg_totem', x, z, rng() * 6, { solid: true });
       w.prop('gg_husk_big', 214, 372, 2.2, { solid: true, scale: 1.25 }); w.container('deforestr_husk', 214, 378.5, 0, { tier: 3, poi: 'adorned_wreckage' });
       for (let i = 0; i < 18; i++) { const x = R(100, 270), z = R(250, 490); if (free(x, z, 2, 2)) { w.prop(pick(['debris', 'husk', 'gg_rubble', 'debris']), x, z, rng() * 6, { solid: true }); } }
       for (const [x, z] of [[198, 352], [160, 380], [120, 368], [222, 368], [240, 344]]) w.container(pick(['arc_crate', 'arc_husk', 'toolbox', 'crate']), x, z, 0, { tier: 2, poi: 'adorned_wreckage' });
@@ -816,8 +838,9 @@ export default {
 
     // ======================================================================== 10. HIGHWAY COLLAPSE (SW)
     {
-      const span = (x0, x1, z0, top, tex = 'asphalt') => {
+      const span = (x0, x1, z0, top, tex = 'concrete') => {
         w.block(x0, z0, x1, z0 + 12, 1.1, tex, { y0: top - 1.1 });
+        for (let x = x0 + 2; x < x1 - 2; x += 7) { w.prop('gg_laney', x, z0 + 6, 0, { yAbs: top + 0.02 }); w.prop('gg_lane', x + 3.5, z0 + 3, 0, { yAbs: top + 0.02 }); w.prop('gg_lane', x + 3.5, z0 + 9, 0, { yAbs: top + 0.02 }); }
         w.block(x0, z0, x1, z0 + 0.5, 1.0, 'damConcrete', { y0: top }); w.block(x0, z0 + 11.5, x1, z0 + 12, 1.0, 'damConcrete', { y0: top });
         for (let x = x0 + 6; x < x1 - 2; x += 18) { const g = w.groundAt(x, z0 + 6); w.block(x - 1.2, z0 + 3.5, x + 1.2, z0 + 8.5, top - 1.1 - (g - 0.6), 'damConcrete', { y0: g - 0.6, seed: 2 }); }
         mark(x0, z0 - 1, x1, z0 + 13, 2 | 4);
@@ -825,8 +848,8 @@ export default {
       span(145, 255, 596, 8); span(145, 255, 618, 8);
       span(0, 72, 626, 8); span(0, 66, 648, 8);
       // collapsed slab: stepped ramp from the ground up onto the north span
-      for (let k = 0; k < 18; k++) { const x0 = 145 - (k + 1) * 1.4, top = 8 - (k + 1) * 0.4; if (top < w.groundAt(x0, 602) + 0.3) break; w.block(x0, 597, x0 + 1.4, 607, 0.9, 'asphalt', { y0: top - 0.9 }); }
-      for (let k = 0; k < 6; k++) w.block(72 + k * 1.6, 628, 73.6 + k * 1.6, 637, 0.8, 'asphalt', { y0: 7.2 - k * 1.1, collide: false });
+      for (let k = 0; k < 18; k++) { const x0 = 145 - (k + 1) * 1.4, top = 8 - (k + 1) * 0.4; if (top < w.groundAt(x0, 602) + 0.3) break; w.block(x0, 597, x0 + 1.4, 607, 0.9, 'concrete', { y0: top - 0.9 }); }
+      for (let k = 0; k < 6; k++) w.block(72 + k * 1.6, 628, 73.6 + k * 1.6, 637, 0.8, 'concrete', { y0: 7.2 - k * 1.1, collide: false });
       for (const [x, z, r] of [[100, 615, 0.3], [118, 640, 1.2], [92, 632, 2.0], [128, 612, 2.6]]) w.prop('gg_rubble', x, z, r, { solid: true });
       for (const [x, z, k, r] of [[200, 602, 'car', 1.5], [168, 624, 'gg_truck', 1.7], [230, 626, 'car', 4.6], [186, 600, 'gg_van', 1.4], [40, 632, 'car', 1.6]]) w.prop(k, x, z, r, { solid: true, y: 0 , yAbs: 8.0 });
       for (const [x, z] of [[200, 600], [168, 622], [230, 628]]) w.container('car_trunk', x + 2, z, 0, { tier: 1, poi: 'highway_collapse' });
@@ -836,7 +859,7 @@ export default {
       }
       // pillars along the causeway (viaduct look) + highway lamps
       const HW = resample(HWY_W, 12);
-      for (let i = 1; i < HW.length - 1; i++) { const [x, z] = HW[i], [x2, z2] = HW[i + 1], a = Math.atan2(x2 - x, z2 - z); for (const s of [-1, 1]) w.prop('gg_hwpillar', x + Math.cos(a) * 7.6 * s, z - Math.sin(a) * 7.6 * s, a, {}); if (i % 2) w.lamp(x, z, { y: 4, color: 0xffe0b0, intensity: 1.0, range: 11 }); }
+      for (let i = 1; i < HW.length - 1; i++) { const [x, z] = HW[i], [x2, z2] = HW[i + 1], a = Math.atan2(x2 - x, z2 - z); for (const s of [-1, 1]) w.prop('gg_hwpillar', x + Math.cos(a) * 7.6 * s, z - Math.sin(a) * 7.6 * s, a, {}); if (i % 2) w.lamp(x, z, { y: 4, color: 0xffd890, intensity: 2.2, range: 13 }); }
       w.prop('gg_toll', 270, 612, 0.9, { solid: true, yAbs: 8 });
       w.arkSpawn('bombardier', 220, 640, { count: 1, radius: 20 }); w.arkSpawn('spotter', 260, 600, { count: 1, patrol: [[200, 600], [300, 580], [340, 548]] });
       w.arkSpawn('hornet', 300, 570, { count: 2, patrol: [[260, 610], [380, 515], [300, 520]] });
@@ -903,7 +926,7 @@ export default {
       house({ x: FX + 34, z: FZ + 30, w: 8, d: 7, h: 3.2, wall: 'brick', floor: 'tiles', roof: 'roofTar', tint: 0xc8b8a0, name: 'Fort Storeroom', floorY: FY, doors: [{ side: 'n', at: 3, w: 1.6 }] }, 'shed', { tier: 2, poi: 'ancient_fort', cont0: 2 });
       w.prop('gg_dish', FX + 22, FZ + 34, 0.4, { solid: true }); w.prop('gg_generator', FX + 26, FZ + 34, 0, { solid: true }); w.container('electronics', FX + 24, FZ + 36, 0, { tier: 2, poi: 'ancient_fort', note: 'transmitter' });
       for (const [x, z] of [[FX + 8, FZ + 8], [FX + 38, FZ + 8], [FX + 22, FZ + 30], [FX + 50, FZ + 22]]) lightPost(x, z, 0xffc880);
-      w.arkSpawn('sentinel', FX + 3, FZ + 3, { perch: 'tower', y: 8.2 }); w.arkSpawn('rocketeer', FX + 23, FZ + 20, { patrol: [[FX - 10, FZ - 10], [FX + 60, FZ - 10], [FX + 60, FZ + 55], [FX - 10, FZ + 55]] });
+      perched('sentinel', FX + 9, FZ + 6, 'fort_tower', 8.2); w.arkSpawn('rocketeer', FX + 23, FZ + 20, { patrol: [[FX - 10, FZ - 10], [FX + 60, FZ - 10], [FX + 60, FZ + 55], [FX - 10, FZ + 55]] });
       w.arkSpawn('tick', FX + 22, FZ + 18, { count: 2, habitat: 'indoor' }); w.arkSpawn('leaper', 640, 760, { radius: 30 });
       w.zone('Ancient Fort', [[FX - 6, FZ - 6], [FX + FW + 6, FZ - 6], [FX + FW + 6, FZ + FD + 6], [FX - 6, FZ + FD + 6]], { tier: 2 });
       w.poi('ancient_fort', 'Ancient Fort', FX + FW / 2, FZ + FD / 2, 34, { tier: 2, aliases: ['ancient_fort'] });
@@ -974,6 +997,33 @@ export default {
       }
     }
 
+    // ======================================================================== 12b. POI CLUTTER (detail bar: every POI dressed outside too)
+    {
+      const CL = [
+        [...cp(-100, 0), 62, ['gg_cone', 'gg_barrier', 'barrel', 'gg_crates', 'sandbag', 'debris', 'gg_pallet', 'barrelBlue'], 46, { mask: 2 }],
+        [372, 92, 105, ['barrel', 'gg_woodpile', 'gg_planter', 'gg_cart', 'gg_haybale', 'crate', 'gg_bench', 'gg_flowers'], 34],
+        [168, 158, 28, ['gg_stump', 'deadTree', 'gg_logs', 'debris', 'husk', 'gg_scree'], 14],
+        [304, 206, 18, ['gg_crates', 'barrel', 'gg_pallet', 'gg_logs', 'debris', 'gg_lantern'], 10],
+        [282, 292, 28, ['gg_stump', 'gg_logs', 'gg_woodpile', 'gg_haybale', 'barrel', 'gg_laundry', 'gg_fern'], 16],
+        [290, 580, 55, ['debris', 'gg_rubble', 'car', 'husk', 'gg_strut', 'gg_hullplate', 'gg_barrier', 'gg_cone'], 22],
+        [466, 596, 44, ['gg_haybale', 'gg_cart', 'barrel', 'gg_woodpile', 'gg_beehive'], 10],
+        [532, 624, 34, ['gg_woodpile', 'gg_haybale', 'barrel', 'debris', 'gg_cart', 'gg_laundry', 'gg_rubble'], 16],
+        [613, 717, 34, ['debris', 'gg_rock_s', 'barrel', 'gg_fortruin', 'gg_crates'], 12],
+        [670, 572, 40, ['debris', 'gg_rubble', 'husk', 'gg_rock_m', 'gg_slab', 'gg_strut'], 16],
+        [635, 514, 22, ['barrel', 'barrelBlue', 'gg_pipes', 'gg_crates', 'gg_generator', 'gg_transformer'], 10],
+        [885, 436, 44, ['gg_rock_s', 'gg_boulder', 'deadTree', 'gg_logs', 'gg_rock_m'], 12],
+        [920, 316, 44, ['gg_pallet', 'gg_crates', 'barrel', 'debris', 'gg_logs', 'gg_cone', 'gg_container3', 'gg_laundry'], 20],
+        [925, 120, 50, ['gg_planter', 'gg_bench', 'barrel', 'gg_crates', 'gg_flowers'], 12],
+        [746, 289, 60, ['gg_pallet', 'gg_crates', 'barrel', 'barrelBlue', 'gg_container', 'gg_cone', 'gg_container2'], 18],
+        [566, 156, 34, ['sandbag', 'gg_barrier', 'barrel', 'gg_crates', 'gg_cone'], 12],
+        [757, 130, 30, ['gg_crates', 'barrel', 'gg_generator', 'gg_dish'], 6],
+        [662, 337, 28, ['gg_barrier', 'gg_crates', 'sandbag', 'barrel'], 8],
+        [676, 190, 40, ['gg_pipes', 'gg_crates', 'barrel', 'gg_generator', 'gg_transformer'], 10],
+        [205, 360, 60, ['gg_hullplate', 'gg_strut', 'debris', 'gg_lantern', 'husk'], 16],
+      ];
+      for (const [cx, cz, r, kinds, n, o] of CL) clutter(cx, cz, r, kinds, n, o || {});
+    }
+
     // ======================================================================== 13. VEGETATION + DRESSING
     {
       const avoidT = (x, z) => !inPlay(x, z) || !free(x, z, 1.2, 3) || (occ(x, z) & 8);
@@ -982,13 +1032,13 @@ export default {
       const WF = [[176, 186], [250, 150], [330, 160], [348, 240], [340, 330], [320, 400], [300, 470], [230, 500], [182, 450], [190, 330], [150, 260]];
       const clearings = [[168, 158, 30], [304, 206, 16], [282, 292, 22], [205, 360, 34], [273, 472, 12], [216, 306, 8]];
       const inClear = (x, z) => clearings.some(([cx, cz, r]) => Math.hypot(x - cx, z - cz) < r);
-      w.paintPoly('forest', WF);
+      paintPolyN('forest', WF, 14);
       w.forest(WF, 2.7, ['pine', 'gg_pinebig', 'gg_spruce', 'tree', 'gg_spruce'], { avoid: (x, z) => avoidT(x, z) || inClear(x, z), undergrowth: false });
       w.scatter('gg_fern', WF, 900, { avoid: (x, z) => avoidT(x, z), solid: false });
       w.scatter('bush', WF, 500, { avoid: (x, z) => avoidT(x, z), solid: false });
       // highway collapse woods
       const HF = [[190, 470], [300, 480], [340, 520], [330, 600], [270, 625], [200, 590], [180, 530]];
-      w.paintPoly('forest', HF);
+      paintPolyN('forest', HF, 12);
       w.forest(HF, 2.4, ['pine', 'tree', 'gg_spruce', 'gg_birch'], { avoid: avoidT, undergrowth: false });
       w.scatter('gg_fern', HF, 300, { avoid: avoidT });
       // north-west forest around the Village and Barren Clearing
@@ -1032,7 +1082,7 @@ export default {
         const n = N1(x, z, 26), n2 = N2(x, z, 9), d = dAt(x, z);
         if (t !== 0) return null;   // only over grass
         if (d > 4) return n2 > 0.62 ? 'gravel' : (n > 0.5 ? 'rock' : 'moss');
-        const big = N2(x, z, 85), rocky = big > 0.52 && !(occ(x, z) & 4);
+        const big = N2(x, z, 85), rocky = big > 0.47 && !(occ(x, z) & 4);
         if (rocky) { if (n2 > 0.66) return 'rock'; if (n2 > 0.48) return 'gravel'; if (n < 0.4) return 'dirt'; return null; }
         if (n > 0.68) return 'moss';
         if (n < 0.3 && n2 > 0.45) return 'dirt';
@@ -1057,7 +1107,6 @@ export default {
         ['fireball', 720, 460, 2], ['fireball', 330, 300, 2], ['tick', 860, 600, 2], ['pop', 200, 700, 2], ['surveyor', 480, 700, 1], ['surveyor', 900, 520, 1], ['shredder', 780, 470, 1],
         ['tick', 120, 300, 2], ['pop', 940, 640, 2], ['leaper', 960, 400, 1], ['fireball', 560, 40, 2], ['tick', 700, 90, 3], ['spotter', 640, 650, 1], ['rocketeer', 380, 470, 1]])
         w.arkSpawn(k, x, z, { count: c, radius: 12 });
-      w.arkSpawn('queen', 411, 286, { count: 1, condition: 'harvester' });
       // player insertion points (reference "player spawn" icons, pulled inside the boundary)
       for (const [x, z] of [[263, 32], [377, 27], [402, 124], [500, 125], [222, 105], [558, 68], [694, 58], [810, 50], [955, 245], [126, 262], [294, 306], [315, 387], [152, 430],
         [230, 541], [279, 540], [300, 579], [417, 602], [747, 602], [906, 587], [919, 368], [548, 800]]) w.spawnPoint(x, z);

@@ -3,7 +3,7 @@
 // app: { profile, save(), audioSafe: { play(name), setVolumes(obj) }, screens: { lobby() } }
 // Every change mutates app.profile and calls app.save().
 import { el, cell, DnD, Tooltip, RAR, TYPE_LABEL, iconURL } from './itemui.js';
-import { ITEMS, ROMAN, RARITY_ORDER, makeStack, maxStack, weaponStats, stackValue, newUid } from '../game/items.js';
+import { ITEMS, RARITY_ORDER, makeStack, maxStack, weaponStats, newUid } from '../game/items.js';
 import { capacities, fitLoadout, loadoutWeight, accepts, getSlot, setSlot, moveSlot, QUICK_TYPES, allStacks, addToSlots, countIn } from '../game/inventory.js';
 import { computeStats } from '../game/stats.js';
 import { SKILL_TREE, SKILL_RULES } from '../data/skills.js';
@@ -235,6 +235,9 @@ function glyphURL(name, col) {
   const u = c.toDataURL(); glyphCache.set(k, u); return u;
 }
 
+let OUTFITS = null, outfitsP = null;
+function loadOutfits() { return outfitsP || (outfitsP = import('../engine/models.js').then(m => (OUTFITS = m.OUTFITS || null)).catch(() => null)); }
+
 let cssPromise = null;
 function ensureCSS() {
   if (cssPromise) return cssPromise;
@@ -271,11 +274,12 @@ export class Hub {
     if (this.root) this.unmount();
     this.host = rootEl || document.getElementById('ui') || document.body;
     this.root = div('hub'); this.root.style.opacity = '0';
-    ensureCSS().then(() => { if (this.root) this.root.style.opacity = ''; });
+    ensureCSS().then(() => { if (!this.root) return; this.root.style.opacity = ''; this.render(); });
     this.head = div('hub-head'); this.body = div('hub-body'); this.toastEl = div('hub-toasts');
     this.root.append(this.head, this.body, this.toastEl);
     this.host.appendChild(this.root);
     this.prepareProfile();
+    if (!OUTFITS) loadOutfits().then(() => { if (this.root && (this.tab === 'loadout' || this.tab === 'raider')) this.render(); });
     DnD.bind(this.body, {
       onDrop: (a, b, s, e) => this.dnd?.onDrop?.(a, b, s, e),
       onClick: (r, s, e) => this.dnd?.onClick?.(r, s, e),
@@ -284,15 +288,20 @@ export class Hub {
     this.head.addEventListener('click', (e) => this.onHeadClick(e));
     this.onKey = (e) => this.handleKey(e);
     addEventListener('keydown', this.onKey);
+    this.onResize = () => { clearTimeout(this.rzT); this.rzT = setTimeout(() => { if (this.root && !this.modal) this.render(); }, 120); };
+    addEventListener('resize', this.onResize);
     this.onDown = (e) => { if (this.menu && !this.menu.contains(e.target)) this.closeMenu(); };
     this.root.addEventListener('mousedown', this.onDown, true);
-    this.root.addEventListener('contextmenu', (e) => e.preventDefault());
+    this.root.addEventListener('contextmenu', (e) => { if (!e.target.closest('input, textarea')) e.preventDefault(); });
     this.render();
     this.timers.push(setInterval(() => { const s = this.root?.querySelector('.scrappie-art'); if (s) { s.dataset.f = s.dataset.f === '1' ? '0' : '1'; s.replaceChildren(scrappieArt(+s.dataset.f)); } }, 600));
   }
   unmount() {
     for (const t of this.timers) clearInterval(t); this.timers = [];
     if (this.onKey) removeEventListener('keydown', this.onKey);
+    if (this.onResize) removeEventListener('resize', this.onResize);
+    clearTimeout(this.rzT);
+    this.tip?.remove(); this.tip = null;
     Tooltip.hide(); this.closeMenu();
     this.root?.remove(); this.root = null;
   }
@@ -328,8 +337,8 @@ export class Hub {
     if (!this.toastEl) return;
     const t = div('toast ' + kind, esc(msg));
     this.toastEl.prepend(t);
-    while (this.toastEl.children.length > 4) this.toastEl.lastChild.remove();
-    setTimeout(() => t.classList.add('out'), 2600); setTimeout(() => t.remove(), 3100);
+    while (this.toastEl.children.length > 3) this.toastEl.lastChild.remove();
+    setTimeout(() => t.classList.add('out'), 2200); setTimeout(() => t.remove(), 2700);
   }
   handleKey(e) {
     if (!this.root) return;
@@ -386,7 +395,7 @@ export class Hub {
         <div class="hh-hint">${esc(this.tabHint())}</div></div>`;
   }
   tabHint() {
-    return { loadout: 'DRAG TO EQUIP · SHIFT+CLICK QUICK-MOVE · RIGHT-CLICK ACTIONS · DOUBLE-CLICK WEAPON: MODS', workshop: 'CRAFT · RECYCLE · UPGRADE · SCRAPPIE', traders: 'BUY · SELL · TAKE JOBS',
+    return { loadout: 'DRAG TO EQUIP · SHIFT+CLICK MOVE · RIGHT-CLICK ACTIONS', workshop: 'CRAFT · RECYCLE · UPGRADE · SCRAPPIE', traders: 'BUY · SELL · TAKE JOBS',
       skills: 'CLICK A SKILL · DOUBLE-CLICK TO ADD A POINT', quests: 'ACCEPT JOBS · TRACK OBJECTIVES · TURN IN', raider: 'PROFILE · SETTINGS · SAVE DATA' }[this.tab] || '';
   }
   onHeadClick(e) {
@@ -419,7 +428,6 @@ export class Hub {
     if (stack) {
       c.classList.add('r-' + (ITEMS[stack.id]?.rarity || 'common'));
       if (stack.free) c.appendChild(el('span', 'freetag', 'F'));
-      if (opts.wide && ITEMS[stack.id]) c.appendChild(el('span', 'wname', esc(ITEMS[stack.id].name.toUpperCase().slice(0, 7))));
       if (opts.count != null) c.appendChild(el('span', 'qty', String(opts.count)));
     }
     if (opts.sel) c.classList.add('sel');
@@ -537,7 +545,8 @@ export class Hub {
     return null;
   }
   weaponByKey(k) { const p = this.p; return p.loadout.weapons.find(w => w && w.uid === k) || p.stash.find(s => s && s.uid === k && ITEMS[s.id]?.type === 'weapon') || null; }
-  removeFromStash(s, qty = s.qty) { s.qty -= qty; if (s.qty <= 0) { const i = this.p.stash.indexOf(s); if (i >= 0) this.p.stash.splice(i, 1); } }
+  // removes qty from a stash stack; removing the whole stack keeps the object's qty intact (it is being moved)
+  removeFromStash(s, qty = s.qty) { if (qty >= s.qty) { const i = this.p.stash.indexOf(s); if (i >= 0) this.p.stash.splice(i, 1); } else s.qty -= qty; }
   fail(msg) { this.toast(msg, 'bad'); return false; }
   modFits(modId, g, slot = null) {
     const md = ITEMS[modId]?.mod, wd = ITEMS[g?.id]?.weapon; if (!md || !wd) return false;
@@ -724,6 +733,7 @@ export class Hub {
   }
 
   tabLoadout(body) {
+    if (this.fixLoadout()) this.save();
     const p = this.p, lo = p.loadout, caps = this.caps(), S = this.st.loadout;
     if (S.sel && !this.resolve(S.sel)) S.sel = null;
     const wrap = div('lo-wrap');
@@ -765,15 +775,14 @@ export class Hub {
     L.body.appendChild(row2);
     const bp = div('slots lo-bp'); lo.backpack.forEach((s, i) => bp.appendChild(C(s, { c: 'backpack', i })));
     L.body.appendChild(sec(`BACKPACK <span class="dimc">${lo.backpack.filter(Boolean).length}/${caps.backpack}</span>`, bp));
+    L.body.appendChild(this.lodoll());
     const foot = div('lo-foot');
     foot.innerHTML = `<div class="lo-wbar"><div class="bar ${weight > caps.weightLimit ? 'over' : ''}"><i style="width:${(clamp01(weight / caps.weightLimit) * 100).toFixed(1)}%"></i></div>
       <span>WEIGHT <b>${weight.toFixed(1)}/${caps.weightLimit}</b></span><span>VALUE <b class="yellow">${fmt(value)}</b></span></div>`;
-    const warns = this.warnings();
-    if (warns.length) foot.appendChild(div('lo-warn', warns.slice(0, 3).map(w => `<div class="${w.bad ? 'bad' : ''}">${w.bad ? '!!' : '!'} ${esc(w.t)}</div>`).join('')));
     const bb = div('lo-btns');
     bb.append(btn('FILL AMMO', '', () => this.fillAmmo()), btn(Eco.freeLoadoutAvailable(p) ? 'FREE LOADOUT' : 'FREE KIT USED', 'free', () => this.freeLoadout(), !Eco.freeLoadoutAvailable(p)), btn('UNEQUIP ALL', 'ghost', () => this.unequipAll()));
     foot.appendChild(bb);
-    L.body.appendChild(foot);
+    L.root.appendChild(foot);
     wrap.appendChild(L.root);
 
     // ---- stash panel
@@ -817,6 +826,29 @@ export class Hub {
       },
       onRight: (ref, s, e) => { if (ref.c === 'view') return; S.sel = ref; const acts = this.actionsFor(ref, s); this.render(); this.openMenu(e.clientX, e.clientY, acts); },
     };
+  }
+  // raider preview + pre-deploy readiness checklist
+  lodoll() {
+    const p = this.p, lo = p.loadout, caps = this.caps();
+    const box = div('lo-doll');
+    const pv = div('doll'); const art = raiderArt(OUTFITS?.[p.settings.outfit || 'scav'] || OUTFITS?.scav || {}); pv.appendChild(art); box.appendChild(pv);
+    const guns = lo.weapons.slice(0, caps.weaponSlots).filter(Boolean);
+    const ammoOk = guns.length && guns.every(g => { const ws = weaponStats(g); return (g.ammo || 0) + countIn([lo.backpack, lo.quick, lo.safe], ws.ammo) > 0; });
+    const ammoLow = guns.some(g => { const ws = weaponStats(g); return countIn([lo.backpack, lo.quick, lo.safe], ws.ammo) < Math.min(ws.mag, 10) && !ITEMS[ws.ammo]?.ammo?.refillsMag; });
+    const broken = guns.some(g => (g.dur ?? 1) <= 0);
+    const heal = allStacks(lo).filter(s => ITEMS[s.id]?.use?.heal || ITEMS[s.id]?.use?.healOverTime).reduce((a, s) => a + s.qty, 0);
+    const w = loadoutWeight(lo);
+    const rows = [
+      ['WEAPON', guns.length ? (broken ? 'bad' : 'ok') : 'bad', guns.length ? (broken ? 'BROKEN' : guns.map(g => nm(g.id).toUpperCase()).join(' + ')) : 'NONE'],
+      ['AMMO', !guns.length ? 'bad' : !ammoOk ? 'bad' : ammoLow ? 'warn' : 'ok', !guns.length ? '-' : !ammoOk ? 'EMPTY' : ammoLow ? 'LOW' : 'OK'],
+      ['SHIELD', lo.shield ? 'ok' : 'warn', lo.shield ? nm(lo.shield.id).toUpperCase() : 'NONE'],
+      ['HEALING', heal ? 'ok' : 'warn', heal ? `${heal} ITEM${heal > 1 ? 'S' : ''}` : 'NONE'],
+      ['AUGMENT', lo.augment ? 'ok' : 'warn', lo.augment ? nm(lo.augment.id).toUpperCase() : 'BASIC'],
+      ['WEIGHT', w > caps.weightLimit ? 'warn' : 'ok', `${Math.round(100 * w / caps.weightLimit)}%`],
+    ];
+    const bad = rows.some(r => r[1] === 'bad'), warn = rows.some(r => r[1] === 'warn');
+    box.appendChild(div('chk', `<div class="verdict ${bad ? 'bad' : warn ? 'warn' : 'ok'}">${bad ? 'NOT READY' : warn ? 'READY - RISKY' : 'READY TO DEPLOY'}</div>${rows.map(([k, st, v]) => `<div class="ck ${st}"><i></i><span>${k}</span><b>${esc(v)}</b></div>`).join('')}`));
+    return box;
   }
   renderStashGrid(grid) {
     const p = this.p, S = this.st.loadout;
@@ -1175,7 +1207,7 @@ export class Hub {
     side.appendChild(this.itemInfo(makeStack(e.item, 1)));
     side.appendChild(div('pr-big', `<i class="coin"></i>${fmt(e.price)} <span class="dimc">EACH · ${e.left} LEFT</span>`));
     const acts = div('in-acts');
-    const big = maxStack(e.item) >= 50, qs = big ? [10, 50, maxStack(e.item)] : [1, 5];
+    const big = maxStack(e.item) >= 50, qs = big ? [1, 10, 50] : [1, 5];
     const maxAff = Math.min(e.left, Math.floor(p.coins / e.price));
     for (const n of qs) acts.appendChild(btn(`BUY ${n} · ${fmt(n * e.price)}`, n === qs[0] ? 'primary' : '', () => this.commit(Eco.buy(p, tid, e.item, n), 'ui_buy'), e.locked || e.left < n || p.coins < n * e.price));
     if (maxAff > qs[qs.length - 1] || (maxAff > 1 && !qs.includes(maxAff))) acts.appendChild(btn(`BUY MAX ${maxAff} · ${fmt(maxAff * e.price)}`, '', () => this.commit(Eco.buy(p, tid, e.item, maxAff), 'ui_buy'), e.locked || maxAff < 1));
@@ -1245,12 +1277,16 @@ export class Hub {
     const p = this.p, S = this.st.skills, T = SKILL_TREE, R = SKILL_RULES;
     const wrap = div('sk-wrap');
     const branches = Object.entries(T.branches).sort((a, b) => (a[1].order || 0) - (b[1].order || 0));
-    const cols = R.columns || 5, rows = R.rows || 7, CW = 38, RH = 40;
+    const cols = R.columns || 5, rows = R.rows || 7;
+    const px = parseFloat(getComputedStyle(this.root).getPropertyValue('--px')) || 2;
+    const bw = (this.body.clientWidth || 1600) / px, bh = (this.body.clientHeight || 900) / px;
+    const CW = Math.max(32, Math.min(48, Math.floor(((bw - 14 - 176 - 18) / 3 - 24) / cols)));
+    const RH = Math.max(34, Math.min(60, Math.floor((bh - 104) / rows)));
     for (const [bid, br] of branches) {
       const spent = branchSpent(p, bid);
       const panel = div('hp sk-br'); panel.style.setProperty('--bc', br.color);
       panel.appendChild(div('sk-bh', `<div class="nm">${esc(br.name).toUpperCase()}</div><div class="pts"><b>${spent}</b> PTS</div>`));
-      const tree = div('sk-tree'); tree.style.setProperty('--cols', cols); tree.style.setProperty('--rows', rows);
+      const tree = div('sk-tree'); tree.style.setProperty('--cols', cols); tree.style.setProperty('--rows', rows); tree.style.setProperty('--cw', CW); tree.style.setProperty('--rh', RH);
       const nodes = Object.entries(T.nodes).filter(([, n]) => n.branch === bid);
       // links
       let svg = `<svg viewBox="0 0 ${cols * CW} ${rows * RH}" preserveAspectRatio="none" shape-rendering="crispEdges">`;
