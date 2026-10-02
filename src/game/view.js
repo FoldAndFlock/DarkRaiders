@@ -182,14 +182,15 @@ export class View {
     // ARK rig: speed from the smoothed position, broken parts, stun / fire / leap flags (host has e.brain)
     const mdx = v.px - (v.lpx ?? v.px), mdz = v.pz - (v.lpz ?? v.pz); v.lpx = v.px; v.lpz = v.pz;
     v.spd = (v.spd ?? 0) + ((dt > 0 ? Math.hypot(mdx, mdz) / dt : 0) - (v.spd ?? 0)) * Math.min(1, dt * 8);
-    if (e.parts) for (const pk in e.parts) if (e.parts[pk] <= 0 && !v.broken.has(pk)) { v.broken.add(pk); v.ark.setBroken(pk); }
-    const br = e.brain, cool = br?.cool ?? 0;
-    if (cool > (v.lcool ?? cool) + 0.3) v.fireT = 0.3;           // cooldown just reset = a single-shot attack went off
-    v.lcool = cool; v.fireT = Math.max(0, (v.fireT || 0) - dt);
+    // broken parts: host reads e.parts, clients get the replicated key list (e.broken)
+    if (e.parts) { for (const pk in e.parts) if (e.parts[pk] <= 0 && !v.broken.has(pk)) { v.broken.add(pk); v.ark.setBroken(pk); } }
+    else if (e.broken) for (const pk of e.broken) if (!v.broken.has(pk)) { v.broken.add(pk); v.ark.setBroken(pk); }
+    const br = e.brain, fl = br ? ((br.stunT > 0 ? 1 : 0) | (br.burst > 0 ? 2 : 0) | (br.leap ? 4 : 0)) : (e.fl || 0);
+    v.fireT = Math.max(0, (v.fireT || 0) - dt);
     v.ark.update(dt, {
       moving: v.spd > 0.15, speed: v.spd, alert: e.st === 'alert' ? 1 : e.st === 'search' ? 0.5 : 0, tele,
-      gaze: (e.gaze ?? e.f) - e.f, stunned: (br?.stunT || 0) > 0, firing: (br?.burst || 0) > 0 || tele >= 1 || v.fireT > 0,
-      leaping: !!br?.leap || (!def.flying && alt > 0.05),
+      gaze: (e.gaze ?? e.f) - e.f, stunned: !!(fl & 1), firing: !!(fl & 2) || tele >= 1 || v.fireT > 0,
+      leaping: !!(fl & 4) || (!def.flying && alt > 0.05), eyeColor: v.coneCol || null,
     });
     // telegraph: flashing glow + charging light
     if (tele > 0) {
@@ -259,6 +260,7 @@ export class View {
           this.flash(ox, oy, oz, ev.k === 'laser' ? 0xff3020 : ev.k === 'energy' ? 0x60d8ff : 0xffd890, ev.k === 'laser' ? 3 : 1.8, 7, 0.06, 2.5);
           for (const h of ev.hits) fx.tracers.add(ox, oy, oz, h.h[0], h.h[1], h.h[2], col, ev.k === 'laser' ? 0.25 : 0.07);
           const v = this.vis.get(ev.s); if (v?.model) v.model.kick(0.6);
+          if (v?.ark) v.fireT = 0.3;                                  // ARK muzzle flash / recoil (host + clients)
         }
         for (const h of ev.hits) this.impact(h, mine);
         // near-miss whiz for the local player

@@ -363,7 +363,11 @@ function packRaider(e) {
   const fl = (e.moving ? 1 : 0) | (e.sprint ? 2 : 0) | (e.crouch ? 4 : 0) | (e.flash ? 8 : 0) | (e.bot ? 16 : 0);
   return ['r', e.id, r2(e.x), r2(e.y), r2(e.z), r2(e.f), r2(e.mf || 0), fl, ST.indexOf(e.st), Math.round(e.hp), e.maxHp, Math.round(e.sh), e.shMax, e.wk, e.outfit, e.name, e.team, e.slot ?? -1, e.emote || null, e.tagged || 0, e.wid || null];
 }
-function packArk(e) { return ['a', e.id, e.kind, r2(e.x), r2(e.y), r2(e.z), r2(e.f), r2(e.alt || 0), AST.indexOf(e.st), r2(e.gaze ?? e.f), r2(e.vis || 0), r2(e.tele || 0), r2(e.hp / e.maxHp), e.dormant ? 1 : 0, e.brain?.target || 0]; }
+function packArk(e) {
+  const br = e.brain, fl = br ? ((br.stunT > 0 ? 1 : 0) | (br.burst > 0 ? 2 : 0) | (br.leap ? 4 : 0)) : 0;
+  let broken = 0; for (const k in e.parts) if (e.parts[k] <= 0) (broken ||= []).push(k);
+  return ['a', e.id, e.kind, r2(e.x), r2(e.y), r2(e.z), r2(e.f), r2(e.alt || 0), AST.indexOf(e.st), r2(e.gaze ?? e.f), r2(e.vis || 0), r2(e.tele || 0), r2(e.hp / e.maxHp), e.dormant ? 1 : 0, br?.target || 0, fl, broken];
+}
 function packOther(e) {
   if (e.type === 'loot') return ['l', e.id, r2(e.x), r2(e.y), r2(e.z), e.kind, e.label || null];
   if (e.type === 'proj') return ['p', e.id, e.kind, r2(e.x), r2(e.y), r2(e.z)];
@@ -373,7 +377,7 @@ function packOther(e) {
 function unpack(p) {
   switch (p[0]) {
     case 'r': return { type: 'raider', id: p[1], x: p[2], y: p[3], z: p[4], f: p[5], mf: p[6], moving: !!(p[7] & 1), sprint: !!(p[7] & 2), crouch: !!(p[7] & 4), flash: !!(p[7] & 8), bot: !!(p[7] & 16), st: ST[p[8]], hp: p[9], maxHp: p[10], sh: p[11], shMax: p[12], wk: p[13], outfit: p[14], name: p[15], team: p[16], slot: p[17], emote: p[18], tagged: p[19], wid: p[20], r: 0.35, buffs: {} };
-    case 'a': return { type: 'ark', id: p[1], kind: p[2], x: p[3], y: p[4], z: p[5], f: p[6], alt: p[7], st: AST[p[8]], gaze: p[9], vis: p[10], tele: p[11], hpf: p[12], dormant: !!p[13], tgt: p[14], r: 0.6 };
+    case 'a': return { type: 'ark', id: p[1], kind: p[2], x: p[3], y: p[4], z: p[5], f: p[6], alt: p[7], st: AST[p[8]], gaze: p[9], vis: p[10], tele: p[11], hpf: p[12], dormant: !!p[13], tgt: p[14], fl: p[15] || 0, broken: p[16] || null, r: 0.6 };
     case 'l': return { type: 'loot', id: p[1], x: p[2], y: p[3], z: p[4], kind: p[5], label: p[6] };
     case 'p': return { type: 'proj', id: p[1], kind: p[2], x: p[3], y: p[4], z: p[5] };
     case 'h': return { type: 'hz', id: p[1], kind: p[2], x: p[3], y: p[4], z: p[5], r: p[6], age: p[7], dur: p[8] };

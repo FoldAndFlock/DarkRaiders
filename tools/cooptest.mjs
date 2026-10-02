@@ -35,6 +35,10 @@ await wait(1000);
 const sA = await A.evaluate(() => { const g = window.app.game; return [...g.ents.values()].filter(e => e.type === 'raider' && !e.bot).map(e => `${e.name}@${e.x.toFixed(1)},${e.z.toFixed(1)} ${e.st}`); });
 const sB = await B.evaluate(() => { const g = window.app.game; return { me: g.me && `${g.me.x.toFixed(1)},${g.me.z.toFixed(1)}`, ents: g.ents.size, raiders: [...g.ents.values()].filter(e => e.type === 'raider' && !e.bot).map(e => `${e.name}@${e.x.toFixed(1)},${e.z.toFixed(1)}`), ark: [...g.ents.values()].filter(e => e.type === 'ark').length, tl: g.timeLeft }; });
 console.log('A sees', JSON.stringify(sA)); console.log('B sees', JSON.stringify(sB));
+// ARK replication: host moves an ARK next to B, breaks a part and stuns it; B should see the part + flags
+await A.evaluate(() => { const g = window.app.game, sim = g.sim; const b = [...sim.entities.values()].find(e => e.type === 'raider' && e.name === 'BUDDY'); const k = [...sim.entities.values()].find(e => e.type === 'ark' && Object.keys(e.parts).length); if (!k || !b) return; k.brain.update = () => {}; k.x = b.x + 4; k.z = b.z; k.dormant = false; const pk = Object.keys(k.parts)[0]; k.parts[pk] = 0; k.brain.stunT = 99; });
+await wait(1500);
+console.log('B ark', await B.evaluate(() => JSON.stringify([...window.app.game.ents.values()].filter(e => e.type === 'ark').map(e => ({ kind: e.kind, fl: e.fl, broken: e.broken })))));
 await A.screenshot({ path: out + '_raidA.png' }); await B.screenshot({ path: out + '_raidB.png' });
 for (const [k, v] of errs) console.log(v + 'x', k);
 await b.close();

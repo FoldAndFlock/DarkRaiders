@@ -358,7 +358,11 @@ class Rig {
     if (te > 0) I += te * 0.8 + Math.sin(t * (10 + te * 26)) * 0.3 * te;
     if (this.blink) I = this.blink(t, s, I);
     if (s.stunned) I = Math.random() < 0.35 ? 0.12 : 0.5 + Math.random() * 0.6;
-    this.eyeMat.color.setRGB(I, I * clamp(1.15 - 0.72 * a + te * 0.25, 0.3, 1.6), I * clamp(1.1 - 0.6 * a + te * 0.15, 0.3, 1.6));
+    if (s.eyeColor) {
+      // match the vision-cone awareness colour (view passes it): divide out the amber base eye colour
+      const ec = s.eyeColor, k = I * (1 + te * 0.2);
+      this.eyeMat.color.setRGB(k * ec.r, k * ec.g / 0.455, k * ec.b / 0.141);
+    } else this.eyeMat.color.setRGB(I, I * clamp(1.15 - 0.72 * a + te * 0.25, 0.3, 1.6), I * clamp(1.1 - 0.6 * a + te * 0.15, 0.3, 1.6));
     const h = 0.92 + 0.16 * Math.sin(t * 3.1) + this.fireK * 0.2;
     this.hotMat.color.setRGB(h, h, h);
     const tl = s.stunned ? 0.2 : 0.55 + 0.35 * a + te * (1.2 + 0.3 * Math.sin(t * 40));
