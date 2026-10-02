@@ -68,6 +68,7 @@ for (const map of maps) {
       let bad = inside(e, br), t = 0, arrived = false, maxH = 0; const trace = [];
       if (bad) out.bad.push(`${k} ${rt.name} spawn: ${bad}`);
       for (; t < T && !bad; t += dt) {
+        sim.pathBudget = 4; sim.seekBudget = 6;          // per-tick planning budgets (Sim.tick sets them)
         if (br.moveTo(rt.x1, rt.z1, dt, 0.9)) { arrived = true; break; }
         br.physics(dt);
         maxH = Math.max(maxH, e.y + e.alt - W.groundAt(e.x, e.z));
@@ -95,6 +96,7 @@ for (const map of maps) {
       const br = e.brain; out.enter.runs++;
       let bad = null, t = 0;
       for (; t < 25 && !bad; t += dt) {
+        sim.pathBudget = 4; sim.seekBudget = 6;
         br.moveTo(tx, tz, dt, 0.9, ty, { enter: true });
         out.ticks++;
         const w = inside(e, br); if (w) { bad = w; out.bad.push(`${k} enter ${B.name || B.id} t=${t.toFixed(1)}: ${w}`); }

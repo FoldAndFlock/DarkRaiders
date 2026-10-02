@@ -9,6 +9,10 @@
 //                        top-level schema fields; length/width = footprint for big walkers).
 //   height               for flyers this is the HOVER ALTITUDE (sim.js uses it that way); body
 //                        height is size.height.  hover: ground unit floating just above the floor.
+//                        Flight (game/ark_ai.js): the hull is a cylinder of ~0.72 x radius by size.height
+//                        that never enters a solid; optional altitude (overrides height) and climbRate
+//                        (m/s, default 4.5 small / 3 big). Flyers with radius <= 0.8 may follow a raider
+//                        indoors through an open doorway; bigger ones only look for an angle from outside.
 //   explosiveMul         multiplier on explosive damage taken.  turnRate: body yaw speed (deg/s).
 //   static: true         fixed emplacement that never moves (Turrett, Sentinal).
 //   color                minimap / UI tint.  threat: 1 (nuisance) .. 10 (boss).

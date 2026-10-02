@@ -203,7 +203,7 @@ export class ArkBrain {
   // ------------------------------------------------------------ flight
   initFlight() {
     const e = this.e, d = this.def, g = this.sim.grid;
-    this.fr = clamp((d.radius || 0.6) * 0.8, 0.3, 2.4);          // hull cylinder
+    this.fr = clamp((d.radius || 0.6) * 0.72, 0.3, 2.4);         // hull cylinder (rotor tips may brush a wall)
     this.fh = clamp((d.size?.height ?? 0.6) * 0.5, 0.2, 2.6);
     this.cruise = d.altitude ?? d.height ?? 2.4;                  // hover altitude over the ground
     this.climb = d.climbRate ?? ((d.radius || 0.6) < 1 ? 4.5 : 3); // m/s up
@@ -527,7 +527,7 @@ export class ArkBrain {
     const e = this.e; let best = { none: true }, bd = 1e9;
     for (const op of sim.openings(bid)) {
       if (!op.walk || (op.door >= 0 && !sim.doors[op.door].open)) continue;
-      if (op.w < this.fr * 2 + 0.15 || op.y1 - op.y0 < this.fh * 2 + 0.4) continue;
+      if (op.w < this.fr * 2 + 0.55 || op.y1 - op.y0 < this.fh * 2 + 0.4) continue;   // (the grid narrows a doorway up to 0.5 m)
       // the outside point: the first spot out along the doorway's normal with open sky over it (past a porch)
       let ox = null, oz = null;
       for (let k = 1.8; k <= 14; k += 0.6) {
