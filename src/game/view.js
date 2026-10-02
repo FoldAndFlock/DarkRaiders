@@ -12,6 +12,7 @@ import { ARK } from '../data/arc.js';
 import { ITEMS } from './items.js';
 import { Vox } from '../engine/voxel.js';
 
+const tmpV = new THREE.Vector3();
 const TEAM_COL = [0x30d0d0, 0xf0a030, 0xe84a30, 0x9a70ff];
 const SURF_FX = { [SURF.dirt]: 0x6a5a40, [SURF.concrete]: 0x8a8a84, [SURF.metal]: 0xffd080, [SURF.sand]: 0xc0a070, [SURF.water]: 0xb0c8d0, [SURF.wood]: 0x7a5a3a, [SURF.grass]: 0x4a6a2e, [SURF.tile]: 0x9a948a };
 const SURF_SND = { [SURF.dirt]: 'step_grass', [SURF.concrete]: 'step_concrete', [SURF.metal]: 'step_metal', [SURF.sand]: 'step_sand', [SURF.water]: 'step_water', [SURF.wood]: 'step_wood', [SURF.grass]: 'step_grass', [SURF.tile]: 'step_concrete' };
@@ -146,7 +147,7 @@ export class View {
   updRaider(v, e, dt) {
     const m = v.model;
     v.obj.position.set(v.px, v.py, v.pz);
-    if (e.wk !== m.gunKind) m.setGun(e.wk);
+    if ((e.wid || e.wk || null) !== m.gunId) m.setGun(e.wid, e.wk);
     const sp = e.sprint ? 1.5 : e.crouch ? 0.6 : 1;
     m.update(dt, e.moving, e.f, sp, e.crouch, e.mf ?? e.f);
     m.root.visible = e.st !== 'out';
@@ -355,8 +356,10 @@ export class View {
   }
   flash(x, y, z, color, I, range, life, prio = 2) { this.flashes.push({ x, y, z, color, I, range, life, t: 0, prio }); }
   localMuzzle(e, a, ws, shot) {
-    const x = e.x + Math.sin(a) * 0.7, z = e.z + Math.cos(a) * 0.7, y = e.y + (e.crouch ? 0.95 : 1.3);
-    const v = this.vis.get(e.id); if (v?.model) v.model.kick(Math.min(1, 0.4 + (ws.recoil || 1) * 0.25));
+    const v = this.vis.get(e.id);
+    const mz = v?.model?.muzzleWorld(tmpV);
+    const x = mz ? mz.x : e.x + Math.sin(a) * 0.7, z = mz ? mz.z : e.z + Math.cos(a) * 0.7, y = mz ? mz.y : e.y + (e.crouch ? 0.95 : 1.3);
+    if (v?.model) v.model.kick(Math.min(1, 0.4 + (ws.recoil || 1) * 0.25));
     this.fx.muzzle(x, y, z, Math.sin(a), Math.cos(a));
     this.flash(x, y, z, ws.class === 'energy' ? 0x60d8ff : 0xffd890, 2.2, 8, 0.06, 2.6);
     this.g.audio?.play(shot.snd, { x, z });

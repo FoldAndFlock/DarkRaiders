@@ -2,6 +2,7 @@
 import * as THREE from '../../vendor/three.module.js';
 import { Vox } from './voxel.js';
 import { litVox } from './materials.js';
+import { gunModelGeo, gunMuzzle } from './guns.js';
 
 const geoCache = new Map();
 function cached(key, fn) { if (!geoCache.has(key)) geoCache.set(key, fn()); return geoCache.get(key); }
@@ -114,11 +115,21 @@ export class RaiderModel {
     this.body.add(this.hips, this.legL, this.legR);
     this.walk = 0; this.recoil = 0; this.lean = 0;
   }
-  setGun(kind) {
-    if (kind === this.gunKind) return;
-    this.gunKind = kind;
-    this.gun.geometry = gunGeo(kind || 'pistol');
-    this.gun.visible = !!kind;
+  // id: weapon item id (bespoke per-weapon model, origin at the grip); kind: generic class fallback
+  setGun(id, kind = null) {
+    const key = id || kind || null;
+    if (key === this.gunId) return;
+    this.gunId = key; this.gunKind = kind;
+    this.gun.visible = !!key;
+    if (!key) return;
+    if (id) { this.gun.geometry = gunModelGeo(id); this.gun.position.set(0.12, -0.04, 0.32); this.muzzle = gunMuzzle(id); }
+    else { this.gun.geometry = gunGeo(kind); this.gun.position.set(0.12, 0.0, 0.26); this.muzzle = null; }
+  }
+  // world-space muzzle point of the held gun (for flashes / tracers); null if unknown
+  muzzleWorld(out = new THREE.Vector3()) {
+    if (!this.muzzle || !this.gun.visible) return null;
+    this.root.updateMatrixWorld(true);
+    return this.gun.localToWorld(out.set(this.muzzle[0], this.muzzle[1], this.muzzle[2]));
   }
   // facing: radians, 0 = +z (south / toward camera); aim pitch ignored (top-down)
   update(dt, moving, facing, speed = 1, crouch = false, moveDir = facing) {
