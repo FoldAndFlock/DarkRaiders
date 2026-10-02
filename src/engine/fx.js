@@ -264,11 +264,20 @@ export class GroundRings {
   }
 }
 
-// --- Tracers: short bright additive line segments
+// --- Tracers: a bullet flies from the muzzle to its hit point as a bright head pixel (2-3 px square, white-hot
+// core of its colour) dragging a short fading tail (additive lines, crisp in the low-res target, day and night);
+// at the end the tail catches up into the impact. Beams (lasers, telegraph lines, lightning) are whole lines
+// that fade out. add(x0, y0, z0, x1, y1, z1, color, life, o):
+//   o.speed m/s (190) . o.tail m (2.6) . o.head px (3) . o.beam (default: life >= 0.15) . o.core (head whiteness)
+const TR_VERT = /* glsl */`
+  attribute float aSize; attribute vec3 aCol; varying vec3 vCol;
+  void main(){ vCol = aCol; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_PointSize = aSize; }`;
+const TR_FRAG = /* glsl */`varying vec3 vCol; void main(){ gl_FragColor = vec4(vCol, 1.0); }`;
 export class Tracers {
-  constructor(scene, max = 300) {
+  constructor(scene, max = 400) {
     this.max = max; this.list = [];
-    this.buf = new Float32Array(max * 6); this.cbuf = new Float32Array(max * 6);
+    // 2 segments per tracer: faint tail -> mid, mid -> bright head
+    this.buf = new Float32Array(max * 12); this.cbuf = new Float32Array(max * 12);
     const g = new THREE.BufferGeometry();
     this.pa = new THREE.BufferAttribute(this.buf, 3).setUsage(THREE.DynamicDrawUsage);
     this.ca = new THREE.BufferAttribute(this.cbuf, 3).setUsage(THREE.DynamicDrawUsage);
@@ -276,20 +285,59 @@ export class Tracers {
     this.mesh = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
     this.mesh.frustumCulled = false; this.mesh.renderOrder = 12;
     scene.add(this.mesh);
+    // head pixels
+    this.hbuf = new Float32Array(max * 3); this.hcol = new Float32Array(max * 3); this.hsize = new Float32Array(max);
+    const hg = new THREE.BufferGeometry();
+    this.hpa = new THREE.BufferAttribute(this.hbuf, 3).setUsage(THREE.DynamicDrawUsage);
+    this.hca = new THREE.BufferAttribute(this.hcol, 3).setUsage(THREE.DynamicDrawUsage);
+    this.hsa = new THREE.BufferAttribute(this.hsize, 1).setUsage(THREE.DynamicDrawUsage);
+    hg.setAttribute('position', this.hpa); hg.setAttribute('aCol', this.hca); hg.setAttribute('aSize', this.hsa);
+    this.heads = new THREE.Points(hg, new THREE.ShaderMaterial({ vertexShader: TR_VERT, fragmentShader: TR_FRAG, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    this.heads.frustumCulled = false; this.heads.renderOrder = 13;
+    scene.add(this.heads);
   }
-  add(x0, y0, z0, x1, y1, z1, color = 0xffd080, life = 0.06) {
+  add(x0, y0, z0, x1, y1, z1, color = 0xffd080, life = 0.06, o = {}) {
     if (this.list.length >= this.max) this.list.shift();
-    this.list.push({ x0, y0, z0, x1, y1, z1, color: new THREE.Color(color), life, age: 0 });
+    const c = new THREE.Color(color), len = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
+    const beam = o.beam ?? life >= 0.15;
+    this.list.push({ x0, y0, z0, x1, y1, z1, len, c, life, age: 0, beam, speed: o.speed || 190, tail: o.tail || 2.6, head: o.head ?? 3, core: o.core ?? 0.55 });
   }
   update(dt) {
-    this.list = this.list.filter(t => (t.age += dt) < t.life);
-    this.list.forEach((t, i) => {
-      const f = 1 - t.age / t.life;
-      this.buf.set([t.x0 + (t.x1 - t.x0) * (1 - f) * 0.7, t.y0, t.z0 + (t.z1 - t.z0) * (1 - f) * 0.7, t.x1, t.y1, t.z1], i * 6);
-      this.cbuf.set([t.color.r * f * 0.3, t.color.g * f * 0.3, t.color.b * f * 0.3, t.color.r * f, t.color.g * f, t.color.b * f], i * 6);
-    });
-    this.mesh.geometry.setDrawRange(0, this.list.length * 2);
-    this.pa.needsUpdate = this.ca.needsUpdate = true;
+    const B = this.buf, CB = this.cbuf, HB = this.hbuf, HC = this.hcol, HS = this.hsize;
+    let n = 0, h = 0;
+    const L = this.list;
+    for (let i = 0; i < L.length; i++) {
+      const t = L[i]; t.age += dt;
+      let a0, a1, f;
+      if (t.beam) { if (t.age >= t.life) continue; f = 1 - t.age / t.life; a0 = 0; a1 = 1; }
+      else {
+        const s = t.age * t.speed;                           // head distance along the shot
+        if (s - t.tail >= t.len) continue;
+        const sl = t.len || 1e-6; a1 = Math.min(1, s / sl); a0 = Math.max(0, (s - t.tail) / sl); f = 1;
+      }
+      L[n++] = t;
+      const dx = t.x1 - t.x0, dy = t.y1 - t.y0, dz = t.z1 - t.z0, am = (a0 + a1) * 0.5;
+      const r = t.c.r * f, g = t.c.g * f, b = t.c.b * f, j = h * 12;
+      // tail end (dark) -> middle (half) -> head (full colour)
+      B[j] = t.x0 + dx * a0; B[j + 1] = t.y0 + dy * a0; B[j + 2] = t.z0 + dz * a0;
+      B[j + 3] = B[j + 6] = t.x0 + dx * am; B[j + 4] = B[j + 7] = t.y0 + dy * am; B[j + 5] = B[j + 8] = t.z0 + dz * am;
+      B[j + 9] = t.x0 + dx * a1; B[j + 10] = t.y0 + dy * a1; B[j + 11] = t.z0 + dz * a1;
+      const tk = t.beam ? 0.55 : 0.05;
+      CB[j] = r * tk; CB[j + 1] = g * tk; CB[j + 2] = b * tk;
+      CB[j + 3] = CB[j + 6] = r * 0.5; CB[j + 4] = CB[j + 7] = g * 0.5; CB[j + 5] = CB[j + 8] = b * 0.5;
+      CB[j + 9] = r; CB[j + 10] = g; CB[j + 11] = b;
+      // head pixel: white-hot core of the colour; bullets while in flight, beams at the far end
+      if (t.head > 0 && (t.beam || a1 < 1 || t.age * t.speed < t.len + 0.4)) {
+        const k = h * 3, w = t.core;
+        HB[k] = B[j + 9]; HB[k + 1] = B[j + 10]; HB[k + 2] = B[j + 11];
+        HC[k] = (r + (f - r) * w); HC[k + 1] = (g + (f - g) * w); HC[k + 2] = (b + (f - b) * w);
+        HS[h] = t.head; h++;
+      } else { HS[h] = 0; HB[h * 3] = HB[h * 3 + 1] = HB[h * 3 + 2] = 0; HC[h * 3] = HC[h * 3 + 1] = HC[h * 3 + 2] = 0; h++; }
+    }
+    L.length = n;
+    this.mesh.geometry.setDrawRange(0, n * 4);
+    this.heads.geometry.setDrawRange(0, h);
+    this.pa.needsUpdate = this.ca.needsUpdate = this.hpa.needsUpdate = this.hca.needsUpdate = this.hsa.needsUpdate = true;
   }
 }
 

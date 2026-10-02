@@ -6,6 +6,10 @@
 //   extractWorldPoints(x)       -> same in world space ({ call: [wx, wz], ..., cabin: { cx, cz, hw, hd, r, y, face } })
 //   inCabin(x, wx, wy, wz) / toLocal(x, wx, wz) / toWorld(x, lx, lz)
 //   extractSolids(kind, x, world?) -> [[x0, z0, x1, z1, h, y0?], ...]  (World.extract rasterises + rotates them)
+//   extractGates(kind, x)       -> same format: closed-door blockers across the cabin doorway (elevator, airshaft) or
+//                                  the platform fence gates (metro); World.finalize turns them into dynamic door blockers
+//   extractGateClosed(st, t)    -> are the gates shut in this state? (all but open + the first 8.5 s of closing)
+//   inGateZone(x, wx, wy, wz)   -> is a point in the space a shut gate seals off (cabin + doorway / track bed)?
 //   metroFit(x, world)          -> the underground hall around a metro extract (track ends = tunnel mouths)
 //
 // Frame: origin = the extract marker on its floor (x.y), +z = front (x.face rotates it, 0 = toward the camera),
@@ -16,6 +20,9 @@
 //   cabin lit; auto-departs after 90 s) --a raider in the cabin holds E on the departure lever (or 90 s
 //   pass)--> closing (10 s: warning lights + buzzer, doors close) --> everyone inside the cabin extracts -->
 //   gone (the car leaves; cooldown 75 s -> idle; the metro station closes for the raid -> offline 'used').
+//   The cabin doors (elevator, airshaft) / platform gates (metro) are shut and solid in every state except open
+//   (from 0.8 s in) and closing until GATE_SHUT s before the end: nobody waits inside the cabin while it is on
+//   its way, and the doors slam a moment before departure (whoever is inside then still extracts).
 //   Hatch: idle --key--> open (15 s window, anyone stepping onto it extracts; one open hatch per map) --> idle.
 //
 // update(dt, state, t, ctx): state 'idle' | 'called' | 'open' | 'closing' | 'gone' | 'offline'; t = seconds
@@ -397,6 +404,18 @@ function digitVox(ch, s) { const v = new XB(s, 0, 0, 0, 3 * s, 5 * s, s); v.glyp
 function digitGhostVox(s) { const v = new XB(s, 0, 0, 0, 7 * s, 5 * s, s); v.glyph(GLYPH[8], 0, 5 * s, 0, s, 0x2a1e18); v.glyph(GLYPH[8], 4 * s, 5 * s, 0, s, 0x2a1e18); return v; }
 const two = (n) => String(clamp(Math.ceil(n), 0, 99)).padStart(2, '0');
 
+// ----------------------------------------------------------------------------- doors / gates (shared timing)
+// The cabin doors (elevator, airshaft) and the metro platform gates are shut - and solid, see extractGates - in
+// every state except open (once the doors have parted, GATE_OPEN s in) and closing until GATE_SHUT s before the
+// car leaves. t = seconds left on the state's timer (open: 90 -> 0, closing: 10 -> 0).
+export const GATE_SHUT = 1.5, GATE_OPEN = 0.8;
+export function extractGateClosed(st, t, kind = null) {
+  if (kind === 'hatch') return false;
+  if (st === 'open') return t != null && t > 90 - GATE_OPEN;
+  if (st === 'closing') return !(t > GATE_SHUT);
+  return true;
+}
+
 // ============================================================================= ELEVATOR (bunker)
 // B outer half-width at the base, BT at the wall top, H wall top / roof underside, RT roof top, I shaft
 // (cabin) half-width, DW / DH doorway half-width / height
@@ -523,7 +542,7 @@ function animElevator(R, dt, st, t, el, ctx) {
   let cy = -EB.DROP, doors = 0;
   if (st === 'called' && t < EB.RISE) { const u = t / EB.RISE; cy = -EB.DROP * u * u; }
   else if (st === 'open') { cy = 0; doors = ease(sat((el - 0.3) / 1.4)); }
-  else if (st === 'closing') { cy = 0; doors = ease(sat((t - 0.4) / 9.0)); }
+  else if (st === 'closing') { cy = 0; doors = ease(sat((t - GATE_SHUT) / 6.0)); }   // grind shut, sealed GATE_SHUT s early
   else if (st === 'gone') { const u = sat((el - 0.6) / 4.6); cy = -EB.DROP * u * u; }
   cy = R.follow('cy', cy, dt); doors = R.follow('doors', doors, dt);
   R.car.position.y = cy; R.car.visible = cy > -2.9; R.carY = cy;
@@ -559,12 +578,12 @@ function animElevator(R, dt, st, t, el, ctx) {
     if (Math.random() < dt * 6) { const sx = Math.random() < 0.5 ? -1 : 1, p = R.w(sx * 2.1, 0.3, -2.0 + Math.random() * 4.0); fx.sparks(p.x, p.y, p.z, 3, 0xffc070, 2.5); }
   }
   if (fx && st === 'open' && R.prev === 'called' && el < 0.1 && R.once('land')) R.dust(fx, 2.2, 22, 0, 0);
-  if (fx && st === 'closing' && t < 0.5 && R.once('seal')) R.dust(fx, 1.0, 14, 0, 3.4);
+  if (fx && st === 'closing' && t < GATE_SHUT && R.once('seal')) R.dust(fx, 1.0, 14, 0, 3.4);
   // sound cues: alarm cycles while it comes, winch, closing sequence, door slam, departure
   if (st === 'called' && t > EB.RISE + 0.3) R.cue(ctx, 'klax' + Math.floor((R.callDur() - t) / 4), 'extract_klaxon');
   if (st === 'called' && t < EB.RISE + 0.3) R.cue(ctx, 'rise', 'elevator_rise');
   if (st === 'closing' && el < 0.3) R.cue(ctx, 'close', 'extract_close_seq');
-  if (st === 'closing' && t < 1.45) R.cue(ctx, 'slam', 'elevator_door');
+  if (st === 'closing' && t < GATE_SHUT + 0.05) R.cue(ctx, 'slam', 'elevator_door');
   if (st === 'gone' && el > 0.6) R.cue(ctx, 'drop', 'elevator_depart');
   R.decals(st, t, el, dt);
 }
@@ -726,6 +745,8 @@ function metroStaticVox(o) {
   const fz = E - 0.375, gaps = o.doors.map((d) => [d - 0.75, d + 0.75]);
   const segs = [[px0, gaps[0][0]], [gaps[0][1], gaps[1][0]], [gaps[1][1], px1]];
   for (const [a, b] of segs) if (b > a) v.box(a, PT, fz, b, PT + 1.0, fz + 0.125, (X, Y, Z, i, j) => (Y >= PT + 0.875 ? hazD(i, j) : Y < PT + 0.125 || i % 8 === 0 ? C.y1 : (i & 1) ? C.s2 : undefined));
+  // the fence carries on along the track edge past short platforms (hall floor -> mouth) so the track bed stays shut
+  for (const [a, b] of metroEndFences(o)) v.box(a, 0, fz, b, PT + 1.0, fz + 0.125, (X, Y, Z, i, j) => (Y >= PT + 0.875 ? hazD(i, j) : Y < 0.125 || i % 8 === 0 ? C.y1 : (i & 1) ? C.s2 : undefined));
   // call terminal against the fence (screen + button face the platform, -z)
   v.box(-0.375, PT, E - 1.0, 0.375, PT + 1.375, E - 0.5, (X, Y, Z) => (Y >= PT + 1.25 ? C.t0 : Z < E - 0.875 && Y > PT + 0.5 ? C.m0 : C.t1));
   v.box(-0.25, PT + 0.75, E - 1.125, 0.25, PT + 1.125, E - 1.0, (X, Y, Z, i, j) => (j & 1 ? G.SCR : G.SCR2));
@@ -740,6 +761,13 @@ function metroStaticVox(o) {
     for (const lx of [bx - 0.625, bx + 0.5]) v.box(lx, PT, z0 - 0.125, lx + 0.125, PT + 0.375, z0 + 0.375, C.s0);
   }
   return v;
+}
+// track-edge fence runs beyond the platform ends (only where the platform stops > 0.6 m short of a mouth)
+function metroEndFences(o) {
+  const out = [];
+  if (o.px0 > o.x0 + 0.6) out.push([o.x0, o.px0]);
+  if (o.px1 < o.x1 - 0.6) out.push([o.px1, o.x1]);
+  return out;
 }
 function metroPortalVox(o) {   // tunnel mouths at the hall's end walls: concrete frame, dark void, signal lamp
   const { T, x0, x1 } = o, E = T - 1.375;
@@ -859,13 +887,13 @@ function animMetro(R, dt, st, t, el, ctx) {
   let tx = null, doors = 0;
   if (st === 'called' && t < 7) { const u = t / 7; tx = startX * u * u; }
   else if (st === 'open') { tx = 0; doors = ease(sat((el - 0.6) / 1.0)); }
-  else if (st === 'closing') { tx = 0; doors = 1 - ease(sat((el - 8.0) / 1.6)); }
+  else if (st === 'closing') { tx = 0; doors = ease(sat((t - GATE_SHUT) / 1.5)); }   // shut GATE_SHUT s before departure
   else if (st === 'gone') { const u = sat((el - 0.8) / 6.5); tx = u < 1 ? endX * u * u : null; }
   R.car.visible = tx != null; R.carX = tx;
   if (tx != null) R.car.position.x = tx;
   doors = R.follow('doors', doors, dt);
   for (const lf of R.leaves) lf.g.position.x = lf.base + lf.s * 0.6 * doors;
-  const gate = R.follow('gate', st === 'open' || (st === 'closing' && el < 9.4) ? 1 : 0, dt, 5);
+  const gate = R.follow('gate', extractGateClosed(st, t, 'metro') ? 0 : 1, dt, 5);   // platform gates: same timing as their blockers
   for (const gt of R.gates) gt.g.position.x = gt.base + gt.s * 0.75 * gate;
   R.zone.visible = tx === 0;
   const off = st === 'offline';
@@ -899,7 +927,7 @@ function animMetro(R, dt, st, t, el, ctx) {
   if (st === 'called' && t < 10) { R.cue(ctx, 'rumble', 'extract_metro_rumble'); if (t < 7) ctx.shake?.(0.05 * (1 - t / 7)); }
   if (st === 'called' && t < 2.4) R.cue(ctx, 'brake', 'extract_metro_arrive');
   if (st === 'closing' && el < 0.3) R.cue(ctx, 'close', 'extract_close_seq', { pitch: 1.1 });
-  if (st === 'closing' && el > 7.9) R.cue(ctx, 'shut', 'elevator_door');
+  if (st === 'closing' && t < GATE_SHUT + 1.6) R.cue(ctx, 'shut', 'elevator_door');
   if (st === 'gone' && el > 0.7) R.cue(ctx, 'depart', 'extract_metro_depart');
   if (fx && moving && Math.abs(tx) < Math.max(-o.x0, o.x1) && Math.random() < dt * 20) {
     const p = R.w(o.px0 + Math.random() * (o.px1 - o.px0), PT + 0.1, E - 0.6 - Math.random() * 0.6);
@@ -943,6 +971,19 @@ function asHouseVox() {
   v.box(-0.5, DH, O, 0.5, DH + 0.625, O + 0.125, C.k1);                                // display bezel
   return v;
 }
+function asDoorVox() {   // right sliding leaf of the housing doorway, x [0, DW); the left leaf is mirrored
+  const { DW, DH } = AS;
+  const v = new XB(0.0625, 0, 0, 0, DW, DH, 0.1875);
+  v.box(0, 0, 0, DW, DH, 0.1875, (X, Y, Z, i, j) => {
+    if (X < 0.0625) return C.y0;                                               // yellow meeting edge
+    if (Y < 0.375) return hazD(i >> 1, j >> 1);                                // hazard kick plate
+    if (Y > 1.375 && Y < 1.6875 && X > 0.25 && X < 0.625) return Z > 0.125 ? C.glass2 : C.glass;   // wired window
+    if (j % 8 === 0 || X > DW - 0.0625) return C.s1;                          // panel seams + frame edge
+    if (i % 4 === 2 && j % 8 === 4) return C.s4;                               // rivets
+    return C.s2;
+  });
+  return v;
+}
 function asConsoleVox() {
   const v = new XB(0.0625, 2.25, 0, 2.0, 2.9375, 1.75, 2.625);
   v.box(2.3125, 0, 2.125, 2.875, 0.0625, 2.5, C.s1);
@@ -982,9 +1023,12 @@ function buildAirshaft(R) {
   const S = {
     house: gset('as_house', asHouseVox), cons: gset('as_cons', asConsoleVox), xg: gset('as_x', () => xGlyphVox(2.375, 1.0625, 2.5, 6, 5, 0.0625)),
     ship: gset('as_ship', dropshipVox), hook: gset('as_hook', hookVox), rope: gset('rope', ropeVox), tape: gset('as_tape', () => tapeVox(-0.875, 0.875, 0.4, 1.9, 2.125)),
+    door: gset('as_door', asDoorVox),
   };
   R.addGroup('shell');
   R.part(S.house, R.root, 0, 0, 0, { group: 'shell' }); R.part(S.cons);
+  R.doorR = R.part(S.door, R.root, 0, 0.125, AS.I + 0.125, { group: 'shell' });   // two-leaf sliding door in the doorway throat
+  R.doorL = R.part(S.door, R.root, 0, 0.125, AS.I + 0.125, { group: 'shell' }); R.doorL.scale.x = -1;
   R.xg = R.part(S.xg); R.tape = R.part(S.tape);
   R.disps = [R.display(R.root, -0.35, 2.1875, 2.125, 0.1, 0, 'shell')];
   R.ship = R.g(R.root); R.ship.rotation.y = -Math.PI / 2;     // nose toward +z (the camera), fan pods either side of the shaft
@@ -1006,6 +1050,11 @@ function animAirshaft(R, dt, st, t, el, ctx) {
   else if (st === 'gone') { const u = sat((el - 1.6) / 6.0); if (u < 1) { sx = 8 * u * u; sy = H + 0.15 * Math.sin(T * 1.6) + 22 * u ** 1.5; sz = 52 * u * u; pitch = -0.2 * sat(u * 4); } }
   R.ship.visible = sx != null;
   if (sx != null) { R.ship.position.set(sx, sy, sz); R.shipBody.rotation.set(roll, 0, pitch); }
+  // housing doors: shut while it is on its way, part once the dropship hovers, slam GATE_SHUT s before the pull
+  let doors = st === 'open' ? ease(sat((el - 0.2) / 0.9)) : st === 'closing' ? ease(sat((t - GATE_SHUT) / 4.0)) : 0;
+  doors = R.follow('doors', doors, dt);
+  R.doorR.position.x = 0.95 * doors; R.doorL.position.x = -0.95 * doors;
+  if (st === 'closing' && t < GATE_SHUT + 0.05) R.cue(ctx, 'slam', 'elevator_door', { pitch: 1.2 });
   R.shipY = sy;
   // winch beam + line: lowered while it waits, brightening as it departs, the pull in the first 1.6 s of gone
   const hover = sx === 0 || (st === 'gone' && el < 1.6);
@@ -1246,6 +1295,7 @@ export function extractSolids(kind, x = {}, world = null) {
       const out = [[o.px0, -o.PB, o.px1, E, PT], [-5.875, E - 0.05, 5.875, o.T + 1.25, PT]];   // platform + car floor (one walkable level)
       for (const [a, b] of [[o.px0, g[0] - 0.75], [g[0] + 0.75, g[1] - 0.75], [g[1] + 0.75, o.px1]]) if (b > a) out.push([a, E - 0.45, b, E - 0.3, 1.05, PT]);   // platform fence
       out.push([-6.0, o.T + 1.25, 6.0, o.T + 1.5, 1.1, PT], [-6.125, E, -5.875, o.T + 1.25, 1.1, PT], [5.875, E, 6.125, o.T + 1.25, 1.1, PT]);   // car far side + ends
+      for (const [a, b] of metroEndFences(o)) out.push([a - 0.15, E - 0.45, b + 0.15, E - 0.3, PT + 1.05]);                  // track-edge fence past short platforms
       out.push([-0.4, E - 1.05, 0.4, E - 0.45, 1.4, PT]);                                                          // call terminal
       const sx = Math.max(o.px0 + 1.25, -6.25), sz = -o.PB + 0.375;
       out.push([sx - 0.15, sz - 0.15, sx + 0.15, sz + 0.15, 2.6, PT]);                                              // sign pole
@@ -1266,6 +1316,32 @@ export function extractSolids(kind, x = {}, world = null) {
       ];
     }
   }
+}
+
+// closed-door blockers in the same local format (World.finalize makes them dynamic door blockers, opened and shut by
+// World.setExtractGate from the replicated extract state): the cabin doorway (elevator, airshaft) or the two fence
+// gates in front of the car doors (metro)
+export function extractGates(kind, x = {}) {
+  switch (kind) {
+    case 'elevator': return [[-EB.DW - 0.05, EB.I + 0.1, EB.DW + 0.05, EB.I + 0.4, EB.DH + 0.35, -0.3]];
+    case 'airshaft': return [[-AS.DW - 0.05, AS.I + 0.1, AS.DW + 0.05, AS.I + 0.35, AS.DH + 0.35, -0.3]];
+    case 'metro': {
+      const o = metroOpts(x), E = o.T - 1.375, PT = 0.375;
+      return o.doors.map((d) => [d - 0.8, E - 0.5, d + 0.8, E - 0.25, 1.05, PT]);
+    }
+    default: return [];
+  }
+}
+// the space a shut gate seals off (cabin + doorway throat; the metro track bed + car space), local frame + height
+export function inGateZone(x, wx, wy, wz) {
+  const kind = x.kind || 'elevator', [lx, lz] = toLocal(x, wx, wz), y0 = x.y ?? 0;
+  if (kind === 'elevator') return Math.abs(lx) <= EB.I + 0.05 && lz >= -EB.I && lz <= EB.I + 0.75 && (wy == null || Math.abs(wy - y0) < 2.2);
+  if (kind === 'airshaft') return Math.abs(lx) <= AS.I + 0.05 && lz >= -AS.I && lz <= AS.I + 0.55 && (wy == null || Math.abs(wy - y0) < 2.2);
+  if (kind === 'metro') {
+    const o = metroOpts(x), E = o.T - 1.375;
+    return lx >= o.x0 && lx <= o.x1 && lz >= E - 0.5 && lz <= o.T + 1.75 && (wy == null || Math.abs(wy - y0 - 0.2) < 2.2);
+  }
+  return false;
 }
 
 // triangles of a model (all parts, every state) - for the gallery / budgets

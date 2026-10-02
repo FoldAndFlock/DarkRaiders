@@ -413,11 +413,13 @@ reg('dg_barrier', () => {
   return v.build();
 }, { solid: [1.0, 0.3, 0.9] });
 
+// chain-link panel: 3-voxel posts and top / bottom rails so the fence still reads as a line when seen edge-on (mesh 1 voxel)
 reg('dg_fence', () => {
-  const v = new Vox(30, 19, 2, 0.1, [15, 0, 1]);
-  for (const x of [0, 29]) v.box(x, 0, 0, x, 18, 1, P.steelD);
-  v.box(0, 18, 0, 29, 18, 0, P.steel);
-  for (let y = 1; y < 18; y++) for (let x = 1; x < 29; x++) if ((x + y) % 4 === 0 || (x - y + 40) % 4 === 0) v.set(x, y, 0, 0x6a7272);
+  const v = new Vox(30, 19, 3, 0.1, [15, 0, 1.5]);
+  for (let y = 1; y < 18; y++) for (let x = 1; x < 29; x++) if ((x + y) % 4 === 0 || (x - y + 40) % 4 === 0) v.set(x, y, 1, 0x6a7272);
+  v.box(0, 0, 0, 29, 0, 2, P.steelD);
+  v.box(0, 18, 0, 29, 18, 2, P.steelL);
+  for (const x of [0, 29]) { v.box(x, 0, 0, x, 17, 2, P.steelD); v.box(x, 18, 0, x, 18, 2, P.steelL); }
   return v.build();
 }, { solid: [1.5, 0.08, 1.8] });
 

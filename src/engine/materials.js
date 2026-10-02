@@ -13,6 +13,7 @@ export const GU = {
   uCut: { value: new THREE.Vector4(1e9, 1e9, -1e9, -1e9) },  // xz rect of building the player is inside
   uCutR: { value: new THREE.Vector4(0, 0, 1, 0) },            // cut rect frame for rotated buildings: centre xz, cos, sin
   uCutH: { value: 999 },                                      // walls in that rect are cut above this height
+  uCutBid: { value: -1 },                                     // building being cut: its walls are capped at uCutH, not hollowed
   uXray: { value: new THREE.Vector4(0, 0, -1e9, 0) },         // player screen x, z, depth key, radius (m)
   uXrayY: { value: 0 },                                       // player feet height
   uGlowBoost: { value: 1 },                                   // night -> emissive voxels brighter
@@ -141,8 +142,71 @@ const SWAY_VERT = /* glsl */`
   }
   #endif
 `;
-function hook(mat, { cutaway = false, xray = true, glow = false, lights = true, sway = false, extraFragPars = '', diffuse = null, extraUniforms = {}, key = '' } = {}) {
+// Batched world boxes (world.js BoxBatch) carry aBox = (y0, y1, building id, flags) and aEdge = (u, v, W, D): the
+// box-local position on the top face and its size (W = 0 on side faces). Flags: 1 = wall cap (lighter top + outline),
+// 2 = dark 1-px lip on the top row of the side faces, 4 / 8 = draw priority (the top is raised 1.2 / 2.4 cm so where
+// caps overlap - corners, T-joints, door jambs - one wins cleanly instead of z-fighting). Inside a cut building its
+// boxes that straddle the cut are squashed down to the cut height (a solid section cap) instead of being hollowed.
+// The cap outline is drawn along an edge only where the occlusion grid shows open floor beyond it, so walls that
+// meet merge into one outlined shape rather than showing seams.
+const BOX_VERT_PARS = /* glsl */`
+  attribute vec4 aBox; attribute vec4 aEdge; varying vec4 vBox; varying vec4 vEdge; uniform float uCutH; uniform float uCutBid;
+`;
+const BOX_VERT = /* glsl */`
+  vBox = aBox; vEdge = aEdge;
+  {
+    float rz = floor(aBox.w / 4.0) * 0.012;
+    if (transformed.y > aBox.y - 0.001) transformed.y += rz;
+    #ifdef DW_CUTAWAY
+    if (abs(aBox.z - uCutBid) < 0.5 && aBox.x < uCutH - 0.05 && transformed.y > uCutH - 0.04) {
+      float oy = transformed.y;
+      transformed.y = uCutH - 0.03 + rz;
+      #ifdef USE_MAP
+        if (abs(normal.y) < 0.5 && abs(oy) > 1e-3) vMapUv.y *= transformed.y / oy;   // side faces: v = y*K/rep
+      #endif
+    }
+    #endif
+  }
+`;
+const BOX_FRAG_PARS = /* glsl */`
+  varying vec4 vBox; varying vec4 vEdge; uniform float uCutBid;
+`;
+const BOX_FRAG = /* glsl */`
+  {
+    // derivatives first (uniform control flow): world direction of the box-local u axis on top faces
+    vec2 dU = vec2(dFdx(vEdge.x), dFdy(vEdge.x)), dW = vec2(dFdx(vWPos.x), dFdy(vWPos.z));
+    float f = vBox.w, rz = floor(f / 4.0) * 0.012;
+    bool fCap = mod(f, 2.0) >= 1.0, fLip = mod(floor(f / 2.0), 2.0) >= 1.0;
+    float bTop = vBox.y + rz; bool bCut = false;
+    #ifdef DW_CUTAWAY
+      if (abs(vBox.z - uCutBid) < 0.5 && vBox.x < uCutH - 0.05 && vBox.y + rz > uCutH - 0.04) { bTop = uCutH - 0.03 + rz; bCut = true; }
+    #endif
+    if (vWNormal.y > 0.5 && (fCap || bCut)) {
+      // wall cap: a flatter, lighter band so the top of a wall reads as one solid strip (cut sections a shade darker)
+      vec3 c = diffuseColor.rgb; float l = dot(c, vec3(0.299, 0.587, 0.114));
+      c = mix(c, vec3(l), 0.45) * 1.2 + 0.03;
+      diffuseColor.rgb = bCut ? c * 0.82 : c;
+      if (vEdge.z > 0.0) {
+        float px = 1.0 / 16.0;
+        vec2 au = vec2(abs(dW.x) > 1e-6 ? dU.x / dW.x : 1.0, abs(dW.y) > 1e-6 ? dU.y / dW.y : 0.0);
+        au = length(au) > 1e-4 ? normalize(au) : vec2(1.0, 0.0);
+        vec2 av = vec2(-au.y, au.x);
+        float d0 = vEdge.x, d1 = vEdge.z - vEdge.x, d2 = vEdge.y, d3 = vEdge.w - vEdge.y, hp = bTop - 0.1;
+        bool ol = false;
+        if (d0 < px) ol = ol || !dwBlocked(vWPos.xz - au * (d0 + 0.55), hp);
+        if (d1 < px) ol = ol || !dwBlocked(vWPos.xz + au * (d1 + 0.55), hp);
+        if (d2 < px) ol = ol || !dwBlocked(vWPos.xz - av * (d2 + 0.55), hp);
+        if (d3 < px) ol = ol || !dwBlocked(vWPos.xz + av * (d3 + 0.55), hp);
+        if (ol) diffuseColor.rgb *= 0.16;
+      }
+    } else if (vWNormal.y <= 0.5 && vWNormal.y > -0.5 && (fLip || bCut) && bTop - vWPos.y < ${(1 / (16 * OBLIQUE_K)).toFixed(4)}) {
+      diffuseColor.rgb *= 0.3;    // top row of the face: one dark pixel between the cap and the face below
+    }
+  }
+`;
+function hook(mat, { cutaway = false, xray = true, glow = false, lights = true, sway = false, box = false, extraFragPars = '', diffuse = null, extraUniforms = {}, key = '' } = {}) {
   mat.defines = mat.defines || {};
+  if (box) mat.defines.DW_BOX = '';
   if (sway) mat.defines.DW_SWAY = '';
   if (cutaway) mat.defines.DW_CUTAWAY = '';
   if (xray) mat.defines.DW_XRAY = '';
@@ -151,26 +215,28 @@ function hook(mat, { cutaway = false, xray = true, glow = false, lights = true, 
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, GU, extraUniforms);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\n' + COMMON_VERT_PARS + 'uniform float uTime; uniform vec2 uWind;\n' + (glow ? 'attribute float glow; varying float vGlow;' : ''))
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + SWAY_VERT + COMMON_VERT + (glow ? 'vGlow = glow;' : ''));
+      .replace('#include <common>', '#include <common>\n' + COMMON_VERT_PARS + 'uniform float uTime; uniform vec2 uWind;\n' + (glow ? 'attribute float glow; varying float vGlow;' : '') + (box ? BOX_VERT_PARS : ''))
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + SWAY_VERT + (box ? BOX_VERT : '') + COMMON_VERT + (glow ? 'vGlow = glow;' : ''));
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\n' + COMMON_FRAG_PARS + extraFragPars + (glow ? 'varying float vGlow; uniform float uGlowBoost;' : ''))
+      .replace('#include <common>', '#include <common>\n' + COMMON_FRAG_PARS + extraFragPars + (glow ? 'varying float vGlow; uniform float uGlowBoost;' : '') + (box ? BOX_FRAG_PARS : ''))
       .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + COMMON_FRAG_CLIP)
       .replace('#include <lights_fragment_end>', LIGHTS_INJECT);
     if (diffuse) sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', diffuse);
+    if (box) sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n' + BOX_FRAG);
     if (glow) sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>',
       '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * vGlow * 1.6 * uGlowBoost;');
   };
-  mat.customProgramCacheKey = () => ['dw2', cutaway, xray, glow, lights, sway, !!diffuse, key].join('|');
+  mat.customProgramCacheKey = () => ['dw2', cutaway, xray, glow, lights, sway, box, !!diffuse, key].join('|');
   return mat;
 }
 export { hook as hookMaterial };
 
 const cache = new Map();
-export function litTex(texture, { cutaway = false, xray = true, color = 0xffffff, transparent = false, side = THREE.FrontSide } = {}) {
-  const key = 'tex' + texture.uuid + cutaway + xray + color + transparent + side;
+// box: geometry from the world box batcher (has the aBox attribute: wall caps, lips, cut caps)
+export function litTex(texture, { cutaway = false, xray = true, color = 0xffffff, transparent = false, side = THREE.FrontSide, box = false } = {}) {
+  const key = 'tex' + texture.uuid + cutaway + xray + color + transparent + side + box;
   if (cache.has(key)) return cache.get(key);
-  const m = hook(new THREE.MeshLambertMaterial({ map: texture, color, transparent, side }), { cutaway, xray });
+  const m = hook(new THREE.MeshLambertMaterial({ map: texture, color, transparent, side }), { cutaway, xray, box });
   cache.set(key, m); return m;
 }
 export function litVox({ xray = false, cutaway = false, sway = false } = {}) {

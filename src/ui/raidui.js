@@ -5,6 +5,10 @@ import { capacities, fitLoadout, moveSlot, getSlot, setSlot, QUICK_TYPES } from 
 import { renderMapImage } from './mapimage.js';
 import { RECIPES } from '../data/recipes.js';
 import { countIn, takeFrom, pickUp as pickUpInto } from '../game/inventory.js';
+import { settingsRows, touchEnabled } from './settings.js';
+
+const sameRef = (a, b) => !!a && !!b && a.c === b.c && (a.i ?? null) === (b.i ?? null);
+const closeBtn = (fn) => { const b = el('button', 'close-x', 'X'); b.setAttribute('aria-label', 'Close'); b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; };
 
 
 export class RaidUI {
@@ -29,11 +33,11 @@ export class RaidUI {
     p.innerHTML = `<h2 class="yellow">FIRST DROP</h2>
       <div>Loot what you can, then <span class="green">EXTRACT</span> at an elevator, metro or hatch before the timer runs out.</div>
       <div class="label">ARK GAZE: <span style="color:#c8dcff">WHITE</span> PATROLLING - <span class="yellow">YELLOW</span>/<span style="color:var(--orange)">ORANGE</span> SUSPICIOUS - <span class="red">RED</span> SPOTTED YOU, ATTACKING. STAY OUT OF THE LIGHT OR BREAK LINE OF SIGHT.</div>
-      <div class="label">E SEARCH / INTERACT - TAB INVENTORY - M MAP - 1-6 QUICK USE - SPACE ROLL - C CROUCH - F FLASHLIGHT</div>
+      <div class="label">${touchEnabled() ? 'LEFT THUMB MOVES (PUSH PAST THE RING TO SPRINT) - RIGHT STICK AIMS, PAST HALFWAY FIRES - HOLD USE TO SEARCH - TAP THE QUICK SLOTS TO HEAL' : 'E SEARCH / INTERACT - TAB INVENTORY - M MAP - 1-6 QUICK USE - SPACE ROLL - C CROUCH - F FLASHLIGHT'}</div>
       <div class="label">DIE AND YOU LOSE EVERYTHING EXCEPT YOUR SAFE POCKET.</div>`;
     this.wrap.appendChild(p);
-    const kill = () => { p.remove(); removeEventListener('keydown', kill); };
-    setTimeout(() => addEventListener('keydown', kill), 1500); setTimeout(kill, 16000);
+    const kill = () => { p.remove(); removeEventListener('keydown', kill); removeEventListener('pointerdown', kill); };
+    setTimeout(() => { addEventListener('keydown', kill); addEventListener('pointerdown', kill); }, 1500); setTimeout(kill, 16000);
     this.g.profile.seenIntro = true;
   }
   destroy() { this.wrap.remove(); Tooltip.hide(); this.g.o.input.typing = false; this.g.o.input.enabled = true; }
@@ -73,15 +77,21 @@ export class RaidUI {
     } else this.revealN = 1e9;
     this.openInv();
   }
-  openInv() { if (!this.inv) { this.inv = el('div', 'overlay'); this.wrap.appendChild(this.inv); this.g.audio?.play('ui_open'); } this.renderInv(); }
-  closeInv() { if (!this.inv) return; this.inv.remove(); this.inv = null; this.lootRef = null; this.lootItems = null; Tooltip.hide(); this.g.audio?.play('ui_close'); }
+  openInv() { if (!this.inv) { this.inv = el('div', 'overlay scroll-ov'); this.tsel = null; this.wrap.appendChild(this.inv); this.g.audio?.play('ui_open'); } this.renderInv(); }
+  closeInv() { if (!this.inv) return; this.inv.remove(); this.inv = null; this.lootRef = null; this.lootItems = null; this.tsel = null; Tooltip.hide(); this.g.audio?.play('ui_close'); }
   renderInv() {
     const g = this.g, pc = g.pc, lo = pc.lo; pc.recalc();
     const caps = pc.caps;
     const over = fitLoadout(lo, caps); if (over.length) g.session.dropItems(over);
     this.inv.innerHTML = '';
-    const left = el('div', 'panel col'); left.style.maxHeight = '90vh';
+    if (this.tsel && (this.tsel.c === 'loot' || !getSlot(lo, this.tsel))) this.tsel = null;
+    const touch = touchEnabled();
+    // panels sit side by side in one centred box; the overlay scrolls if the box is larger than the screen
+    const box = el('div', 'row inv-box'); box.style.alignItems = 'flex-start'; box.style.gap = 'calc(var(--px) * 8px)';
+    this.inv.appendChild(box);
+    const left = el('div', 'panel col has-x inv-lo');
     left.appendChild(el('div', 'row', `<h2>LOADOUT</h2><span class="label" style="margin-left:auto">${pc.weight().toFixed(1)} / ${caps.weightLimit} KG</span>`));
+    left.appendChild(closeBtn(() => this.closeInv()));
     const sec = (title, node) => { const c = el('div', 'col'); c.appendChild(el('div', 'label', title)); c.appendChild(node); return c; };
     const top = el('div', 'row');
     top.appendChild(sec('AUGMENT', cell(lo.augment, { c: 'augment' }, { hint: 'AUG' })));
@@ -95,8 +105,9 @@ export class RaidUI {
     const bp = el('div', 'slots'); bp.style.maxWidth = 'calc(var(--cell) * 8 + var(--px) * 8px)';
     lo.backpack.forEach((s, i) => bp.appendChild(cell(s, { c: 'backpack', i })));
     left.appendChild(sec(`BACKPACK  ${lo.backpack.filter(Boolean).length}/${caps.backpack}`, bp));
-    left.appendChild(el('div', 'label', 'DRAG TO MOVE  -  RIGHT CLICK: USE / QUICK-MOVE  -  DRAG OUTSIDE: DROP'));
-    this.inv.appendChild(left);
+    if (touch && this.tsel) left.appendChild(this.selActions(this.tsel));
+    else left.appendChild(el('div', 'label', touch ? 'TAP AN ITEM, THEN TAP A SLOT TO MOVE IT  -  HOLD TO DRAG  -  DRAG OFF THE PANEL: DROP' : 'DRAG TO MOVE  -  RIGHT CLICK: USE / QUICK-MOVE  -  DRAG OUTSIDE: DROP'));
+    box.appendChild(left);
     // field crafting (skill unlock): basic inRaid recipes from carried materials
     const un = g.stats0?.unlocks;
     if (!this.lootItems && (un?.has?.('field_craft_basic') || un?.has?.('field_craft_advanced'))) {
@@ -114,7 +125,7 @@ export class RaidUI {
         row.appendChild(b); fc.appendChild(row);
         fc.appendChild(el('div', 'label', b.title));
       }
-      this.inv.appendChild(fc);
+      box.appendChild(fc);
     }
     if (this.lootItems) {
       const right = el('div', 'panel col'); right.style.minWidth = 'calc(var(--cell) * 6)';
@@ -124,15 +135,56 @@ export class RaidUI {
       for (let k = this.lootItems.length; k < Math.max(6, this.lootItems.length); k++) grid.appendChild(cell(null, { c: 'loot', i: k }));
       right.appendChild(grid);
       const all = el('button', 'primary', 'TAKE ALL'); all.onclick = () => this.takeAll(); right.appendChild(all);
-      right.appendChild(el('div', 'label', 'CLICK TO TAKE'));
-      this.inv.appendChild(right);
+      right.appendChild(el('div', 'label', touch ? 'TAP TO TAKE' : 'CLICK TO TAKE'));
+      box.appendChild(right);
     }
-    DnD.bind(this.inv, {
-      onClick: (ref, s, e) => { if (ref.c === 'loot') this.take(ref.i); else if (this.lootItems && (e.shiftKey)) this.putToLoot(ref); },
-      onRight: (ref, s) => this.rightClick(ref, s),
-      onDrop: (from, to, s) => this.drop(from, to),
-      onDropOutside: (from, s) => { if (from.c !== 'loot') { const st = getSlot(lo, from); setSlot(lo, from, null); g.dropStack(st); g.audio?.play('ui_drop'); this.renderInv(); } },
-    });
+    if (this.tsel) this.inv.querySelectorAll('.cell').forEach(c => { if (sameRef(c._ref, this.tsel)) c.classList.add('tsel'); });
+    if (!this.inv._dnd) {
+      this.inv._dnd = true;
+      DnD.bind(this.inv, {
+        onClick: (ref, s, e) => {
+          if (e.pointerType === 'touch') { this.tapCell(ref, s); return; }
+          if (ref.c === 'loot') this.take(ref.i); else if (this.lootItems && (e.shiftKey)) this.putToLoot(ref);
+        },
+        onTapEmpty: (ref) => { if (this.tsel && ref.c !== 'loot-hidden') { const from = this.tsel; this.tsel = null; this.drop(from, ref); } },
+        onHold: (ref, s) => { if (ref.c !== 'loot') { this.tsel = ref; this.renderInv(); this.tipFor(ref); } },
+        onRight: (ref, s) => this.rightClick(ref, s),
+        onDrop: (from, to, s) => { this.tsel = null; this.drop(from, to); },
+        onDropOutside: (from, s) => this.dropToGround(from),
+      });
+    }
+  }
+  dropToGround(ref) {
+    const g = this.g, lo = g.pc.lo;
+    if (ref.c === 'loot') return;
+    const st = getSlot(lo, ref); if (!st) return;
+    setSlot(lo, ref, null); g.dropStack(st); g.audio?.play('ui_drop'); this.tsel = null; this.renderInv();
+  }
+  // touch: tap an item to select it (tooltip + actions), tap another slot to move / swap it there
+  tapCell(ref, s) {
+    if (ref.c === 'loot') { if (this.tsel) { const from = this.tsel; this.tsel = null; this.drop(from, ref); } else this.take(ref.i); return; }
+    if (this.tsel && sameRef(this.tsel, ref)) { this.tsel = null; Tooltip.hide(); this.renderInv(); return; }
+    if (this.tsel) { const from = this.tsel; this.tsel = null; this.drop(from, ref); return; }
+    this.tsel = ref; this.g.audio?.play('ui_hover'); this.renderInv(); this.tipFor(ref);
+  }
+  tipFor(ref) { const n = [...(this.inv?.querySelectorAll('.cell') || [])].find(c => sameRef(c._ref, ref)); const s = getSlot(this.g.pc.lo, ref); if (n && s) Tooltip.showAt(s, n); }
+  // action strip for the selected item (touch has no right click / drag-outside)
+  selActions(ref) {
+    const g = this.g, lo = g.pc.lo, s = getSlot(lo, ref), d = ITEMS[s?.id];
+    const box = el('div', 'inv-acts');
+    box.appendChild(el('div', 'label', `<span class="yellow">${(d?.name || '').toUpperCase()}</span>  -  TAP A SLOT TO MOVE IT`));
+    let main = null;
+    if (ref.c === 'quick' && !this.lootItems) main = 'USE';
+    else if (this.lootItems) main = 'PUT IN CONTAINER';
+    else if (QUICK_TYPES.has(d?.type) && ref.c !== 'quick') main = 'TO QUICK USE';
+    else if (d?.type === 'weapon' && ref.c !== 'weapons') main = 'EQUIP';
+    else if ((d?.type === 'shield' && ref.c !== 'shield') || (d?.type === 'augment' && ref.c !== 'augment')) main = 'EQUIP';
+    else if (ref.c === 'backpack' && g.pc.caps.safe) main = 'TO SAFE POCKET';
+    else if (ref.c === 'safe') main = 'TO BACKPACK';
+    if (main) { const b = el('button', 'primary', main); b.onclick = () => { this.tsel = null; Tooltip.hide(); this.rightClick(ref, s); if (this.inv) this.renderInv(); }; box.appendChild(b); }
+    const dr = el('button', 'danger', 'DROP'); dr.onclick = () => { Tooltip.hide(); this.dropToGround(ref); }; box.appendChild(dr);
+    const cn = el('button', '', 'CANCEL'); cn.onclick = () => { this.tsel = null; Tooltip.hide(); this.renderInv(); }; box.appendChild(cn);
+    return box;
   }
   async take(i) { const s = this.lootItems?.[i]; if (!s) return; const ok = await this.g.takeItem(this.lootRef.kind, this.lootRef.ref, s); if (ok) this.lootItems.splice(this.lootItems.indexOf(s), 1); this.renderInv(); }
   async takeAll() { for (const s of [...(this.lootItems || [])]) { const ok = await this.g.takeItem(this.lootRef.kind, this.lootRef.ref, s); if (ok) this.lootItems.splice(this.lootItems.indexOf(s), 1); } this.renderInv(); }
@@ -173,10 +225,12 @@ export class RaidUI {
   // ------------------------------------------------------------------ map
   openMap() {
     this.mapEl = el('div', 'overlay');
-    const p = el('div', 'panel col');
-    p.appendChild(el('div', 'row', `<h2>${this.g.o.map.name.toUpperCase()}</h2><span class="label" style="margin-left:auto">[M] CLOSE  -  CLICK TO PING</span>`));
+    const p = el('div', 'panel col has-x');
+    p.appendChild(el('div', 'row', `<h2>${this.g.o.map.name.toUpperCase()}</h2><span class="label" style="margin-left:auto">${touchEnabled() ? 'TAP TO PING' : '[M] CLOSE  -  CLICK TO PING'}</span>`));
+    p.appendChild(closeBtn(() => this.closeMap()));
     const c = el('canvas'); this.mapCanvas = c;
-    const W = this.g.world.w, H = this.g.world.h, s = Math.min((innerHeight * 0.8) / H, (innerWidth * 0.7) / W);
+    const upx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px')) || 1;
+    const W = this.g.world.w, H = this.g.world.h, s = Math.min((innerHeight - upx * 44) / H, (innerWidth * 0.9 - upx * 16) / W);
     c.width = Math.round(W * s); c.height = Math.round(H * s); c.style.imageRendering = 'auto';
     c.onclick = (e) => { const r = c.getBoundingClientRect(); this.g.session.ping((e.clientX - r.left) / s, (e.clientY - r.top) / s); };
     this.mapScale = s;
@@ -212,9 +266,10 @@ export class RaidUI {
   // ------------------------------------------------------------------ pause
   openPause() {
     const g = this.g;
-    this.pause = el('div', 'overlay');
-    const p = el('div', 'panel col'); p.style.minWidth = 'calc(var(--px) * 180px)';
+    this.pause = el('div', 'overlay scroll-ov');
+    const p = el('div', 'panel col has-x'); p.style.minWidth = 'min(calc(var(--px) * 180px), 96vw)'; p.style.maxWidth = 'calc(var(--px) * 300px)';
     p.appendChild(el('h2', '', 'PAUSED'));
+    p.appendChild(closeBtn(() => this.closePause()));
     p.appendChild(el('div', 'label', g.net ? 'THE RAID CONTINUES - SQUAD MODE' : 'SOLO - THE WORLD IS FROZEN'));
     const resume = el('button', 'primary', 'RESUME'); resume.onclick = () => this.closePause(); p.appendChild(resume);
     const vol = el('div', 'col');
@@ -225,7 +280,8 @@ export class RaidUI {
       r.appendChild(s); vol.appendChild(r);
     }
     p.appendChild(vol);
-    p.appendChild(el('div', 'label', 'WASD MOVE  SHIFT SPRINT  C CROUCH  SPACE ROLL  LMB FIRE  RMB AIM  R RELOAD  Q SWAP  E INTERACT  1-6 QUICK USE  G GRENADE  F FLASHLIGHT  TAB INVENTORY  M MAP  Z PING  H EMOTE  ENTER CHAT'));
+    p.appendChild(settingsRows({ sfx: (n) => g.audio?.play(n), onChange: () => { if (g.o.settings) { /* persisted by settings.js */ } } }));
+    p.appendChild(el('div', 'label', touchEnabled() ? 'LEFT THUMB: MOVE (PUSH PAST THE RING TO SPRINT)  -  RIGHT STICK: AIM, PAST HALFWAY FIRES  -  FIRE / AIM / USE / RELOAD / ROLL / CROUCH / SWAP / THROW AROUND IT  -  TAP THE HUD QUICK SLOTS TO USE ITEMS' : 'WASD MOVE  SHIFT SPRINT  C CROUCH  SPACE ROLL  LMB FIRE  RMB AIM  R RELOAD  Q SWAP  E INTERACT  1-6 QUICK USE  G GRENADE  F FLASHLIGHT  TAB INVENTORY  M MAP  Z PING  H EMOTE  ENTER CHAT'));
     const ab = el('button', 'danger', 'ABANDON RAID (LOSE LOADOUT)');
     ab.onclick = () => { if (confirm('Abandon the raid? Your loadout (except the safe pocket) will be lost.')) { this.closePause(); g.onLocalDeath(); } };
     p.appendChild(ab);

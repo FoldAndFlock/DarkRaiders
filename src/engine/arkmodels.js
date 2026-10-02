@@ -1,6 +1,6 @@
 // ARK machine models: detailed, part-based voxel rigs with procedural animation.
 //
-//   createArkModel(modelKey, def) -> { root: THREE.Group, update(dt, s), setBroken(zoneKey), rig }
+//   createArkModel(modelKey, def) -> { root: THREE.Group, update(dt, s), setBroken(zoneKey), hit(wx, wz, k, big, yaw), rig }
 //
 // Frames & origins
 //   * +z is forward (the ARK's facing), +y is up. The game rotates `root` about y by the facing.
@@ -16,7 +16,12 @@
 //
 // Update state s (all optional):
 //   { moving, speed (m/s), alert 0..1, tele 0..1 (attack telegraph / charge), gaze (radians,
-//     relative to body facing), pitch (radians, + = aim down; optional), stunned, firing, leaping }
+//     relative to body facing), pitch (radians, + = aim down; optional), stunned, firing, leaping,
+//     dmg 0..3 (damage state from the hp fraction: 2 = scorched tint + flickering eyes + wobble / limp,
+//     3 = darker still, the view adds sparks / smoke / fire) }
+// Hit reactions: hit(wx, wz, k, big, yaw) kicks a damped spring that tilts the whole machine away from a hit
+// coming along world direction (wx, wz) (k 0..1 strength, yaw = current facing), with a dip + jolt; flyers
+// swing more than walkers. It lives on a group between root and top, so it composes with every model's anim.
 //
 // Materials: everything uses litVox() (game lighting + shadows). Each rig owns three clones of it
 // whose colour multiplier animates: eyeMat (sensor eyes: amber idle -> red alert, flare on
@@ -250,7 +255,7 @@ export function arkGeoStats() {
 }
 
 // ----------------------------------------------------------------------------- materials
-let _base = null, _broken = null;
+let _base = null, _broken = null, _scorch = null, _char = null;
 const baseMat = () => _base || (_base = litVox());
 function cloneMat(r = 1, g = 1, b = 1) {
   const src = baseMat(), m = src.clone();
@@ -260,6 +265,8 @@ function cloneMat(r = 1, g = 1, b = 1) {
   return m;
 }
 const brokenMat = () => _broken || (_broken = cloneMat(0.3, 0.27, 0.25));
+const scorchMat = () => _scorch || (_scorch = cloneMat(0.64, 0.57, 0.52));    // damage state 2: soot-stained
+const charMat = () => _char || (_char = cloneMat(0.44, 0.39, 0.36));          // damage state 3: charred
 
 // ----------------------------------------------------------------------------- zones (same expansion as sim.js)
 function expandZones(def) {
@@ -278,7 +285,9 @@ class Rig {
   constructor(key, def) {
     this.key = key; this.def = def || {};
     this.root = new THREE.Group(); this.root.name = 'ark:' + key;
-    this.top = this.g(this.root);           // uniform size scale lives here
+    this.hitG = this.g(this.root);          // hit wobble / damage lurch (spring), composes with the model anims
+    this.top = this.g(this.hitG);           // uniform size scale lives here
+    this.wb = { x: 0, z: 0, vx: 0, vz: 0, y: 0, vy: 0, jit: 0 }; this.dmg = 0;
     this.jit = this.top;                     // stunned twitch target (models may override)
     this.eyeMat = cloneMat(); this.hotMat = cloneMat(); this.teleMat = cloneMat();
     this.zones = []; this.zmap = null; this.broken = new Set(); this.nBroken = 0;
@@ -336,14 +345,47 @@ class Rig {
     }
   }
   isBroken(name) { return this.zones.some(z => z.broken && z.names.includes(name)); }
+  // hit from world direction (wx, wz): tilt away (local frame of facing yaw), dip, jolt on big hits
+  hit(wx, wz, k = 0.3, big = false, yaw = 0) {
+    const c = Math.cos(yaw), s = Math.sin(yaw), lx = wx * c - wz * s, lz = wx * s + wz * c, W = this.wb;
+    const fly = !!this.def.flying, a = clamp(k, 0, 1) * (fly ? 9 : 4.5) * (big ? 1.4 : 1);
+    W.vx += lz * a; W.vz -= lx * a;
+    W.vy -= clamp(k, 0, 1) * (fly ? 2.2 : 0.5) * (big ? 1.5 : 1);
+    if (big) W.jit = Math.max(W.jit, 0.18);
+  }
+  // damage state (view: from the hp fraction): soot / char tint swaps the shared hull material
+  setDamage(st) {
+    st = clamp(st | 0, 0, 3);
+    if (st === this.dmg) return;
+    this.dmg = st;
+    const want = st >= 3 ? charMat() : st >= 2 ? scorchMat() : baseMat(), hull = new Set([baseMat(), _scorch, _char]);
+    this.root.traverse(o => { if (o.isMesh && hull.has(o.material)) o.material = want; });
+  }
+  _wobble(dt, s) {
+    const W = this.wb, K = 70, D = 7, Ky = 45, Dy = 8;
+    W.vx += (-K * W.x - D * W.vx) * dt; W.vz += (-K * W.z - D * W.vz) * dt; W.vy += (-Ky * W.y - Dy * W.vy) * dt;
+    W.x = clamp(W.x + W.vx * dt, -0.55, 0.55); W.z = clamp(W.z + W.vz * dt, -0.55, 0.55); W.y = clamp(W.y + W.vy * dt, -0.6, 0.3);
+    let ex = 0, ez = 0;
+    if (W.jit > 0) { W.jit -= dt; ex += rnd(0.06); ez += rnd(0.06); }
+    // badly damaged: flyers can't hold steady (roll / pitch wander), walkers lurch on a bad leg
+    if (this.dmg >= 2) {
+      const t = this.t, m = this.dmg >= 3 ? 1.6 : 1;
+      if (this.def.flying) { ex += Math.sin(t * 5.3) * 0.045 * m; ez += Math.sin(t * 3.7 + 1) * 0.07 * m; }
+      else { const mv = this.mv; ez += Math.max(0, Math.sin(t * 6.2)) * 0.06 * m * mv; ex += Math.sin(t * 3.1) * 0.02 * m; }
+    }
+    this.hitG.rotation.set(W.x + ex, 0, W.z + ez);
+    this.hitG.position.y = W.y;
+  }
   update(dt, s = {}) {
     dt = clamp(dt || 0, 0, 0.1);
     this.t += dt;
     this.al = damp(this.al, clamp(s.alert || 0, 0, 1), 3, dt);
     this.mv = damp(this.mv, s.moving ? Math.min(1, (s.speed ?? this.refSpeed) / this.refSpeed) : 0, 4, dt);
     this.fireK = s.firing ? Math.min(1, this.fireK + dt * 8) : Math.max(0, this.fireK - dt * 3);
+    if (s.dmg != null && s.dmg !== this.dmg) this.setDamage(s.dmg);
     this._mats(s);
     this.anim && this.anim(dt, s, this.t);
+    this._wobble(dt, s);
     for (const f of this.flashes) {
       const on = !!s.firing && Math.random() < 0.6; f.visible = on;
       if (on) { f.rotation.z = Math.random() * 6.3; f.scale.setScalar(0.6 + Math.random() * 0.7); }
@@ -357,13 +399,15 @@ class Rig {
     let I = 0.8 + 0.3 * a;
     if (te > 0) I += te * 0.8 + Math.sin(t * (10 + te * 26)) * 0.3 * te;
     if (this.blink) I = this.blink(t, s, I);
+    if (this.dmg >= 2 && Math.random() < (this.dmg >= 3 ? 0.22 : 0.09)) I *= 0.08 + Math.random() * 0.3;   // failing: eyes / lights stutter
     if (s.stunned) I = Math.random() < 0.35 ? 0.12 : 0.5 + Math.random() * 0.6;
     if (s.eyeColor) {
       // match the vision-cone awareness colour (view passes it): divide out the amber base eye colour
       const ec = s.eyeColor, k = I * (1 + te * 0.2);
       this.eyeMat.color.setRGB(k * ec.r, k * ec.g / 0.455, k * ec.b / 0.141);
     } else this.eyeMat.color.setRGB(I, I * clamp(1.15 - 0.72 * a + te * 0.25, 0.3, 1.6), I * clamp(1.1 - 0.6 * a + te * 0.15, 0.3, 1.6));
-    const h = 0.92 + 0.16 * Math.sin(t * 3.1) + this.fireK * 0.2;
+    let h = 0.92 + 0.16 * Math.sin(t * 3.1) + this.fireK * 0.2;
+    if (this.dmg >= 2 && Math.random() < 0.07 * this.dmg) h *= 0.25 + Math.random() * 0.4;   // shorting weak-point glow
     this.hotMat.color.setRGB(h, h, h);
     const tl = s.stunned ? 0.2 : 0.55 + 0.35 * a + te * (1.2 + 0.3 * Math.sin(t * 40));
     this.teleMat.color.setRGB(tl, tl, tl);
@@ -1644,6 +1688,6 @@ export function createArkModel(modelKey, def = {}) {
   R.root.userData.ark = R;
   // free the per-rig material clones when the game removes the ARK from the scene (shared programs stay cached)
   R.root.addEventListener('removed', () => { R.eyeMat.dispose(); R.hotMat.dispose(); R.teleMat.dispose(); });
-  return { root: R.root, update: (dt, s) => R.update(dt, s), setBroken: (z) => R.setBroken(z), rig: R };
+  return { root: R.root, update: (dt, s) => R.update(dt, s), setBroken: (z) => R.setBroken(z), hit: (wx, wz, k, big, yaw) => R.hit(wx, wz, k, big, yaw), rig: R };
 }
 export const ARK_MODEL_KEYS = Object.keys(MODELS);

@@ -4,7 +4,7 @@ import * as THREE from '../../vendor/three.module.js';
 import { markEntity, OBLIQUE_K } from '../engine/renderer.js';
 import { RaiderModel, OUTFITS, arcMesh, gunGeo, voxMesh } from '../engine/models.js';
 import { createArkModel } from '../engine/arkmodels.js';
-import { createExtractModel, metroFit, inCabin } from '../engine/extracts.js';
+import { createExtractModel, metroFit, inCabin, extractGateClosed, inGateZone } from '../engine/extracts.js';
 import { ContainerRenderer, containerGeo } from '../engine/containers.js';
 import { GU, litVox } from '../engine/materials.js';
 import { SURF } from '../engine/world.js';
@@ -30,7 +30,72 @@ const ARK_SHOT = { wazp: 'wazp_shot', fyrefly: 'fyrefly_shot', hornett: 'hornit_
 const ARK_LOOP = { wasp: 'wazp_loop', hornet: 'hornit_loop', rocketeer: 'rocketier_loop', snitch: 'snytch_loop', pop: 'popp_roll_loop', fireball: 'popp_roll_loop',
   surveyor: 'surveyr_loop', leaper: 'ark_hum_loop', bastion: 'ark_hum_loop', bombardier: 'ark_hum_loop', queen: 'ark_hum_loop' };
 const ARK_STEP = { tick: ['tikk_skitter', 0.5, 1], leaper: ['bastian_step', 0.55, 1.35], bastion: ['bastian_step', 0.95, 1], bombardier: ['bastian_step', 0.8, 0.85], queen: ['leapr_stomp', 1.2, 0.8] };
+// tracers by source (shot event kind): colour, speed (m/s), tail (m), head (px). Raiders yellow-white, energy
+// cyan, ARK guns red-orange, lasers per machine (ARK_LASER); beams (lasers) flash the whole line
 const TRACER = { rifle: 0xffe0a0, smg: 0xffe8b0, pistol: 0xffe8c0, shotgun: 0xffd090, sniper: 0xfff0d0, heavy: 0xffd080, energy: 0x60d8ff, launcher: 0xffa040, ark: 0xff6040, laser: 0xff3020 };
+const TRACER_MOVE = { rifle: [210, 2.8, 3], smg: [190, 2.4, 2], pistol: [170, 2.0, 2], shotgun: [160, 1.6, 2], sniper: [320, 4.5, 3], heavy: [240, 3.2, 3], energy: [150, 2.6, 3], launcher: [120, 2, 3], ark: [120, 2.4, 3] };
+const ARK_LASER = { sentinal: 0xffd040, vaporiser: 0xff3020 };
+
+// -------------------------------------------------------------- door leaves
+// Voxel leaf, pivot on its hinge edge (x = 0), 22 high, body 2 voxels thick (scaled to ~0.16 m) with the handle,
+// hinge knuckles and lamp standing out on both faces. The top row is a light edge so a leaf seen from above
+// (a closed door in a north-south wall) still reads as a capped slab. Styles follow the building: wood (houses),
+// metal (industrial), locked (red key lamp, hazard kick plate) and unlocked (lamp turned green).
+const DOOR_COL = {
+  wood: { frame: 0x4a3220, panel: 0x6c4a2c, inner: 0x7c5834, top: 0xb89060, kick: 0x3a281a, handle: 0xe8c050, hinge: 0x2a2420 },
+  metal: { frame: 0x3a434a, panel: 0x56626a, inner: 0x5e6b74, top: 0xa8b4ba, kick: 0x2e3438, handle: 0xd8d6c8, hinge: 0x1e2428, glass: 0x26384a, glint: 0x7ea0b8 },
+  locked: { frame: 0x383e44, panel: 0x4a5258, inner: 0x525b62, top: 0xa4acb2, kick: 0x2a2e32, handle: 0xd8d6c8, hinge: 0x1e2428, stripe: 0xd8a020, light: 0xff3020 },
+};
+DOOR_COL.unlocked = { ...DOOR_COL.locked, light: 0x40e060 };
+const doorGeos = new Map();
+function doorLeafGeo(style, L) {
+  const n = Math.max(5, Math.round(L / 0.1)), key = style + n;
+  if (doorGeos.has(key)) return doorGeos.get(key);
+  const C = DOOR_COL[style] || DOOR_COL.wood, v = new Vox(n, 22, 4, 0.1, [0, 0, 2]), hx = n - 2;
+  v.box(0, 0, 1, n - 1, 21, 2, C.panel);
+  v.box(0, 0, 1, 0, 21, 2, C.frame); v.box(n - 1, 0, 1, n - 1, 21, 2, C.frame);     // stiles
+  v.box(0, 0, 1, n - 1, 1, 2, C.kick);                                              // kick plate
+  if (style === 'wood') {                                                           // two raised panels + mid rail
+    v.box(2, 3, 1, n - 3, 9, 2, C.inner); v.box(2, 12, 1, n - 3, 19, 2, C.inner); v.box(1, 11, 1, n - 2, 11, 2, C.frame);
+    v.box(hx, 10, 0, hx, 10, 3, C.handle);
+  } else {
+    v.box(2, 3, 1, n - 3, 12, 2, C.inner);
+    if (C.glass) { v.box(2, 14, 1, n - 3, 18, 2, C.glass); v.set(2, 18, 1, C.glint).set(2, 18, 2, C.glint); }
+    v.box(hx, 9, 0, hx, 11, 0, C.handle); v.box(hx, 9, 3, hx, 11, 3, C.handle);     // push bars
+    if (C.light) {
+      for (let x = 0; x < n; x++) if ((x >> 1) % 2 === 0) v.box(x, 0, 1, x, 1, 2, C.stripe);
+      const lx = Math.min(hx - 2, Math.max(1, Math.floor(n / 2)));
+      v.box(lx, 14, 0, lx + 1, 15, 0, C.light); v.box(lx, 14, 3, lx + 1, 15, 3, C.light); v.glow(C.light);
+    }
+  }
+  v.box(0, 21, 1, n - 1, 21, 2, C.top);                                             // light top edge
+  for (const y of [3, 18]) { v.set(0, y, 0, C.hinge); v.set(0, y, 3, C.hinge); }    // hinge knuckles
+  const g = v.build(); g.userData.n = n;
+  doorGeos.set(key, g);
+  return g;
+}
+function doorStyle(d, world) {
+  if (d.locked) return 'locked';
+  const B = d.bid >= 0 ? world.buildings[d.bid] : null;
+  return B && !/concrete|metal|corrugated|rust/i.test(B.def.wall || 'plaster') ? 'wood' : 'metal';
+}
+// pose a door group's leaves for its open fraction (userData.cur, 0 = shut, 1 = open)
+function poseDoor(grp) {
+  const u = grp.userData, k = u.cur * u.cur * (3 - 2 * u.cur);
+  for (const l of u.leaves) l.rotation.y = l.userData.c0 + l.userData.da * k;
+}
+// per frame: swing toward open / shut; doors of the building we are cut into are squashed down to the cut height
+// like its walls (a solid leaf top instead of a hollow, discarded one)
+function animDoors(doors, dt) {
+  const H = GU.uCutH.value, cb = GU.uCutBid.value;
+  for (const m of doors) {
+    if (!m) continue;
+    const u = m.userData, t = u.open ? 1 : 0;
+    if (u.cur !== t) { u.cur += (t - u.cur) * Math.min(1, dt * 8); if (Math.abs(t - u.cur) < 0.002) u.cur = t; poseDoor(m); }
+    const sy = cb >= 0 && u.bid === cb ? Math.max(0.05, Math.min(1.02, (H - 0.04 - m.position.y) / 2.2)) : 1.02;
+    if (sy !== u.sy) { u.sy = sy; for (const l of u.leaves) l.scale.y = sy; }
+  }
+}
 
 let projGeo = null;
 function projMesh(kind) {
@@ -55,27 +120,40 @@ export class View {
     this.alpha = 1;
   }
   // -------------------------------------------------------------- static-ish
+  // Doors: a group at the doorway centre, turned so local +x runs along the wall, holding one leaf (two for wide
+  // doorways) hinged on a jamb. world.doorSwing() picks hinge + swing side from the world alone, so every peer
+  // builds the same door; the leaf swings ~100 deg toward that side when open.
   buildDoors(doors) {
     const mat = litVox({ xray: true, cutaway: true });
-    const v = new Vox(10, 22, 1, 0.1, [5, 0, 0.5]); v.box(0, 0, 0, 9, 21, 0, 0x5a4a3a); v.box(1, 1, 0, 8, 20, 0, 0x6a5440); v.set(8, 10, 0, 0xc8a040);
-    const g = v.build();
-    const vl = new Vox(10, 22, 1, 0.1, [5, 0, 0.5]); vl.box(0, 0, 0, 9, 21, 0, 0x4a5258); vl.box(4, 9, 0, 5, 11, 0, 0xff3020); vl.glow(0xff3020);
-    const gl = vl.build();
     for (const d of doors) {
-      const m = new THREE.Mesh(d.locked ? gl : g, mat);
-      const y = d.y ?? this.world.groundAt(d.x, d.z);
-      m.position.set(d.x, y, d.z);
-      m.scale.set(d.w, 1.05, 1);
-      m.rotation.y = (d.axis === 'x' ? 0 : Math.PI / 2) - (d.R?.a || 0);
-      m.castShadow = true; m.receiveShadow = true;
-      m.userData = { base: m.rotation.y, open: d.open, cur: d.open ? 1 : 0 };
-      m.visible = true;
-      this.R.scene.add(m); this.doorMeshes[d.i] = m;
+      const sw = this.world.doorSwing(d), y = d.y ?? this.world.groundAt(d.x, d.z), style = doorStyle(d, this.world);
+      const grp = new THREE.Group(), leaves = [];
+      grp.position.set(d.x, y, d.z);
+      grp.rotation.y = Math.atan2(-sw.u[1], sw.u[0]);
+      for (const hs of sw.hinges) {
+        const geo = doorLeafGeo(style, sw.L), m = new THREE.Mesh(geo, mat);
+        // pivot on the jamb, leaf flush with the swing-side face of the (drawn) wall
+        m.position.set(hs * (d.w / 2 - sw.inset), 0, sw.sz * (sw.vt / 2 - sw.T / 2));
+        m.scale.set(sw.L / (geo.userData.n * 0.1), 1.02, sw.T / 0.2);
+        const c0 = hs < 0 ? 0 : Math.PI, a1 = Math.atan2(-sw.sz * Math.sin(sw.open), -hs * Math.cos(sw.open));
+        m.userData = { c0, da: Math.atan2(Math.sin(a1 - c0), Math.cos(a1 - c0)) };
+        m.castShadow = true; m.receiveShadow = true;
+        grp.add(m); leaves.push(m);
+      }
+      grp.userData = { open: d.open, cur: d.open ? 1 : 0, leaves, style, L: sw.L, bid: d.bid, sy: 1.02 };
+      poseDoor(grp);
+      this.R.scene.add(grp); this.doorMeshes[d.i] = grp;
     }
   }
   setDoor(i, open, locked) {
     const m = this.doorMeshes[i]; if (!m) return;
     m.userData.open = open;
+    // opened with its key: the red lamp turns green
+    const d = this.g.doorsData?.[i];
+    if (m.userData.style === 'locked' && d && !d.lockedNow) {
+      m.userData.style = 'unlocked';
+      for (const l of m.userData.leaves) l.geometry = doorLeafGeo('unlocked', m.userData.L);
+    }
   }
   // extraction structures: animated voxel rigs per kind (engine/extracts.js), driven by updExtracts()
   buildExtracts(xs) {
@@ -104,6 +182,18 @@ export class View {
       xv.ctx.near = Math.abs(x.x - cx) < hw && Math.abs(x.z - cz) < hh;
       xv.ctx.viewer = me && me.st !== 'out' ? me : null;    // roofs fade / walls cut / the car roof hides while you are inside
       xv.m.update(dt, st, typeof x.t === 'number' ? x.t : null, xv.ctx);
+      // cabin doors / platform gates: solid while shut on every peer (client-side prediction collides with them
+      // too); a shutting gate puts the local player back out at the entry - unless they are in the cabin for
+      // the departure (closing), then they extract
+      const shut = extractGateClosed(st, typeof x.t === 'number' ? x.t : null, x.kind);
+      if (x.gates?.length) this.world.setExtractGate?.(x, shut);
+      if (shut && x.gates?.length && me && (me.st === 'alive' || me.st === 'downed') && inGateZone(x, me.x, me.y, me.z) && !(st === 'closing' && inCabin(x, me.x, me.y, me.z))) {
+        const P = x.pts, ex = P.entry[0], ez = P.entry[1];
+        me.x = ex; me.z = ez; me.y = this.world.grid.floorAt(ex, ez, (P.cabin?.y ?? xv.y) + 0.6);
+        if (g.pc) { g.pc.vy = 0; g.pc.fallFrom = null; }
+        g.session?.state?.({ x: me.x, y: me.y, z: me.z });
+        g.hudMsg?.('DOORS SHUT - WAIT FOR THE ' + (x.kind === 'metro' ? 'TRAIN' : x.kind === 'airshaft' ? 'DROPSHIP' : 'ELEVATOR'), '#e8a030');
+      }
       const d = me ? Math.hypot(x.x - me.x, x.z - me.z) : 1e9, level = me && Math.abs((me.y ?? xv.y) - xv.y) < 6;
       const lp = xv.m.loop;
       if (lp && level && d < 32 && !g.localDone) {
@@ -189,7 +279,7 @@ export class View {
     }
     for (const id of [...this.vis.keys()]) if (!ents.has(id)) this.removeVisual(id);
     // doors animate
-    for (const m of this.doorMeshes) if (m) { const t = m.userData.open ? 1 : 0; m.userData.cur += (t - m.userData.cur) * Math.min(1, dt * 8); m.rotation.y = m.userData.base + m.userData.cur * 1.45; }
+    animDoors(this.doorMeshes, dt);
   }
   updRaider(v, e, dt) {
     const m = v.model;
@@ -225,7 +315,11 @@ export class View {
     const def = ARK[e.kind] || {};
     this.arkAudio(v, e, def, dt);
     const t = performance.now() / 1000;
-    const alt = e.alt || 0;
+    // altitude smoothed exactly like the floor height under it (sync: py), so a flyer crossing a roof edge (its
+    // floor jumps up, its altitude down by the same amount) keeps a steady hull height; clients interpolate both
+    const ta = e.ra ?? e.alt ?? 0;
+    v.pa = v.pa == null ? ta : v.pa + (ta - v.pa) * Math.min(1, dt * 22);
+    const alt = v.pa;
     const bob = def.flying ? Math.sin(t * 3 + e.id) * 0.08 : 0;
     v.obj.position.set(v.px, v.py + alt + bob - (def.flying ? 0 : 0), v.pz);
     v.obj.rotation.y = e.f;
@@ -238,10 +332,12 @@ export class View {
     else if (e.broken) for (const pk of e.broken) if (!v.broken.has(pk)) { v.broken.add(pk); v.ark.setBroken(pk); }
     const br = e.brain, fl = br ? ((br.stunT > 0 ? 1 : 0) | (br.burst > 0 ? 2 : 0) | (br.leap ? 4 : 0)) : (e.fl || 0);
     v.fireT = Math.max(0, (v.fireT || 0) - dt);
+    // damage state from the hp fraction (host: hp / maxHp, clients: the replicated hpf)
+    const hpf = e.maxHp ? e.hp / e.maxHp : (e.hpf ?? 1), dmg = hpf < 0.12 ? 3 : hpf < 0.33 ? 2 : hpf < 0.66 ? 1 : 0;
     v.ark.update(dt, {
       moving: v.spd > 0.15, speed: v.spd, alert: e.st === 'alert' ? 1 : e.st === 'search' ? 0.5 : 0, tele,
       gaze: (e.gaze ?? e.f) - e.f, stunned: !!(fl & 1), firing: !!(fl & 2) || tele >= 1 || v.fireT > 0,
-      leaping: !!(fl & 4) || (!def.flying && alt > 0.05), eyeColor: v.coneCol || null,
+      leaping: !!(fl & 4) || (!def.flying && alt > 0.05), eyeColor: v.coneCol || null, dmg,
     });
     // telegraph: flashing glow + charging light
     if (tele > 0) {
@@ -249,8 +345,28 @@ export class View {
       this.L.light(v.px + Math.sin(e.f) * 0.6, v.py + alt + 0.6, v.pz + Math.cos(e.f) * 0.6, col, 0.6 + tele * 2.2, 3 + tele * 4, 2.4);
       if (def.attack?.telegraph === 'laser' || def.attack?.kind === 'laser') this.telegraphLaser(v, e, tele);
     }
-    // eye glow
-    if (!e.dormant) this.L.light(v.px, v.py + alt + 0.5, v.pz, v.coneCol || (e.st === 'alert' ? 0xff2a10 : 0xffa020), 0.35, 2.2, 0.8);
+    // eye glow (stutters once badly damaged)
+    if (!e.dormant && !(dmg >= 2 && Math.random() < 0.15 * dmg)) this.L.light(v.px, v.py + alt + 0.5, v.pz, v.coneCol || (e.st === 'alert' ? 0xff2a10 : 0xffa020), 0.35, 2.2, 0.8);
+    if (dmg) this.arkDamageFx(v, e, def, dmg, dt, v.py + alt + (def.flying ? 0 : (def.size?.height ?? def.height ?? 1) * 0.65));
+  }
+  // damage states: < 66 % hp sparks + a light smoke wisp; < 33 % a heavy smoke trail + spark bursts (the rig adds
+  // the soot tint, stuttering eyes / glows and the wobble or limp); < 12 % on fire. Only on-screen machines
+  // emit, under a per-frame particle budget (many damaged ARK stay cheap).
+  arkDamageFx(v, e, def, st, dt, y) {
+    if (v.cutHidden || e.dormant || e.st === 'dead') return;
+    const R = this.R, cx = R.view?.x ?? this.g.camX ?? v.px, cz = R.view?.y ?? this.g.camZ ?? v.pz;
+    if (Math.abs(v.px - cx) > (R.viewW || 44) / 2 + 6 || Math.abs(v.pz - cz) > (R.viewH || 26) / 2 + 12) return;
+    if (this._dfxT !== this.g.time) { this._dfxT = this.g.time; this._dfxN = 0; }
+    if (this._dfxN > 90) return;
+    const fx = this.fx, r = Math.random, rr = e.r || def.radius || 0.6, sz = Math.min(2.5, Math.max(0.7, rr / 0.6)), w = GU.uWind.value;
+    const x = v.px + (r() - 0.5) * rr * 0.9, z = v.pz + (r() - 0.5) * rr * 0.9;
+    if (st === 1 && r() < dt * 2.5 * sz) { fx.parts.emit({ x, y, z, vx: w.x * 0.6 + (r() - 0.5) * 0.3, vy: 0.7 + r() * 0.4, vz: w.y * 0.6 + (r() - 0.5) * 0.3, life: 1.4 + r() * 0.6, size: 3, size1: 7 * sz, color: 0xa29e96, color1: 0x76726a, alpha: 0.42, shape: 1, drag: 0.6 }); this._dfxN++; }
+    if (r() < dt * (st >= 2 ? 1.7 : 0.7)) { const n = st >= 2 ? 6 : 3; fx.sparks(x, y + 0.1, z, n, st >= 3 ? 0xffa040 : 0xffd080, 2.5 + st * 0.6); this._dfxN += n; }
+    if (st >= 2 && r() < dt * 11 * sz) { fx.parts.emit({ x, y: y + 0.15, z, vx: w.x * 0.7 + (r() - 0.5) * 0.4, vy: 0.9 + r() * 0.7, vz: w.y * 0.7 + (r() - 0.5) * 0.4, life: 2.0 + r() * 1.2, size: 4 * sz, size1: 15 * sz, color: 0x2a2624, color1: 0x4e4a46, alpha: 0.78, shape: 1, drag: 0.45 }); this._dfxN++; }
+    if (st >= 3) {
+      if (r() < dt * 18) { fx.fire(x, y, z, 1, 0.25 * sz); this._dfxN++; }
+      this.L.light(v.px, y + 0.4, v.pz, 0xff7a20, 0.7 + r() * 0.6, 3 + sz * 2, 1.3);
+    }
   }
   // per-frame ARK audio: state-dependent loop, wind-up/telegraph cue, lost-target cue, walker steps, Pop proximity beeps
   arkAudio(v, e, def, dt) {
@@ -273,7 +389,7 @@ export class View {
     }
   }
   telegraphLaser(v, e, tele) {
-    const def = ARK[e.kind] || {}, alt = e.alt || 0;
+    const def = ARK[e.kind] || {}, alt = v.pa ?? e.alt ?? 0;
     const tgt = this.g.ents.get(e.tgt) || this.g.me;
     if (!tgt) return;
     const a = e.f, len = Math.min(def.vision?.range || 30, Math.hypot(tgt.x - v.px, tgt.z - v.pz) + 1);
@@ -282,7 +398,7 @@ export class View {
     const n = def.behavior === 'sentinel' ? 4 : 1;
     for (let i = 0; i < n; i++) {
       const off = n > 1 ? (i - (n - 1) / 2) * (1 - tele) * 0.25 : 0;
-      this.fx.tracers.add(v.px, y0, v.pz, v.px + Math.sin(a + off) * len, tgt.y + 1.1, v.pz + Math.cos(a + off) * len, col, 0.05);
+      this.fx.tracers.add(v.px, y0, v.pz, v.px + Math.sin(a + off) * len, tgt.y + 1.1, v.pz + Math.cos(a + off) * len, col, 0.05, { beam: true, head: 0 });
     }
   }
   updHazard(v, e, dt) {
@@ -325,11 +441,16 @@ export class View {
       case 'shot': {
         const [ox, oy, oz] = ev.o;
         const mine = ev.s === g.meId;
-        const col = TRACER[ev.k] || TRACER.rifle;
+        const sk = this.vis.get(ev.s)?.e?.kind, col = ev.k === 'laser' ? ARK_LASER[sk] || TRACER.laser : TRACER[ev.k] || TRACER.rifle;
         if (!mine || !g.predicted) {
-          A?.play(ev.snd || (ev.k === 'ark' ? ARK_SHOT[this.vis.get(ev.s)?.e?.kind] || 'turret_shot' : 'gun_rifle'), { x: ox, z: oz });
-          this.flash(ox, oy, oz, ev.k === 'laser' ? 0xff3020 : ev.k === 'energy' ? 0x60d8ff : 0xffd890, ev.k === 'laser' ? 3 : 1.8, 7, 0.06, 2.5);
-          for (const h of ev.hits) fx.tracers.add(ox, oy, oz, h.h[0], h.h[1], h.h[2], col, ev.k === 'laser' ? 0.25 : 0.07);
+          A?.play(ev.snd || (ev.k === 'ark' ? ARK_SHOT[sk] || 'turret_shot' : 'gun_rifle'), { x: ox, z: oz });
+          this.flash(ox, oy, oz, ev.k === 'laser' ? col : ev.k === 'energy' ? 0x60d8ff : ev.k === 'ark' ? 0xff8040 : 0xffd890, ev.k === 'laser' ? 3 : 1.8, 7, 0.06, 2.5);
+          // every pellet / round gets a tracer: a head + fading tail flying to its hit point (lasers: a beam)
+          const mv = TRACER_MOVE[ev.k] || TRACER_MOVE.rifle;
+          for (const h of ev.hits) {
+            if (ev.k === 'laser') fx.tracers.add(ox, oy, oz, h.h[0], h.h[1], h.h[2], col, 0.22, { beam: true, head: 3 });
+            else fx.tracers.add(ox, oy, oz, h.h[0], h.h[1], h.h[2], col, 0.07, { speed: mv[0], tail: mv[1], head: mv[2] });
+          }
           const v = this.vis.get(ev.s); if (v?.model) v.model.kick(0.6);
           if (v?.ark) v.fireT = 0.3;                                  // ARK muzzle flash / recoil (host + clients)
         }
@@ -355,7 +476,9 @@ export class View {
         A?.duck?.(0.5, 0.6);
         break;
       }
-      case 'part': fx.sparks(ev.x, 1.5, ev.z, 25, 0xffd080, 7); fx.smoke(ev.x, 1.5, ev.z, 3, true, 0.5); A?.play('ark_part_break', { x: ev.x, z: ev.z }); break;
+      case 'part': { const pv = this.vis.get(ev.id), py = pv ? pv.py + (pv.pa ?? 0) + 0.4 : this.floorNear(ev.x, ev.z) + 1.5; fx.sparks(ev.x, py, ev.z, 25, 0xffd080, 7); fx.smoke(ev.x, py, ev.z, 3, true, 0.5); A?.play('ark_part_break', { x: ev.x, z: ev.z }); break; }
+      // a machine took hits this tick (sim: knockback / dip / stagger): tilt away from the shot + spring wobble
+      case 'ahit': { const hv = this.vis.get(ev.id); if (hv?.ark?.hit) hv.ark.hit(ev.x, ev.z, ev.k, !!ev.b, hv.e?.f || 0); break; }
       case 'arkdown': {
         fx.explosion(ev.x, ev.y, ev.z, ev.big ? 3 : 1.5); fx.sparks(ev.x, ev.y + 0.5, ev.z, 40, 0xffc060, 9);
         this.flash(ev.x, ev.y + 1, ev.z, 0xffb060, 4, 10, 0.4, 3.5);
@@ -363,7 +486,7 @@ export class View {
         if (ev.src === g.meId) { g.onXP?.(ev.xp, (ARK[ev.kind]?.name || 'ARK') + ' destroyed'); g.questEvent?.('kill', { target: ev.kind, with: ev.w || undefined }); g.stats.arkKills[ev.kind] = (g.stats.arkKills[ev.kind] || 0) + 1; }
         break;
       }
-      case 'crash': fx.smoke(ev.x, 2, ev.z, 8, true, 0.6); fx.sparks(ev.x, 2, ev.z, 20, 0xffa040, 5); break;
+      case 'crash': { const cy = this.floorNear(ev.x, ev.z) + 1; fx.smoke(ev.x, cy, ev.z, 8, true, 0.6); fx.sparks(ev.x, cy, ev.z, 20, 0xffa040, 5); break; }
       case 'alert': { const snd = ARK_ALERT[ev.kind] ?? 'ark_alert'; if (snd && g.me && Math.hypot(ev.x - g.me.x, ev.z - g.me.z) < 90) A?.play(snd, { x: ev.x, z: ev.z }); g.onAlert?.(ev); break; }
       case 'hurt': {
         if (ev.id === g.meId) { g.onHurt?.(ev); A?.play('hurt'); }

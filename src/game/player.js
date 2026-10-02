@@ -2,11 +2,18 @@
 // for movement; combat outcomes are resolved by the host through the session.
 import { ITEMS, weaponStats, gunModelFor, gunSoundFor, reloadSoundFor, chargeSoundFor, makeStack } from './items.js';
 import { capacities, countLoadout, takeFrom, loadoutWeight, QUICK_TYPES } from './inventory.js';
-import { OBLIQUE_K } from '../engine/renderer.js';
+import { OBLIQUE_K, PX_PER_M } from '../engine/renderer.js';
 import { wrapAngle } from './sim.js';
 import { SKILL_TREE } from '../data/skills.js';
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+// distance (px) from (px, py) along the unit direction (dx, dy) to the screen rect inset by m
+function edgeDist(px, py, dx, dy, W, H, m) {
+  let t = Infinity;
+  if (dx > 1e-6) t = Math.min(t, (W - m - px) / dx); else if (dx < -1e-6) t = Math.min(t, (m - px) / dx);
+  if (dy > 1e-6) t = Math.min(t, (H - m - py) / dy); else if (dy < -1e-6) t = Math.min(t, (m - py) / dy);
+  return Math.max(0, t);
+}
 
 export class PlayerController {
   constructor(game, ent, loadout, stats) {
@@ -54,12 +61,23 @@ export class PlayerController {
     const e = this.e, g = this.g, st = this.stats;
     if (e.st === 'dead' || e.st === 'out') return;
     const downed = e.st === 'downed';
-    // --- aim
-    const padAim = input.padAimDir();
-    const feet = e.y;
-    if (padAim) { this.aim.x = e.x + padAim.x * 9; this.aim.z = e.z + padAim.z * 9; }
-    else { const p = R.screenToGround(input.mouse.x, input.mouse.y, feet + 1.1); this.aim.x = p.x; this.aim.z = p.z; }
-    const hov = g.view.pickEntity(input.mouse.x, input.mouse.y, e.id);
+    this.input = input;
+    this.feedback(input);
+    // --- aim: gamepad right stick (pad mode), touch aim stick, or the mouse cursor. Stick aim also moves
+    // input.mouse onto the aim point so the HUD crosshair and entity picking follow it.
+    const feet = e.y, mode = input.mode;
+    if (mode !== this.aimMode) { if (mode === 'pad') { input.clearAimHold?.(); this.stickSeed = null; } this.aimMode = mode; }
+    const touchAim = mode !== 'pad' ? input.padAimDir() : null;
+    let hov;
+    if (mode === 'pad') hov = this.padAim(input, R, feet);
+    else if (touchAim) {
+      this.aim.x = e.x + touchAim.x * 9; this.aim.z = e.z + touchAim.z * 9;
+      this.crosshairAt(input, R, feet);
+      hov = g.view.pickEntity(input.mouse.x, input.mouse.y, e.id);
+    } else {
+      const p = R.screenToGround(input.mouse.x, input.mouse.y, feet + 1.1); this.aim.x = p.x; this.aim.z = p.z;
+      hov = g.view.pickEntity(input.mouse.x, input.mouse.y, e.id);
+    }
     this.aim.entity = hov;
     // aim height: the floor under the cursor at our level (or lower: shooting down off a roof)
     this.aim.y = hov ? hov.aimY : g.world.grid.floorAt(this.aim.x, this.aim.z, feet + 1.5) + 1.0;
@@ -163,6 +181,84 @@ export class PlayerController {
     this.updateInteract(dt, input);
   }
 
+  // ---------------------------------------------------------------- gamepad aim
+  // Right stick sets the direction, deflection the distance: 4 m up to the weapon's range or the screen
+  // edge (whichever is closer; the camera leads further while aiming down sights, so ADS / scopes reach
+  // further). Releasing the stick keeps the last direction and distance. Light aim assist bends the aim
+  // toward the best hostile (ARK / hostile raider) inside a narrow cone and settles on it when close.
+  padAim(input, R, feet) {
+    const e = this.e, g = this.g, a = this.aim;
+    const s = input.aimStick();
+    let dx, dz;
+    if (s) { dx = s.x; dz = s.z; this.stickSeed = null; }
+    else {   // stick not used yet: keep the current aim (e.g. where the mouse was) relative to the player
+      if (!this.stickSeed) {
+        const ox = a.x - e.x, oz = a.z - e.z, d = Math.hypot(ox, oz);
+        this.stickSeed = d > 0.5 ? { x: ox / d, z: oz / d, d } : { x: Math.sin(e.f || 0), z: Math.cos(e.f || 0), d: 7 };
+      }
+      dx = this.stickSeed.x; dz = this.stickSeed.z;
+    }
+    const f = PX_PER_M * R.scale, P = R.worldToScreen(e.x, feet + 1.1, e.z);
+    const edge = edgeDist(P.x, P.y, dx, dz, R.cssW, R.cssH, Math.min(R.cssW, R.cssH) * 0.06) / f;
+    const maxR = Math.max(4.5, Math.min((this.wstats?.range || 25) * (this.ads ? 1 : 0.8), edge));
+    let dist = s ? 4 + (maxR - 4) * Math.min(1, s.m / 0.95) : clamp(this.stickSeed.d, 4, maxR);
+    let lock = null;
+    this.assistId = null;
+    if (input.padOptions?.aimAssist !== false) {
+      const a0 = Math.atan2(dx, dz), t = this.assistTarget(a0, maxR, feet);
+      if (t) {   // pull fades to nothing at the cone edge, so entering the cone never snaps
+        const k = 0.8 * (1 - (t.da / t.cone) ** 2);
+        const a1 = a0 + t.da * k; dx = Math.sin(a1); dz = Math.cos(a1);
+        dist += (t.d - dist) * Math.min(1, k * 1.5);
+        this.assistId = t.t.id;
+        if (Math.abs(t.da) * (1 - k) * t.d < t.rad + 0.1) lock = t;     // the bent aim already passes through it
+      }
+    }
+    if (lock) {   // on target: aim at it (its height too, like hovering it with the mouse)
+      a.x = lock.v.px; a.z = lock.v.pz;
+      const sp = R.worldToScreen(lock.v.px, lock.cy, lock.v.pz); input.mouse.x = sp.x; input.mouse.y = sp.y;
+      return { id: lock.t.id, aimY: lock.cy, type: lock.t.type };
+    }
+    a.x = e.x + dx * dist; a.z = e.z + dz * dist;
+    this.crosshairAt(input, R, feet);
+    return g.view.pickEntity(input.mouse.x, input.mouse.y, e.id);
+  }
+  // crosshair (input.mouse, CSS px) onto the aim point, at the height the mouse path aims at
+  crosshairAt(input, R, feet) { const sp = R.worldToScreen(this.aim.x, feet + 1.1, this.aim.z); input.mouse.x = sp.x; input.mouse.y = sp.y; }
+  assistTarget(a0, maxR, feet) {
+    const e = this.e, g = this.g, vis = g.view?.vis, grid = g.world?.grid; if (!vis || !grid) return null;
+    let best = null;
+    for (const v of vis.values()) {
+      const t = v.e;
+      if (!t || t.id === e.id || t.st === 'dead' || t.st === 'out' || v.cutHidden) continue;
+      if (t.type !== 'ark' && !(t.type === 'raider' && this.isHostile(t))) continue;
+      const dx = v.px - e.x, dz = v.pz - e.z, d = Math.hypot(dx, dz);
+      if (d < 1.2 || d > maxR + 6) continue;
+      const rad = t.type === 'ark' ? Math.max(0.5, t.r || 0.6) : 0.45;
+      const cone = Math.min(0.28, 0.09 + Math.atan2(rad, d));      // ~5 degrees plus the target's angular radius
+      const da = wrapAngle(Math.atan2(dx, dz) - a0);
+      if (Math.abs(da) > cone) continue;
+      const cy = v.py + (t.alt || 0) + (t.type === 'raider' ? (t.crouch ? 0.8 : 1.15) : 0.4);
+      if (!grid.los(e.x, feet + 1.3, e.z, v.px, cy, v.pz)) continue;
+      const score = Math.abs(da) / cone + d / (maxR * 3);
+      if (!best || score < best.score) best = { v, t, d, da, cone, rad, cy, score };
+    }
+    return best;
+  }
+  isHostile(t) {
+    if (t.team === this.e.team) return false;
+    if (t.brain?.hostileTo) return t.brain.hostileTo(this.e);
+    return !t.bot;   // other squads' players; bots without AI state (squad clients) are left alone
+  }
+  // gamepad rumble: damage taken, and nearby blasts / impacts (camera-shake spikes); own shots in shoot()
+  feedback(input) {
+    if (!input.usingPad) { this.life0 = this.shake0 = null; return; }
+    const e = this.e, life = (e.st === 'downed' ? (e.downHp || 0) : (e.hp || 0)) + (e.sh || 0), shake = this.g.view?.shake || 0;
+    if (this.life0 != null && life < this.life0 - 0.5) { const d = this.life0 - life; input.rumble(Math.min(1, 0.3 + d / 35), Math.min(1, 0.45 + d / 50), Math.min(320, 120 + d * 4)); }
+    else if (this.shake0 != null && shake > this.shake0 + 0.05) input.rumble(Math.min(1, shake * 1.4), Math.min(1, shake * 1.8), Math.min(400, 100 + shake * 500));
+    this.life0 = life; this.shake0 = shake;
+  }
+
   swapWeapon(dir = 1) {
     const n = this.caps.weaponSlots;
     for (let k = 1; k <= n; k++) { const i = (this.slot + dir * k + n * 3) % n; if (this.lo.weapons[i]) { this.selectWeapon(i); return; } }
@@ -245,6 +341,11 @@ export class PlayerController {
     }
     this.lastFireAt = g.time;
     g.view.localMuzzle(e, this.aim.a, ws, shot);
+    if (this.input?.usingPad) {
+      const r = ws.recoil || 1;
+      this.input.rumble(Math.min(1, 0.1 + r * 0.12), Math.min(1, 0.28 + r * 0.1), ws.class === 'launcher' || ws.mode === 'launcher' ? 220 : 70 + r * 15);
+      this.shake0 = g.view?.shake ?? this.shake0;    // our own muzzle kick isn't an explosion
+    }
     g.invDirty = true;
     if ((w.ammo || 0) <= 0 && this.ammoCount(ws.ammo) > 0) setTimeout(() => this.startReload(), 150);
   }

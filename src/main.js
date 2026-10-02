@@ -6,6 +6,8 @@ import { load, save, newProfile } from './game/profile.js';
 import { computeStats, augmentPerkMods } from './game/stats.js';
 import { SKILL_TREE } from './data/skills.js';
 import { ITEMS } from './game/items.js';
+import { initSettings, syncProfile } from './ui/settings.js';
+import { initTouchGlobal } from './ui/touch.js';
 
 export const app = {
   input: new Input(),
@@ -44,12 +46,14 @@ export async function startRaid({ mapId, seed, condition = null, time = null, we
   return game.start((f, msg) => app.onLoadProgress?.(f, msg));
 }
 
-function uiScale() { document.documentElement.style.setProperty('--px', String(Math.max(1, Math.min(4, Math.floor(innerHeight / 430))))); }
-uiScale(); addEventListener('resize', uiScale);
+// UI scale + touch settings: read the localStorage mirror now so the title screen is already scaled
+initSettings(app);
+initTouchGlobal(app);
 
 async function boot() {
   await loadAudio();
   app.profile = load() || newProfile('Raider');
+  syncProfile(app.profile);
   const q = new URLSearchParams(location.search);
   const dev = q.get('raid');
   const startAudio = () => { try { app.audio?.init?.(); app.audio?.setVolumes?.(app.profile.settings); } catch (e) { /* */ } };

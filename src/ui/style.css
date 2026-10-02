@@ -3,13 +3,13 @@
 @font-face { font-family: 'DRBold'; src: url('../../assets/fonts/dr-bold.ttf') format('truetype'); }
 
 :root {
-  --px: 2;
+  --px: 2; --tk: 1;
   --cream: #e8e0c8; --dim: #9a9484; --dark: #141416; --panel: rgba(16,16,18,0.92); --panel2: rgba(30,30,32,0.95);
   --line: #3a3832; --yellow: #f0c030; --red: #e84a30; --cyan: #58c8f0; --green: #68e088; --orange: #f08a30;
   --common: #a8a8a0; --uncommon: #5cc860; --rare: #3a98f0; --epic: #c058f0; --legendary: #f0b828;
-  --fs: calc(var(--px) * 10px); --fs-s: calc(var(--px) * 8px); --fs-b: calc(var(--px) * 13px);
-  --cell: calc(var(--px) * 26px);
 }
+/* sizes derived from --px; re-derived on any .pxscope element that sets its own --px (the hub caps its scale) */
+:root, .pxscope { --fs: calc(var(--px) * 10px); --fs-s: calc(var(--px) * 8px); --fs-b: calc(var(--px) * 13px); --cell: calc(var(--px) * 26px); }
 html, body { margin: 0; height: 100%; background: #0a0a0c; overflow: hidden; color: var(--cream); font-family: 'DRPixel', monospace; font-size: var(--fs); -webkit-font-smoothing: none; font-smooth: never; }
 * { box-sizing: border-box; image-rendering: pixelated; }
 canvas#gl, canvas#hud { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -63,3 +63,92 @@ input[type=range] { accent-color: var(--yellow); }
 .chatbox { position: absolute; left: calc(var(--px) * 6px); bottom: calc(var(--px) * 120px); width: calc(var(--px) * 200px); }
 .chatbox input { width: 100%; }
 .keyhint { display: inline-block; background: var(--yellow); color: #141414; padding: 0 calc(var(--px) * 2px); margin-right: calc(var(--px) * 2px); }
+
+/* ---------------------------------------------------------------- touch screens */
+html, body { touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+#ui, #ui * { touch-action: manipulation; }
+input, textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+html.touchui, html.touchui .pxscope { --cell: calc(var(--px) * 30px); }
+html.touchui .cell img { width: calc(var(--px) * 26px); height: calc(var(--px) * 26px); }
+html.touchui .cell.wide img { width: calc(var(--px) * 52px); }
+.cell.tsel { border-color: var(--yellow); box-shadow: inset 0 0 0 calc(var(--px) * 1px) var(--yellow); }
+.overlay.scroll-ov { overflow: auto; justify-content: flex-start; align-items: flex-start; padding: calc(var(--px) * 6px); }
+.overlay.scroll-ov > * { margin: auto; flex: none; }
+.overlay > .panel { max-height: calc(100vh - var(--px) * 8px); max-width: calc(100vw - var(--px) * 8px); overflow-y: auto; }
+.close-x { position: absolute; right: calc(var(--px) * 3px); top: calc(var(--px) * 3px); min-width: calc(var(--px) * 22px); padding: calc(var(--px) * 2px) calc(var(--px) * 5px); z-index: 2; }
+.panel.has-x { position: relative; padding-top: calc(var(--px) * 6px); }
+.panel.has-x > :first-child { padding-right: calc(var(--px) * 26px); }
+.inv-box > .panel { max-height: calc(100vh - var(--px) * 12px); overflow-y: auto; }
+.inv-lo { max-width: calc(var(--cell) * 8 + var(--px) * 22px); }
+.lobby-l > .row:last-child { position: sticky; bottom: calc(var(--px) * -5px); background: var(--panel); padding: calc(var(--px) * 3px) 0; z-index: 1; }
+.lobby.lobby-narrow { flex-direction: column; overflow-y: auto; align-items: stretch; justify-content: flex-start; }
+.lobby.lobby-narrow > .panel { flex: none !important; max-height: none; overflow: visible; }
+.inv-acts { display: flex; flex-wrap: wrap; gap: calc(var(--px) * 3px); }
+.inv-acts .label { flex-basis: 100%; }
+
+/* settings rows (hub Raider tab, pause menu, title screen) */
+.set-rows { display: flex; flex-direction: column; gap: calc(var(--px) * 4px); }
+.set-row { display: flex; align-items: center; gap: calc(var(--px) * 6px); flex-wrap: wrap; }
+.set-k { font-family: 'DRSmall', monospace; font-size: var(--fs-s); color: var(--dim); text-transform: uppercase; min-width: calc(var(--px) * 76px); }
+.set-ctl { display: flex; align-items: center; gap: calc(var(--px) * 2px); margin-left: auto; flex-wrap: wrap; }
+.set-v { min-width: calc(var(--px) * 76px); text-align: center; font-weight: normal; color: var(--yellow); }
+.set-step { min-width: calc(var(--px) * 22px); }
+.set-seg button.on { border-color: var(--yellow); color: var(--yellow); background: #2e2a1e; }
+.title-set { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3; min-width: min(calc(var(--px) * 230px), calc(100vw - var(--px) * 16px)); max-width: calc(100vw - var(--px) * 16px); max-height: calc(100vh - var(--px) * 16px); overflow-y: auto; box-shadow: 0 0 0 100vmax rgba(6, 6, 8, 0.6); }
+.overlay input[type=range], .set-rows input[type=range] { width: calc(var(--px) * 80px); height: calc(var(--px) * 10px); }
+
+/* hub on small windows (classes set by hub.js from the window size in hub units) */
+.hub.hub-narrow .hh-sub { display: none; }
+.hub.hub-narrow .hh-xp .bar { width: calc(var(--u) * 70); }
+.hub.hub-narrow .sk-wrap { grid-template-columns: max-content max-content max-content minmax(calc(var(--u) * 150), 1fr); overflow: auto; height: 100%; }
+.hub.hub-narrow .sk-br { min-width: max-content; }
+.hub.hub-short .sk-wrap { overflow: auto; align-items: start; }
+.hub.hub-short .sk-br { height: auto; }
+.hub.hub-narrow .bench-head .hp-b { grid-template-columns: minmax(0, 1fr); gap: calc(var(--u) * 3); }
+.hub.hub-xnarrow .hh-who { padding-left: calc(var(--u) * 5); }
+.hub.hub-xnarrow .hh-xp span { display: none; }
+
+/* landscape hint (phones held upright) */
+.rotate-hint { position: fixed; inset: 0; z-index: 95; background: rgba(6, 6, 8, 0.94); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.rotate-hint .rh-box { align-items: center; text-align: center; gap: calc(var(--px) * 6px); max-width: 92vw; }
+.rotate-hint .row { flex-wrap: wrap; justify-content: center; }
+.rh-phone { width: calc(var(--px) * 22px); height: calc(var(--px) * 36px); border: calc(var(--px) * 3px) solid var(--cream); position: relative; animation: rh-rot 2.4s ease-in-out infinite; margin: calc(var(--px) * 8px); }
+.rh-phone i { position: absolute; left: 35%; right: 35%; bottom: calc(var(--px) * 2px); height: calc(var(--px) * 2px); background: var(--cream); }
+@keyframes rh-rot { 0%, 35% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+
+/* in-raid touch layer: above the HUD canvas, below the DOM menus */
+.touch { position: fixed; inset: 0; z-index: 4; pointer-events: none; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.touch * { touch-action: none; }
+.touch.hidden { display: none; }
+.touch .tz, .touch .ts-aim, .touch .tb, .touch .tq { pointer-events: auto; }
+.touch .tz { position: absolute; left: 0; bottom: 0; width: 45%; top: calc(var(--tk) * 54px); }
+.touch .ts { position: absolute; background-size: 100% 100%; image-rendering: pixelated; pointer-events: none; }
+.touch .ts-aim { pointer-events: auto; }
+.touch .ts i { position: absolute; left: 50%; top: 50%; width: 42%; height: 42%; margin: -21% 0 0 -21%; background-size: 100% 100%; image-rendering: pixelated; pointer-events: none; }
+.touch .ts-move { opacity: 0.35; }
+.touch .ts-move.on, .touch .ts-aim.on { opacity: 1; }
+.touch .ts-aim { opacity: 0.75; }
+.touch .ts.sprint { filter: drop-shadow(0 0 0 var(--yellow)) sepia(1) saturate(5) hue-rotate(5deg); }
+.touch .ts.firing { filter: sepia(1) saturate(6) hue-rotate(-40deg); }
+.touch .tb {
+  position: absolute; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1;
+  color: var(--cream); background: rgba(16, 16, 18, 0.45); box-shadow: inset 0 0 0 calc(var(--tk) * 2px) rgba(232, 224, 200, 0.42);
+  clip-path: polygon(14% 0, 86% 0, 100% 14%, 100% 86%, 86% 100%, 14% 100%, 0 86%, 0 14%);
+  font-family: 'DRSmall', monospace; font-size: calc(var(--tk) * 12px); text-shadow: 1px 1px 0 #000; letter-spacing: 0;
+}
+.touch .tb.big { font-family: 'DRBold', monospace; font-size: calc(var(--tk) * 13px); }
+.touch .tb span { pointer-events: none; }
+.touch .tb.down { background: rgba(240, 192, 48, 0.75); color: #141414; text-shadow: none; }
+.touch .tb.on { box-shadow: inset 0 0 0 calc(var(--tk) * 3px) var(--yellow); color: var(--yellow); }
+.touch .tb.off { opacity: 0.35; }
+.touch .tb-fire { box-shadow: inset 0 0 0 calc(var(--tk) * 2px) rgba(232, 74, 48, 0.8); }
+.touch .tb-fire.down { background: rgba(232, 74, 48, 0.8); color: #fff; }
+.touch .tb-reload.hot { box-shadow: inset 0 0 0 calc(var(--tk) * 3px) var(--red); color: var(--red); }
+.touch .tb-interact.hot { color: #141414; text-shadow: none; box-shadow: inset 0 0 0 calc(var(--tk) * 3px) var(--yellow);
+  background: conic-gradient(rgba(255, 224, 120, 0.98) calc(var(--p, 0) * 360deg), rgba(240, 192, 48, 0.72) 0); }
+.touch .ttop { position: absolute; top: calc(var(--tk) * 5px + env(safe-area-inset-top, 0px)); right: calc(var(--tk) * 5px + env(safe-area-inset-right, 0px)); display: flex; gap: calc(var(--tk) * 3px); }
+.touch .tt { position: relative; width: calc(var(--tk) * 48px); height: calc(var(--tk) * 42px); font-size: calc(var(--tk) * 11px); }
+.touch .tt.hidden { display: none; }
+.touch .tq { position: absolute; }
+.touch .tq.down { box-shadow: inset 0 0 0 calc(var(--tk) * 2px) var(--yellow); background: rgba(240, 192, 48, 0.25); }
+.touch .tq.hidden { display: none; }

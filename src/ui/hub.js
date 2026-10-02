@@ -12,6 +12,7 @@ import * as P from '../game/profile.js';
 import * as Eco from '../game/economy.js';
 import * as Craft from '../game/crafting.js';
 import * as Q from '../game/quests.js';
+import { settingsRows, syncProfile, capPx, touchEnabled } from './settings.js';
 
 // ---------------------------------------------------------------- small helpers
 const fmt = (n) => Math.round(n || 0).toLocaleString('en-US');
@@ -273,7 +274,8 @@ export class Hub {
   mount(rootEl) {
     if (this.root) this.unmount();
     this.host = rootEl || document.getElementById('ui') || document.body;
-    this.root = div('hub'); this.root.style.opacity = '0';
+    this.root = div('hub pxscope'); this.root.style.opacity = '0';
+    this.applyScale();
     ensureCSS().then(() => { if (!this.root) return; this.root.style.opacity = ''; this.render(); });
     this.head = div('hub-head'); this.body = div('hub-body'); this.toastEl = div('hub-toasts');
     this.root.append(this.head, this.body, this.toastEl);
@@ -284,14 +286,15 @@ export class Hub {
       onDrop: (a, b, s, e) => this.dnd?.onDrop?.(a, b, s, e),
       onClick: (r, s, e) => this.dnd?.onClick?.(r, s, e),
       onRight: (r, s, e) => this.dnd?.onRight?.(r, s, e),
+      onHold: (r, s, e) => this.dnd?.onRight?.(r, s, e),     // touch: hold without dragging = actions menu
     });
     this.head.addEventListener('click', (e) => this.onHeadClick(e));
     this.onKey = (e) => this.handleKey(e);
     addEventListener('keydown', this.onKey);
-    this.onResize = () => { clearTimeout(this.rzT); this.rzT = setTimeout(() => { if (this.root && !this.modal) this.render(); }, 120); };
-    addEventListener('resize', this.onResize);
+    this.onResize = () => { this.applyScale(); clearTimeout(this.rzT); this.rzT = setTimeout(() => { if (this.root && !this.modal) this.render(); }, 120); };
+    addEventListener('resize', this.onResize); addEventListener('dr:uiscale', this.onResize);
     this.onDown = (e) => { if (this.menu && !this.menu.contains(e.target)) this.closeMenu(); };
-    this.root.addEventListener('mousedown', this.onDown, true);
+    this.root.addEventListener('pointerdown', this.onDown, true);
     this.root.addEventListener('contextmenu', (e) => { if (!e.target.closest('input, textarea')) e.preventDefault(); });
     this.render();
     this.timers.push(setInterval(() => { const s = this.root?.querySelector('.scrappie-art'); if (s) { s.dataset.f = s.dataset.f === '1' ? '0' : '1'; s.replaceChildren(scrappieArt(+s.dataset.f)); } }, 600));
@@ -299,16 +302,29 @@ export class Hub {
   unmount() {
     for (const t of this.timers) clearInterval(t); this.timers = [];
     if (this.onKey) removeEventListener('keydown', this.onKey);
-    if (this.onResize) removeEventListener('resize', this.onResize);
+    if (this.onResize) { removeEventListener('resize', this.onResize); removeEventListener('dr:uiscale', this.onResize); }
     clearTimeout(this.rzT);
     this.tip?.remove(); this.tip = null;
     Tooltip.hide(); this.closeMenu();
     this.root?.remove(); this.root = null;
   }
+  // the hub's 3-column layout needs ~560 x 290 units: past that it caps its own scale (it also scrolls);
+  // narrow / short windows get compact layouts (see style.css)
+  applyScale() {
+    if (!this.root) return;
+    const px = capPx(560, 290);
+    this.root.style.setProperty('--px', String(px));
+    const uw = innerWidth / px, uh = innerHeight / px;
+    this.root.classList.toggle('hub-narrow', uw < 800);
+    this.root.classList.toggle('hub-xnarrow', uw < 640);
+    this.root.classList.toggle('hub-short', uh < 420);
+    this.root.classList.toggle('hub-touch', touchEnabled());
+  }
   // migrate / initialise the bits of state the hub relies on
   prepareProfile() {
     const p = this.p;
     p.settings = p.settings || {};
+    syncProfile(p);
     p.blueprints = p.blueprints || [];
     p.benches = p.benches || { workbench: 1 };
     p.stats = p.stats || {};
@@ -352,7 +368,7 @@ export class Hub {
   // ---------------------------------------------------------------- render root
   render() {
     if (!this.root) return;
-    Tooltip.hide(); this.closeMenu();
+    Tooltip.hide(); this.closeMenu(); this.skillTipHide();
     this.renderHead();
     const keep = {};
     this.body.querySelectorAll('[data-scroll]').forEach(n => { keep[n.dataset.scroll] = n.scrollTop; });
@@ -395,6 +411,7 @@ export class Hub {
         <div class="hh-hint">${esc(this.tabHint())}</div></div>`;
   }
   tabHint() {
+    if (touchEnabled()) return { loadout: 'TAP: INSPECT · DOUBLE-TAP: EQUIP · HOLD: DRAG / ACTIONS', skills: 'TAP A SKILL · ADD POINT IN THE SIDE PANEL' }[this.tab] || { workshop: 'CRAFT · RECYCLE · UPGRADE · SCRAPPIE', traders: 'BUY · SELL · TAKE JOBS', quests: 'ACCEPT JOBS · TRACK OBJECTIVES · TURN IN', raider: 'PROFILE · SETTINGS · SAVE DATA' }[this.tab] || '';
     return { loadout: 'DRAG TO EQUIP · SHIFT+CLICK MOVE · RIGHT-CLICK ACTIONS', workshop: 'CRAFT · RECYCLE · UPGRADE · SCRAPPIE', traders: 'BUY · SELL · TAKE JOBS',
       skills: 'CLICK A SKILL · DOUBLE-CLICK TO ADD A POINT', quests: 'ACCEPT JOBS · TRACK OBJECTIVES · TURN IN', raider: 'PROFILE · SETTINGS · SAVE DATA' }[this.tab] || '';
   }
@@ -515,7 +532,7 @@ export class Hub {
     const h = div('hm-h', `<span>${title}</span>`); h.appendChild(btn('X', 'hm-x', () => this.closeModal()));
     const b = div('hm-b');
     box.append(h, b); ov.appendChild(box);
-    ov.addEventListener('mousedown', (e) => { if (e.target === ov) this.closeModal(); });
+    ov.addEventListener('click', (e) => { if (e.target === ov) this.closeModal(); });
     this.root.appendChild(ov);
     this.modal = { ov, box, body: b };
     this.sfx('ui_open');
@@ -872,7 +889,7 @@ export class Hub {
         <span>STAMINA</span><b>${Math.round(st.max_stamina)}</b><span>MOVE SPEED</span><b>${st.move_speed.toFixed(2)} M/S</b><span>CARRY LIMIT</span><b>${caps.weightLimit} KG</b>
         <span>BACKPACK</span><b>${caps.backpack} SLOTS</b><span>QUICK USE</span><b>${caps.quick} SLOTS</b><span>SAFE POCKET</span><b>${caps.safe} SLOTS</b></div>
         <div class="lbl" style="margin-top:calc(var(--u)*6)">HOW TO</div>
-        <ul class="howto"><li><b>CLICK</b> an item to inspect it</li><li><b>DRAG</b> between stash and loadout</li><li><b>SHIFT+CLICK</b> to quick-equip / store</li><li><b>RIGHT-CLICK</b> for actions</li><li><b>DOUBLE-CLICK</b> a weapon for mods & upgrades</li><li>Drag a <b>mod</b> onto a weapon's small slots</li></ul>`));
+        <ul class="howto">${touchEnabled() ? `<li><b>TAP</b> an item to inspect it - its actions appear here</li><li><b>DOUBLE-TAP</b> to quick-equip / store</li><li><b>HOLD</b> an item, then drag it between stash and loadout</li><li><b>HOLD</b> without moving for the actions menu</li><li>Double-tap a weapon for mods & upgrades</li>` : `<li><b>CLICK</b> an item to inspect it</li><li><b>DRAG</b> between stash and loadout</li><li><b>SHIFT+CLICK</b> to quick-equip / store</li><li><b>RIGHT-CLICK</b> for actions</li><li><b>DOUBLE-CLICK</b> a weapon for mods & upgrades</li><li>Drag a <b>mod</b> onto a weapon's small slots</li>`}</ul>`));
       return;
     }
     box.appendChild(this.itemInfo(s));
@@ -1281,7 +1298,7 @@ export class Hub {
     const px = parseFloat(getComputedStyle(this.root).getPropertyValue('--px')) || 2;
     const bw = (this.body.clientWidth || 1600) / px, bh = (this.body.clientHeight || 900) / px;
     const CW = Math.max(32, Math.min(48, Math.floor(((bw - 14 - 176 - 18) / 3 - 24) / cols)));
-    const RH = Math.max(34, Math.min(60, Math.floor((bh - 104) / rows)));
+    const RH = Math.max(this.root.classList.contains('hub-short') ? 31 : 34, Math.min(60, Math.floor((bh - 104) / rows)));
     for (const [bid, br] of branches) {
       const spent = branchSpent(p, bid);
       const panel = div('hp sk-br'); panel.style.setProperty('--bc', br.color);
@@ -1311,9 +1328,9 @@ export class Hub {
         const gname = n.capstone ? 'star' : GLYPH_FOR[n.effects?.[0]?.stat] || 'star';
         const gcol = st === 'locked' ? '#4a4840' : st === 'max' ? '#141414' : st === 'part' ? br.color : '#e8e0c8';
         nd.innerHTML = `<img src="${glyphURL(gname, gcol)}" draggable="false"><div class="pips">${n.ranks > 1 ? Array.from({ length: n.ranks }, (_, i) => `<i class="${i < rank ? 'on' : ''}"></i>`).join('') : `<i class="${rank ? 'on' : ''}"></i>`}</div>`;
-        nd.addEventListener('mouseenter', (e) => this.skillTip(n, c, e));
-        nd.addEventListener('mousemove', (e) => this.skillTipMove(e));
-        nd.addEventListener('mouseleave', () => this.skillTipHide());
+        nd.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') this.skillTip(n, c, e); });
+        nd.addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch') this.skillTipMove(e); });
+        nd.addEventListener('pointerleave', () => this.skillTipHide());
         nd.addEventListener('click', () => { S.sel = id; this.sfx('ui_click'); this.render(); });
         nd.addEventListener('dblclick', () => { S.sel = id; this.commit(allocateSkill(p, id), 'ui_upgrade'); });
         nd.addEventListener('contextmenu', (e) => { e.preventDefault(); S.sel = id; this.commit(allocateSkill(p, id), 'ui_upgrade'); });
@@ -1336,7 +1353,7 @@ export class Hub {
         <div class="req">${c.reasons.map(r => `<div class="${r.met ? 'ok' : 'no'}">${r.met ? '+' : 'x'} ${esc(r.text)}</div>`).join('')}</div>`;
       side.body.appendChild(d);
       side.body.appendChild(btn(c.rank >= n.ranks ? 'MAXED' : c.canAdd ? 'ADD POINT' : !c.unlocked ? 'LOCKED' : 'NO POINTS', c.canAdd ? 'primary big' : 'big', () => this.commit(allocateSkill(p, S.sel), 'ui_upgrade'), !c.canAdd));
-    } else side.body.appendChild(div('in-sum', `<p>Earn one skill point per level. Spend them in three branches; deeper rows unlock after <b>15</b> and <b>36</b> points in a branch.</p><p class="dimc">Click a skill to inspect it. Double-click (or right-click) to add a point. Capstones at the bottom are very strong - you can reach at most two.</p>`));
+    } else side.body.appendChild(div('in-sum', `<p>Earn one skill point per level. Spend them in three branches; deeper rows unlock after <b>15</b> and <b>36</b> points in a branch.</p><p class="dimc">${touchEnabled() ? 'Tap a skill to inspect it, then ADD POINT here.' : 'Click a skill to inspect it. Double-click (or right-click) to add a point.'} Capstones at the bottom are very strong - you can reach at most two.</p>`));
     const mods = computeStats(p.skills || {}, SKILL_TREE).mods || {};
     const ks = Object.keys(mods).filter(k => mods[k]);
     side.body.appendChild(div('lbl', `TOTAL BONUSES · ${skillsSpent(p)} PTS SPENT`));
@@ -1490,6 +1507,7 @@ export class Hub {
     const seg = div('seg');
     for (const lv of ['low', 'medium', 'high']) seg.appendChild(btn(lv.toUpperCase(), (p.settings.quality || 'medium') === lv ? 'on' : '', () => { p.settings.quality = lv; this.commit({ ok: true, msg: `Graphics quality: ${lv}` }); }));
     q.appendChild(seg); C.body.appendChild(q);
+    C.body.appendChild(settingsRows({ sfx: (n) => this.sfx(n) }));
     C.body.appendChild(div('lbl', 'SAVE DATA'));
     C.body.appendChild(div('rd-save', this.saveStatus()));
     const sb = div('rd-btns');

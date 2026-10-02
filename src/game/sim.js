@@ -1,13 +1,13 @@
 // Host-authoritative raid simulation. Pure logic: no rendering. The local view and the network
 // layer consume `sim.events` (cleared each tick by the caller) and entity state.
-import { mulberry } from '../engine/world.js';
+import { mulberry, rotPt } from '../engine/world.js';
 import { Nav } from './nav.js';
 import { ITEMS, makeStack } from './items.js';
 import { rollContainer, rollArkDrops, searchTime } from './loot.js';
 import { ArkBrain, arkDefFor } from './ark_ai.js';
 export { arkDefFor };
 import { BotBrain } from './bot_ai.js';
-import { extractWorldPoints, inCabin } from '../engine/extracts.js';
+import { extractWorldPoints, inCabin, extractGateClosed, inGateZone } from '../engine/extracts.js';
 
 const HASH = 16;
 export const RAIDER_R = 0.35, RAIDER_H = 1.85, CROUCH_H = 1.2;
@@ -47,6 +47,8 @@ export class Sim {
     }
     if (fx.hatchesDisabled) for (const x of this.extracts) if (x.kind === 'hatch') x.state = 'offline';
     this.nextStrike = 8;
+    this.seekBudget = 0;
+    for (const x of this.extracts) this._gate(x);    // cabin doors shut while idle (after the nav saw them open)
   }
 
   // ------------------------------------------------------------------ entities
@@ -127,11 +129,13 @@ export class Sim {
   // ------------------------------------------------------------------ main tick
   tick(dt) {
     this.t += dt; this.timeLeft -= dt;
+    this.seekBudget = 6;                       // ARK firing-position searches allowed this tick (whole sim)
     this._rehash();
     const players = this.players().filter(p => p.st === 'alive' || p.st === 'downed');
     for (const e of [...this.entities.values()]) {
       if (e.type === 'raider') this._raider(e, dt);
       else if (e.type === 'ark') {
+        if (e.brain.hit) e.brain.applyHit();   // this tick's shots / blasts: knockback, dip, stagger, 'ahit'
         // AI LOD: only think near any raider
         let near = false; for (const p of players) if (Math.abs(p.x - e.x) < 80 && Math.abs(p.z - e.z) < 70) { near = true; break; }
         if (!near) for (const b of this.entities.values()) if (b.type === 'raider' && b.bot && b.st === 'alive' && Math.abs(b.x - e.x) < 40 && Math.abs(b.z - e.z) < 40) { near = true; break; }
@@ -273,7 +277,7 @@ export class Sim {
     if (small && oneHitDrones) { this.damage(best, 99999, e, { x: best.x, z: best.z }); return; }
     if (best.type === 'ark' && best.brain) best.brain.stun(0.4);
     if (best.latchedBy) { const tk = this.entities.get(best.latchedBy); tk?.brain?.unlatch(); }
-    this.damage(best, 28 * mul * (small ? 1.5 : 1), e, { x: best.x, z: best.z, armorPen: 0.3 });
+    this.damage(best, 28 * mul * (small ? 1.5 : 1), e, { x: best.x, z: best.z, armorPen: 0.3, dirX: Math.sin(a), dirZ: Math.cos(a) });
   }
 
   // returns result code for the hit marker: 'a' ark, 'aw' weak point, 'aa' armour, 'p' raider, 's' shield, 'k' kill
@@ -292,7 +296,7 @@ export class Sim {
         if (e.parts[o.zone.key] <= 0) { this.emit({ e: 'part', id: e.id, zone: o.zone.key, x: o.x, z: o.z }); e.brain.partBroken(o.zone); }
       }
       e.hp -= dmg;
-      e.brain.onHit(src, dmg);
+      e.brain.onHit(src, dmg, o);
       if (src) src.dmgDealt = (src.dmgDealt || 0) + dmg;
       if (e.hp <= 0) { this.killArk(e, src, o.weapon || (o.explosive ? 'grenade' : null)); res = 'k'; }
     } else if (e.type === 'raider') {
@@ -367,7 +371,7 @@ export class Sim {
       if (!this.grid.los(x, y + 0.3, z, e.x, ey, e.z)) return;
       const f = 1 - clamp((d - e.r) / radius, 0, 1) * 0.7;
       const r = (src?.stats?.grenade_radius || 1);
-      this.damage(e, dmg * f * (r > 1 ? 1 : 1), src, { explosive: true, armorPen: 0.6, x: e.x, z: e.z, weapon });
+      this.damage(e, dmg * f * (r > 1 ? 1 : 1), src, { explosive: true, armorPen: 0.6, x: e.x, z: e.z, weapon, bx: x, bz: z });
     });
   }
 
@@ -543,6 +547,7 @@ export class Sim {
   extractInProgress() { return this.extracts.some(x => x.kind !== 'hatch' && (x.state === 'called' || x.state === 'open' || x.state === 'closing')); }
   _extracts(dt) {
     for (const x of this.extracts) {
+      this._gate(x);
       if (x.state === 'called') { x.t -= dt; if (x.t <= 0) { x.state = 'open'; x.t = 90; this.emit({ e: 'xopen', i: x.i, t: 90 }); } }
       else if (x.state === 'open') {
         x.t -= dt;
@@ -566,6 +571,22 @@ export class Sim {
         }
       }
     }
+  }
+  // cabin doors / platform gates follow the state (solid while shut); a shutting gate puts bots + walking ARK
+  // caught in the sealed space back out at the entry (players: their own peer does it, View.updExtracts; flyers
+  // free themselves). During closing whoever is already in the cabin stays and extracts.
+  _gate(x) {
+    if (!x.gates?.length) return;
+    const closed = extractGateClosed(x.state, x.t, x.kind);
+    this.world.setExtractGate(x, closed);
+    if (!closed) return;
+    const keep = x.state === 'closing', P = x.pts;
+    this.near(x.x, x.z, x.kind === 'metro' ? 24 : 8, (e) => {
+      if (e.st === 'dead' || e.st === 'out' || (e.type === 'raider' && !e.bot) || (e.type === 'ark' && (e.def.flying || e.brain?.fixed))) return;
+      if (!inGateZone(x, e.x, e.y, e.z) || (keep && e.type === 'raider' && inCabin(x, e.x, e.y, e.z))) return;
+      e.x = P.entry[0]; e.z = P.entry[1]; e.y = this.floor(e.x, e.z, (P.cabin?.y ?? x.y) + 0.6);
+      if (e.brain) e.brain.path = null;
+    });
   }
   _condition(dt) {
     const fx = this.condEffects;
@@ -623,6 +644,28 @@ export class Sim {
     }
   }
 
+  // doorways + windows of building bid in world space: { x, z, nx, nz (outward), w, y0, y1 (absolute), walk
+  // (a doorway: no sill), door (sim.doors index or -1) } - firing lanes and ways in for the ARK (cached)
+  openings(bid) {
+    const cache = (this._openings ||= new Map());
+    let L = cache.get(bid); if (L) return L;
+    const B = this.world.buildings[bid]; L = [];
+    if (B && !B.under) {
+      const b = B.def, R = B.R, sh = B.sh || 3.2, x = b.x, z = b.z;
+      for (const o of b.doors || []) {
+        const at = o.at || 0, ow = o.w || 1.2, k = o.storey || 0, hk = (B.storeys > 1 && b.perStorey !== false) ? (k === B.storeys - 1 ? B.h - k * sh : sh) : B.h;
+        const [lx, lz, nx, nz] = o.side === 'n' ? [x + at + ow / 2, z, 0, -1] : o.side === 's' ? [x + at + ow / 2, z + b.d, 0, 1] : o.side === 'w' ? [x, z + at + ow / 2, -1, 0] : [x + b.w, z + at + ow / 2, 1, 0];
+        const [wx, wz] = rotPt(R, lx, lz), wnx = R ? nx * R.c - nz * R.s : nx, wnz = R ? nx * R.s + nz * R.c : nz;
+        const fy = B.floorY + k * sh;
+        const y0 = fy + (o.sill || 0), y1 = fy + (o.sill ? (o.top || Math.min(hk, o.sill + 1.4)) : Math.min(hk, o.h || 2.4));
+        const door = o.door ? this.doors.findIndex(d => d.bid === bid && Math.hypot(d.x - wx, d.z - wz) < 0.6) : -1;
+        L.push({ x: wx, z: wz, nx: wnx, nz: wnz, w: ow, y0, y1, walk: !o.sill, door });
+      }
+    }
+    cache.set(bid, L);
+    return L;
+  }
+
   // ------------------------------------------------------------------ population
   populate() {
     const fx = this.condEffects;
@@ -634,9 +677,10 @@ export class Sim {
       if (s.notCondition && cid && [].concat(s.notCondition).includes(cid)) continue;
       const n = Math.max(1, Math.round(s.count * (s.condition ? 1 : mul)));
       for (let i = 0; i < n; i++) {
-        const hint = s.yAbs ?? (s.surface ? this.grid.floorAt(s.x, s.z, 1e9) : -Infinity);
-        const [x, z, y] = this.nav.randomOpenNear(s.x, s.z, s.radius || 4, this.rng, hint);
         const def = arkDefFor(s.kind);
+        // flyers start on the open level (never in a tunnel / hall under the spawn point) unless placed indoors
+        const hint = s.yAbs ?? (s.surface ? this.grid.floorAt(s.x, s.z, 1e9) : def?.flying && s.habitat !== 'indoor' ? this.spawnY(s.x, s.z) : -Infinity);
+        const [x, z, y] = this.nav.randomOpenNear(s.x, s.z, s.radius || 4, this.rng, hint);
         const fixed = !!def?.static || def?.speed === 0;
         this.spawnArk(s.kind, fixed ? s.x : x, fixed ? s.z : z, { patrol: s.patrol, home: [s.x, s.z], fixed, y: fixed ? s.y : 0, yAbs: fixed ? s.yAbs : null, boss: !!s.boss, f: s.f ?? s.facing, baseY: fixed ? this.floor(s.x, s.z, hint === -Infinity ? this.ground(s.x, s.z) : hint) : y });
       }

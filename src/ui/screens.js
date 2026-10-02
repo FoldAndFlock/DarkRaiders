@@ -8,6 +8,7 @@ import { ITEMS, stackValue } from '../game/items.js';
 import { allStacks, emptyLoadout, capacities, fitLoadout } from '../game/inventory.js';
 import { Net } from '../net/net.js';
 import { drawText } from './pixelfont.js';
+import { settingsRows, syncProfile, touchEnabled, capPx } from './settings.js';
 
 const TIPS = [
   'ARK vision cones are lit on the ground - stay out of the light, or break line of sight behind cover.',
@@ -47,16 +48,27 @@ export class Screens {
     const cont = el('button', 'primary', `CONTINUE  -  ${p.name.toUpperCase()}  LV${p.level}`); cont.onclick = () => { this.sfx('ui_click'); this.hubScreen(); };
     const nw = el('button', '', 'NEW RAIDER'); nw.onclick = () => this.newRaider();
     const join = el('button', '', 'JOIN A SQUAD'); join.onclick = () => { this.hubScreen(); this.lobby('join'); };
-    box.append(cont, nw, join);
+    const setB = el('button', '', 'SETTINGS'); setB.onclick = () => { this.sfx('ui_click'); this.titleSettings(w); };
+    box.append(cont, nw, join, setB);
     w.appendChild(box);
-    w.appendChild(el('div', 'label', 'WASD MOVE - MOUSE AIM - LMB FIRE - RMB AIM - E INTERACT - TAB INVENTORY - M MAP'));
+    w.appendChild(el('div', 'label title-keys', touchEnabled() ? 'LEFT THUMB MOVE - RIGHT STICK AIM + FIRE - HOLD USE TO SEARCH - BAG / MAP AT THE TOP' : 'WASD MOVE - MOUSE AIM - LMB FIRE - RMB AIM - E INTERACT - TAB INVENTORY - M MAP'));
     this.root.appendChild(w);
     window.__ready = true;
+  }
+  // display settings straight from the title screen (UI scale, touch controls, fullscreen)
+  titleSettings(w) {
+    if (this.titleSet?.isConnected) { this.titleSet.remove(); this.titleSet = null; return; }
+    const p = el('div', 'panel col title-set');
+    p.appendChild(el('div', 'row', '<h2>SETTINGS</h2>'));
+    p.appendChild(settingsRows({ sfx: (n) => this.sfx(n), onChange: () => { const k = w.querySelector('.title-keys'); if (k) k.textContent = touchEnabled() ? 'LEFT THUMB MOVE - RIGHT STICK AIM + FIRE - HOLD USE TO SEARCH - BAG / MAP AT THE TOP' : 'WASD MOVE - MOUSE AIM - LMB FIRE - RMB AIM - E INTERACT - TAB INVENTORY - M MAP'; } }));
+    const done = el('button', 'primary', 'DONE'); done.onclick = () => { p.remove(); this.titleSet = null; this.sfx('ui_click'); };
+    p.appendChild(done);
+    w.appendChild(p); this.titleSet = p;
   }
   newRaider() {
     const name = prompt('Raider name?', 'Raider') || 'Raider';
     if (this.app.profile.level > 1 && !confirm('Start a new raider? Your current save will be replaced (export it first from the Raider tab if you want to keep it).')) return;
-    this.app.profile = newProfile(name.slice(0, 16)); save(this.app.profile); this.hubScreen();
+    this.app.profile = newProfile(name.slice(0, 16)); syncProfile(this.app.profile); save(this.app.profile); this.hubScreen();
   }
   drawLogo(c) {
     c.width = 360; c.height = 70; const x = c.getContext('2d');
@@ -123,9 +135,14 @@ export class Screens {
   lobby(mode = null) {
     this.clear(); this.music('lobby');
     const app = this.app, p = app.profile;
-    const w = el('div', 'overlay'); w.style.alignItems = 'stretch'; w.style.padding = 'calc(var(--px)*12px)';
-    const left = el('div', 'panel col'); left.style.flex = '1.2';
-    const right = el('div', 'panel col'); right.style.flex = '1';
+    const w = el('div', 'overlay lobby pxscope'); w.style.alignItems = 'stretch'; w.style.padding = 'calc(var(--px)*12px)';
+    const left = el('div', 'panel col lobby-l scroll'); left.style.flex = '1.2';
+    const right = el('div', 'panel col lobby-r scroll'); right.style.flex = '1';
+    // the two columns need ~540 x 280 units: cap the scale past that, stack them on narrow screens
+    const fit = () => { const px = capPx(540, 280); w.style.setProperty('--px', String(px)); w.classList.toggle('lobby-narrow', innerWidth / px < 700); };
+    fit(); addEventListener('resize', fit); addEventListener('dr:uiscale', fit);
+    const obs = new MutationObserver(() => { if (!w.isConnected) { removeEventListener('resize', fit); removeEventListener('dr:uiscale', fit); obs.disconnect(); } });
+    obs.observe(this.root, { childList: true });
     w.append(left, right); this.root.appendChild(w);
     this.lobbyMap = this.lobbyMap || 'damn_grounds';
     const render = () => {
@@ -327,10 +344,10 @@ export class Screens {
     try { const c = await import('../game/crafting.js'); c.scrappieOnRaidEnd?.(p, res); } catch (e) { /* hub module not ready */ }
     save(p);
     const ex = res.outcome === 'extracted';
-    const w = el('div', 'overlay'); w.style.flexDirection = 'column';
+    const ov = el('div', 'overlay scroll-ov results'), w = el('div', 'col'); w.style.alignItems = 'center'; ov.appendChild(w);
     w.appendChild(el('h1', ex ? 'green' : 'red', ex ? 'EXTRACTED' : 'LOST TO THE SURFACE'));
     w.appendChild(el('div', 'label', ex ? 'YOU MADE IT BACK TO SPERANZIA' : 'EVERYTHING BUT YOUR SAFE POCKET STAYS TOPSIDE'));
-    const panel = el('div', 'panel col'); panel.style.minWidth = '40vw';
+    const panel = el('div', 'panel col'); panel.style.minWidth = 'min(40vw, 100%)'; panel.style.maxWidth = 'calc(100vw - var(--px) * 16px)';
     const st = res.stats || {};
     panel.appendChild(el('div', 'row', `<span class="label">XP EARNED</span><span class="yellow" style="margin-left:auto">+${res.xp || 0}</span>`));
     panel.appendChild(el('div', 'row', `<span class="label">LEVEL</span><span style="margin-left:auto">${before}${p.level > before ? ` -> <span class="yellow">${p.level}</span> (+${p.level - before} SKILL POINT${p.level - before > 1 ? 'S' : ''})` : ''}</span>`));
@@ -352,7 +369,7 @@ export class Screens {
     const b = el('button', 'primary', this.net ? 'RETURN TO SQUAD LOBBY' : 'RETURN TO SPERANZIA');
     b.onclick = () => { this.sfx('ui_click'); if (this.net) this.lobby(); else this.hubScreen(); };
     w.appendChild(b);
-    this.root.appendChild(w);
+    this.root.appendChild(ov);
     window.__ready = true;
   }
 }

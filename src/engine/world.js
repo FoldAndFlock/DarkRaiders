@@ -6,12 +6,14 @@ import { tex, TID } from './textures.js';
 import { litTex, terrainMaterial, waterMaterial, GU, litVox } from './materials.js';
 import { OBLIQUE_K } from './renderer.js';
 import { propGeo, propInfo } from './models.js';
-import { extractSolids } from './extracts.js';
+import { extractSolids, extractGates } from './extracts.js';
 
 export const CELL = 0.5;      // collision grid resolution (m)
+const NOPAD = [0, 0, 0, 0], NOEDGE = new Array(16).fill(0);
 const CHUNK = 32;             // terrain / box batching chunk (m)
 const PROP_REGION = 48;       // instanced prop culling region (m)
 export const STEP_H = 0.45;   // max step-up height for walkers
+export const DOOR_OPEN = 1.75;  // how far an open door leaf swings (rad, ~100 deg)
 export const BODY_H = 1.7;    // headroom a walker needs above its feet (low ceilings / slabs block)
 export const SURF = { dirt: 0, concrete: 1, metal: 2, sand: 3, water: 4, wood: 5, grass: 6, tile: 7 };
 const TERRAIN_SURF = { grass: 6, dirt: 0, sand: 3, sandDark: 3, concrete: 1, damConcrete: 1, asphalt: 1, rock: 1, tiles: 7, wood: 5, mud: 0, gravel: 0, moss: 6, forest: 6, metalPanel: 2, hazard: 2 };
@@ -63,6 +65,8 @@ function distToSeg(px, pz, ax, az, bx, bz) {
   const qx = ax + dx * t, qz = az + dz * t;
   return [Math.hypot(px - qx, pz - qz), t];
 }
+// drawn thickness of a wall that collides `thick` m: thin walls get up to 0.2 m extra (0.2 -> 0.4, 0.3 -> 0.5)
+export function wallVisThick(thick) { return thick < 0.45 ? Math.min(0.5, thick + 0.2) : thick; }
 
 // ------------------------------------------------------------------------------------ GRID
 export class Grid {
@@ -281,9 +285,11 @@ class BoxBatch {
     const ck = Math.floor(mx / CHUNK) + ',' + Math.floor(mz / CHUNK);
     const key = matKey + '|' + ck + '|' + (opts.cast === false ? 0 : 1);
     let g = this.groups.get(key);
-    if (!g) { g = { material, pos: [], nor: [], uv: [], idx: [], cast: opts.cast !== false }; this.groups.set(key, g); }
+    if (!g) { g = { material, pos: [], nor: [], uv: [], idx: [], box: [], edge: [], cast: opts.cast !== false }; this.groups.set(key, g); }
     const start = g.pos.length / 3;
     pushBox(g, x0, y0, z0, x1, y1, z1, opts.rep || 4, opts);
+    // per-vertex box info for the shader: bottom, top, building (cut caps), cap flags (see materials.js BOX_*)
+    for (let v = start, n = g.pos.length / 3; v < n; v++) g.box.push(y0, y1, opts.bid ?? -1, opts.capF || 0);
     if (opts.R) rotTail(g, start, opts.R);
   }
   build(parent) {
@@ -296,18 +302,20 @@ class BoxBatch {
 }
 function pushBox(g, x0, y0, z0, x1, y1, z1, rep, opts = {}) {
   const K = OBLIQUE_K;
-  const quad = (a, b, c, d, n, uvs) => {
+  const quad = (a, b, c, d, n, uvs, ed = NOEDGE) => {
     const base = g.pos.length / 3;
     g.pos.push(...a, ...b, ...c, ...d);
     for (let i = 0; i < 4; i++) g.nor.push(...n);
     g.uv.push(...uvs);
     if (g.bid) for (let i = 0; i < 4; i++) g.bid.push(opts.bid);
+    if (g.edge) g.edge.push(...ed);
     g.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
   };
   // vertical faces map 1 texel / screen pixel: v uses y*K
-  const vy0 = y0 * K / rep, vy1 = y1 * K / rep;
+  const vy0 = y0 * K / rep, vy1 = y1 * K / rep, W = x1 - x0, D = z1 - z0;
+  // top face: box-local position + size (aEdge) for the cap outline
   if (!opts.noTop) quad([x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], [0, 1, 0],
-    [x0 / rep, -z1 / rep, x1 / rep, -z1 / rep, x1 / rep, -z0 / rep, x0 / rep, -z0 / rep]);
+    [x0 / rep, -z1 / rep, x1 / rep, -z1 / rep, x1 / rep, -z0 / rep, x0 / rep, -z0 / rep], [0, D, W, D, W, D, W, D, W, 0, W, D, 0, 0, W, D]);
   quad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], [x0 / rep, vy0, x1 / rep, vy0, x1 / rep, vy1, x0 / rep, vy1]);
   quad([x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [0, 0, -1], [x1 / rep, vy0, x0 / rep, vy0, x0 / rep, vy1, x1 / rep, vy1]);
   quad([x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [1, 0, 0], [z1 / rep, vy0, z0 / rep, vy0, z0 / rep, vy1, z1 / rep, vy1]);
@@ -319,26 +327,31 @@ function geoFrom(g) {
   geo.setAttribute('normal', new THREE.Float32BufferAttribute(g.nor, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(g.uv, 2));
   if (g.bid) geo.setAttribute('aBid', new THREE.Float32BufferAttribute(g.bid, 1));
+  if (g.box) geo.setAttribute('aBox', new THREE.Float32BufferAttribute(g.box, 4));
+  if (g.edge) geo.setAttribute('aEdge', new THREE.Float32BufferAttribute(g.edge, 4));
   geo.setIndex(g.idx);
   geo.computeBoundingSphere();
   return geo;
 }
 
 // Roofs: merged meshes, per-building alpha from a data texture (fade in/out + "peek" bias)
-function roofMaterial(texture, alphaTex, tint = 0xffffff) {
+// cap: parapets - their top faces get the same wall-cap tint as the walls (materials.js BOX_FRAG)
+function roofMaterial(texture, alphaTex, tint = 0xffffff, cap = false) {
   const m = new THREE.MeshLambertMaterial({ map: texture, color: tint, transparent: true, depthWrite: false });
   m.onBeforeCompile = (sh) => {
     sh.uniforms.tRoofA = { value: alphaTex };
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aBid; varying float vBid;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBid = aBid;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tRoofA; varying float vBid;')
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aBid; varying float vBid; varying float vUp;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBid = aBid; vUp = normal.y;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D tRoofA; varying float vBid; varying float vUp;')
       .replace('#include <alphatest_fragment>', `
         float ra = texture2D(tRoofA, vec2((mod(vBid, 256.0) + 0.5) / 256.0, (floor(vBid / 256.0) + 0.5) / 8.0)).r;
         diffuseColor.a *= ra;
         if (diffuseColor.a < 0.03) discard;
       `);
+    if (cap) sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        if (vUp > 0.5) { float l = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(l), 0.45) * 1.2 + 0.03; }`);
   };
-  m.customProgramCacheKey = () => 'roof';
+  m.customProgramCacheKey = () => 'roof' + (cap ? 'cap' : '');
   return m;
 }
 
@@ -532,6 +545,10 @@ export class World {
     if (opts.rot && !opts.R) opts = { ...opts, R: rotFrame((x0 + x1) / 2, (z0 + z1) / 2, opts.rot) };
     this.solids.push({ x0, z0, x1, z1, h, texName, opts });
   }
+  // Walls are drawn thicker than they collide (visual thickness opts.vthick, default 0.3 -> 0.5 m, centred on the
+  // line) so walls seen edge-on (north-south walls show only their top) read as solid bands. opts.endPad =
+  // [start, end] extends the drawn wall past the line ends (closes building corners); opts.capF = cap flags
+  // (materials.js BOX_*); door gaps get a frame (jamb posts + head trim, opts.doorTrim texture).
   wallLine(ax, az, bx, bz, thick, h, texName, gaps = [], opts = {}) {
     const horiz = Math.abs(az - bz) < 1e-6;
     const len = horiz ? bx - ax : bz - az;
@@ -540,10 +557,15 @@ export class World {
     if (cur < len) pieces.push([cur, len]);
     const t2 = thick / 2;
     const r0 = opts.rel0 || 0;
+    const vt = opts.vthick ?? wallVisThick(thick), vp = Math.max(0, (vt - thick) / 2), [ep0, ep1] = opts.endPad || [0, 0];
+    // x-running walls draw 1.2 cm higher so they win where they overlap z-running ones (corners, T-joints)
+    const wo = { ...opts, capF: (opts.capF ?? 3) | (horiz ? 4 : 0) }; delete wo.vthick; delete wo.endPad; delete wo.doorTrim;
+    // visual padding [x0, z0, x1, z1] of a piece from s to e along the line
+    const pad = (s, e, across = vp) => { const a = s < 1e-6 ? ep0 : 0, b = e > len - 1e-6 ? ep1 : 0; return horiz ? [a, across, b, across] : [across, a, across, b]; };
     const seg = (s, e, y0, y1, o) => {
       if (e - s < 0.01 || y1 - y0 < 0.01) return;
-      if (horiz) this.block(ax + s, az - t2, ax + e, az + t2, y1 - y0, texName, { ...opts, ...o, rel0: r0 + y0 });
-      else this.block(ax - t2, az + s, ax + t2, az + e, y1 - y0, texName, { ...opts, ...o, rel0: r0 + y0 });
+      if (horiz) this.block(ax + s, az - t2, ax + e, az + t2, y1 - y0, texName, { ...wo, ...o, rel0: r0 + y0, vpad: pad(s, e) });
+      else this.block(ax - t2, az + s, ax + t2, az + e, y1 - y0, texName, { ...wo, ...o, rel0: r0 + y0, vpad: pad(s, e) });
     };
     for (const [s, e, g] of pieces) {
       if (!g) { seg(s, e, 0, h); continue; }
@@ -552,9 +574,67 @@ export class World {
       else if (g.lintel !== false && h > (g.h || 2.4)) seg(s, e, g.h || 2.4, h, {});
       if (g.door) {
         const lx = horiz ? ax + s + g.w / 2 : ax, lz = horiz ? az : az + s + g.w / 2, [wx, wz] = rotPt(opts.R, lx, lz);
-        this.doors.push({ x: wx, z: wz, lx, lz, R: opts.R || null, axis: horiz ? 'x' : 'z', w: g.w, locked: g.locked || null, bid: opts.bid ?? -1, thick, rel0: opts.rel0 || 0, y0abs: opts.y0 ?? null, closed: g.closed || false });
+        this.doors.push({ x: wx, z: wz, lx, lz, R: opts.R || null, axis: horiz ? 'x' : 'z', w: g.w, locked: g.locked || null, bid: opts.bid ?? -1, thick, vthick: vt, rel0: opts.rel0 || 0, y0abs: opts.y0 ?? null, closed: g.closed || false });
+        // door frame (visual only): jamb posts standing a little proud of both wall faces + a head trim under the lintel
+        const head = Math.min(h, g.h || 2.4), fo = { ...wo, tint: opts.trimTint, collide: false, capF: 11, seed: 3 }, ft = opts.doorTrim || 'wood';
+        const frame = (p0, p1, y0, y1) => {
+          if (horiz) this.block(ax + p0, az - t2, ax + p1, az + t2, y1 - y0, ft, { ...fo, rel0: r0 + y0, vpad: [0, vp + 0.05, 0, vp + 0.05] });
+          else this.block(ax - t2, az + p0, ax + t2, az + p1, y1 - y0, ft, { ...fo, rel0: r0 + y0, vpad: [vp + 0.05, 0, vp + 0.05, 0] });
+        };
+        frame(s - 0.1, s + 0.05, 0, head); frame(e - 0.05, e + 0.1, 0, head);
+        if (h > head + 0.05) frame(s - 0.1, e + 0.1, head - 0.14, head);
       }
     }
+  }
+  // Hinges + swing of a door leaf, decided from the built world only (no randomness) so every peer and late joiner
+  // builds the same door. The leaf hangs on a jamb and opens DOOR_OPEN (~100 deg) to one side of the wall; doorways
+  // >= 1.95 m get two leaves, one per jamb. Preferred side: into the building for doors in its outer walls, else a
+  // position hash; then whichever hinge / side leaves the open leaf (and its sweep) clear of walls, props and
+  // containers. Frame: u = along the wall (local +x of the door), v = (-u.z, u.x) (local +z); returns
+  // { u, v, sz (swing side along v), hinges (jambs along u: -1 / +1), L (leaf width), T (thickness), inset, vt, open }.
+  doorSwing(d) {
+    const c = d.R ? d.R.c : 1, s = d.R ? d.R.s : 0, u = d.axis === 'x' ? [c, s] : [-s, c], v = [-u[1], u[0]];
+    const g = this.grid, y = d.y ?? this.groundAt(d.x, d.z), w = d.w, th = d.thick || 0.3, vt = d.vthick ?? wallVisThick(th);
+    const dbl = w >= 1.95, T = 0.16, inset = 0.06, L = dbl ? w / 2 - inset - 0.01 : w - 2 * inset, open = DOOR_OPEN;
+    const B = d.bid >= 0 ? this.buildings[d.bid] : null;
+    let sIn = 0;
+    if (B) {    // a door in the building's outer wall swings inward
+      const off = d.axis === 'x' ? Math.min(Math.abs(d.lz - B.z0), Math.abs(d.lz - B.z1)) : Math.min(Math.abs(d.lx - B.x0), Math.abs(d.lx - B.x1));
+      const [bx, bz] = rotPt(B.R, (B.x0 + B.x1) / 2, (B.z0 + B.z1) / 2);
+      if (off < (B.under ? th / 2 + 0.05 : 0.05)) sIn = Math.sign((bx - d.x) * v[0] + (bz - d.z) * v[1]) || 1;
+    }
+    const hash = (Math.imul(Math.round(d.x * 4), 73856093) ^ Math.imul(Math.round(d.z * 4), 19349663)) >>> 0;
+    const sPref = sIn || (hash & 1 ? 1 : -1), hPref = hash & 2 ? 1 : -1;
+    // static obstacles only (closed door blockers differ between host and clients at build time)
+    const near = this.containers.filter(ct => Math.abs(ct.x - d.x) < w + 3 && Math.abs(ct.z - d.z) < w + 3 && Math.abs((ct.y ?? y) - y) < 1.2);
+    const blocked = (px, pz) => {
+      const i = g.idx(px, pz); if (i < 0) return true;
+      if (g.top[i] > y + 0.3) return true;
+      const r = g.spanRef[i];
+      if (r >= 0) { const sp = g.spans[r]; for (let k = 0; k < sp.length; k += 2) if (sp[k] < y + 2.0 && sp[k + 1] > y + 0.3) return true; }
+      for (const ct of near) if (Math.abs(ct.x - px) < 0.45 && Math.abs(ct.z - pz) < 0.45) return true;
+      return false;
+    };
+    const cost = (sz, hs) => {
+      const a = hs * (w / 2 - inset), b = sz * (vt / 2 - T / 2), hx = d.x + u[0] * a + v[0] * b, hz = d.z + u[1] * a + v[1] * b;
+      let n = 0;
+      for (const ang of [0.7, 1.2, open]) {
+        const du = -hs * Math.cos(ang), dv = sz * Math.sin(ang), ex = u[0] * du + v[0] * dv, ez = u[1] * du + v[1] * dv;
+        for (const t of ang === open ? [0.3, 0.55, 0.8, 1] : [1]) {
+          const px = hx + ex * L * t, pz = hz + ez * L * t;
+          if (Math.abs((px - d.x) * v[0] + (pz - d.z) * v[1]) < th / 2 + 0.5) continue;   // still in the wall's own cells
+          if (blocked(px, pz)) n += ang === open ? 2 : 1;
+        }
+      }
+      return n;
+    };
+    const cands = dbl ? [[sPref, 0], [-sPref, 0]] : [[sPref, hPref], [sPref, -hPref], [-sPref, hPref], [-sPref, -hPref]];
+    let best = null, bc = Infinity;
+    for (const [sz, hs] of cands) {
+      const k = hs ? cost(sz, hs) : cost(sz, -1) + cost(sz, 1);
+      if (k < bc) { bc = k; best = [sz, hs]; if (!k) break; }
+    }
+    return { u, v, sz: best[0], hinges: dbl ? [-1, 1] : [best[1]], L, T, inset, vt, open };
   }
   /*
    building({ x, z, w, d, storeys=1, storeyH=3.2, h?, wall, floor, roof, roofTint, tint, thick, rot,
@@ -588,7 +668,9 @@ export class World {
     if (under) this.flattens.push({ x0: b.x + 1, z0: b.z + 1, x1: b.x + b.w - 1, z1: b.z + b.d - 1, poly: R ? rectPts(R, b.x + 1, b.z + 1, b.x + b.w - 1, b.z + b.d - 1) : null, ref: ring, depth: under, blend: 0 });
     if (b.floor !== false) { if (R) this.paintPoly(b.floor || 'tiles', poly); else this.paint(b.floor || 'tiles', b.x, b.z, b.x + b.w, b.z + b.d); }
     const th = b.thick || (under ? 1.0 : 0.3), wall = b.wall || 'plaster';
-    const o = { cutaway: true, seed: b.seed ?? (id % 7) + 3, tint: b.tint, bid: id, onBuilding: id, R };
+    const vt = bb.vt = b.vthick ?? wallVisThick(th);          // drawn wall thickness (collision stays th)
+    const o = { cutaway: true, seed: b.seed ?? (id % 7) + 3, tint: b.tint, bid: id, onBuilding: id, R,
+      doorTrim: b.doorTrim || (/concrete|metal|corrugated|rust/i.test(wall) ? 'metalPanel' : 'wood') };
     const { x, z, w, d } = b;
     // walls: one storey at a time so every storey has its own doors / windows
     // underground walls sit fully inside the footprint (they hold back the earth under the lid)
@@ -596,10 +678,13 @@ export class World {
     const sides = [['n', x, z + wi, x + w, z + wi], ['s', x, z + d - wi, x + w, z + d - wi], ['w', x + wi, z, x + wi, z + d], ['e', x + w - wi, z, x + w - wi, z + d]];
     const perStorey = storeys > 1 && b.perStorey !== false;
     for (const [side, x0, z0, x1, z1] of sides) {
-      if (!perStorey) { this.wallLine(x0, z0, x1, z1, th, h, wall, (b.doors || []).filter(dd => dd.side === side), o); continue; }
+      // the drawn north / south walls run on past the corners so the thickened walls close them
+      const so = { ...o, endPad: !under && (side === 'n' || side === 's') ? [vt / 2, vt / 2] : null, vthick: vt };
+      if (!perStorey) { this.wallLine(x0, z0, x1, z1, th, h, wall, (b.doors || []).filter(dd => dd.side === side), so); continue; }
       for (let k = 0; k < storeys; k++) {
         const hk = k === storeys - 1 ? h - k * sh : sh;
-        this.wallLine(x0, z0, x1, z1, th, hk, wall, (b.doors || []).filter(dd => dd.side === side && (dd.storey || 0) === k), { ...o, rel0: k * sh });
+        // lower storeys: their tops are under the next storey's wall, so no top-row lip (it would draw a seam)
+        this.wallLine(x0, z0, x1, z1, th, hk, wall, (b.doors || []).filter(dd => dd.side === side && (dd.storey || 0) === k), { ...so, rel0: k * sh, capF: k < storeys - 1 ? 1 : 3 });
       }
     }
     for (const iw of b.inner || []) { const k = iw[5] || 0; this.wallLine(x + iw[0], z + iw[1], x + iw[2], z + iw[3], 0.2, Math.min(storeys > 1 ? sh : h, b.innerH || 3.2), b.innerWall || wall, iw[4] || [], { ...o, rel0: k * sh }); }
@@ -642,7 +727,9 @@ export class World {
         const out = { n: [x + at, z - 0.55, x + at, z + 0.75], s: [x + at, z + d + 0.55, x + at, z + d - 0.75], w: [x - 0.55, z + at, x + 0.75, z + at], e: [x + w + 0.55, z + at, x + w - 0.75, z + at] }[ld.side];
         const [bx, bz] = rotPt(R, out[0], out[1]), [tx, tz] = rotPt(R, out[2], out[3]);
         const face = { n: Math.PI, s: 0, w: -Math.PI / 2, e: Math.PI / 2 }[ld.side] - (b.rot || 0);
-        this.ladders.push({ x0: bx, z0: bz, x1: tx, z1: tz, bid: id, rel0: 0, rel1: ld.to === undefined || ld.to === 'top' ? h + 0.25 : lev(ld.to), face, wall: rotPt(R, (out[0] + out[2]) / 2, (out[1] + out[3]) / 2) });
+        // drawn against the outer face of the (thickened) wall
+        const wo = vt / 2 + 0.06, wp = { n: [x + at, z - wo], s: [x + at, z + d + wo], w: [x - wo, z + at], e: [x + w + wo, z + at] }[ld.side];
+        this.ladders.push({ x0: bx, z0: bz, x1: tx, z1: tz, bid: id, rel0: 0, rel1: ld.to === undefined || ld.to === 'top' ? h + 0.25 : lev(ld.to), face, wall: rotPt(R, wp[0], wp[1]) });
       } else {
         const [lx, lz] = rotPt(R, x + ld.x, z + ld.z);
         const to = ld.to ?? 'top', from = ld.from ?? 0, fw = (ld.face || 0) - (b.rot || 0);
@@ -653,7 +740,7 @@ export class World {
     }
     // facade detail: storey bands on the south face (visual only)
     if (b.facade !== false && storeys > 1) {
-      for (let k = 1; k < storeys; k++) this.block(x - 0.05, z + d - 0.05, x + w + 0.05, z + d + 0.12, 0.18, b.trim || 'concrete', { ...o, rel0: k * sh - 0.1, collide: false, cast: false });
+      for (let k = 1; k < storeys; k++) this.block(x - vt / 2 - 0.05, z + d + vt / 2 - 0.1, x + w + vt / 2 + 0.05, z + d + vt / 2 + 0.07, 0.18, b.trim || 'concrete', { ...o, rel0: k * sh - 0.1, collide: false, cast: false, capF: 0 });
     }
     this.roofBoxes.push({ bid: id, b, h });
     // local-frame contents: [kind, lx, lz, rot?, opts?] relative to (x, z); opts.storey puts them upstairs
@@ -675,7 +762,7 @@ export class World {
       const cx = (ax + bx) / 2, cz = (az + bz) / 2, R = rotFrame(cx, cz, a), hw = width / 2;
       this.block(cx - L / 2 - 0.05, cz - hw, cx + L / 2 + 0.05, cz + hw, thick, texName, { y0: y - thick, R, xray: true, bridge: true });
       const t0 = k > 0 ? trim(k - 1, k) : closed ? trim(n - 2, 0) : 0, t1 = k < n - 2 ? trim(k, k + 1) : closed ? trim(n - 2, 0) : 0;
-      if (rails && L - t0 - t1 > 0.2) for (const sgn of [-1, 1]) this.block(cx - L / 2 + t0, cz + sgn * (hw - 0.12) - 0.1, cx + L / 2 - t1, cz + sgn * (hw - 0.12) + 0.1, railH, 'rust', { y0: y, R, xray: false });
+      if (rails && L - t0 - t1 > 0.2) for (const sgn of [-1, 1]) this.block(cx - L / 2 + t0, cz + sgn * (hw - 0.12) - 0.1, cx + L / 2 - t1, cz + sgn * (hw - 0.12) + 0.1, railH, 'rust', { y0: y, R, xray: false, vpad: [0, 0.04, 0, 0.04] });
       if (pillars) for (let t = pillars / 2; t < L; t += pillars) this.block(cx - L / 2 + t - pillarW / 2, cz - pillarW / 2, cx - L / 2 + t + pillarW / 2, cz + pillarW / 2, 0, side, { R, pillarTo: y - thick });
     }
   }
@@ -683,14 +770,28 @@ export class World {
   ladder(x0, z0, y0, x1, z1, y1, face = 0) { this.ladders.push({ x0, z0, x1, z1, y0abs: y0, y1abs: y1, face }); }
   // building-local offset (from the footprint's x, z corner) -> world [x, z]
   local(bb, lx, lz) { return rotPt(bb.R, bb.x0 + lx, bb.z0 + lz); }
+  // collision: thin 0.5 m pieces as before; drawn: panels with some body, a capped top rail and chunky posts
+  // every ~2 m (visual only), so a fence seen edge-on still reads as a solid line
   fence(points, h = 1.2, texName = 'rust', thick = 0.1, opts = {}) {
+    const vo = { ...opts, xray: false, collide: false };
     for (let k = 0; k < points.length - 1; k++) {
       const [ax, az] = points[k], [bx, bz] = points[k + 1];
       const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(L / 0.5));
       for (let i = 0; i < n; i++) {
         const t0 = i / n, t1 = (i + 1) / n;
         const x0 = ax + (bx - ax) * t0, z0 = az + (bz - az) * t0, x1 = ax + (bx - ax) * t1, z1 = az + (bz - az) * t1;
-        this.block(Math.min(x0, x1) - thick / 2, Math.min(z0, z1) - thick / 2, Math.max(x0, x1) + thick / 2, Math.max(z0, z1) + thick / 2, h, texName, { ...opts, xray: false });
+        this.block(Math.min(x0, x1) - thick / 2, Math.min(z0, z1) - thick / 2, Math.max(x0, x1) + thick / 2, Math.max(z0, z1) + thick / 2, h, texName, { ...opts, xray: false, nodraw: true });
+      }
+      if (L < 0.05) continue;
+      const a = Math.atan2(bz - az, bx - ax), m = Math.max(1, Math.round(L / 2)), pl = L / m, pt = Math.max(thick, 0.12);
+      for (let i = 0; i < m; i++) {
+        const t = (i + 0.5) / m, cx = ax + (bx - ax) * t, cz = az + (bz - az) * t, R = rotFrame(cx, cz, a);
+        this.block(cx - pl / 2, cz - pt / 2, cx + pl / 2, cz + pt / 2, h - 0.12, texName, { ...vo, R, capF: 2 });
+        this.block(cx - pl / 2, cz - 0.1, cx + pl / 2, cz + 0.1, 0.12, texName, { ...vo, R, rel0: h - 0.12, capF: 3 });
+      }
+      for (let i = k === 0 ? 0 : 1; i <= m; i++) {
+        const px = ax + (bx - ax) * i / m, pz = az + (bz - az) * i / m;
+        this.block(px - 0.12, pz - 0.12, px + 0.12, pz + 0.12, h + 0.1, texName, { ...vo, R: rotFrame(px, pz, a), capF: 11 });
       }
     }
   }
@@ -754,6 +855,8 @@ export class World {
     for (const [x0, z0, x1, z1, h, y0] of extractSolids(e.kind, e, this)) {   // world: the metro fits its hall
       this.block(x + x0, z + z0, x + x1, z + z1, h, 'metalPanel', { R, nodraw: true, baseAt: [x, z], ...(e.yAbs != null ? { y0: e.yAbs + (y0 || 0) } : y0 ? { rel0: y0 } : {}) });
     }
+    // cabin doors / platform gates: dynamic blockers made in finalize(), driven by setExtractGate()
+    e.gateRects = extractGates(e.kind, e);
     return e;
   }
   spawnPoint(x, z, opts = {}) { this.spawns.push({ x, z, ...opts }); }
@@ -808,8 +911,15 @@ export class World {
       const t = tex(s.texName, s.opts.seed || 5);
       // floating pieces (decks, platforms, overpasses) and their pillars open up when you walk under them
       const cut = s.opts.cutaway ?? (s.opts.y0 != null || s.opts.pillarTo != null);
-      const mat = litTex(t, { cutaway: !!cut, xray: s.opts.xray !== false, color: s.opts.tint || 0xffffff });
-      if (!s.opts.nodraw) this.boxes.add(s.texName + (cut ? 'c' : '') + (s.opts.tint || '') + (s.opts.xray === false ? 'n' : ''), mat, s.x0, y0, s.z0, s.x1, y1, s.z1, s.opts);
+      const mat = litTex(t, { cutaway: !!cut, xray: s.opts.xray !== false, color: s.opts.tint || 0xffffff, box: true });
+      if (!s.opts.nodraw) {
+        // wall-like pieces (thin, standing) get the cap tint + top lip unless the builder chose flags; vpad = drawn
+        // padding [x0, z0, x1, z1] beyond the collision box (thickened walls / fences)
+        let o = s.opts;
+        if (o.capF == null) o = { ...o, capF: !o.step && Math.min(s.x1 - s.x0, s.z1 - s.z0) <= 1.7 && y1 - y0 >= 0.6 ? 3 : 0 };
+        const v = o.vpad || NOPAD;
+        this.boxes.add(s.texName + (cut ? 'c' : '') + (s.opts.tint || '') + (s.opts.xray === false ? 'n' : ''), mat, s.x0 - v[0], y0, s.z0 - v[1], s.x1 + v[2], y1, s.z1 + v[3], o);
+      }
       // thin pieces are padded so turned walls stay closed; stair steps tile their flight exactly instead
       // (padding would push each turned step into the one below and jam a walker going straight up)
       if (s.opts.collide !== false) g.eachCell(s.x0, s.z0, s.x1, s.z1, s.opts.R, !s.opts.step, (i) => g.addSolid(i, y0, y1));
@@ -860,6 +970,18 @@ export class World {
       const mark = (i) => { if (g.door[i] < 0 || g.door[i] === k) g.door[i] = k; else g.door2[i] = k; blk.cells.push(i); };
       if (d.axis === 'x') g.eachCell(x - hw, z - ht, x + hw, z + ht, d.R, true, mark);
       else g.eachCell(x - ht, z - hw, x + ht, z + hw, d.R, true, mark);
+    }
+    // 7b) extraction cabin doors / platform gates: more dynamic blockers (start open so the nav sees the way in;
+    // Sim + View shut them from the extract state via setExtractGate)
+    for (const e of this.extracts) {
+      e.gates = [];
+      if (!e.gateRects?.length) continue;
+      const R = rotFrame(e.x, e.z, -(e.face || 0)), base = e.yAbs ?? (e.surface ? g.floorAt(e.x, e.z, 1e9) : this.groundAt(e.x, e.z));
+      for (const [x0, z0, x1, z1, h, y0 = 0] of e.gateRects) {
+        const k = g.doorBlocks.length, blk = { y0: base + y0, y1: base + y0 + h, closed: false, cells: [], gate: true }; g.doorBlocks.push(blk);
+        e.gates.push(k);
+        g.eachCell(e.x + x0, e.z + z0, e.x + x1, e.z + z1, R, true, (i) => { if (g.door[i] < 0 || g.door[i] === k) g.door[i] = k; else if (g.door2[i] < 0) g.door2[i] = k; blk.cells.push(i); });
+      }
     }
     // 8) ladders: absolute ends
     for (const l of this.ladders) {
@@ -971,8 +1093,10 @@ export class World {
   _roofParts(B) {
     const b = B.def, out = [], fy = B.floorY;
     const x = b.x, z = b.z, w = b.w, d = b.d, wall = b.wall || 'plaster';
-    const box = (texName, tint, x0, y0, z0, x1, y1, z1, nocol = false) => out.push({ texName, tint, x0, y0, z0, x1, y1, z1, nocol });
+    const box = (texName, tint, x0, y0, z0, x1, y1, z1, nocol = false, vpad = null, cap = false) => out.push({ texName, tint, x0, y0, z0, x1, y1, z1, nocol, vpad, cap });
     const holes = B.holes.top || [];
+    // drawn only: the slab edge and parapets grow with the thickened walls (B.vt) so the roof still covers them
+    const vp = Math.max(0, ((B.vt ?? 0.3) - 0.3) / 2), edge = (a, c, e, f) => [a <= x - 0.149 ? vp : 0, c <= z - 0.149 ? vp : 0, e >= x + w + 0.149 ? vp : 0, f >= z + d + 0.149 ? vp : 0];
     if (B.under) {
       // lid = the ground above the hall: flush with the surface, walkable, opaque from outside
       const top = fy + B.h + 0.02;
@@ -981,7 +1105,7 @@ export class World {
       return out;
     }
     const rt = b.roof || 'roofTar', top = fy + B.h;
-    for (const [rx0, rz0, rx1, rz1] of subtractRects([x - 0.15, z - 0.15, x + w + 0.15, z + d + 0.15], holes)) box(rt, b.roofTint, rx0, top, rz0, rx1, top + 0.25, rz1);
+    for (const [rx0, rz0, rx1, rz1] of subtractRects([x - 0.15, z - 0.15, x + w + 0.15, z + d + 0.15], holes)) box(rt, b.roofTint, rx0, top, rz0, rx1, top + 0.25, rz1, false, edge(rx0, rz0, rx1, rz1));
     if (b.roofShape === 'gable') {
       // stepped voxel gable along the long axis
       const alongX = w >= d, span = alongX ? d : w, steps = Math.max(2, Math.floor(span / 0.9));
@@ -991,11 +1115,11 @@ export class World {
         else box(rt, b.roofTint, x + inset - 0.3, y0, z - 0.3, x + w - inset + 0.3, y1, z + d + 0.3);
       }
     } else if (b.parapet !== false) {
-      const p = 0.4, y0 = top + 0.25, y1 = y0 + p;
-      box(wall, b.tint, x - 0.15, y0, z - 0.15, x + w + 0.15, y1, z + 0.15);
-      box(wall, b.tint, x - 0.15, y0, z + d - 0.15, x + w + 0.15, y1, z + d + 0.15);
-      box(wall, b.tint, x - 0.15, y0, z - 0.15, x + 0.15, y1, z + d + 0.15);
-      box(wall, b.tint, x + w - 0.15, y0, z - 0.15, x + w + 0.15, y1, z + d + 0.15);
+      const p = 0.4, y0 = top + 0.25, y1 = y0 + p, pp = [vp, vp, vp, vp];
+      box(wall, b.tint, x - 0.15, y0, z - 0.15, x + w + 0.15, y1, z + 0.15, false, pp, true);
+      box(wall, b.tint, x - 0.15, y0, z + d - 0.15, x + w + 0.15, y1, z + d + 0.15, false, pp, true);
+      box(wall, b.tint, x - 0.15, y0, z - 0.15, x + 0.15, y1, z + d + 0.15, false, pp, true);
+      box(wall, b.tint, x + w - 0.15, y0, z - 0.15, x + w + 0.15, y1, z + d + 0.15, false, pp, true);
     }
     // vents keep clear of ladder tops / roof hatches so you never climb into one
     const keep = [...holes.map(([a, c, e, f]) => [(a + e) / 2, (c + f) / 2]), ...this.ladders.filter(l => l.bid === B.id).map(l => unrotPt(B.R, l.x1, l.z1))];
@@ -1013,16 +1137,16 @@ export class World {
     for (const { bid } of this.roofBoxes) {
       const B = this.buildings[bid], R = B.R;
       for (const r of this._roofParts(B)) {
-        const key = r.texName + '|' + (r.tint || '');
+        const key = r.texName + '|' + (r.tint || '') + (r.cap ? '|cap' : '');
         let gr = groups.get(key);
-        if (!gr) { gr = { texName: r.texName, tint: r.tint, pos: [], nor: [], uv: [], idx: [], bid: [] }; groups.set(key, gr); }
-        const start = gr.pos.length / 3;
-        pushBox(gr, r.x0, r.y0, r.z0, r.x1, r.y1, r.z1, 4, { bid });
+        if (!gr) { gr = { texName: r.texName, tint: r.tint, cap: r.cap, pos: [], nor: [], uv: [], idx: [], bid: [] }; groups.set(key, gr); }
+        const start = gr.pos.length / 3, v = r.vpad || NOPAD;
+        pushBox(gr, r.x0 - v[0], r.y0, r.z0 - v[1], r.x1 + v[2], r.y1, r.z1 + v[3], 4, { bid });
         if (R) rotTail(gr, start, R);
       }
     }
     for (const r of groups.values()) {
-      const m = new THREE.Mesh(geoFrom(r), roofMaterial(tex(r.texName, 9), this.alphaTex, r.tint || 0xffffff));
+      const m = new THREE.Mesh(geoFrom(r), roofMaterial(tex(r.texName, 9), this.alphaTex, r.tint || 0xffffff, r.cap));
       m.castShadow = true; m.receiveShadow = true; m.renderOrder = 30;
       this.root.add(m);
     }
@@ -1114,9 +1238,10 @@ export class World {
     // stepped out onto the roof / lid of the building we were cut into: drop the cut at once so its
     // interior doesn't show through the surface we now stand on
     const was = this._cutB ?? -1; this._cutB = inside;
-    if (inside < 0 && was >= 0 && py >= this.buildings[was].roofY - 0.6) { GU.uCutH.value = 999; GU.uCut.value.set(1e9, 1e9, -1e9, -1e9); }
+    if (inside < 0 && was >= 0 && py >= this.buildings[was].roofY - 0.6) { GU.uCutH.value = 999; GU.uCut.value.set(1e9, 1e9, -1e9, -1e9); GU.uCutBid.value = -1; }
     if (inside >= 0) {
       const b = this.buildings[inside];
+      GU.uCutBid.value = inside;      // its walls get solid section caps at the cut height (materials.js BOX_VERT)
       GU.uCut.value.set(b.x0 - 0.3, b.z0 - 0.3, b.x1 + 0.3, b.z1 + 0.3);
       if (b.R) GU.uCutR.value.set(b.R.cx, b.R.cz, b.R.c, b.R.s); else GU.uCutR.value.set(0, 0, 1, 0);
       const want = Math.max(b.floorY, py) + 1.15;
@@ -1124,13 +1249,13 @@ export class World {
       GU.uCutH.value = GU.uCutH.value > want ? Math.max(want, GU.uCutH.value - dt * 7) : Math.min(want, GU.uCutH.value + dt * 7);
     } else if ([[0, 0], [1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]].filter(([dx, dz]) => g.ceilAt(px + dx, pz + dz, py + 0.5) < py + 9).length >= 4) {
       // under a deck / overpass / overhang: cut a window around us so we stay visible underneath
-      GU.uCut.value.set(px - 7, pz - 4, px + 7, pz + 6); GU.uCutR.value.set(0, 0, 1, 0);
+      GU.uCut.value.set(px - 7, pz - 4, px + 7, pz + 6); GU.uCutR.value.set(0, 0, 1, 0); GU.uCutBid.value = -1;
       const want = py + 2.2;
       if (GU.uCutH.value > want + 5) GU.uCutH.value = want + 5;
       GU.uCutH.value = GU.uCutH.value > want ? Math.max(want, GU.uCutH.value - dt * 9) : want;
     } else {
       GU.uCutH.value = Math.min(999, GU.uCutH.value + dt * 9);
-      if (GU.uCutH.value > py + 9) { GU.uCutH.value = 999; GU.uCut.value.set(1e9, 1e9, -1e9, -1e9); }
+      if (GU.uCutH.value > py + 9) { GU.uCutH.value = 999; GU.uCut.value.set(1e9, 1e9, -1e9, -1e9); GU.uCutBid.value = -1; }
     }
     GU.uXray.value.set(px, pz - OBLIQUE_K * (py + 0.9), py + 0.9 + OBLIQUE_K * pz, 2.4);
     GU.uXrayY.value = py;
@@ -1145,5 +1270,8 @@ export class World {
     };
     return inRect(x, z) || inRect(x, z - OBLIQUE_K * (y - (H - 1.15)));
   }
+  // extraction cabin doors / metro platform gates (finalize 7b): shut = solid + occluding. Every peer drives them
+  // from the replicated extract state (Sim on the host, View everywhere), so client prediction collides too.
+  setExtractGate(x, closed) { const ks = x?.gates; if (ks) for (let i = 0; i < ks.length; i++) this.setDoor(ks[i], closed); }
 }
 const TERRAIN_NAME = Object.fromEntries(Object.entries(TID).map(([k, v]) => [v, k]));

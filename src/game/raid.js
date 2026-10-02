@@ -20,6 +20,8 @@ import { searchTime } from './loot.js';
 import { ARK } from '../data/arc.js';
 import { CONDITIONS } from '../data/conditions.js';
 import { RaidUI } from '../ui/raidui.js';
+import { TouchControls } from '../ui/touch.js';
+import { hudScaleFor, touchEnabled } from '../ui/settings.js';
 import { extractWorldPoints } from '../engine/extracts.js';
 
 const TICK = 1 / 30;
@@ -85,8 +87,10 @@ export class RaidGame {
     for (const d of this.doorsData) d.lockedNow = !!d.locked;
     this.view = new View(this);
     this.hud = new HUD(this.hudCanvas); this.hud.icons = drawIcon; this.hud.itemIcons = drawItemIcon || null;
-    this.hud.resize(this.R.scale);
-    addEventListener('resize', () => this.hud.resize(this.R.scale));
+    // the HUD has its own pixel scale (UI scale setting), independent of the 3D render scale
+    this.hudResize = () => this.hud.resize(hudScaleFor(innerWidth, innerHeight, touchEnabled()));
+    this.hudResize();
+    addEventListener('resize', this.hudResize); addEventListener('dr:uiscale', this.hudResize);
     // spawn the local player (+ remote squad on host)
     const sp = this.spawnAt || o.spawn || this.pickSpawn();
     const lo = o.loadout;
@@ -105,6 +109,7 @@ export class RaidGame {
     this.pc = new PlayerController(this, this.me, lo, o.stats);
     if (lo.shield) this.session.setShield(lo.shield, lo.shield.charge ?? null);
     this.ui = new RaidUI(this);
+    this.touch = new TouchControls(this);
     this.R.center.set(this.me.x, this.me.z);
     this.camX = this.me.x; this.camZ = this.me.z;
     this.fx.rain.intensity = this.L.weather.rain || 0;
@@ -145,6 +150,7 @@ export class RaidGame {
     this.time += dt;
     const input = this.o.input;
     const me = this.me;
+    this.touch.update(dt);
     this.ui.update(dt, input);
     const frozen = this.paused && !this.net;
     if (!frozen && me && (me.st === 'alive' || me.st === 'downed') && !this.ended) this.pc.update(dt, input, this.R);
@@ -166,7 +172,7 @@ export class RaidGame {
         this.acc -= TICK;
       }
       this.simTime = this.sim.t; this.timeLeft = this.sim.timeLeft;
-    } else {
+    } else if (!this.isHost) {      // (a paused solo host just skips the simulation)
       this.net.clientUpdate(dt);
       for (const x of this.extractsData) if (x.t > 0 && x.state !== 'idle' && x.state !== 'offline') x.t = Math.max(0, x.t - dt);
     }
@@ -435,7 +441,8 @@ export class RaidGame {
   end() {
     if (this.ended) return;
     this.ended = true; this.running = false;
-    this.ui.destroy();
+    this.ui.destroy(); this.touch?.destroy();
+    removeEventListener('resize', this.hudResize); removeEventListener('dr:uiscale', this.hudResize);
     this.R.gl.setAnimationLoop(null);
     this.resolve(this.result || { outcome: 'dead', loadout: null, xp: this.xp, stats: this.stats, map: this.mapId });
     this.dispose();
@@ -460,6 +467,14 @@ export class RaidGame {
     if (me.y > w.groundAt(me.x, me.z) + 2.5 && g.ceilAt(me.x, me.z, me.y) === Infinity) return 'ELEVATED';
     return null;
   }
+  // crosshair position (CSS px): the mouse, or the aim point projected to the screen when a stick aims
+  aimScreen(me) {
+    const input = this.o.input;
+    if (input.mode === 'kbm' || !this.pc) return { x: input.mouse.x, y: input.mouse.y };
+    const a = this.pc.aim, s = this.R.worldToScreen(a.x, (me?.y || 0) + 1.1, a.z);
+    return { x: s.x, y: s.y, dim: input.mode === 'touch' && !this.o.input.virtual.fire && !this.touch?.aim };
+  }
+  keyLabel(action, def) { try { const l = this.o.input.label?.(action); return l && l !== '?' ? String(l).toUpperCase().slice(0, 3) : def; } catch (e) { return def; } }
   drawHUD(dt) {
     const me = this.me, pc = this.pc, R = this.R;
     for (const f of this.feedList) f.ttl -= dt;
@@ -479,7 +494,8 @@ export class RaidGame {
       feed: this.feedList,
       chat: { lines: this.chatLines, open: this.ui.chatOpen, input: this.ui.chatInput || '', teamCount: 0 },
       banner: this.bannerS,
-      crosshair: this.uiBlocking ? null : { x: this.o.input.mouse.x, y: this.o.input.mouse.y, spread: (ws ? (pc.ads ? ws.adsSpread : ws.spread) + pc.bloom : 2) * 1.2, hit: !!this.hitMark },
+      crosshair: this.uiBlocking ? null : { ...this.aimScreen(me), spread: (ws ? (pc.ads ? ws.adsSpread : ws.spread) + pc.bloom : 2) * 1.2, hit: !!this.hitMark },
+      swapKey: this.keyLabel('swap', 'Q'),
     };
     // team
     const team = [];
@@ -487,7 +503,7 @@ export class RaidGame {
     for (const e of this.ents.values()) if (e.type === 'raider' && !e.bot && e.team === this.myTeam && e.id !== this.meId) team.push({ name: e.name, color: SQUAD_COLORS[(e.slot ?? ++slot) % 4], hp: e.st === 'downed' ? 0 : e.hp / e.maxHp, downed: e.st === 'downed' });
     if (team.length) { st.team = team; st.chat.teamCount = team.length; }
     // interaction prompt
-    if (pc.interact && (me.st === 'alive' || pc.interact.kind === 'selfrevive')) st.prompt = { text: pc.interact.label, key: 'E', progress: pc.holdFor ? Math.min(1, pc.holdT / pc.interact.time) : null };
+    if (pc.interact && (me.st === 'alive' || pc.interact.kind === 'selfrevive')) st.prompt = { text: pc.interact.label, key: this.o.input.mode === 'touch' ? '>' : this.keyLabel('interact', 'E'), progress: pc.holdFor ? Math.min(1, pc.holdT / pc.interact.time) : null };
     else if (pc.useItem) st.prompt = { text: 'USING ' + ITEMS[pc.useItem].name.toUpperCase(), key: '-', progress: 1 - pc.useT / pc.useTotal };
     else if (pc.reloadT > 0) st.prompt = null;
     // quests
@@ -522,6 +538,7 @@ export class RaidGame {
     for (const e of this.ents.values()) if (e.type === 'raider' && !e.bot && e.team === this.myTeam && e.id !== this.meId && e.st !== 'out') { const v = this.view.vis.get(e.id); if (v) { const s = R.worldToScreen(v.px, v.py + 2.3, v.pz); markers.push({ sx: s.x, sy: s.y, label: e.name, color: SQUAD_COLORS[(e.slot ?? 0) % 4], small: true }); } }
     st.markers = markers;
     if (me.st === 'dead' || me.st === 'out') { st.crosshair = null; st.prompt = null; }
+    this.hud.touch = this.touch?.layout() || null;
     this.hud.draw(st, dt);
   }
 }

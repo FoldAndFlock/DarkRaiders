@@ -12,13 +12,23 @@ export class HUD {
     this.c = canvas; this.x = canvas.getContext('2d');
     this.s = 3; this.t = 0;
     this.icons = null; // set externally: (ctx, id, x, y, size) => void
+    // touch layout: null, or { freeL, freeR } = CSS px span of the bottom edge left free by the
+    // on-screen controls; player status moves to the left column, weapon + quick slots between the sticks
+    this.touch = null;
+    this.quickRects = [];   // HUD-pixel rects of the drawn quick slots (touch hit areas sit on them)
+    this.leftY = 0;         // touch layout: next free y in the left column
   }
+  // scale = CSS px per HUD pixel (UI scale setting; independent of the 3D render scale). The backing
+  // store is in HUD pixels and displayed at exactly W*scale CSS px, so world anchors (css px / scale)
+  // land on the same spot at any scale.
   resize(scale) {
     this.s = scale;
-    const w = this.c.clientWidth || innerWidth, h = this.c.clientHeight || innerHeight;
-    // backing store in game pixels; CSS scales it up crisp
+    const w = innerWidth, h = innerHeight;
+    this.cssW = w; this.cssH = h;
     this.c.width = Math.ceil(w / scale); this.c.height = Math.ceil(h / scale);
     this.W = this.c.width; this.H = this.c.height;
+    this.c.style.width = (this.W * scale) + 'px'; this.c.style.height = (this.H * scale) + 'px';
+    this.x.imageSmoothingEnabled = false;
   }
   panel(x, y, w, h, edge = UI.line) {
     const c = this.x;
@@ -38,12 +48,14 @@ export class HUD {
     this.t += dt;
     const c = this.x, W = this.W, H = this.H;
     c.clearRect(0, 0, W, H);
+    this.quickRects = [];
     if (st.offscreen) this.offscreen(st.offscreen);
     if (st.markers) this.markers(st.markers);
     this.compass(st);
     this.raidInfo(st);
     this.player(st);
     this.weapon(st);
+    if (this.touch) this.where(st);
     if (st.team) this.team(st.team);
     if (st.objectives) this.objectives(st.objectives);
     if (st.feed) this.feed(st.feed);
@@ -87,12 +99,20 @@ export class HUD {
     this.text(`${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`, 111, 8, { color: tcol, align: 'right' });
     this.text(r.condition || '', 9, 18, { color: UI.dim });
     this.text(r.weather || '', 9, 27, { color: UI.dim });
-    if (r.where) { this.panel(4, 40, Math.max(112, textWidth(r.where) + 12), 13); this.text(r.where, 9, 43, { color: UI.yellow }); }
+    if (r.where && !this.touch) { this.panel(4, 40, Math.max(112, textWidth(r.where) + 12), 13); this.text(r.where, 9, 43, { color: UI.yellow }); }
+    this.leftY = 40;
+  }
+  // touch layout: floor / rooftop label under the player panel
+  where(st) {
+    const r = st.raid; if (!r?.where) return;
+    this.panel(4, this.leftY, Math.max(112, textWidth(r.where) + 12), 13); this.text(r.where, 9, this.leftY + 3, { color: UI.yellow });
+    this.leftY += 15;
   }
 
   player(st) {
     const p = st.player; if (!p) return;
-    const x = 6, y = this.H - 44;
+    const x = this.touch ? 4 : 6, y = this.touch ? this.leftY : this.H - 44;
+    if (this.touch) this.leftY += 40;
     this.panel(x, y, 128, 38);
     this.text(p.name.slice(0, 12).toUpperCase(), x + 5, y + 4, { color: UI.cream });
     if (p.level) this.text('LV' + p.level, x + 123, y + 4, { color: UI.yellow, align: 'right' });
@@ -105,7 +125,8 @@ export class HUD {
   }
 
   team(team) {
-    let y = this.H - 52 - team.length * 16;
+    let y = this.touch ? this.leftY : this.H - 52 - team.length * 16;
+    if (this.touch) this.leftY += team.length * 16;
     for (const m of team) {
       this.panel(6, y, 92, 14);
       this.x.fillStyle = m.color; this.x.fillRect(7, y + 1, 2, 12);
@@ -118,7 +139,14 @@ export class HUD {
 
   weapon(st) {
     const w = st.weapon; if (!w) return;
-    const c = this.x, W = this.W, H = this.H, x = W - 140, y = H - 44;
+    const c = this.x, W = this.W, H = this.H;
+    let x = W - 140, y = H - 44;
+    const qs = st.quick || [], qw = qs.length * 34 - 2;
+    if (this.touch) {
+      // between the two sticks, centred on the free span (clamped to the screen)
+      const cx = ((this.touch.freeL + this.touch.freeR) / 2) / this.s, half = Math.max(67, qw / 2);
+      x = Math.round(Math.max(half + 2, Math.min(W - half - 2, cx)) - 67);
+    }
     this.panel(x, y, 134, 38);
     c.fillStyle = UI.rarity[w.rarity] || UI.cream; c.fillRect(x + 1, y + 1, 2, 36);
     this.text(w.name.toUpperCase(), x + 7, y + 4, { color: UI.cream });
@@ -126,21 +154,23 @@ export class HUD {
     this.text(String(w.mag), x + 7, y + 15, { font: 'big', color: w.mag === 0 ? UI.red : UI.cream });
     this.text('/ ' + w.reserve, x + 9 + textWidth(String(w.mag), 'big'), y + 20, { color: UI.dim });
     this.text(w.mode || 'AUTO', x + 129, y + 22, { color: UI.dim, align: 'right' });
-    if (w.alt) this.text('[Q] ' + w.alt, x + 7, y + 30, { color: UI.dim });
-    // quick use slots
-    const qs = st.quick || [];
+    if (w.alt) this.text((this.touch ? '' : `[${st.swapKey || 'Q'}] `) + w.alt, x + 7, y + 30, { color: UI.dim });
+    // quick use slots: right-aligned over the weapon panel (centred over it with touch controls)
+    const q0 = this.touch ? Math.round(x + 67 - qw / 2) : Math.min(x, W - 6 - qw);
     qs.forEach((q, i) => {
-      const qx = W - 140 + i * 34, qy = y - 30;
+      const qx = q0 + i * 34, qy = y - 30;
       this.panel(qx, qy, 32, 26, q.active ? UI.yellow : UI.line);
       if (q.item && this.itemIcons) this.itemIcons(c, q.item, qx + 8, qy + 3, 16);
       else if (q.icon && this.icons) this.icons(c, q.icon, qx + 8, qy + 3, 16);
       this.text(String(i + 1), qx + 3, qy + 2, { color: UI.dim });
       if (q.count != null) this.text('x' + q.count, qx + 29, qy + 18, { color: UI.cream, align: 'right' });
+      this.quickRects.push({ x: qx, y: qy, w: 32, h: 26, empty: !q.item && !q.icon });
     });
   }
 
   objectives(list) {
-    const W = this.W, x = W - 128, y = 22;
+    const W = this.W, x = this.touch ? 4 : W - 128, y = this.touch ? this.leftY + 2 : 22;
+    if (this.touch) this.leftY += 14 + list.length * 10;
     this.panel(x, y, 122, 10 + list.length * 10);
     list.forEach((o, i) => {
       this.x.fillStyle = o.done ? UI.green : UI.dim; this.x.fillRect(x + 5, y + 7 + i * 10, 3, 3);
@@ -167,7 +197,7 @@ export class HUD {
   }
 
   chat(ch) {
-    const lines = ch.lines.slice(-6), x = 6, y0 = this.H - 52 - (ch.teamCount || 0) * 16 - 10 - lines.length * 9;
+    const lines = ch.lines.slice(-6), x = 6, y0 = this.touch ? this.leftY + 4 : this.H - 52 - (ch.teamCount || 0) * 16 - 10 - lines.length * 9;
     lines.forEach((l, i) => {
       const a = ch.open ? 1 : Math.max(0, Math.min(1, l.ttl));
       if (a <= 0) return;
@@ -185,11 +215,13 @@ export class HUD {
 
   crosshair(ch) {
     const c = this.x, x = Math.round(ch.x / this.s), y = Math.round(ch.y / this.s), g = Math.round(2 + ch.spread);
+    if (ch.dim) c.globalAlpha = 0.45;
     c.fillStyle = '#000';
     c.fillRect(x - g - 4, y - 1, 5, 3); c.fillRect(x + g, y - 1, 5, 3); c.fillRect(x - 1, y - g - 4, 3, 5); c.fillRect(x - 1, y + g, 3, 5);
     c.fillStyle = ch.hit ? UI.red : UI.cream;
     c.fillRect(x - g - 3, y, 3, 1); c.fillRect(x + g + 1, y, 3, 1); c.fillRect(x, y - g - 3, 1, 3); c.fillRect(x, y + g + 1, 1, 3);
     c.fillRect(x, y, 1, 1);
+    c.globalAlpha = 1;
   }
 
   // edge-of-screen warnings for nearby off-screen ARC (+ distance)
@@ -197,7 +229,7 @@ export class HUD {
     const c = this.x, W = this.W, H = this.H, m = 10;
     for (const o of list) {
       // o.sx, o.sy in css px; clamp to screen edge
-      const cx = W / 2, cy = H / 2;
+      const cx = (this.cssW || W * this.s) / this.s / 2, cy = (this.cssH || H * this.s) / this.s / 2;
       let dx = o.sx / this.s - cx, dy = o.sy / this.s - cy;
       const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
       const ex = Math.round(cx + dx * k), ey = Math.round(cy + dy * k);

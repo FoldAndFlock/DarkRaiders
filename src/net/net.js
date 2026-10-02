@@ -308,7 +308,7 @@ export class Net {
       }
       if (!cur) { cur = e; cur.rx = e.x; cur.rz = e.z; cur.ry = e.y; cur.hist = []; g.ents.set(e.id, cur); }
       else { const hist = cur.hist; Object.assign(cur, e); cur.hist = hist; }
-      cur.hist.push({ t: now, x: e.x, y: e.y, z: e.z });
+      cur.hist.push({ t: now, x: e.x, y: e.y, z: e.z, a: e.alt || 0 });   // ARK altitude too (y = the floor under a flyer)
       if (cur.hist.length > 6) cur.hist.shift();
     }
     for (const id of [...g.ents.keys()]) if (!seen.has(id) && id !== g.meId) g.ents.delete(id);
@@ -324,6 +324,7 @@ export class Net {
       for (let i = 0; i < h.length - 1; i++) if (h[i].t <= rt && h[i + 1].t >= rt) { a = h[i]; b = h[i + 1]; break; }
       const k = b.t > a.t ? Math.max(0, Math.min(1, (rt - a.t) / (b.t - a.t))) : 1;
       e.rx = a.x + (b.x - a.x) * k; e.rz = a.z + (b.z - a.z) * k; e.ry = a.y + (b.y - a.y) * k;
+      if (e.type === 'ark') e.ra = (a.a || 0) + ((b.a || 0) - (a.a || 0)) * k;
     }
     this.sendT += dt;
     if (this.sendT >= 1 / 20) { this.sendT = 0; this.t.send('host', { k: 'st', s: this.session.lastState }); }
