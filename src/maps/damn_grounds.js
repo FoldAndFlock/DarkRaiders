@@ -1,14 +1,15 @@
 // Damn Grounds — top-down adaptation of ARC Raiders' Dam Battlegrounds (1100 x 825 m, north up).
-// Reference: docs/ref/dam_annotated.jpg (POIs, extracts, spawns, key rooms, Sentinels, depots),
-// mapped as  X = px/2 - 90,  Z = py/2 - 18  (px,py in the 2400x1800 annotated image), and the clean
-// blank render for building footprints. See docs/research/map_damn_grounds.md.
+// Reference: docs/ref/dam_annotated.jpg (POIs, extracts, spawns, key rooms, Sentinels, Baron husks,
+// depots), mapped as  X = px/2 - 90,  Z = py/2 - 18  (px,py in the 2400x1800 annotated image), and the
+// clean blank render for building footprints. See docs/research/map_damn_grounds.md.
 // Three terrain tiers: LOW = spillway basin / Red Lakes (east of the dam), MID = swamp, forests and
 // ruins (west + south), HIGH = dam crest, Power Generation plateau and the Red Lakes Balcony.
-// The engine has no rotated buildings, so the reference's 30°-rotated dam monoliths are rebuilt as
-// axis-aligned blocks laid out in the same diagonal staircase.
+// The dam and everything on it is laid out in its own frame turned 30° (like the reference): design
+// coords (u, v) are metres from (650, 300) with u pointing to the basin (ESE) and v running down the dam
+// (SSW). Other turned POIs (Water Treatment, Rubie Residence, Testing Annex, ...) get their own frames.
 import './props_damn_grounds.js';
 import { waterMaterial } from '../engine/materials.js';
-import { pointInPoly, mulberry } from '../engine/world.js';
+import { pointInPoly, mulberry, rotFrame, rotPt, unrotPt } from '../engine/world.js';
 import { TID } from '../engine/textures.js';
 import { propInfo } from '../engine/models.js';
 
@@ -21,24 +22,51 @@ const smooth = (t) => t * t * (3 - 2 * t);
 const sm = (e0, e1, v) => smooth(clamp((v - e0) / (e1 - e0), 0, 1));
 const lerp = (a, b, t) => a + (b - a) * t;
 
-// ------------------------------------------------------------------------------------ layout data
-// Dam + plateau monoliths (HIGH)
-// Power Generation plateau + upper dam (Generator Hall, transformer yards, Controlled Access Zone,
-// Pipeline Tower, broken end above The Breach): one polygon whose NE edge follows the highway, like the
-// reference's diagonal band; its south side keeps the stepped monolith faces.
-const PG_POLY = [[626, 70], [700, 104], [780, 146], [852, 184], [886, 200], [886, 236], [840, 236], [840, 214], [772, 214], [772, 268], [712, 268], [712, 292], [648, 292], [648, 256], [634, 256], [634, 152], [626, 152]];
-// natural highland NE of the highway (rocky slopes up to the northern mountains)
-const NE_HIGHLAND = [[560, -6], [1106, -6], [1106, 212], [906, 210], [886, 200], [852, 184], [780, 146], [700, 104], [636, 72], [606, 58]];
-const DAM_RECTS = [
-  // Floodgates (stepping south-west)
-  [598, 322, 654, 362], [582, 356, 638, 394], [566, 388, 622, 426], [550, 420, 608, 456],
-  // Control Tower + Research & Administration block, Primary Facility platform
-  [552, 452, 640, 548], [470, 424, 556, 500],
+// ------------------------------------------------------------------------------------ frames
+// A frame turns design coords (X, Z) by angle a about the pivot (px, pz); off shifts design coords first
+// (the dam frame uses off = pivot so its design coords are plain (u, v) offsets).
+function frame(px, pz, a, offX = 0, offZ = 0) { return { px, pz, a, c: Math.cos(a), s: Math.sin(a), offX, offZ, R: rotFrame(px, pz, a) }; }
+function GW(G, X, Z) { const rx = X + G.offX - G.px, rz = Z + G.offZ - G.pz; return [G.px + rx * G.c - rz * G.s, G.pz + rx * G.s + rz * G.c]; }
+function GL(G, x, z) { const dx = x - G.px, dz = z - G.pz; return [G.px - G.offX + dx * G.c + dz * G.s, G.pz - G.offZ - dx * G.s + dz * G.c]; }
+function GR(G, X0, Z0, X1, Z1) { return [GW(G, X0, Z0), GW(G, X1, Z0), GW(G, X1, Z1), GW(G, X0, Z1)]; }
+const DAM = frame(650, 300, PI / 6, 650, 300);
+const L = (u, v) => GW(DAM, u, v);
+const toL = (x, z) => GL(DAM, x, z);
+const LP = (pts) => pts.map(([u, v]) => L(u, v));
+const G_WTC = frame(382, 436, -PI / 12);     // Water Treatment Control (-15°)
+const G_RUB = frame(370, 84, -PI / 12);      // Rubie Residence
+const G_PALE = frame(258, 170, -PI / 12);    // Pale Apartments
+const G_BEN = frame(338, 200, -PI / 12);     // Ben Welda's Sunroof
+const G_TA = frame(728, 630, -PI / 3);       // Testing Annex (-60°, i.e. the dam frame turned 90°)
+const G_SS = frame(385, 580, PI / 6);        // Electrical Substation
+const G_ET = frame(852, 630, PI / 6);        // Electrical Tower
+const G_PH = frame(903, 297, PI / 6);        // Pump House
+
+// ------------------------------------------------------------------------------------ dam layout (u, v)
+const CHUTES = [52, 66, 80, 94, 108, 122, 136];               // spillway chute centres (v), 8 m wide, u 18..58
+const PIERS = [[18, 40, 54, 48]].concat(CHUTES.map((c, i) => [18, c + 4, 54, i < CHUTES.length - 1 ? CHUTES[i + 1] - 4 : 150]));
+const DAM_HIGH = [
+  [-100, -201, 82, -112],     // Power Generation plateau (Generator Hall, Power Control, transformer yards, turbine pits)
+  [82, -201, 140, -138],      // its east wing (switchgear, cable hall, gatehouse, field depot)
+  [-60, -112, 25, -40],       // upper dam: Controlled Access Zone
+  [25, -112, 82, -54],        // Pipeline Tower deck
+  [-42, -40, 12, -26],        // broken stub above The Breach
+  [-32, 40, 18, 152],         // Floodgates crest
+  [-50, 150, 82, 242],        // south platform: Primary Facility, Control Tower, Research & Administration
+  [-104, 200, -50, 240],      // west wing toward Water Treatment
+  [78, 172, 286, 184],        // Red Lakes Balcony walkway
+  ...PIERS,
 ];
-const BALCONY = [[634, 494], [700, 532], [760, 570], [806, 598]];
-// spillway chutes: dry concrete ramps from the crest into the basin [xFace, zCentre, length]
-const CHUTES = [[654, 330, 40], [654, 348, 40], [638, 370, 40], [638, 386, 40], [622, 402, 40], [622, 418, 40], [608, 438, 36]];
-const BASIN = [[640, 232], [700, 262], [780, 262], [860, 238], [905, 262], [928, 330], [934, 420], [930, 520], [900, 578], [850, 596], [804, 606], [760, 580], [700, 544], [636, 506], [632, 462], [602, 456], [618, 426], [634, 394], [650, 362], [650, 320], [664, 296]];
+const PITS = [[-30, -140, -15, -118], [-5, -140, 9, -118], [31, -140, 45, -118], [55, -140, 69, -118]];   // flooded turbine shafts
+const HIGHWAY_L = [[-170, -206], [175, -206]], EBB_L = [[175, -206], [218, -206]], WBB_L = [[-268, -195], [-215, -195]];
+const DECK_RECTS = [[-170, -210.5, 175, -201.5], [175, -210.5, 218, -201.5], [-268, -200, -215, -190]];
+const CREST_ROADS = [[[-100, -158], [140, -158]], [[14, -158], [14, -40]], [[4, 40], [4, 150], [18, 192], [14, 242]]];
+const HIGHWAY = LP(HIGHWAY_L), EBB = LP(EBB_L), WBB = LP(WBB_L);
+
+// ------------------------------------------------------------------------------------ world layout data
+const BASIN = [...LP([[82, -138], [140, -138]]), [905, 262], [928, 330], [934, 420], [930, 520], [900, 578], [850, 596],
+  ...LP([[286, 172], [80, 172], [80, 150], [18, 150], [18, 40], [25, -40], [25, -56], [82, -56]])];
+const NE_HIGHLAND = [[560, -6], [1106, -6], [1106, 238], ...LP([[230, -212], [-170, -212]])];
 const SWAMP = [[168, 212], [300, 196], [420, 206], [560, 228], [604, 262], [596, 300], [575, 330], [556, 372], [540, 404], [470, 412], [420, 404], [362, 408], [345, 450], [322, 512], [292, 548], [226, 548], [180, 522], [172, 452], [176, 380], [172, 300]];
 const RED_LAKES = [[742, 432, 25, 1.1], [814, 494, 20, 0.8], [702, 494, 12, 0.5], [862, 402, 17, 1.6], [792, 380, 12, 2.3], [884, 524, 12, 0.3]];
 const ROADS = [
@@ -64,13 +92,9 @@ const TRACKS = [
   [[150, 128], [120, 100], [70, 92], [20, 60]],
   [[175, 560], [190, 610], [200, 650], [230, 690], [262, 720], [292, 760]],
   [[700, 745], [740, 704], [760, 668]],
-  [[628, 92], [660, 96], [700, 100]],
 ];
 const SPAWNS = [[591, 17], [698, 40], [487, 73], [350, 80], [780, 114], [866, 136], [247, 141], [174, 322], [169, 447], [727, 262], [870, 306], [594, 450],
   [247, 566], [464, 600], [849, 554], [833, 616], [273, 663], [393, 709], [656, 734], [473, 746], [794, 758], [589, 795]];
-const WBB = [[504, -1], [533, 13], [560, 26]];                         // West Broken Bridge deck
-const HIGHWAY = [[606, 58], [636, 72], [700, 104], [780, 146], [852, 184]];
-const EBB = [[850, 186], [892, 208], [928, 226]];                      // East Broken Bridge deck
 // boardwalks across the swamp (raised wooden decks)
 const BOARDWALKS = [
   [[279, 330], [310, 326], [340, 330], [355, 334]],
@@ -82,25 +106,22 @@ const BOARDWALKS = [
 ];
 // ground preparation (applied before ramps) [x0,z0,x1,z1,h|null,blend]
 const FLATS = [
-  [400, 428, 470, 502, MID + 0.2, 3],        // water treatment plaza
+  [396, 420, 480, 502, MID + 0.2, 3],        // water treatment plaza
   [472, 502, 516, 544, MID, 4],              // clarifier yard
-  [848, 136, 906, 178, HIGH + 0.2, 4],       // Raider Outpost East
-  [888, 286, 920, 310, LOW + 0.7, 3],        // Pump House
+  [888, 280, 920, 314, LOW + 0.7, 3],        // Pump House
   [756, 474, 774, 490, LOW + 0.5, 2],        // Spillway Hatch
-  [702, 598, 760, 668, MID + 0.3, 4],        // Testing Annex
-  [832, 610, 868, 644, MID + 0.2, 4],        // Electrical Tower
-  [346, 540, 420, 612, MID + 0.2, 4],        // Electrical Substation
+  [690, 590, 768, 672, MID + 0.3, 4],        // Testing Annex
+  [826, 606, 878, 656, MID + 0.2, 4],        // Electrical Tower
+  [344, 535, 428, 622, MID + 0.2, 4],        // Electrical Substation
   [270, 616, 330, 664, MID + 0.1, 4],        // Water Towers
   [238, 596, 276, 618, MID + 0.1, 3],        // football pitch
   [226, 532, 266, 554, MID + 0.2, 3],        // Good Ol' Barron's pump station
   [478, 674, 540, 718, MID + 0.3, 5],        // Scrap Yard
   [196, 446, 246, 494, MID + 0.4, 3],        // South Swamp Outpost
   [346, 324, 366, 344, MID + 0.45, 1.5],     // Central Swamp Lift pad
-  [340, 50, 396, 92, null, 4],               // Rubie Residence garden
-  [316, 94, 392, 116, null, 3],
-  [226, 140, 286, 196, null, 4],             // Pale Apartments
-  [316, 184, 360, 212, null, 3],             // Ben Welda's Sunroof
-  [658, 28, 718, 80, null, 4],               // Pattern House compound
+  [336, 46, 402, 124, null, 4],              // Rubie Residence garden
+  [222, 136, 292, 200, null, 4],             // Pale Apartments
+  [314, 182, 362, 216, null, 3],             // Ben Welda's Sunroof
   [500, 780, 560, 818, null, 4],             // Formikai Outpost
   [480, 192, 552, 240, MID + 0.25, 3],       // hydroponics core
 ];
@@ -113,7 +134,7 @@ export default {
   build(w, rng) {
     const C = makeCtx(w, rng), T = { t: performance.now() };
     const step = (name, fn) => { fn(C); const t = performance.now(); T[name] = Math.round(t - T.t); T.t = t; };
-    step('terrain', terrain); step('dam', damDetails); step('north', northPOIs); step('west', westPOIs); step('south', southPOIs);
+    step('terrain', terrain); step('dam', damComplex); step('north', northPOIs); step('west', westPOIs); step('south', southPOIs);
     step('east', eastPOIs); step('outskirts', roadsideAndOutskirts); step('vegetation', vegetation); step('ark', arkSpawns); step('markers', markers);
     delete T.t; w.buildTimings = T;
   },
@@ -133,8 +154,8 @@ function makeNoise(seed) {
 
 // ==================================================================================== CONTEXT
 function makeCtx(w, rng) {
-  const C = { w, rng };
-  const WV = w.tw + 1;
+  const C = { w, rng, B: {} };
+  const WV = w.tw + 1, VH = w.th + 1;
   C.R = (a, b) => a + rng() * (b - a);
   C.pick = (a) => a[Math.floor(rng() * a.length)];
   C.chance = (p) => rng() < p;
@@ -157,24 +178,41 @@ function makeCtx(w, rng) {
       return cur + (lerp(h0, h1, t) - cur) * f;
     });
   };
+  // scanline polygon fill over terrain vertices (fn(vertexIndex, col, row))
+  C.scanFill = (pts, fn, step = 1, cols = WV, rows = VH) => {
+    for (let r = 0; r < rows; r++) {
+      const z = r * step, xs = [];
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const [xi, zi] = pts[i], [xj, zj] = pts[j];
+        if ((zi > z) !== (zj > z)) xs.push(xi + (z - zi) / (zj - zi) * (xj - xi));
+      }
+      xs.sort((p, q) => p - q);
+      for (let k = 0; k + 1 < xs.length; k += 2) for (let c = Math.max(0, Math.ceil(xs[k] / step)); c <= Math.min(cols - 1, Math.floor(xs[k + 1] / step)); c++) fn(r * cols + c, c, r);
+    }
+  };
+  // terrain ops in a turned frame (design rect X0..X1 x Z0..Z1)
+  C.lshape = (G, X0, Z0, X1, Z1, fn) => {
+    const q = GR(G, X0, Z0, X1, Z1), xs = q.map(p => p[0]), zs = q.map(p => p[1]);
+    C.areaFn(Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs), (x, z, cur) => {
+      const [X, Z] = GL(G, x, z); if (X < X0 || X > X1 || Z < Z0 || Z > Z1) return null;
+      return fn(X, Z, cur);
+    });
+  };
+  C.lslope = (G, X0, Z0, X1, Z1, h0, h1, axis) => C.lshape(G, X0, Z0, X1, Z1, (X, Z) => lerp(h0, h1, axis === 'u' ? (X - X0) / (X1 - X0) : (Z - Z0) / (Z1 - Z0)));
+  C.lfill = (G, X0, Z0, X1, Z1, h) => C.scanFill(GR(G, X0, Z0, X1, Z1), (i) => { w.hv[i] = h; });
   const distSeg = (px, pz, ax, az, bx, bz) => { const dx = bx - ax, dz = bz - az, l = dx * dx + dz * dz || 1; const t = clamp(((px - ax) * dx + (pz - az) * dz) / l, 0, 1); return Math.hypot(px - ax - dx * t, pz - az - dz * t); };
   C.distLine = (px, pz, pts) => { let d = 1e9; for (let k = 0; k < pts.length - 1; k++) d = Math.min(d, distSeg(px, pz, pts[k][0], pts[k][1], pts[k + 1][0], pts[k + 1][1])); return d; };
-  C.distEdge = (x, z, poly) => C.distLine(x, z, poly.concat([poly[0]]));
-  C.strip = (pts, wd) => {
-    const L = [], Rr = [];
-    for (let k = 0; k < pts.length; k++) {
-      const a = pts[Math.max(0, k - 1)], b = pts[Math.min(pts.length - 1, k + 1)];
-      const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = -dz / l * wd / 2, nz = dx / l * wd / 2;
-      L.push([pts[k][0] + nx, pts[k][1] + nz]); Rr.push([pts[k][0] - nx, pts[k][1] - nz]);
-    }
-    return L.concat(Rr.reverse());
-  };
-  C.inDam = (x, z, pad = 0) => DAM_RECTS.some(([a, b, c, d]) => x > a - pad && x < c + pad && z > b - pad && z < d + pad) || C.distLine(x, z, BALCONY) < 6.5 + pad || (pad <= 0 ? pointInPoly(x, z, PG_POLY) && C.distEdge(x, z, PG_POLY) > -pad : pointInPoly(x, z, PG_POLY) || C.distEdge(x, z, PG_POLY) < pad);
+  // inside the dam's raised surfaces (pad > 0 grows them, pad < 0 insets)
+  C.inDam = (x, z, pad = 0) => { const [u, v] = toL(x, z); return DAM_HIGH.some(([a, b, c, d]) => u > a - pad && u < c + pad && v > b - pad && v < d + pad); };
   // clearings that vegetation / scatter avoid: [cx, cz, r] and rects [x0,z0,x1,z1]
   C.clear = []; C.clearRects = [];
   C.addClear = (x, z, r) => C.clear.push([x, z, r]);
   C.addClearRect = (a, b, c, d) => C.clearRects.push([a, b, c, d]);
-  C.inBuilding = (x, z, pad = 0.8) => w.buildings.some(b => x > b.x0 - pad && x < b.x1 + pad && z > b.z0 - pad && z < b.z1 + pad);
+  C.inBuilding = (x, z, pad = 0.8) => w.buildings.some(b => {
+    if (x < b.ax0 - pad || x > b.ax1 + pad || z < b.az0 - pad || z > b.az1 + pad) return false;
+    const [lx, lz] = b.R ? unrotPt(b.R, x, z) : [x, z];
+    return lx > b.x0 - pad && lx < b.x1 + pad && lz > b.z0 - pad && lz < b.z1 + pad;
+  });
   C.nearRoad = (x, z, extra = 1.5) => ROADS.some(r => C.distLine(x, z, r) < 3.5 + extra) || TRACKS.some(r => C.distLine(x, z, r) < 2 + extra);
   C.blocked = (x, z) => C.inBuilding(x, z) || C.clear.some(([cx, cz, r]) => (x - cx) ** 2 + (z - cz) ** 2 < r * r) || C.clearRects.some(([a, b, c, d]) => x > a && x < c && z > b && z < d);
   C.doorPts = [];
@@ -200,23 +238,54 @@ function makeCtx(w, rng) {
   };
   C.reserved = SPAWNS.map(p => p.slice());   // spawn / extract points kept clear
   C.nearDoor = (x0, z0, x1, z1, m = 1.8) => C.doorPts.some(([dx, dz]) => dx > x0 - m && dx < x1 + m && dz > z0 - m && dz < z1 + m);
-  C.free = (x, z, r = 0.5) => !C.propHit(x - r, z - r, x + r, z + r) && !C.inBuilding(x, z, r + 0.3) && !C.reserved.some(([a, b]) => Math.hypot(a - x, b - z) < 2.5);
 
   // ------------------------------------------------------------------ buildings
+  // C.bld: building in world coords (optional rot about its centre); records door points for clutter avoidance
   C.bld = (o) => {
     const spec = Object.assign({ wall: 'concrete', floor: 'tiles', roof: 'roofTar', storeys: 1, thick: 0.3 }, o);
-    const b = w.building(spec);
-    const { x, z, w: bw, d } = spec;
+    const bb = w.building(spec);
+    const { w: bw, d } = spec;
     for (const dd of spec.doors || []) {
       if (dd.sill) continue;
       const c = dd.at + dd.w / 2;
-      C.doorPts.push(dd.side === 'n' ? [x + c, z] : dd.side === 's' ? [x + c, z + d] : dd.side === 'w' ? [x, z + c] : [x + bw, z + c]);
+      const [lx, lz] = dd.side === 'n' ? [c, 0] : dd.side === 's' ? [c, d] : dd.side === 'w' ? [0, c] : [bw, c];
+      C.doorPts.push(w.local(bb, lx, lz));
     }
     for (const iw of spec.inner || []) for (const g of iw[4] || []) {
       const horiz = Math.abs(iw[1] - iw[3]) < 1e-6, c = g.at + g.w / 2;
-      C.doorPts.push(horiz ? [x + iw[0] + c, z + iw[1]] : [x + iw[0], z + iw[1] + c]);
+      C.doorPts.push(w.local(bb, horiz ? iw[0] + c : iw[0], horiz ? iw[1] : iw[1] + c));
     }
-    return b;
+    return bb;
+  };
+  // building placed in a frame: o.x, o.z = design corner (dam frame: o.u, o.v)
+  C.gbld = (G, o) => { const [cx, cz] = GW(G, o.x + o.w / 2, o.z + o.d / 2); return C.bld({ ...o, x: cx - o.w / 2, z: cz - o.d / 2, rot: G.a }); };
+  C.dbld = (o) => C.gbld(DAM, { ...o, x: o.u, z: o.v });
+  // building-local helpers (lx, lz from the footprint corner, before rotation)
+  const ba = (bb) => (bb.R ? bb.R.a : 0);
+  C.Wp = (bb, lx, lz) => w.local(bb, lx, lz);
+  C.F = (bb, type, lx0, lz0, lx1, lz1, o = {}) => C.furnish(type, bb.x0 + lx0, bb.z0 + lz0, bb.x0 + lx1, bb.z0 + lz1, { ...o, R: bb.R });
+  C.P = (bb, kind, lx, lz, rot = 0, opts = {}) => { const [x, z] = w.local(bb, lx, lz); w.prop(kind, x, z, rot - ba(bb), opts); };
+  C.Cn = (bb, kind, lx, lz, rot = 0, opts = {}) => { const [x, z] = w.local(bb, lx, lz); w.container(kind, x, z, rot - ba(bb), opts); };
+  C.IL = (bb, lx, lz, color, i, range, y) => { const [x, z] = w.local(bb, lx, lz); C.inLight(x, z, color, i, range, y); };
+  C.K = (bb, id, lx0, lz0, lx1, lz1, name) => {
+    const poly = [[lx0, lz0], [lx1, lz0], [lx1, lz1], [lx0, lz1]].map(([a, b]) => w.local(bb, a, b));
+    const xs = poly.map(p => p[0]), zs = poly.map(p => p[1]);
+    w.keyRoom(id, Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs), null, { name, poly });
+  };
+  // frame helpers for things outside buildings
+  C.gprop = (G, kind, X, Z, rot = 0, opts = {}) => { const [x, z] = GW(G, X, Z); w.prop(kind, x, z, rot - G.a, opts); };
+  C.gcont = (G, kind, X, Z, rot = 0, opts = {}) => { const [x, z] = GW(G, X, Z); w.container(kind, x, z, rot - G.a, opts); };
+  C.gblock = (G, X0, Z0, X1, Z1, h, tex, opts = {}) => w.block(X0 + G.offX, Z0 + G.offZ, X1 + G.offX, Z1 + G.offZ, h, tex, { ...opts, R: G.R });
+  C.gwall = (G, ax, az, bx, bz, thick, h, tex, gaps = [], opts = {}) => w.wallLine(ax + G.offX, az + G.offZ, bx + G.offX, bz + G.offZ, thick, h, tex, gaps, { ...opts, R: G.R });
+  C.glamp = (G, X, Z, o = {}) => { const [x, z] = GW(G, X, Z); w.lamp(x, z, { ...o, rot: (o.rot || 0) - G.a }); };
+  // a walled compound in a frame: rect + gates [[side, at]] (3 m wide)
+  C.compound = (G, X0, Z0, X1, Z1, h, tex, gates = [], opts = {}) => {
+    const sides = { n: [X0, Z0, X1, Z0], s: [X0, Z1, X1, Z1], w: [X0, Z0, X0, Z1], e: [X1, Z0, X1, Z1] };
+    for (const [sd, [ax, az, bx, bz]] of Object.entries(sides)) {
+      const g = gates.filter(q => q[0] === sd).map(q => ({ at: q[1] - 1.5, w: 3 }));
+      C.gwall(G, ax, az, bx, bz, 0.5, h, tex, g, opts);
+      for (const q of gates.filter(q => q[0] === sd)) C.doorPts.push(GW(G, sd === 'n' || sd === 's' ? ax + q[1] : ax, sd === 'n' || sd === 's' ? az : az + q[1]));
+    }
   };
   const FURN = {
     office: { props: ['dg_desk', 'dg_cabinet', 'dg_desk', 'shelf'], cont: [['desk', 1], ['cabinet', 0.8], ['electronics', 0.35], ['trash', 0.4]] },
@@ -239,14 +308,16 @@ function makeCtx(w, rng) {
     empty: { props: ['crate', 'barrel'], cont: [['trash', 0.6], ['crate', 0.3]] },
   };
   const LIGHT_COL = { office: 0xfff0d0, lab: 0xd8f0ff, server: 0x9ad8ff, control: 0xb8e0ff, storage: 0xffd8a0, workshop: 0xffd8a0, medical: 0xe0fff0, bunk: 0xffc890, living: 0xffc890, bedroom: 0xffb880, kitchen: 0xfff0c0, security: 0xffe0c0, industrial: 0xffd090, commercial: 0xfff0d0, greenhouse: 0xe0a0ff, vault: 0xffe0a0, raider: 0xff9a50, empty: 0xffc890 };
-  // furnish a room (world rect): props along walls, containers, a ceiling light
+  // furnish a room: props along the walls, containers, a ceiling light. Coords are the building's
+  // pre-rotation frame when o.R is given (use C.F for building-local offsets).
   C.furnish = (type, x0, z0, x1, z1, o = {}) => {
     const F = FURN[type] || FURN.empty, tier = o.tier || 1, room = o.room || null;
+    const T = (x, z) => (o.R ? rotPt(o.R, x, z) : [x, z]), ra = o.R ? o.R.a : 0;
     const slots = [];
     for (let x = x0 + 1.3; x <= x1 - 1.3; x += 2.3) slots.push([x, z0 + 0.7, 0]);
     if (z1 - z0 > 5) for (let x = x0 + 1.3; x <= x1 - 1.3; x += 2.3) slots.push([x, z1 - 0.7, PI]);
     for (let z = z0 + 1.7; z <= z1 - 1.7; z += 2.3) { slots.push([x0 + 0.6, z, PI / 2]); slots.push([x1 - 0.6, z, -PI / 2]); }
-    const ok = slots.filter(([sx, sz]) => !C.doorPts.some(([dx, dz]) => Math.abs(dx - sx) < 2.0 && Math.abs(dz - sz) < 2.0));
+    const ok = slots.map(([sx, sz, r]) => [...T(sx, sz), r - ra]).filter(([sx, sz]) => !C.doorPts.some(([dx, dz]) => Math.abs(dx - sx) < 2.0 && Math.abs(dz - sz) < 2.0));
     for (let i = ok.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [ok[i], ok[j]] = [ok[j], ok[i]]; }
     const area = (x1 - x0) * (z1 - z0);
     const nProps = Math.min(Math.floor(ok.length * 0.55), F.props.length + (area > 90 ? 2 : 0));
@@ -258,25 +329,27 @@ function makeCtx(w, rng) {
       if (rng() < p * (o.mul || 1)) { const [sx, sz, r] = ok[k++]; w.container(kind, sx, sz, r, { tier, room }); nc++; }
     }
     for (const [kind, n] of o.extra || []) for (let i = 0; i < n && k < ok.length; i++) { const [sx, sz, r] = ok[k++]; w.container(kind, sx, sz, r, { tier, room }); }
-    if (o.light !== false) w.lamp((x0 + x1) / 2, (z0 + z1) / 2, { y: o.ly || 2.7, model: null, color: LIGHT_COL[type] || 0xffd8a0, intensity: o.li || 1.25, range: Math.max(6, Math.hypot(x1 - x0, z1 - z0) * 0.75), flicker: o.flicker ?? (rng() < 0.18 ? 0.35 : 0) });
+    if (o.light !== false) { const [lx, lz] = T((x0 + x1) / 2, (z0 + z1) / 2); w.lamp(lx, lz, { y: o.ly || 2.7, model: null, color: LIGHT_COL[type] || 0xffd8a0, intensity: o.li || 1.25, range: Math.max(6, Math.hypot(x1 - x0, z1 - z0) * 0.75), flicker: o.flicker ?? (rng() < 0.18 ? 0.35 : 0) }); }
     return nc;
   };
   // scatter props around a centre (avoid buildings)
-  const SOLID = new Set(['crate', 'barrel', 'barrelBlue', 'car', 'sandbag', 'rock', 'husk', 'pipe', 'dg_container', 'dg_containerB', 'dg_containerG', 'dg_truck', 'dg_barrier', 'dg_rubble', 'dg_hedgehog', 'dg_tankS', 'dg_toxic', 'dg_log', 'dg_stump', 'dg_huskbig', 'dg_slab', 'dg_transformer', 'dg_bigpipe', 'lootCrate', 'arcCrate', 'dg_scaffold', 'dg_tent', 'deadTree', 'tree', 'pine', 'dg_willow', 'dg_cypress']);
+  const SOLID = new Set(['crate', 'barrel', 'barrelBlue', 'car', 'sandbag', 'rock', 'husk', 'pipe', 'dg_container', 'dg_containerB', 'dg_containerG', 'dg_truck', 'dg_barrier', 'dg_rubble', 'dg_hedgehog', 'dg_tankS', 'dg_toxic', 'dg_log', 'dg_stump', 'dg_huskbig', 'dg_slab', 'dg_transformer', 'dg_bigpipe', 'lootCrate', 'arcCrate', 'dg_scaffold', 'dg_tent', 'deadTree', 'tree', 'pine', 'dg_willow', 'dg_cypress', 'dg_ventbox']);
+  const BOXY = new Set(['dg_container', 'dg_containerB', 'dg_containerG', 'dg_truck', 'dg_scaffold', 'dg_transformer', 'dg_ventbox', 'dg_tent', 'car', 'dg_bigpipe', 'pipe', 'sandbag', 'dg_barrier']);
   C.clutter = (cx, cz, r, n, kinds, o = {}) => {
     let placed = 0, tries = 0;
+    const ga = o.frame ? o.frame.a : 0;      // boxy clutter snaps to this frame's axes
     while (placed < n && tries++ < n * 12) {
       const a = rng() * 2 * PI, d = Math.sqrt(rng()) * r, x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d * (o.sz || 1);
       if (x < 2 || z < 2 || x > W - 2 || z > H - 2) continue;
       if (C.inBuilding(x, z, o.pad ?? 1.2)) continue;
       if (o.avoid && o.avoid(x, z)) continue;
       const k = kinds[Math.floor(rng() * kinds.length)], sc = (o.scale || 1) * (1 + (rng() - 0.5) * (o.scaleVar ?? 0.2));
-      const rot = o.rot ?? (BOXY.has(k) ? Math.floor(rng() * 4) * PI / 2 + (rng() - 0.5) * 0.12 : rng() * 2 * PI);
+      const rot = o.rot ?? (BOXY.has(k) ? Math.floor(rng() * 4) * PI / 2 + (rng() - 0.5) * 0.12 - ga : rng() * 2 * PI);
       const solid = SOLID.has(k);
       if (solid) {
         const sol = propInfo(k).solid || [0.5, 0.5]; let hw = sol[0] * sc, hd = sol[1] * sc; if (Math.abs(Math.sin(rot)) > 0.7) [hw, hd] = [hd, hw];
         if (C.propHit(x - hw - 0.3, z - hd - 0.3, x + hw + 0.3, z + hd + 0.3)) continue;
-        if (w.buildings.some(bb => bb.x0 - 1 < x + hw && bb.x1 + 1 > x - hw && bb.z0 - 1 < z + hd && bb.z1 + 1 > z - hd)) continue;
+        if (C.inBuilding(x, z, Math.max(hw, hd) + 1)) continue;
         if (o.noDoor !== false && C.nearDoor(x - hw, z - hd, x + hw, z + hd, 2.2)) continue;
         if (C.reserved.some(([a, b]) => Math.hypot(a - x, b - z) < 3 + Math.max(hw, hd))) continue;
       } else if (o.noDoor !== false && C.nearDoor(x, z, x, z, 1.2)) continue;
@@ -286,7 +359,6 @@ function makeCtx(w, rng) {
     return placed;
   };
   C.solidKind = (k) => SOLID.has(k);
-  const BOXY = new Set(['dg_container', 'dg_containerB', 'dg_containerG', 'dg_truck', 'dg_scaffold', 'dg_transformer', 'dg_ventbox', 'dg_tent', 'car', 'dg_bigpipe', 'pipe', 'sandbag', 'dg_barrier']);
   // loose containers outside
   C.loot = (cx, cz, r, list, tier = 1, o = {}) => {
     for (const kind of list) {
@@ -307,14 +379,16 @@ function makeCtx(w, rng) {
       const [ax, az] = pts[k], [bx, bz] = pts[k + 1], L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
       for (let t = acc; t < L; t += spacing) {
         const x = ax + ux * t - uz * off * side, z = az + uz * t + ux * off * side;
-        if (x > 2 && z > 2 && x < W - 2 && z < H - 2 && !C.inBuilding(x, z, 0.6) && !(o.skip && o.skip(x, z)) && !(o.notDam && C.inDam(x, z, 2)) && !C.propHit(x - 0.5, z - 0.5, x + 0.5, z + 0.5)) w.lamp(x, z, { y: o.y || 4.0, color: o.color || 0xffc078, intensity: o.i || 1.6, range: o.range || 13, flicker: rng() < 0.12 ? 0.5 : 0, model: o.model || 'lamp' });
+        if (x > 2 && z > 2 && x < W - 2 && z < H - 2 && !C.inBuilding(x, z, 0.6) && !(o.skip && o.skip(x, z)) && !(o.notDam && C.inDam(x, z, 2)) && !C.propHit(x - 0.5, z - 0.5, x + 0.5, z + 0.5)) w.lamp(x, z, { y: o.y || 4.0, color: o.color || 0xffc078, intensity: o.i || 1.6, range: o.range || 13, flicker: rng() < 0.12 ? 0.5 : 0, model: o.model || 'lamp', rot: o.rot || 0 });
         side = -side;
       }
       acc = (acc - L) % spacing; if (acc < 0) acc += spacing;
     }
   };
-  C.flood = (x, z, o = {}) => w.lamp(x, z, { y: 6.6, model: 'dg_floodlight', color: o.color || 0xe0ecff, intensity: o.i || 1.9, range: o.range || 18, rot: o.rot || 0, flicker: o.flicker || 0 });
-  C.beacon = (x, z, o = {}) => w.lamp(x, z, { y: o.y || 3.9, model: o.model === undefined ? 'dg_beacon' : o.model, color: 0xff3020, intensity: o.i || 1.2, range: o.range || (o.y > 6 ? o.y + 5 : 8), flicker: 0.6 });
+  C.flood = (x, z, o = {}) => w.lamp(x, z, { y: 6.6, model: 'dg_floodlight', color: o.color || 0xe0ecff, intensity: o.i || 1.9, range: o.range || 14, rot: o.rot || 0, flicker: o.flicker || 0 });
+  C.beacon = (x, z, o = {}) => w.lamp(x, z, { y: o.y || 3.9, model: o.model === undefined ? 'dg_beacon' : o.model, color: 0xff3020, intensity: o.i || 1.2, range: o.range || 6, flicker: 0.6 });
+  // red aviation light on a tall mast/tower top (the engine drops the light to ~2.8 m and widens it)
+  C.mastLight = (x, z, y, o = {}) => w.lamp(x, z, { y, model: null, color: o.color || 0xff3020, intensity: o.i || 0.55, range: o.range || 1, flicker: o.flicker ?? 0.6 });
   C.fire = (x, z, o = {}) => { w.lamp(x, z, { y: 0.8, model: null, color: 0xff8a30, intensity: o.i || 2.2, range: o.range || 10, flicker: 0.8 }); w.prop('debris', x, z, 0, { scale: 0.5 }); };
   C.inLight = (x, z, color = 0xffd8a0, i = 1.2, range = 8, y = 2.9) => w.lamp(x, z, { y, model: null, color, intensity: Math.max(i, 1.2), range });
   // ring of low blocks (dome footings, clarifier walls): gaps = angles (rad) kept open
@@ -340,20 +414,28 @@ function makeCtx(w, rng) {
     }
   };
   C.fenceRect = (x0, z0, x1, z1, gaps = []) => { C.addClearRect(x0 - 1, z0 - 1, x1 + 1, z1 + 1); C.fenceLine([[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]], gaps); };
+  // fenced yard in a frame (gaps in design coords)
+  C.gfence = (G, X0, Z0, X1, Z1, gaps = []) => {
+    const q = GR(G, X0 - 1, Z0 - 1, X1 + 1, Z1 + 1), xs = q.map(p => p[0]), zs = q.map(p => p[1]);
+    C.addClearRect(Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs));
+    C.fenceLine([[X0, Z0], [X1, Z0], [X1, Z1], [X0, Z1], [X0, Z0]].map(([a, b]) => GW(G, a, b)), gaps.map(([a, b]) => GW(G, a, b)));
+  };
   C.sandbags = (pts) => {
     for (let k = 0; k < pts.length - 1; k++) {
       const [ax, az] = pts[k], [bx, bz] = pts[k + 1], L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(L / 2)), rot = Math.atan2(bx - ax, bz - az) + PI / 2;
       for (let i = 0; i < n; i++) { const t = (i + 0.5) / n; w.prop('sandbag', ax + (bx - ax) * t, az + (bz - az) * t, rot, { solid: true }); }
     }
   };
-  // field depot: small resupply hut with antenna (quest target)
-  C.fieldDepot = (x, z) => {
-    C.bld({ x: x - 3, z: z - 2.5, w: 6, d: 5, wall: 'metalPanel', floor: 'metalPanel', roof: 'metalPanel', roofTint: 0x7a9ac0, name: 'Field Depot', doors: [{ side: 's', at: 2, w: 2 }], vents: 1 });
-    w.container('field_depot', x, z - 1.4, 0, { tier: 2 });
-    w.container('ammo_box', x + 1.8, z - 1.2, 0, { tier: 1 });
-    w.prop('dg_antennamast', x + 4.2, z - 1.5, 0, { solid: true, scale: 0.75 });
-    w.lamp(x, z + 3.2, { y: 3.2, model: null, color: 0x60e0ff, intensity: 1.55, range: 9 });
+  // field depot: small resupply hut with antenna (quest target); rot turns it about its centre
+  C.fieldDepot = (x, z, rot = 0) => {
+    const bb = C.bld({ x: x - 3, z: z - 2.5, w: 6, d: 5, rot, wall: 'metalPanel', floor: 'metalPanel', roof: 'metalPanel', roofTint: 0x7a9ac0, name: 'Field Depot', doors: [{ side: 's', at: 2, w: 2 }], vents: 1 });
+    C.Cn(bb, 'field_depot', 3, 1.1, 0, { tier: 2 });
+    C.Cn(bb, 'ammo_box', 4.8, 1.3, 0, { tier: 1 });
+    C.P(bb, 'dg_antennamast', 7.2, 1, 0, { solid: true, scale: 0.75 });
+    const [lx, lz] = w.local(bb, 3, 5.7);
+    w.lamp(lx, lz, { y: 3.2, model: null, color: 0x60e0ff, intensity: 1.55, range: 9 });
     w.poi('field_depot', 'Field Depot', x, z, 10, { tier: 1, aliases: ['field_depot'] });
+    return bb;
   };
   // extraction points
   C.lift = (id, name, x, z, o = {}) => {
@@ -397,33 +479,22 @@ function makeCtx(w, rng) {
 
 // ==================================================================================== TERRAIN
 function terrain(C) {
-  const { w, areaFn, slope } = C;
-  const VW = w.tw + 1, VH = w.th + 1;
+  const { w, areaFn } = C;
+  const VW = w.tw + 1, VH = w.th + 1, scanFill = C.scanFill;
   // rasterised masks: binary ones at vertex resolution, smooth (blurred) ones on a 4 m grid
-  const scanFill = (pts, fn, step = 1, cols = VW, rows = VH) => {
-    for (let r = 0; r < rows; r++) {
-      const z = r * step, xs = [];
-      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-        const [xi, zi] = pts[i], [xj, zj] = pts[j];
-        if ((zi > z) !== (zj > z)) xs.push(xi + (z - zi) / (zj - zi) * (xj - xi));
-      }
-      xs.sort((p, q) => p - q);
-      for (let k = 0; k + 1 < xs.length; k += 2) for (let c = Math.max(0, Math.ceil(xs[k] / step)); c <= Math.min(cols - 1, Math.floor(xs[k + 1] / step)); c++) fn(r * cols + c, c, r);
-    }
-  };
   const polyMask = (pts) => { const m = new Uint8Array(VW * VH); scanFill(pts, (i) => { m[i] = 1; }); return m; };
-  const G = 4, GW = Math.ceil(VW / G) + 1, GH = Math.ceil(VH / G) + 1;
+  const G = 4, GW_ = Math.ceil(VW / G) + 1, GH_ = Math.ceil(VH / G) + 1;
   const smoothMask = (pts, r) => {         // coarse mask + 2-pass running box blur (radius r metres)
-    const a = new Float32Array(GW * GH), t = new Float32Array(GW * GH), k = Math.max(1, Math.round(r / G)), n = 2 * k + 1;
-    scanFill(pts, (i) => { a[i] = 1; }, G, GW, GH);
+    const a = new Float32Array(GW_ * GH_), t = new Float32Array(GW_ * GH_), k = Math.max(1, Math.round(r / G)), n = 2 * k + 1;
+    scanFill(pts, (i) => { a[i] = 1; }, G, GW_, GH_);
     for (let pass = 0; pass < 2; pass++) {
-      for (let z = 0; z < GH; z++) { const o = z * GW; let acc = 0; for (let x = -k; x <= k; x++) acc += a[o + clamp(x, 0, GW - 1)]; for (let x = 0; x < GW; x++) { t[o + x] = acc / n; acc += a[o + Math.min(GW - 1, x + k + 1)] - a[o + Math.max(0, x - k)]; } }
-      for (let x = 0; x < GW; x++) { let acc = 0; for (let z = -k; z <= k; z++) acc += t[clamp(z, 0, GH - 1) * GW + x]; for (let z = 0; z < GH; z++) { a[z * GW + x] = acc / n; acc += t[Math.min(GH - 1, z + k + 1) * GW + x] - t[Math.max(0, z - k) * GW + x]; } }
+      for (let z = 0; z < GH_; z++) { const o = z * GW_; let acc = 0; for (let x = -k; x <= k; x++) acc += a[o + clamp(x, 0, GW_ - 1)]; for (let x = 0; x < GW_; x++) { t[o + x] = acc / n; acc += a[o + Math.min(GW_ - 1, x + k + 1)] - a[o + Math.max(0, x - k)]; } }
+      for (let x = 0; x < GW_; x++) { let acc = 0; for (let z = -k; z <= k; z++) acc += t[clamp(z, 0, GH_ - 1) * GW_ + x]; for (let z = 0; z < GH_; z++) { a[z * GW_ + x] = acc / n; acc += t[Math.min(GH_ - 1, z + k + 1) * GW_ + x] - t[Math.max(0, z - k) * GW_ + x]; } }
     }
     return a;
   };
-  const samp = (m, x, z) => { const fx = x / G, fz = z / G, ix = Math.min(GW - 2, fx | 0), iz = Math.min(GH - 2, fz | 0), tx = fx - ix, tz = fz - iz, i = iz * GW + ix;
-    return (m[i] * (1 - tx) + m[i + 1] * tx) * (1 - tz) + (m[i + GW] * (1 - tx) + m[i + GW + 1] * tx) * tz; };
+  const samp = (m, x, z) => { const fx = x / G, fz = z / G, ix = Math.min(GW_ - 2, fx | 0), iz = Math.min(GH_ - 2, fz | 0), tx = fx - ix, tz = fz - iz, i = iz * GW_ + ix;
+    return (m[i] * (1 - tx) + m[i + 1] * tx) * (1 - tz) + (m[i + GW_] * (1 - tx) + m[i + GW_ + 1] * tx) * tz; };
   const rectPts = (x0, z0, x1, z1) => [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
   const swampBin = polyMask(SWAMP), basinBin = polyMask(BASIN);
   C.swampAt = (x, z) => swampBin[clamp(Math.round(z), 0, VH - 1) * VW + clamp(Math.round(x), 0, VW - 1)] > 0;
@@ -431,14 +502,14 @@ function terrain(C) {
   const neS = smoothMask(NE_HIGHLAND, 9), swampS = smoothMask(SWAMP, 7), basinS = smoothMask(BASIN, 13);
   const coreS = smoothMask(rectPts(540, 70, 940, 620), 16), southS = smoothMask(rectPts(430, 580, 900, 770), 16);
   // macro relief on the coarse grid
-  const macro = new Float32Array(GW * GH);
-  for (let gz = 0; gz < GH; gz++) for (let gx = 0; gx < GW; gx++) {
-    const x = gx * G, z = gz * G, i = gz * GW + gx;
+  const macro = new Float32Array(GW_ * GH_);
+  for (let gz = 0; gz < GH_; gz++) for (let gx = 0; gx < GW_; gx++) {
+    const x = gx * G, z = gz * G, i = gz * GW_ + gx;
     let h = MID;
     const north = sm(150, 96, z) * sm(330, 430, x);
     h += north * (HIGH - MID + 0.6);                                                   // northern highland (dam abutment)
     h += sm(250, 180, z) * sm(830, 870, x) * sm(965, 905, x) * (HIGH - MID + 0.2) * (1 - north);   // NE shoulder
-    h += sm(48, 0, z) * sm(580, 660, x) * 9;                                           // north rim mountains
+    h += sm(30, 0, z) * sm(600, 680, x) * 9;                                           // north rim mountains
     h += sm(870, 1010, x) * sm(210, 60, z) * 11;                                       // NE mountains
     h += sm(950, 1090, x) * 6;                                                         // east hills
     h += sm(126, 30, x) * (sm(200, 300, z) * 7 + (1 - sm(200, 300, z)) * 4);           // west hills past the ring road
@@ -471,35 +542,38 @@ function terrain(C) {
     if (hh == null) { let s = 0, n = 0; areaFn(x0, z0, x1, z1, (x, z, cur) => { s += cur; n++; return null; }); hh = s / n; }
     w.raiseRect(x0, z0, x1, z1, hh, b, 'set');
   }
-  // ---------------- dam
-  for (const [x0, z0, x1, z1] of DAM_RECTS) w.raiseRect(x0, z0, x1, z1, HIGH, 0, 'set');
-  scanFill(PG_POLY, (i) => { w.hv[i] = HIGH; });
-  scanFill(C.strip(BALCONY, 13), (i) => { w.hv[i] = HIGH; });
-  // The Breach: a rubble-strewn pass through the broken dam, swamp (west) -> basin (east)
-  areaFn(586, 292, 676, 322, (x, z) => {
-    const t = clamp((x - 588) / 84, 0, 1);
-    let h = lerp(MID + 0.2, LOW + 0.4, smooth(t));
-    const c = Math.hypot(x - 628, z - 307); if (c < 9) h -= (1 - c / 9) * 1.3;
-    return h + Math.sin(x * 0.7 + z * 0.3) * 0.15;
-  });
-  slope(570, 292, 588, 322, MID, MID + 0.2, 'x', 4);
-  slope(632, 302, 646, 322, 1.4, HIGH, 'z', 0);             // collapsed slab ramp up onto the Floodgates
-  slope(666, 270, 690, 292, HIGH, 1.0, 'z', 0);             // rubble slope down from the upper dam
-  for (const [xf, zc, len] of CHUTES) slope(xf, zc - 3.5, xf + len, zc + 3.5, HIGH, LOW + 0.3, 'x', 0);
-  for (const [x0, z0, x1, z1] of [[704, 192, 720, 210], [732, 212, 752, 234]]) w.raiseRect(x0, z0, x1, z1, 1.0, 0, 'set');   // flooded turbine shafts
+  // turned terraces: Pattern House compound + Raider Outpost East (dam frame)
+  {
+    const avgIn = (pts) => { let s = 0, n = 0; scanFill(pts, (i) => { s += w.hv[i]; n++; }); return n ? s / n : MID; };
+    const ph = GR(DAM, -114, -270, -66, -224); w.raisePoly(ph, avgIn(ph), 4, 'set');
+    w.raisePoly(GR(DAM, 100, -266, 154, -214), HIGH + 0.6, 3, 'set');
+  }
+
+  // ---------------- the dam (30° dam frame)
+  // The Breach floor first (the monoliths override it): swamp level in the west falling to the basin in the east
+  C.breachAt = (u, v) => {
+    let h = lerp(MID + 0.2, LOW + 0.4, smooth(clamp((u + 72) / 144, 0, 1)));
+    const c = Math.hypot(u - 8, v - 6); if (c < 9) h -= (1 - c / 9) * 1.3;
+    return h + Math.sin(u * 0.7 + v * 0.3) * 0.15;
+  };
+  C.lshape(DAM, -86, -54, 86, 54, (u, v, cur) => { const f = 1 - smooth(clamp((Math.abs(v) - 40) / 12, 0, 1)); return cur + (C.breachAt(u, v) - cur) * f; });
+  for (const r of DAM_HIGH) C.lfill(DAM, ...r, HIGH);
+  for (const r of PITS) C.lfill(DAM, ...r, 1.0);
+  C.lslope(DAM, -8, -26, 10, -10, HIGH, C.breachAt(0, -10), 'v');          // rubble slope off the broken stub
+  C.lslope(DAM, 0, 22, 16, 40, C.breachAt(8, 22), HIGH, 'v');              // collapsed slab up onto the Floodgates
+  for (const c of CHUTES) C.lslope(DAM, 18, c - 4, 58, c + 4, HIGH, LOW + 0.3, 'u');
   // ramps between tiers
-  slope(612, 220, 634, 232, MID + 0.5, HIGH, 'x', 0);       // swamp -> Controlled Access Zone
-  slope(560, 366, 582, 376, MID + 0.3, HIGH, 'x', 0);       // swamp -> Floodgates
-  slope(440, 438, 470, 452, MID + 0.2, HIGH, 'x', 0);       // Water Treatment plaza -> Primary Facility
-  slope(522, 500, 536, 524, HIGH, MID + 0.1, 'z', 0);       // Primary Facility -> clarifier yard
-  slope(572, 548, 586, 572, HIGH, MID + 0.3, 'z', 0);       // R&A -> south road
-  slope(806, 590, 832, 604, HIGH, MID + 0.2, 'x', 0);       // balcony east end -> Electrical Tower
-  slope(694, 538, 704, 558, HIGH, MID + 0.2, 'z', 0);       // balcony stairs -> field depot
-  slope(604, 84, 628, 100, 7.2, HIGH, 'x', 4);              // north road climbs onto the plateau
-  slope(772, 268, 790, 280, HIGH, 2.0, 'z', 0);             // service ramp from Pipeline Tower into the basin
-  slope(884, 196, 904, 210, HIGH, HIGH, 'x', 3);            // plateau -> Raider Outpost East shoulder
-  // raised walkways (West Broken Bridge reachable from the north rim via an embankment ramp)
-  slope(486, -1, 506, 9, w.vh(486, 4), 12.4, 'x', 3);
+  C.lslope(DAM, -82, -56, -60, -46, MID + 0.5, HIGH, 'u');                  // swamp -> Controlled Access Zone
+  C.lslope(DAM, -56, 86, -32, 94, MID + 0.3, HIGH, 'u');                    // swamp -> Floodgates
+  C.lslope(DAM, -126, 214, -104, 224, MID + 0.2, HIGH, 'u');                // Water Treatment plaza -> west wing
+  C.lslope(DAM, 4, 242, 24, 272, HIGH, MID + 0.3, 'v');                     // south spine down to the creek road
+  C.lslope(DAM, 56, 242, 72, 262, HIGH, MID + 0.3, 'v');                    // R&A -> south road
+  C.lslope(DAM, 134, 184, 144, 204, HIGH, MID + 0.2, 'v');                  // balcony stairs -> field depot
+  C.lslope(DAM, 286, 172, 306, 184, HIGH, MID + 0.2, 'u');                  // balcony east end -> Electrical Tower
+  C.lslope(DAM, -124, -174, -100, -162, w.groundAt(...L(-126, -168)), HIGH, 'u');   // north road onto the plateau
+  C.lslope(DAM, 82, -78, 104, -70, HIGH, 1.5, 'u');                         // Pipeline deck service ramp into the basin
+  C.lslope(DAM, -262, -190, -250, -172, 12.4, w.groundAt(...L(-256, -168)), 'v');   // embankment onto the West Broken Bridge
+  // raised walkways
   w.deck(WBB, 10, 12.4, 'asphalt', { rails: false, pillars: true, side: 'concrete' });
   w.deck(HIGHWAY, 9, HIGH + 0.25, 'asphalt', { rails: false, pillars: false });
   w.deck(EBB, 9, HIGH + 0.25, 'asphalt', { rails: false, pillars: true, side: 'concrete' });
@@ -515,16 +589,14 @@ function terrain(C) {
     const pts = []; for (let a = 0; a < 18; a++) { const rr = r * (1.2 + 0.12 * Math.sin(a * 2.3 + cx)); pts.push([cx + Math.cos(a / 18 * 2 * PI) * rr, cz + Math.sin(a / 18 * 2 * PI) * rr * 0.85]); }
     w.waterPoly(pts, { level: LOW - 0.25, material: C.redMat });
   }
-  for (const [x0, z0, x1, z1] of [[704, 192, 720, 210], [732, 212, 752, 234]]) w.water(x0, z0, x1, z1, { level: 6.4, material: C.darkMat });
-  w.waterPoly([[619, 299], [637, 299], [638, 315], [618, 315]], { level: 0.85, material: C.darkMat });
+  for (const p of PITS) w.waterPoly(GR(DAM, ...p), { level: 6.4, material: C.darkMat });
+  w.waterPoly(Array.from({ length: 14 }, (_, i) => L(8 + Math.cos(i / 14 * 2 * PI) * 7.5, 6 + Math.sin(i / 14 * 2 * PI) * 7.5)), { level: 0.85, material: C.darkMat });   // breach crater pool
   w.river([[700, 360], [740, 392], [770, 420], [790, 456], [826, 486], [870, 500], [910, 540], [940, 600], [980, 660], [1010, 720]], 5, { level: LOW - 0.25, depth: 0.7, bank: 3 });
   w.river([[452, 600], [490, 608], [530, 603], [570, 613], [610, 633], [640, 660], [668, 676], [700, 688], [745, 690], [790, 682], [830, 692], [880, 704]], 4, { level: MID - 0.45, depth: 0.75, bank: 3 });
 
   // ---------------- roads
   for (const r of ROADS) w.road(r, 7, 'asphalt', { edge: 'gravel', edgeW: 1.2 });
   for (const r of TRACKS) w.road(r, 4, 'dirt', { edge: 'gravel', edgeW: 0.6 });
-  w.path([[548, 452], [578, 420], [596, 392], [612, 360], [626, 330]], 5, 'concrete');           // crest service road
-  w.path([[680, 288], [690, 262], [700, 236], [722, 200], [742, 176], [728, 150], [706, 140]], 5, 'concrete');
 
   // ---------------- terrain paint
   {
@@ -563,345 +635,368 @@ function terrain(C) {
       if (t != null) w.tids[ci] = t;
     }
   }
-  for (const [x0, z0, x1, z1] of DAM_RECTS) w.paint('damConcrete', x0, z0, x1, z1);
-  w.paintPoly('damConcrete', PG_POLY);
-  w.paintPoly('damConcrete', C.strip(BALCONY, 12.5));
-  w.paint('gravel', 586, 292, 676, 322);
-  w.paintCircle('mud', 628, 307, 10, 0.4, 3);
-  for (const [xf, zc, len] of CHUTES) { w.paint('concrete', xf, zc - 3.5, xf + len, zc + 3.5); w.paint('hazard', xf - 1, zc - 3.5, xf, zc + 3.5); }
-  // re-paint the crest service roads over the dam paint
-  w.path([[548, 452], [578, 420], [596, 392], [612, 360], [626, 330]], 5, 'concrete');
-  w.path([[680, 288], [690, 262], [700, 236], [722, 200], [742, 176], [728, 150], [706, 140]], 5, 'concrete');
-  w.path(HIGHWAY, 8, 'asphalt');
-  w.paint('hazard', 704, 190, 722, 192); w.paint('hazard', 730, 210, 754, 212);
-  // concrete facades on every sheer drop of the dam / plateau / decks (stepped where diagonal)
-  facades(C, 440, 50, 935, 615, 'damConcrete');
-  facades(C, 496, 0, 572, 34, 'concrete');
+  // dam surfaces
+  w.paintPoly('concrete', GR(DAM, 54, 40, 96, 150));                         // spillway apron (basin level)
+  w.paintPoly('concrete', GR(DAM, 26, -54, 92, -16));
+  w.paintPoly('gravel', GR(DAM, -70, -26, 70, 40));
+  w.paintCircle('mud', ...L(8, 6), 10, 0.4, 3);
+  for (const r of DAM_HIGH) w.paintPoly('damConcrete', GR(DAM, ...r));
+  for (const c of CHUTES) { w.paintPoly('concrete', GR(DAM, 18, c - 4, 58, c + 4)); w.paintPoly('hazard', GR(DAM, 17, c - 4, 18.2, c + 4)); }
+  for (const [a, b, c, d] of PITS) { w.paintPoly('hazard', GR(DAM, a - 1, b - 1, c + 1, b)); w.paintPoly('hazard', GR(DAM, a - 1, d, c + 1, d + 1)); }
+  for (const r of CREST_ROADS) w.path(LP(r), 5, 'concrete');
+  w.path(HIGHWAY, 8, 'asphalt'); w.path(EBB, 8, 'asphalt'); w.path(WBB, 9, 'asphalt');
+  // concrete walls on every sheer drop along the dam / deck edges, and inside the turbine shafts
+  frameWalls(C, DAM, [...DAM_HIGH, ...DECK_RECTS], {});
+  frameWalls(C, DAM, PITS, { inward: true });
 }
 
-// Turn every vertical terrain step (> 2.2 m between neighbouring vertices) into concrete slabs:
-// the dam faces, pier walls along the chutes, broken bridge ends, turbine shafts, balcony.
-function facades(C, X0, Z0, X1, Z1, tex) {
-  const { w, rng } = C;
-  const VW = w.tw + 1, VH = w.th + 1, hv = w.hv;
-  const V = (x, z) => hv[(z < 0 ? 0 : z >= VH ? VH - 1 : z) * VW + (x < 0 ? 0 : x >= VW ? VW - 1 : x)];
-  const DROP = 2.2, PIECE = 6;
-  const horizOf = (d) => d === 's' || d === 'n';
-  const emit = (dir, a, b, line, top, low) => {
-    const y0 = low - 0.25, gapTop = top + 0.06;
-    const big = top - low > 7;
-    // parapet: coherent 14 m stretches, solid on big basin-side drops, with gaps on lower faces
-    const cx = horizOf(dir) ? (a + b) / 2 : line, cz = horizOf(dir) ? line : (a + b) / 2;
-    const hsh = ((Math.floor(cx / 14) * 73856093) ^ (Math.floor(cz / 14) * 19349663) ^ (dir.charCodeAt(0) * 83492791)) >>> 0;
-    const par = (hsh % 100) < (big ? 82 : 55) ? 0.95 : 0.06;
-    const h = (par > 0.5 ? top + par : gapTop) - y0;
-    if (dir === 's') w.block(a - 0.5, line - 0.3, b + 0.5, line + 1.0, h, tex, { y0 });
-    else if (dir === 'n') w.block(a - 0.5, line - 1.0, b + 0.5, line + 0.3, h, tex, { y0 });
-    else if (dir === 'e') w.block(line - 0.3, a - 0.5, line + 1.0, b + 0.5, h, tex, { y0 });
-    else w.block(line - 1.0, a - 0.5, line + 0.3, b + 0.5, h, tex, { y0 });
-  };
-  const scan = (dir) => {
-    const horiz = dir === 's' || dir === 'n';
-    const [o0, o1, i0, i1] = horiz ? [Z0, Z1, X0, X1] : [X0, X1, Z0, Z1];
-    for (let o = o0; o <= o1; o++) {
+// Walls along the edges of turned rects wherever the ground just outside drops more than 2.2 m below the
+// ground just inside: dam faces, pier walls along the chutes, broken bridge ends, balcony, turbine shafts
+// (inward). Straight pieces (<= 6 m) in the frame, with parapets in coherent 14 m stretches.
+function frameWalls(C, G, rects, o = {}) {
+  const { w } = C;
+  const DROP = 2.2, PIECE = 6, tex = o.tex || 'damConcrete', TIN = 0.5, TOUT = 1.3;
+  for (const [x0, z0, x1, z1] of rects) {
+    const edges = [[x0, z0, x1, z0, 0, -1], [x0, z1, x1, z1, 0, 1], [x0, z0, x0, z1, -1, 0], [x1, z0, x1, z1, 1, 0]];
+    for (const [ax, az, bx, bz, n0x, n0z] of edges) {
+      const nx = o.inward ? -n0x : n0x, nz = o.inward ? -n0z : n0z;
+      const len = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / len, uz = (bz - az) / len, n = Math.max(1, Math.round(len)), stp = len / n;
       let run = null;
-      for (let i = i0; i <= i1 + 1; i++) {
-        let ok = false, t = 0, l = 0;
-        if (i <= i1) {
-          const [x, z] = horiz ? [i, o] : [o, i];
-          const [nx, nz] = dir === 's' ? [x, z + 1] : dir === 'n' ? [x, z - 1] : dir === 'e' ? [x + 1, z] : [x - 1, z];
-          t = V(x, z); l = V(nx, nz);
-          ok = t > 0.8 && t - l > DROP;
-        }
-        if (ok && run && i - run.a < PIECE) { run.top = Math.max(run.top, t); run.low = Math.min(run.low, l); }
-        else {
-          if (run) emit(dir, run.a, i - 1, o, run.top, run.low);
-          run = ok ? { a: i, top: t, low: l } : null;
-        }
+      const emit = (r) => {
+        const a = r.a <= 0.01 ? -TOUT : r.a, b = r.b >= len - 0.01 ? len + TOUT : r.b;      // close the corners at edge ends
+        const sx = ax + ux * a, sz = az + uz * a, ex = ax + ux * b, ez = az + uz * b;
+        const xs = [sx - nx * TIN, sx + nx * TOUT, ex - nx * TIN, ex + nx * TOUT], zs = [sz - nz * TIN, sz + nz * TOUT, ez - nz * TIN, ez + nz * TOUT];
+        const y0 = r.low - 0.3, big = r.top - r.low > 7, mid = (a + b) / 2;
+        const hsh = ((Math.floor((ax + ux * mid) / 14) * 73856093) ^ (Math.floor((az + uz * mid) / 14) * 19349663) ^ (((nx + 2) * 3 + nz + 7) * 83492791)) >>> 0;
+        const par = o.parapet === false ? 0.06 : (hsh % 100) < (big ? 82 : 55) ? 0.95 : 0.06;
+        C.gblock(G, Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs), r.top + par - y0, tex, { y0 });
+      };
+      for (let i = 0; i < n; i++) {
+        const t = (i + 0.5) * stp, px = ax + ux * t, pz = az + uz * t;
+        const top = w.groundAt(...GW(G, px - nx * 2.0, pz - nz * 2.0)), low = w.groundAt(...GW(G, px + nx * 1.9, pz + nz * 1.9));
+        const ok = top - low > DROP;
+        if (ok && run && t - run.a < PIECE && Math.abs(top - run.top) < 0.6) { run.b = t + stp / 2; run.low = Math.min(run.low, low); }
+        else { if (run) emit(run); run = ok ? { a: t - stp / 2, b: t + stp / 2, top, low } : null; }
       }
+      if (run) emit(run);
     }
-  };
-  for (const d of ['s', 'n', 'e', 'w']) scan(d);
+  }
 }
 
-// ==================================================================================== DAM DETAILS
-function damDetails(C) {
+// ==================================================================================== THE DAM (30° frame)
+function damComplex(C) {
   const { w, R, rng } = C;
-  // ---------------- The Breach
-  for (const [x, z, r] of [[606, 300, 0.4], [646, 312, 2.2], [614, 316, 1.1], [662, 300, 2.8], [590, 312, 0.2]]) w.prop('dg_slab', x, z, r, { solid: true, scale: 0.9 + rng() * 0.3 });
-  C.clutter(628, 307, 26, 22, ['dg_rubble', 'dg_rubble', 'debris', 'dg_rubble', 'rock'], { sz: 0.5, scale: 1.2, avoid: (x, z) => z < 293 || z > 321 });
-  w.prop('dg_brokenspan', 600, 296, 1.9, {});
-  w.block(676, 300, 698, 320, 4.5, 'damConcrete', {});                     // fallen dam monolith
-  C.clutter(687, 310, 16, 8, ['dg_rubble', 'debris'], { avoid: (x, z) => x > 674 && x < 700 && z > 298 && z < 322 });
-  C.sandbags([[600, 318], [608, 320], [614, 318]]);
-  w.prop('husk', 618, 296, 0.6, { solid: true }); w.prop('dg_huskbig', 652, 306, 2.1, { solid: true });
-  C.loot(628, 307, 14, ['arc_husk', 'ammo_box', 'crate', 'arc_crate', 'trash'], 2);
-  w.container('arc_husk', 656, 312, 0, { tier: 2 });
-  for (const [x, z] of [[596, 304], [640, 296], [660, 316]]) w.lamp(x, z, { y: 4, color: 0xffb070, intensity: 1.55, range: 10, flicker: 0.7 });
-  C.fire(624, 312);
-  // ---------------- Floodgates crest machinery
-  CHUTES.forEach(([xf, zc], ci) => {
-    w.prop('dg_floodgate', xf - 2.2, zc, PI / 2, { solid: true });
-    if (ci % 2 === 0) w.prop('dg_gantry', xf - 6, zc, PI / 2, {});
-    w.prop('dg_spillgrate', xf + 6, zc, PI / 2, {});
-    C.beacon(xf - 1.2, zc - 5, { y: 3.9 });
-    C.clutter(xf + 22, zc, 12, 3, ['debris', 'dg_rubble', 'barrel'], { sz: 0.25, avoid: (x, z) => Math.abs(z - zc) > 3 });
-  });
-  // gantry rails along the chute heads
-  for (const [x, z0, z1] of [[648, 324, 360], [632, 362, 392], [616, 394, 424], [602, 428, 452]]) for (let z = z0; z < z1; z += 4) w.prop('dg_rail', x, z + 2, 0, {});
-  // crest lights
-  for (const [x, z] of [[606, 330], [628, 324], [596, 360], [586, 384], [572, 404], [560, 430], [600, 412], [588, 444], [640, 354], [626, 378]]) C.flood(x, z, { rot: R(0, 6.28) });
-  for (const [x, z] of [[652, 322], [652, 360], [636, 394], [620, 426], [606, 455], [598, 324], [582, 358], [566, 390], [551, 422]]) C.beacon(x, z);
-  // Floodgate Control (F1)
-  C.bld({ x: 606, z: 334, w: 18, d: 14, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Floodgate Control', floor: 'metalPanel', tint: 0xe8e0d0,
-    doors: [{ side: 's', at: 3, w: 2.2, door: true }, { side: 'e', at: 5, w: 2, door: true }, { side: 'n', at: 4, w: 3, sill: 1.1 }, { side: 'n', at: 11, w: 3, sill: 1.1 }, { side: 'w', at: 5, w: 3, sill: 1.1 }],
-    inner: [[10, 0, 10, 14, [{ at: 8, w: 1.8 }]]] });
-  C.furnish('control', 606, 334, 616, 348, { tier: 2 });
-  C.furnish('office', 616, 334, 624, 348, { tier: 2 });
-  // Maintenance (F2) with tunnel access
-  C.bld({ x: 590, z: 366, w: 14, d: 12, floorY: HIGH, blend: 0.5, name: 'Floodgate Maintenance', roof: 'corrugated', floor: 'concrete',
-    doors: [{ side: 's', at: 2, w: 2.4 }, { side: 'e', at: 6, w: 2, door: true }, { side: 'n', at: 5, w: 3, sill: 1.1 }] });
-  C.furnish('workshop', 590, 366, 604, 378, { tier: 2 });
-  w.prop('dg_stairs', 600, 370, PI, {}); w.prop('dg_signred', 598, 379.5, 0, { solid: true });
-  // Intake House (F3)
-  C.bld({ x: 574, z: 398, w: 18, d: 14, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Intake House', floor: 'metalPanel',
-    doors: [{ side: 's', at: 7, w: 2.4, door: true }, { side: 'e', at: 4, w: 2, door: true }, { side: 'w', at: 6, w: 3, sill: 1.1 }],
-    inner: [[0, 7, 18, 7, [{ at: 12, w: 1.8 }]]] });
-  C.furnish('industrial', 574, 398, 592, 405, { tier: 2, extra: [['toolbox', 1]] });
-  w.prop('dg_pump', 580, 401.5, 0, { solid: true }); w.prop('dg_valve', 588, 401.5, 0, { solid: true });
-  C.furnish('office', 574, 405, 592, 412, { tier: 1 });
-  // F4 hut + parked gear
-  C.bld({ x: 558, z: 428, w: 10, d: 8, floorY: HIGH, blend: 0.5, name: 'Gate Hut', roof: 'corrugated', doors: [{ side: 'e', at: 3, w: 2 }, { side: 's', at: 2, w: 3, sill: 1.1 }] });
-  C.furnish('storage', 558, 428, 568, 436, { tier: 1 });
-  C.clutter(590, 395, 30, 26, ['crate', 'barrel', 'barrelBlue', 'dg_barrier', 'dg_container', 'debris', 'pipe', 'dg_bigpipe'], { avoid: (x, z) => !C.inDam(x, z, -3) || CHUTES.some(([xf, zc]) => Math.abs(z - zc) < 6 && x > xf - 12) });
-  C.loot(595, 395, 30, ['crate', 'toolbox', 'ammo_box', 'crate', 'trash', 'locker'], 1, { avoid: (x, z) => !C.inDam(x, z, -3) });
-  // ---------------- upper dam (U3) broken end above the breach
-  w.prop('dg_gantry', 690, 282, 0.25, {}); C.clutter(680, 274, 20, 12, ['dg_rubble', 'debris', 'dg_barrier', 'barrel'], { avoid: (x, z) => !C.inDam(x, z, -2) });
-  for (const [x, z] of [[660, 262], [700, 262], [656, 288], [708, 290]]) C.beacon(x, z);
-  C.flood(680, 260);
-  // ---------------- Red Lakes Balcony
-  for (let i = 0; i < 9; i++) {
-    const t = (i + 0.5) / 9, seg = Math.min(2, Math.floor(t * 3)), a = BALCONY[seg], b = BALCONY[seg + 1], tt = t * 3 - seg;
-    const x = lerp(a[0], b[0], tt), z = lerp(a[1], b[1], tt);
-    if (i % 2 === 0) C.flood(x + 2, z - 3); else C.beacon(x - 3, z + 4.5);
+  const G = DAM;
+  const P = (kind, u, v, r = 0, o = {}) => C.gprop(G, kind, u, v, r, o);
+  const lamp = (u, v, o) => C.glamp(G, u, v, o);
+  const flood = (u, v, o = {}) => C.flood(...L(u, v), { ...o, rot: (o.rot || 0) - G.a });
+  const beacon = (u, v, o = {}) => C.beacon(...L(u, v), o);
+  const near = (u, v, r) => [...L(u, v), r];
+
+  // ================================================================ Power Generation Complex (plateau + east wing)
+  const gh = C.B.gh = C.dbld({ u: -98, v: -190, w: 56, d: 26, storeys: 3, floorY: HIGH, blend: 0.5, name: 'Generator Hall', wall: 'concrete', floor: 'metalPanel', tint: 0xe0d8c8,
+    doors: [{ side: 's', at: 6, w: 3.2 }, { side: 's', at: 44, w: 3.2 }, { side: 'w', at: 6, w: 2.4, door: true }, { side: 'e', at: 5, w: 2.4, door: true }, { side: 'n', at: 26, w: 2, door: true },
+      { side: 's', at: 18, w: 3, sill: 1.1 }, { side: 's', at: 28, w: 3, sill: 1.1 }, { side: 's', at: 36, w: 3, sill: 1.1 }, { side: 'n', at: 8, w: 3, sill: 1.1 }, { side: 'n', at: 44, w: 3, sill: 1.1 }],
+    inner: [[16, 0, 16, 26, [{ at: 10, w: 2.4 }]], [44, 0, 44, 26, [{ at: 14, w: 2.4 }]], [0, 13, 16, 13, [{ at: 6, w: 1.8 }]], [44, 12, 56, 12, [{ at: 5, w: 1.8 }]]],
+    roofExtras: [[20, 4, 30, 10, 1.6], [34, 14, 42, 22, 1.2]] });
+  C.F(gh, 'control', 0, 0, 16, 13, { tier: 2 }); C.F(gh, 'workshop', 0, 13, 16, 26, { tier: 2 });
+  C.F(gh, 'storage', 44, 0, 56, 12, { tier: 2 }); C.F(gh, 'security', 44, 12, 56, 26, { tier: 2 });
+  // the Generator Room
+  C.P(gh, 'dg_generator', 24, 7, 0, { solid: true }); C.P(gh, 'dg_generator', 36, 7, 0, { solid: true });
+  C.P(gh, 'dg_console', 30, 22.5, PI, { solid: true }); C.P(gh, 'dg_fusebox', 42.5, 20, -PI / 2, { solid: true });
+  C.Cn(gh, 'toolbox', 20, 20, 0, { tier: 2 }); C.Cn(gh, 'electronics', 38, 16, 0, { tier: 2 }); C.Cn(gh, 'crate', 22, 2, 0, { tier: 1 });
+  C.IL(gh, 24, 14, 0xffd090, 1.1, 10, 3.6); C.IL(gh, 38, 14, 0xffd090, 1.1, 10, 3.6);
+  C.lift('north_complex_elevator', 'North Complex Elevator', 706, 140);
+  const pc = C.B.pc = C.dbld({ u: -12, v: -182, w: 26, d: 22, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Power Control', tint: 0xd8d0c0, floor: 'tiles',
+    doors: [{ side: 's', at: 4, w: 2, door: true }, { side: 'w', at: 10, w: 2 }, { side: 'e', at: 6, w: 2.4, door: true }, { side: 'n', at: 4, w: 3, sill: 1.1 }, { side: 'n', at: 16, w: 3, sill: 1.1 }, { side: 's', at: 16, w: 3, sill: 1.1 }],
+    inner: [[12, 0, 12, 22, [{ at: 9, w: 1.8 }]], [12, 11, 26, 11, [{ at: 6, w: 1.6 }]]] });
+  C.F(pc, 'control', 0, 0, 12, 22, { tier: 2 }); C.F(pc, 'office', 12, 0, 26, 11, { tier: 2 }); C.F(pc, 'storage', 12, 11, 26, 22, { tier: 1 });
+  C.P(pc, 'dg_ventbox', 23, 19.5, 0, { solid: true }); C.P(pc, 'dg_switch', 14, 21.3, PI, { solid: true }); C.P(pc, 'dg_stairs', 18, 14, 0, {});   // vent shaft + power switch under the stairs
+  // transformer yards (fenced grids of transformers, the reference's gridded bays)
+  for (const [a, b, c, d] of [[22, -194, 54, -164], [58, -192, 80, -164]]) {
+    C.gfence(G, a, b, c, d, [[a, (b + d) / 2]]);
+    for (let u = a + 5; u < c - 3; u += 8) for (let v = b + 6; v < d - 3; v += 9) P('dg_transformer', u, v, 0, { solid: true });
+    P('dg_fusebox', c - 2, b + 1.2, 0, { solid: true });
+    C.gcont(G, 'electronics', a + 2, d - 2, 0, { tier: 2 });
+    flood(a + 1, b + 1, { color: 0xd0e0ff });
   }
-  C.clutter(720, 545, 70, 18, ['crate', 'barrel', 'dg_barrier', 'debris', 'dg_rubble'], { sz: 0.6, avoid: (x, z) => C.distLine(x, z, BALCONY) > 4.5 });
-  C.loot(720, 545, 70, ['crate', 'toolbox', 'ammo_box', 'crate', 'trash'], 1, { avoid: (x, z) => C.distLine(x, z, BALCONY) > 4.5 });
-  // Flood Access Tunnel portal on the basin side
-  w.block(712, 528.6, 722, 530.4, 3.2, 'metalPanel', {});
-  w.prop('dg_signred', 717, 527.5, PI, { solid: true });
-  w.lamp(717, 526, { y: 3.2, model: null, color: 0xffb040, intensity: 1.55, range: 8, flicker: 0.3 });
-  // big pipes down the dam face into the basin (penstocks)
-  for (const [x, z, r] of [[782, 276, 0.6], [796, 286, 0.6], [810, 296, 0.6], [664, 266, 0], [672, 266, 0]]) w.prop('dg_bigpipe', x, z, r, { solid: true });
+  const ch = C.dbld({ u: -68, v: -154, w: 24, d: 18, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Compressor House', roof: 'corrugated', floor: 'metalPanel', tint: 0xd0c8b8,
+    doors: [{ side: 'w', at: 6, w: 2.4, door: true }, { side: 'n', at: 14, w: 3.2 }, { side: 's', at: 4, w: 3, sill: 1.1 }, { side: 's', at: 14, w: 3, sill: 1.1 }],
+    inner: [[14, 0, 14, 18, [{ at: 10, w: 1.8 }]]] });
+  C.F(ch, 'industrial', 0, 0, 14, 18, { tier: 2 }); C.P(ch, 'dg_turbine', 7, 9, 0, { solid: true, scale: 0.8 }); C.F(ch, 'workshop', 14, 0, 24, 18, { tier: 1 });
+  const ta = C.dbld({ u: -96, v: -152, w: 22, d: 14, floorY: HIGH, blend: 0.5, name: 'Turbine Access', roof: 'corrugated', floor: 'metalPanel',
+    doors: [{ side: 's', at: 8, w: 3.2 }, { side: 'e', at: 5, w: 2, door: true }] });
+  C.F(ta, 'industrial', 0, 0, 22, 14, { tier: 1 });
+  const sg = C.dbld({ u: 86, v: -194, w: 22, d: 16, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Switchgear House', roof: 'corrugated', floor: 'concrete',
+    doors: [{ side: 'w', at: 6, w: 2.4, door: true }, { side: 's', at: 14, w: 2 }, { side: 'n', at: 6, w: 3, sill: 1.1 }],
+    inner: [[11, 0, 11, 16, [{ at: 6, w: 1.8 }]]] });
+  C.F(sg, 'industrial', 0, 0, 11, 16, { tier: 2 }); C.F(sg, 'server', 11, 0, 22, 16, { tier: 2 });
+  const cb = C.dbld({ u: 112, v: -194, w: 24, d: 14, floorY: HIGH, blend: 0.5, name: 'Cable Hall', wall: 'concrete', tint: 0xc8c0b0, floor: 'metalPanel',
+    doors: [{ side: 'w', at: 5, w: 2.4, door: true }, { side: 's', at: 18, w: 2.4 }, { side: 's', at: 6, w: 3, sill: 1.1 }], inner: [[12, 0, 12, 14, [{ at: 4, w: 1.8 }]]] });
+  C.F(cb, 'storage', 0, 0, 12, 14, { tier: 1, extra: [['crate', 1]] }); C.F(cb, 'server', 12, 0, 24, 14, { tier: 2 });
+  const eg = C.dbld({ u: 88, v: -152, w: 18, d: 12, floorY: HIGH, blend: 0.5, name: 'East Gatehouse', tint: 0xd8d0c0, floor: 'tiles',
+    doors: [{ side: 'n', at: 4, w: 2, door: true }, { side: 'n', at: 12, w: 2, door: true }, { side: 'e', at: 5, w: 3, sill: 1.1 }, { side: 's', at: 7, w: 3, sill: 1.1 }], inner: [[9, 0, 9, 12, [{ at: 5, w: 1.6 }]]] });
+  C.F(eg, 'security', 0, 0, 9, 12, { tier: 2 }); C.F(eg, 'bunk', 9, 0, 18, 12, { tier: 1 });
+  const vh = C.dbld({ u: 112, v: -152, w: 16, d: 12, floorY: HIGH, blend: 0.5, name: 'Valve House', roof: 'corrugated', floor: 'concrete',
+    doors: [{ side: 'n', at: 5, w: 2.4, door: true }, { side: 'w', at: 6, w: 2 }] });
+  C.F(vh, 'industrial', 0, 0, 16, 12, { tier: 2 }); C.P(vh, 'dg_valve', 8, 6, 0, { solid: true });
+  C.fieldDepot(...L(115, -168), G.a);
+  // pits, pipe racks, cranes, tanks, parked containers
+  for (const [a, b, c, d] of PITS) { beacon(a - 1.5, b - 1.5); beacon(c + 1.5, d + 1.5); }
+  for (let v = -150; v < -120; v += 8) P('dg_bigpipe', -36, v, PI / 2, { solid: true, scale: 0.8 });
+  for (let u = 86; u < 136; u += 8) P('dg_bigpipe', u, -170, 0, { solid: true, scale: 0.7 });
+  P('dg_crane', 20, -124, 0.6, { solid: true }); C.mastLight(...L(20, -124), 22);
+  for (const [u, v] of [[-50, -128], [75, -128], [100, -170]]) P('dg_tankS', u, v, 0, { solid: true });
+  for (const [u, v, r, k] of [[-60, -124, 0, 'dg_container'], [-60, -118, 0, 'dg_containerB'], [-86, -126, PI / 2, 'dg_container'], [-82, -118, 0, 'dg_truck'], [74, -146, PI / 2, 'dg_containerG']]) P(k, u, v, r, { solid: true });
+  P('dg_scaffold', -40, -196, 0, { solid: true }); P('dg_scaffold', 60, -148, PI / 2, { solid: true });
+  for (const [u, v] of [[-100, -196], [-40, -198], [20, -198], [84, -198], [140, -196], [-60, -114], [80, -114], [140, -140], [-100, -114]]) flood(u, v, { rot: 0 });
+
+  // ================================================================ Controlled Access Zone (puzzle vault)
+  const caz = C.B.caz = C.dbld({ u: -46, v: -96, w: 50, d: 38, storeys: 3, floorY: HIGH, blend: 0.5, name: 'Controlled Access Zone', tint: 0xb8b8b0, floor: 'metalPanel',
+    doors: [{ side: 's', at: 23.8, w: 2.4, door: true }, { side: 'w', at: 30, w: 1.8, door: true }, { side: 'e', at: 30, w: 1.8, door: true }, { side: 's', at: 6, w: 3, sill: 1.2 }, { side: 's', at: 40, w: 3, sill: 1.2 }],
+    inner: [[0, 15, 50, 15, [{ at: 4.5, w: 2, door: true }, { at: 24, w: 2.4, door: true, locked: 'controlled_access_zone' }, { at: 43.5, w: 2, door: true }]],
+      [13, 0, 13, 15, []], [37, 0, 37, 15, []], [0, 27, 50, 27, [{ at: 8, w: 2.4 }, { at: 39.6, w: 2.4 }]]],
+    roofExtras: [[4, 4, 10, 10, 1.4], [40, 20, 46, 30, 1.0]] });
+  C.F(caz, 'storage', 0, 0, 13, 15, { tier: 2, extra: [['crate', 1]] });
+  C.P(caz, 'barrelBlue', 4, 4, 0, { solid: true });                                         // fuel cell
+  C.F(caz, 'vault', 13, 0, 37, 15, { tier: 3, room: 'controlled_access_zone', extra: [['weapon_case', 1], ['raider_cache', 1]], li: 1.2 });
+  C.K(caz, 'controlled_access_zone', 13, 0, 37, 15, 'Controlled Access Zone Vault');
+  C.F(caz, 'control', 37, 0, 50, 15, { tier: 2 });
+  C.P(caz, 'dg_fusebox', 48.8, 7.5, -PI / 2, { solid: true });                               // resource lock panel
+  for (const [lx, lz, r] of [[2.5, 17.5, PI / 2], [47.5, 17.5, -PI / 2], [2.5, 25, PI / 2], [47.5, 25, -PI / 2]]) C.P(caz, 'dg_switch', lx, lz, r, { solid: true });
+  C.P(caz, 'dg_puzzle', 25.2, 15.3, 0, { y: 2.3 });
+  // the switch hall: work desks, shelving and dropped crates between the four switch panels
+  for (const [lx, lz, k, r] of [[8, 21.5, 'dg_desk', 0], [42, 21.5, 'dg_desk', 0], [14, 26, 'shelf', PI], [36, 26, 'shelf', PI], [25, 22, 'dg_console', 0], [6, 24.5, 'crate', 0.3], [45, 24.8, 'barrel', 0]]) C.P(caz, k, lx, lz, r, { solid: true });
+  C.Cn(caz, 'electronics', 21, 26, PI, { tier: 2 }); C.Cn(caz, 'toolbox', 29, 26, PI, { tier: 2 }); C.Cn(caz, 'crate', 10, 26, 0, { tier: 1 });
+  C.IL(caz, 25, 20.5, 0xd0e8ff, 1.0, 12, 3.4);
+  C.F(caz, 'security', 0, 27, 24, 38, { tier: 2 }); C.F(caz, 'commercial', 26, 27, 50, 38, { tier: 1, mul: 0.6 });
+  for (const u of [-34, -10]) P('dg_barrier', u, -50, 0, { solid: true });
+  flood(-58, -110); flood(22, -44); beacon(-58, -42); beacon(23, -110);
+
+  // ================================================================ Pipeline Tower deck
+  P('dg_pipetower', 62, -84, 0, { solid: true }); C.mastLight(...L(62, -84), 19.6);
+  const pp = C.dbld({ u: 28, v: -108, w: 20, d: 18, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Pipeline Pumphouse', roof: 'corrugated', floor: 'metalPanel',
+    doors: [{ side: 's', at: 4, w: 2.4, door: true }, { side: 'e', at: 7, w: 2.4 }, { side: 'w', at: 4, w: 2, door: true }],
+    inner: [[11, 0, 11, 18, [{ at: 8, w: 1.8 }]]] });
+  C.F(pp, 'industrial', 0, 0, 11, 18, { tier: 2 });
+  C.P(pp, 'dg_pump', 4, 6, PI / 2, { solid: true }); C.P(pp, 'dg_valve', 7.5, 13, 0, { solid: true });     // "the valve"
+  C.F(pp, 'control', 11, 0, 20, 18, { tier: 2 });
+  for (const [u, v, r] of [[74, -100, PI / 2], [74, -70, PI / 2], [50, -60, 0], [92, -100, 0], [92, -90, 0]]) P('dg_bigpipe', u, v, r, { solid: true });   // penstocks + racks
+  P('dg_scaffold', 54, -100, 0, { solid: true });
+  flood(80, -110); flood(30, -58); beacon(81, -56); beacon(81, -110);
+
+  // ================================================================ The Breach
+  for (const [u, v, r] of [[-40, -8, 0.4], [24, -14, 2.2], [-14, 34, 1.1], [46, 34, 2.8], [-56, 6, 0.2], [58, -6, 1.7]]) P('dg_slab', u, v, r, { solid: true, scale: 0.9 + rng() * 0.3 });
+  P('dg_brokenspan', -44, -18, 1.4, {});
+  C.gblock(G, 28, 14, 46, 30, 4.6, 'damConcrete', { y0: 0.6 });                            // fallen dam monolith (Sentinal perch)
+  const inBreach = (x, z) => { const [u, v] = toL(x, z); return u > -70 && u < 72 && Math.abs(v) < 34; };
+  C.clutter(...L(0, 4), 42, 24, ['dg_rubble', 'dg_rubble', 'debris', 'dg_rubble', 'rock'], { scale: 1.2, avoid: (x, z) => !inBreach(x, z) || (C.inDam(x, z, 1)) || Math.hypot(x - 620, z - 316) < 5 });
+  C.sandbags(LP([[-56, -4], [-48, 0], [-40, -4]]));
+  P('husk', -24, -8, 0.6, { solid: true }); P('dg_huskbig', 22, -2, 2.1, { solid: true });
+  w.container('barron_husk', 620, 316, 0.6, { tier: 2 });                                  // Baron husk (reference ◎)
+  w.paintCircle('rock', 620, 316, 4.5, 0.4, 5);
+  C.loot(...L(0, 4), 30, ['arc_husk', 'ammo_box', 'crate', 'arc_crate', 'trash'], 2, { avoid: (x, z) => !inBreach(x, z) || C.inDam(x, z, 1) });
+  for (const [u, v] of [[-36, 0], [14, -18], [40, 4]]) lamp(u, v, { y: 4, color: 0xffb070, intensity: 1.55, range: 10, flicker: 0.7 });
+  C.fire(...L(-8, 14));
+  // the spillway apron below the chutes: wet concrete, puddles, washed-down debris
+  const onApron = (x, z) => { const [u, v] = toL(x, z); return u > 60 && u < 94 && v > 42 && v < 148; };
+  C.clutter(...L(76, 95), 50, 26, ['dg_rubble', 'debris', 'debris', 'barrel', 'dg_slab', 'husk', 'pipe'], { frame: G, avoid: (x, z) => !onApron(x, z) });
+  for (const [u, v, r] of [[70, 60, 4], [84, 98, 5], [74, 130, 3.5], [88, 74, 3]]) w.waterPoly(Array.from({ length: 10 }, (_, i) => L(u + Math.cos(i / 10 * 2 * PI) * r, v + Math.sin(i / 10 * 2 * PI) * r * 0.7)), { level: w.groundAt(...L(u, v)) + 0.12, material: C.darkMat });
+  C.loot(...L(76, 95), 34, ['arc_husk', 'crate', 'trash'], 1, { avoid: (x, z) => !onApron(x, z) });
+  C.clutter(...L(-20, 4), 46, 30, ['dg_rubble', 'dg_rubble', 'dg_slab', 'debris', 'debris', 'rock', 'dg_huskbig'], { scale: 1.1, avoid: (x, z) => !inBreach(x, z) || C.inDam(x, z, 1) || Math.hypot(x - 620, z - 316) < 5 });
+  P('dg_sentmast', -18, -32, 0, { solid: true });                                         // Sentinal perch on the broken stub
+  beacon(-41, -27); beacon(11, -27);
+
+  // ================================================================ Floodgates
+  CHUTES.forEach((c, i) => {
+    P('dg_floodgate', 15.8, c, PI / 2, { solid: true });
+    if (i % 2 === 0) P('dg_gantry', 11.5, c, PI / 2, {});
+    P('dg_spillgrate', 26, c, PI / 2, {});
+    beacon(17.2, c - 5.6);
+    C.clutter(...L(40, c), 12, 3, ['debris', 'dg_rubble', 'barrel'], { sz: 0.3, avoid: (x, z) => { const [u, v] = toL(x, z); return Math.abs(v - c) > 3 || u < 28; } });
+  });
+  for (let v = 42; v < 150; v += 4) P('dg_rail', 11.5, v + 2, 0, {});
+  for (const u of [24, 34, 44, 52]) beacon(u, 151);
+  const fc = C.B.fc = C.dbld({ u: -28, v: 46, w: 22, d: 16, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Floodgate Control', floor: 'metalPanel', tint: 0xe8e0d0,
+    doors: [{ side: 's', at: 3, w: 2.2, door: true }, { side: 'e', at: 6, w: 2, door: true }, { side: 'n', at: 4, w: 3, sill: 1.1 }, { side: 'n', at: 13, w: 3, sill: 1.1 }, { side: 'w', at: 6, w: 3, sill: 1.1 }],
+    inner: [[12, 0, 12, 16, [{ at: 9, w: 1.8 }]]] });
+  C.F(fc, 'control', 0, 0, 12, 16, { tier: 2 }); C.F(fc, 'office', 12, 0, 22, 16, { tier: 2 });
+  const fm = C.dbld({ u: -28, v: 72, w: 16, d: 12, floorY: HIGH, blend: 0.5, name: 'Floodgate Maintenance', roof: 'corrugated', floor: 'concrete',
+    doors: [{ side: 's', at: 2, w: 2.4 }, { side: 'e', at: 6, w: 2, door: true }, { side: 'n', at: 5, w: 3, sill: 1.1 }] });
+  C.F(fm, 'workshop', 0, 0, 16, 12, { tier: 2 }); C.P(fm, 'dg_stairs', 11, 3, PI, {});
+  P('dg_signred', -18, 85.4, 0, { solid: true });                                          // maintenance tunnel sign
+  const ih = C.dbld({ u: -28, v: 96, w: 22, d: 16, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Intake House', floor: 'metalPanel',
+    doors: [{ side: 's', at: 8, w: 2.4, door: true }, { side: 'e', at: 5, w: 2, door: true }, { side: 'w', at: 6, w: 3, sill: 1.1 }],
+    inner: [[0, 8, 22, 8, [{ at: 14, w: 1.8 }]]] });
+  C.F(ih, 'industrial', 0, 0, 22, 8, { tier: 2, extra: [['toolbox', 1]] });
+  C.P(ih, 'dg_pump', 6, 3.5, 0, { solid: true }); C.P(ih, 'dg_valve', 15, 3.5, 0, { solid: true });
+  C.F(ih, 'office', 0, 8, 22, 16, { tier: 1 });
+  const gt = C.B.gt = C.dbld({ u: -28, v: 120, w: 12, d: 10, floorY: HIGH, blend: 0.5, name: 'Gate Hut', roof: 'corrugated', doors: [{ side: 'e', at: 3, w: 2 }, { side: 's', at: 2, w: 3, sill: 1.1 }] });
+  C.F(gt, 'storage', 0, 0, 12, 10, { tier: 1 });
+  for (const v of [56, 128, 140]) C.gblock(G, -39, v, -32, v + 7, HIGH - 2.6, 'damConcrete', { y0: 2.1 });   // buttresses on the swamp face
+  for (const [u, v] of [[-30, 42], [-30, 68], [-30, 116], [-30, 148], [-4, 94], [8, 68], [8, 122]]) flood(u, v);
+  for (const [u, v] of [[-31, 41], [-31, 151], [17, 41]]) beacon(u, v);
+
+  // ================================================================ South platform: Primary Facility, Control Tower, R&A
+  const pf = C.B.pf = C.dbld({ u: -46, v: 158, w: 56, d: 26, storeys: 3, floorY: HIGH, blend: 0.5, name: 'Primary Facility', wall: 'concrete', tint: 0xd8d2c4, floor: 'metalPanel',
+    doors: [{ side: 's', at: 8, w: 3.2 }, { side: 's', at: 44, w: 3.2 }, { side: 'w', at: 10, w: 2.4, door: true }, { side: 'e', at: 10, w: 2.4, door: true }, { side: 'n', at: 30, w: 2, door: true },
+      { side: 'n', at: 12, w: 3, sill: 1.1 }, { side: 'n', at: 44, w: 3, sill: 1.1 }, { side: 's', at: 20, w: 3, sill: 1.1 }, { side: 's', at: 32, w: 3, sill: 1.1 }],
+    inner: [[18, 0, 18, 26, [{ at: 11, w: 2.4 }]], [40, 0, 40, 26, [{ at: 11, w: 2.4 }]], [0, 13, 18, 13, [{ at: 7, w: 1.8 }]]],
+    roofExtras: [[22, 6, 36, 12, 1.8], [42, 16, 50, 22, 1.0]] });
+  C.F(pf, 'office', 0, 0, 18, 13, { tier: 2 }); C.F(pf, 'workshop', 0, 13, 18, 26, { tier: 2 });
+  C.P(pf, 'dg_turbine', 29, 11, 0, { solid: true }); C.P(pf, 'dg_console', 29, 22.5, PI, { solid: true }); C.P(pf, 'dg_generator', 29, 3.5, 0, { solid: true, scale: 0.7 });
+  C.Cn(pf, 'toolbox', 22, 20, 0, { tier: 2 }); C.Cn(pf, 'electronics', 36, 21, 0, { tier: 2 }); C.Cn(pf, 'crate', 21, 3, 0, { tier: 1 });
+  C.IL(pf, 24, 13, 0xffd090, 1.1, 11, 3.6); C.IL(pf, 35, 13, 0xffd090, 1.1, 11, 3.6);
+  C.F(pf, 'industrial', 40, 0, 56, 26, { tier: 2, extra: [['crate', 1]] });
+  const pa = C.dbld({ u: -44, v: 196, w: 32, d: 18, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Primary Facility Annex', tint: 0xe0d8c8, floor: 'tiles',
+    doors: [{ side: 'n', at: 6, w: 2, door: true }, { side: 'w', at: 8, w: 2, door: true }, { side: 's', at: 24, w: 2, door: true }, { side: 'e', at: 6, w: 3, sill: 1.1 }, { side: 's', at: 8, w: 3, sill: 1.1 }],
+    inner: [[16, 0, 16, 18, [{ at: 4, w: 1.8 }]], [16, 9, 32, 9, [{ at: 6, w: 1.6 }]]] });
+  C.F(pa, 'office', 0, 0, 16, 18, { tier: 2 }); C.F(pa, 'medical', 16, 0, 32, 9, { tier: 2 }); C.F(pa, 'storage', 16, 9, 32, 18, { tier: 1 });
+  C.fieldDepot(...L(-32, 230), G.a);
+  const vg = C.dbld({ u: -92, v: 204, w: 20, d: 12, floorY: HIGH, blend: 0.5, name: 'Valve Gallery', roof: 'corrugated', floor: 'concrete',
+    doors: [{ side: 'e', at: 4, w: 2.4, door: true }, { side: 'n', at: 12, w: 2 }, { side: 's', at: 6, w: 3, sill: 1.1 }] });
+  C.F(vg, 'industrial', 0, 0, 20, 12, { tier: 1 });
+  const ct = C.B.ct = C.dbld({ u: 30, v: 162, w: 44, d: 28, storeys: 4, floorY: HIGH, blend: 0.5, name: 'Control Tower', tint: 0xe4dccc, floor: 'tiles',
+    doors: [{ side: 's', at: 21, w: 2.4, door: true }, { side: 'w', at: 18, w: 1.8, door: true }, { side: 'e', at: 18, w: 1.8, door: true },
+      { side: 'n', at: 5, w: 4, sill: 1.0 }, { side: 'n', at: 15, w: 4, sill: 1.0 }, { side: 'n', at: 26, w: 4, sill: 1.0 }, { side: 'n', at: 35, w: 4, sill: 1.0 }, { side: 's', at: 4, w: 3, sill: 1.1 }, { side: 's', at: 36, w: 3, sill: 1.1 }],
+    inner: [[0, 12, 44, 12, [{ at: 20.8, w: 2.4, door: true, locked: 'control_tower' }]], [14, 12, 14, 28, [{ at: 6.5, w: 1.8 }]], [30, 12, 30, 28, [{ at: 6.5, w: 1.8 }]]],
+    roofExtras: [[4, 2, 12, 8, 2.0], [32, 16, 40, 24, 1.2]] });
+  C.F(ct, 'control', 0, 0, 44, 12, { tier: 3, room: 'control_tower', extra: [['security_locker', 1], ['weapon_case', 1], ['electronics', 1]], li: 1.2 });
+  C.K(ct, 'control_tower', 0, 0, 44, 12, 'Control Tower Control Room');
+  C.F(ct, 'security', 0, 12, 14, 28, { tier: 2 }); C.F(ct, 'office', 14, 12, 30, 28, { tier: 1, mul: 0.7 }); C.F(ct, 'storage', 30, 12, 44, 28, { tier: 1 });
+  C.gblock(G, 34, 148, 44, 158, 20, 'concrete', { y0: HIGH });                              // the tower shaft
+  P('dg_ctrltop', 39, 153, 0, { yAbs: HIGH + 20 });
+  C.mastLight(...L(39, 159.5), 21.5, { color: 0x9ae8ff, i: 1.2, flicker: 0 });              // glow from the glass cab
+  const ra = C.B.ra = C.dbld({ u: 28, v: 196, w: 48, d: 42, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Research & Administration', tint: 0xe8e0d0, floor: 'tiles', roofTint: 0xd0d0c8,
+    doors: [{ side: 's', at: 23, w: 2.4, door: true }, { side: 'n', at: 23, w: 2.4, door: true }, { side: 'w', at: 20, w: 1.8, door: true }, { side: 'e', at: 20, w: 1.8, door: true },
+      { side: 's', at: 7, w: 3, sill: 1.1 }, { side: 's', at: 38, w: 3, sill: 1.1 }, { side: 'e', at: 6, w: 3, sill: 1.1 }, { side: 'w', at: 6, w: 3, sill: 1.1 }, { side: 'n', at: 7, w: 3, sill: 1.1 }, { side: 'n', at: 38, w: 3, sill: 1.1 }],
+    inner: [[0, 14, 48, 14, [{ at: 6, w: 1.8 }, { at: 23, w: 1.8 }, { at: 40, w: 1.8 }]], [16, 0, 16, 14, []], [32, 0, 32, 14, []],
+      [0, 28, 48, 28, [{ at: 6, w: 1.8, door: true, locked: 'staff_room' }, { at: 23, w: 2.4 }, { at: 40, w: 1.8 }]], [17, 28, 17, 42, []], [31, 28, 31, 42, []]],
+    roofExtras: [[6, 4, 14, 10, 1.4], [33, 30, 41, 38, 1.4]] });
+  C.F(ra, 'lab', 0, 0, 16, 14, { tier: 2 });                     // Lab 2
+  C.F(ra, 'server', 16, 0, 32, 14, { tier: 2 });
+  C.F(ra, 'lab', 32, 0, 48, 14, { tier: 2, extra: [['electronics', 1]] });  // Lab 1
+  C.F(ra, 'commercial', 0, 14, 48, 28, { tier: 1 });
+  C.P(ra, 'dg_noticeboard', 24, 14.8, 0, { solid: true });
+  C.F(ra, 'bunk', 0, 28, 17, 42, { tier: 3, room: 'staff_room', extra: [['security_locker', 1], ['weapon_case', 1], ['medical_bag', 1]] });
+  C.K(ra, 'staff_room', 0, 28, 17, 42, 'Staff Room');
+  C.F(ra, 'office', 17, 28, 31, 42, { tier: 1 });                // reception
+  C.F(ra, 'office', 31, 28, 48, 42, { tier: 2 });
+  C.P(ra, 'dg_sign', 24, 44.6, PI, { solid: true });
+  P('dg_satdish', 79, 226, 2.4, { solid: true }); P('dg_satdish', 79, 214, 2.0, { solid: true, scale: 0.7 });
+  for (const [u, v, r] of [[16, 152, PI / 2], [26, 152, PI / 2], [-30, 192, 0]]) P('dg_barrier', u, v, r, { solid: true });
+  for (const [u, v] of [[-48, 152], [80, 152], [-48, 240], [80, 240], [20, 220], [-102, 202], [-102, 238], [24, 156]]) flood(u, v);
+  for (const [u, v] of [[-49, 151], [81, 151], [-49, 241], [81, 241]]) beacon(u, v);
+
+  // ================================================================ Red Lakes Balcony
+  for (let u = 92; u < 286; u += 24) { if ((u / 24) % 2 < 1) flood(u, 174.5); else beacon(u, 183); }
+  C.gblock(G, 116, 169.6, 126, 170.8, 3.2, 'metalPanel', {});                              // Flood Access Tunnel portal
+  P('dg_signred', 121, 168.6, PI, { solid: true });
+  lamp(121, 168, { y: 3.2, model: null, color: 0xffb040, intensity: 1.55, range: 8, flicker: 0.3 });
+  C.fieldDepot(...L(154, 198), G.a);
 }
 
 // ==================================================================================== NORTH
 function northPOIs(C) {
   const { w, R, rng } = C;
-  // ---------------- Generator Hall (NW end of the Power Generation plateau)
-  C.bld({ x: 640, z: 112, w: 56, d: 26, storeys: 3, floorY: HIGH, blend: 0.5, name: 'Generator Hall', wall: 'concrete', floor: 'metalPanel', tint: 0xe0d8c8,
-    doors: [{ side: 's', at: 6, w: 3.2 }, { side: 's', at: 44, w: 3.2 }, { side: 'w', at: 6, w: 2.4, door: true }, { side: 'e', at: 5, w: 2.4, door: true }, { side: 'n', at: 26, w: 2, door: true },
-      { side: 's', at: 18, w: 3, sill: 1.1 }, { side: 's', at: 28, w: 3, sill: 1.1 }, { side: 's', at: 36, w: 3, sill: 1.1 }, { side: 'n', at: 8, w: 3, sill: 1.1 }, { side: 'n', at: 44, w: 3, sill: 1.1 }],
-    inner: [[16, 0, 16, 26, [{ at: 10, w: 2.4 }]], [44, 0, 44, 26, [{ at: 14, w: 2.4 }]], [0, 13, 16, 13, [{ at: 6, w: 1.8 }]], [44, 12, 56, 12, [{ at: 5, w: 1.8 }]]],
-    roofExtras: [[20, 4, 30, 10, 1.6], [34, 14, 42, 22, 1.2]] });
-  C.furnish('control', 640, 112, 656, 125, { tier: 2 });
-  C.furnish('workshop', 640, 125, 656, 138, { tier: 2 });
-  C.furnish('storage', 684, 112, 696, 124, { tier: 2 });
-  C.furnish('security', 684, 124, 696, 138, { tier: 2 });
-  // the Generator Room
-  w.prop('dg_generator', 664, 119, 0, { solid: true }); w.prop('dg_generator', 676, 119, 0, { solid: true });
-  w.prop('dg_console', 670, 134.5, PI, { solid: true }); w.prop('dg_fusebox', 682.5, 132, -PI / 2, { solid: true });
-  w.container('toolbox', 660, 132, 0, { tier: 2 }); w.container('electronics', 678, 128, 0, { tier: 2 }); w.container('crate', 662, 114, 0, { tier: 1 });
-  C.inLight(664, 126, 0xffd090, 1.1, 10, 3.6); C.inLight(678, 126, 0xffd090, 1.1, 10, 3.6);
-  C.lift('north_complex_elevator', 'North Complex Elevator', 706, 140);
-  C.flood(700, 130); C.flood(640, 144); C.flood(698, 150);
-  // ---------------- Power Generation Complex
-  C.bld({ x: 714, z: 148, w: 26, d: 18, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Power Control', tint: 0xd8d0c0, floor: 'tiles',
-    doors: [{ side: 's', at: 4, w: 2, door: true }, { side: 'w', at: 8, w: 2 }, { side: 'e', at: 6, w: 2.4, door: true }, { side: 'n', at: 4, w: 3, sill: 1.1 }, { side: 's', at: 16, w: 3, sill: 1.1 }],
-    inner: [[12, 0, 12, 18, [{ at: 7, w: 1.8 }]], [12, 9, 26, 9, [{ at: 6, w: 1.6 }]]] });
-  C.furnish('control', 714, 148, 726, 166, { tier: 2 });
-  C.furnish('office', 726, 148, 740, 157, { tier: 2 });
-  C.furnish('storage', 726, 157, 740, 166, { tier: 1 });
-  w.prop('dg_ventbox', 737, 163.5, 0, { solid: true }); w.prop('dg_switch', 728, 165.3, PI, { solid: true });   // vent shaft + power switch under the stairs
-  w.prop('dg_stairs', 732, 160, 0, {});
-  // transformer yards (fenced grids of transformers, like the reference's gridded bays)
-  for (const [x0, z0, x1, z1] of [[752, 156, 784, 182], [788, 186, 812, 210]]) {
-    C.fenceRect(x0, z0, x1, z1, [[x0, (z0 + z1) / 2]]);
-    for (let x = x0 + 5; x < x1 - 3; x += 8) for (let z = z0 + 6; z < z1 - 3; z += 9) w.prop('dg_transformer', x, z, 0, { solid: true });
-    w.prop('dg_fusebox', x1 - 2, z0 + 1.2, 0, { solid: true });
-    w.container('electronics', x0 + 2, z1 - 2, 0, { tier: 2 });
-    C.flood(x0 + 1, z0 + 1, { color: 0xd0e0ff });
-  }
-  C.bld({ x: 816, z: 188, w: 22, d: 16, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Switchgear House', roof: 'corrugated', floor: 'concrete',
-    doors: [{ side: 'w', at: 6, w: 2.4, door: true }, { side: 's', at: 14, w: 2 }, { side: 'n', at: 6, w: 3, sill: 1.1 }],
-    inner: [[11, 0, 11, 16, [{ at: 6, w: 1.8 }]]] });
-  C.furnish('industrial', 816, 188, 827, 204, { tier: 2 });
-  C.furnish('server', 827, 188, 838, 204, { tier: 2 });
-  C.fieldDepot(846, 205);
-  // turbine access + loading yard between Generator Hall and the CAZ
-  C.bld({ x: 650, z: 156, w: 20, d: 14, floorY: HIGH, blend: 0.5, name: 'Turbine Access', roof: 'corrugated', floor: 'metalPanel',
-    doors: [{ side: 's', at: 8, w: 3.2 }, { side: 'e', at: 5, w: 2, door: true }] });
-  C.furnish('industrial', 650, 156, 670, 170, { tier: 1 });
-  for (const [x, z, r, k] of [[684, 158, 0, 'dg_container'], [684, 164, 0, 'dg_containerB'], [664, 188, PI / 2, 'dg_container'], [646, 184, 0.2, 'dg_truck'], [702, 166, 1.5, 'dg_containerG']]) w.prop(k, x, z, r, { solid: true });
-  C.clutter(690, 180, 20, 14, ['crate', 'barrel', 'barrelBlue', 'dg_barrier', 'pipe', 'debris'], { avoid: (x, z) => !C.inDam(x, z, -2) });
-  for (const [x0, z0, x1, z1] of [[704, 192, 720, 210], [732, 212, 752, 234]]) { C.beacon(x0 - 1, z0 - 1); C.beacon(x1 + 1, z1 + 1); }
-  // more of the dense power complex: compressor + valve houses, cable hall, east gatehouse, pipe racks
-  C.bld({ x: 676, z: 172, w: 24, d: 18, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Compressor House', roof: 'corrugated', floor: 'metalPanel', tint: 0xd0c8b8,
-    doors: [{ side: 'w', at: 6, w: 2.4, door: true }, { side: 'n', at: 14, w: 3.2 }, { side: 's', at: 4, w: 3, sill: 1.1 }, { side: 's', at: 14, w: 3, sill: 1.1 }],
-    inner: [[14, 0, 14, 18, [{ at: 10, w: 1.8 }]]] });
-  C.furnish('industrial', 676, 172, 690, 190, { tier: 2 }); w.prop('dg_turbine', 683, 181, 0, { solid: true, scale: 0.8 });
-  C.furnish('workshop', 690, 172, 700, 190, { tier: 1 });
-  C.bld({ x: 754, z: 192, w: 16, d: 14, floorY: HIGH, blend: 0.5, name: 'Valve House', roof: 'corrugated', floor: 'concrete',
-    doors: [{ side: 's', at: 5, w: 2.4, door: true }, { side: 'w', at: 6, w: 2 }] });
-  C.furnish('industrial', 754, 192, 770, 206, { tier: 2 }); w.prop('dg_valve', 762, 199, 0, { solid: true });
-  C.bld({ x: 790, z: 170, w: 24, d: 14, floorY: HIGH, blend: 0.5, name: 'Cable Hall', wall: 'concrete', tint: 0xc8c0b0, floor: 'metalPanel',
-    doors: [{ side: 'w', at: 5, w: 2.4, door: true }, { side: 'e', at: 5, w: 2.4 }, { side: 's', at: 12, w: 3, sill: 1.1 }], inner: [[12, 0, 12, 14, [{ at: 4, w: 1.8 }]]] });
-  C.furnish('storage', 790, 170, 802, 184, { tier: 1, extra: [['crate', 1]] }); C.furnish('server', 802, 170, 814, 184, { tier: 2 });
-  C.bld({ x: 852, z: 214, w: 18, d: 14, floorY: HIGH, blend: 0.5, name: 'East Gatehouse', tint: 0xd8d0c0, floor: 'tiles',
-    doors: [{ side: 's', at: 4, w: 2, door: true }, { side: 'n', at: 12, w: 2, door: true }, { side: 'e', at: 6, w: 3, sill: 1.1 }], inner: [[9, 0, 9, 14, [{ at: 6, w: 1.6 }]]] });
-  C.furnish('security', 852, 214, 861, 228, { tier: 2 }); C.furnish('bunk', 861, 214, 870, 228, { tier: 1 });
-  for (let x = 724; x < 750; x += 8) w.prop('dg_bigpipe', x, 178, 0, { solid: true });                 // pipe rack
-  for (let z = 210; z < 260; z += 8) w.prop('dg_bigpipe', 727, z, PI / 2, { solid: true, scale: 0.8 });
-  for (let x = 786; x < 830; x += 8) w.prop('dg_bigpipe', x, 214.5, 0, { scale: 0.7, solid: true });
-  w.prop('dg_scaffold', 700, 150, 0, { solid: true }); w.prop('dg_scaffold', 778, 186, PI / 2, { solid: true });
-  w.prop('dg_crane', 744, 202, 0.6, { solid: true });
-  for (const [x, z] of [[740, 184], [706, 172], [788, 160], [876, 232]]) w.prop('dg_tankS', x, z, 0, { solid: true });
-  C.loot(760, 175, 50, ['crate', 'toolbox', 'ammo_box', 'crate', 'trash', 'locker', 'toolbox'], 1, { avoid: (x, z) => !C.inDam(x, z, -2) });
-  C.clutter(800, 175, 50, 22, ['barrel', 'crate', 'dg_container', 'dg_containerB', 'pipe', 'dg_bigpipe', 'debris', 'dg_scaffold'], { avoid: (x, z) => !C.inDam(x, z, -2) || C.distLine(x, z, HIGHWAY) < 6 });
-  for (const [x, z] of [[730, 140], [760, 150], [796, 170], [846, 200], [870, 224], [740, 186], [760, 228], [660, 190]]) C.flood(x, z);
-  // ---------------- Controlled Access Zone (puzzle vault)
-  C.bld({ x: 646, z: 208, w: 46, d: 36, storeys: 3, floorY: HIGH, blend: 0.5, name: 'Controlled Access Zone', tint: 0xb8b8b0, floor: 'metalPanel',
-    doors: [{ side: 's', at: 21, w: 2.4, door: true }, { side: 'w', at: 26, w: 1.8, door: true }, { side: 'e', at: 26, w: 1.8, door: true }, { side: 's', at: 6, w: 3, sill: 1.2 }, { side: 's', at: 36, w: 3, sill: 1.2 }],
-    inner: [[0, 14, 46, 14, [{ at: 4.5, w: 2, door: true }, { at: 22, w: 2.4, door: true, locked: 'controlled_access_zone' }, { at: 39.5, w: 2, door: true }]],
-      [12, 0, 12, 14, []], [34, 0, 34, 14, []], [0, 26, 46, 26, [{ at: 8, w: 2.4 }, { at: 35.5, w: 2.4 }]]],
-    roofExtras: [[4, 4, 10, 10, 1.4], [36, 20, 42, 30, 1.0]] });
-  C.furnish('storage', 646, 208, 658, 222, { tier: 2, extra: [['crate', 1]] });
-  w.prop('barrelBlue', 650, 212, 0, { solid: true });                                       // fuel cell
-  C.furnish('vault', 658, 208, 680, 222, { tier: 3, room: 'controlled_access_zone', extra: [['weapon_case', 1], ['raider_cache', 1]], light: true, li: 1.2 });
-  w.keyRoom('controlled_access_zone', 658, 208, 680, 222, null, { name: 'Controlled Access Zone Vault' });
-  C.furnish('control', 680, 208, 692, 222, { tier: 2 });
-  w.prop('dg_fusebox', 690.8, 215, -PI / 2, { solid: true });                                // resource lock panel
-  for (const [x, z, r] of [[648.5, 224, PI / 2], [689.5, 224, -PI / 2], [648.5, 233, PI / 2], [689.5, 233, -PI / 2]]) w.prop('dg_switch', x, z, r, { solid: true });
-  w.prop('dg_puzzle', 669, 222.3, 0, { y: 2.3 });
-  // the switch hall: work desks, shelving and dropped crates between the four switch panels
-  for (const [x, z, k, r] of [[654, 228.5, 'dg_desk', 0], [684, 228.5, 'dg_desk', 0], [660, 233, 'shelf', PI], [678, 233, 'shelf', PI], [669, 229, 'dg_console', 0], [652, 231.5, 'crate', 0.3], [687, 231.8, 'barrel', 0]]) w.prop(k, x, z, r, { solid: true });
-  w.container('electronics', 666, 233, PI, { tier: 2 }); w.container('toolbox', 673, 233, PI, { tier: 2 }); w.container('crate', 656, 233, 0, { tier: 1 });
-  C.inLight(669, 228, 0xd0e8ff, 1.0, 12, 3.4);
-  C.furnish('security', 646, 234, 668, 244, { tier: 2 });
-  C.furnish('commercial', 670, 234, 692, 244, { tier: 1, mul: 0.6 });
-  for (const [x, z] of [[662, 249], [678, 249]]) w.prop('dg_barrier', x, z, 0, { solid: true });
-  C.flood(640, 202); C.flood(700, 250); C.beacon(636, 254); C.beacon(712, 198);
-  // ---------------- Pipeline Tower
-  w.prop('dg_pipetower', 752, 248, 0, { solid: true });
-  C.bld({ x: 716, z: 240, w: 20, d: 18, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Pipeline Pumphouse', roof: 'corrugated', floor: 'metalPanel',
-    doors: [{ side: 's', at: 4, w: 2.4, door: true }, { side: 'e', at: 7, w: 2.4 }, { side: 'w', at: 4, w: 2, door: true }],
-    inner: [[11, 0, 11, 18, [{ at: 8, w: 1.8 }]]] });
-  C.furnish('industrial', 716, 240, 727, 258, { tier: 2 });
-  w.prop('dg_pump', 720, 246, PI / 2, { solid: true }); w.prop('dg_valve', 723.5, 253, 0, { solid: true });   // "the valve"
-  C.furnish('control', 727, 240, 736, 258, { tier: 2 });
-  for (const [x, z, r] of [[760, 244, 0], [762, 256, 0], [744, 262, PI / 2]]) w.prop('dg_bigpipe', x, z, r, { solid: true });
-  C.clutter(750, 225, 18, 8, ['barrel', 'crate', 'pipe', 'dg_scaffold'], { avoid: (x, z) => !C.inDam(x, z, -2) || (x > 744 && x < 760 && z > 240 && z < 256) });
-  w.prop('dg_scaffold', 744, 240, 0, { solid: true });
-  C.flood(766, 232); C.flood(712, 262); C.beacon(770, 266); C.beacon(770, 188);
-  // ---------------- Raider Outpost East
-  for (const [x, z, bw, bd, nm] of [[856, 144, 10, 8, 'Raider Shack'], [872, 156, 9, 8, 'Raider Bunkhouse'], [890, 142, 10, 8, 'Raider Workshop']]) {
-    C.bld({ x, z, w: bw, d: bd, wall: 'corrugated', floor: 'wood', roof: 'corrugated', roofTint: 0xb09070, name: nm, floorY: HIGH + 0.2, blend: 1,
+  const G = DAM;
+  // ---------------- Raider Outpost East (dam frame, north of the highway)
+  const shack = (u, v, ww, d, nm, type, tier) => {
+    const bb = C.dbld({ u, v, w: ww, d, wall: 'corrugated', floor: 'wood', roof: 'corrugated', roofTint: 0xb09070, name: nm, floorY: HIGH + 0.6, blend: 1,
       doors: [{ side: 's', at: 2, w: 1.8 }, { side: 'e', at: 2, w: 2, sill: 1.0 }] });
-  }
-  C.furnish('raider', 856, 144, 866, 152, { tier: 2 });
-  C.furnish('bunk', 872, 156, 881, 164, { tier: 1 });
-  C.furnish('workshop', 890, 142, 900, 150, { tier: 2 });
-  w.prop('dg_watchtower', 902, 168, 0.3, { solid: true });
-  w.prop('dg_tent', 862, 170, 0.2, { solid: true }); w.prop('dg_tent', 886, 170, -0.1, { solid: true });
-  C.sandbags([[850, 160], [850, 176], [858, 180]]); C.sandbags([[896, 156], [906, 158]]);
-  C.fire(876, 172);
-  C.loot(876, 162, 16, ['raider_cache', 'ammo_box', 'crate', 'backpack', 'medical_bag', 'weapon_case'], 2);
-  C.clutter(876, 162, 22, 14, ['crate', 'barrel', 'dg_hedgehog', 'debris', 'dg_barrier'], {});
-  for (const [x, z] of [[866, 140], [906, 150], [858, 178]]) w.lamp(x, z, { y: 3.4, color: 0xffa860, intensity: 1.55, range: 10, flicker: 0.4 });
+    C.F(bb, type, 0, 0, ww, d, { tier });
+    return bb;
+  };
+  C.B.roe = shack(112, -258, 10, 8, 'Raider Shack', 'raider', 2);
+  shack(126, -240, 9, 8, 'Raider Bunkhouse', 'bunk', 1);
+  shack(138, -258, 10, 8, 'Raider Workshop', 'workshop', 2);
+  C.gprop(G, 'dg_watchtower', 150, -228, 0.3, { solid: true });
+  C.gprop(G, 'dg_tent', 108, -230, 0.2, { solid: true }); C.gprop(G, 'dg_tent', 140, -236, -0.1, { solid: true });
+  C.sandbags(LP([[104, -262], [104, -244], [110, -238]])); C.sandbags(LP([[146, -262], [152, -250]]));
+  C.fire(...L(122, -232));
+  C.loot(...L(126, -244), 16, ['raider_cache', 'ammo_box', 'crate', 'backpack', 'medical_bag', 'weapon_case'], 2);
+  C.clutter(...L(126, -244), 22, 14, ['crate', 'barrel', 'dg_hedgehog', 'debris', 'dg_barrier'], { frame: G, avoid: (x, z) => { const [u, v] = toL(x, z); return v > -214; } });
+  for (const [u, v] of [[110, -262], [150, -262], [104, -236]]) C.glamp(G, u, v, { y: 3.4, color: 0xffa860, intensity: 1.55, range: 10, flicker: 0.4 });
   // ---------------- West Broken Bridge (broken highway) + the hideout beneath
   w.prop('dg_brokenspan', 566, 31, 1.1, {}); w.prop('dg_brokenspan', 592, 52, 2.2, {});
-  C.clutter(582, 46, 24, 16, ['dg_rubble', 'dg_rubble', 'debris', 'rock', 'dg_slab'], {});
+  C.clutter(582, 46, 24, 16, ['dg_rubble', 'dg_rubble', 'debris', 'rock', 'dg_slab'], { avoid: (x, z) => C.inDam(x, z, 2) });
   w.prop('dg_tent', 540, 34, 0.45, { solid: true }); w.prop('dg_bed', 534, 30, 0.45, { solid: true });
   C.fire(546, 30); w.container('raider_cache', 532, 35, 0.4, { tier: 2 }); w.container('suitcase', 548, 37, 0, { tier: 1 }); w.container('ammo_box', 537, 39, 0, { tier: 1 });
   C.sandbags([[524, 38], [532, 42], [540, 44]]);
-  for (const [x, z] of [[510, 3], [530, 13], [552, 22]]) C.beacon(x, z, { model: null, y: 13.6 });
+  for (const u of [-252, -234, -218]) C.beacon(...L(u, -199));
   // ---------------- East Broken Bridge
   w.prop('dg_brokenspan', 944, 244, 2.1, {}); w.prop('dg_brokenspan', 956, 262, 2.6, {});
   C.clutter(950, 256, 18, 14, ['dg_rubble', 'debris', 'rock', 'dg_slab'], {});
   C.loot(948, 252, 14, ['crate', 'trash', 'ammo_box'], 1);
-  C.beacon(926, 225, { model: null, y: 10.5 });
-  // ---------------- Pattern House (walled compound)
-  for (const [ax, az, bx, bz, gaps] of [[660, 30, 716, 30, []], [660, 78, 716, 78, [[690, 78]]], [660, 30, 660, 78, [[660, 50]]], [716, 30, 716, 78, [[716, 64]]]]) {
-    const horiz = az === bz, L = horiz ? bx - ax : bz - az;
-    w.wallLine(ax, az, bx, bz, 0.5, 1.6, 'brick', gaps.map(([gx, gz]) => ({ at: (horiz ? gx - ax : gz - az) - 1.5, w: 3 })));
-    for (const [gx, gz] of gaps) C.doorPts.push([gx, gz]);
-  }
-  C.bld({ x: 668, z: 40, w: 26, d: 18, storeys: 2, wall: 'brick', floor: 'tiles', roof: 'roofTile', roofShape: 'gable', name: 'Pattern House', tint: 0xf0d8c8,
-    doors: [{ side: 's', at: 11, w: 2, door: true }, { side: 'e', at: 7, w: 1.6, door: true }, { side: 's', at: 3, w: 2.4, sill: 0.9 }, { side: 's', at: 19, w: 2.4, sill: 0.9 }, { side: 'n', at: 6, w: 2.4, sill: 0.9 }, { side: 'n', at: 16, w: 2.4, sill: 0.9 }, { side: 'w', at: 7, w: 2, sill: 0.9 }],
-    inner: [[9, 0, 9, 18, [{ at: 12, w: 1.6 }]], [18, 0, 18, 18, [{ at: 12, w: 1.6 }]], [0, 9, 9, 9, [{ at: 3, w: 1.6 }]], [18, 9, 26, 9, [{ at: 4, w: 1.6 }]]] });
-  C.furnish('bedroom', 668, 40, 677, 49, { tier: 2 }); C.furnish('kitchen', 668, 49, 677, 58, { tier: 1 });
-  C.furnish('living', 677, 40, 686, 58, { tier: 2 }); C.furnish('office', 686, 40, 694, 49, { tier: 2 }); C.furnish('storage', 686, 49, 694, 58, { tier: 1 });
-  C.bld({ x: 700, z: 54, w: 10, d: 12, wall: 'brick', roof: 'roofTile', roofShape: 'gable', name: 'Pattern House Annex', doors: [{ side: 'w', at: 4, w: 1.6, door: true }, { side: 's', at: 3, w: 2, sill: 0.9 }] });
-  C.furnish('workshop', 700, 54, 710, 66, { tier: 1 });
-  C.bld({ x: 664, z: 62, w: 8, d: 8, wall: 'wood', roof: 'corrugated', name: 'Garden Shed', floor: 'wood', doors: [{ side: 'e', at: 3, w: 1.6 }] });
-  C.furnish('storage', 664, 62, 672, 70, { tier: 1 });
-  C.clutter(688, 68, 14, 10, ['bush', 'dg_planter', 'barrel', 'crate'], { avoid: (x, z) => x < 662 || x > 714 || z < 32 || z > 76 });
-  w.prop('car', 688, 72, 1.5, { solid: true }); w.container('car_trunk', 688, 74.5, 0, { tier: 1 });
-  w.lamp(681, 61, { y: 3, model: null, color: 0xffc890, intensity: 1, range: 9 }); w.lamp(712, 76, { y: 4, color: 0xffc078, intensity: 1.55, range: 10 });
-  // ---------------- Rubie Residence (villa + garden + two houses)
-  for (const [ax, az, bx, bz, gaps] of [[348, 50, 392, 50, []], [348, 90, 392, 90, [[370, 90]]], [348, 50, 348, 90, [[348, 76]]], [392, 50, 392, 90, [[392, 70]]]]) {
-    const horiz = az === bz;
-    w.wallLine(ax, az, bx, bz, 0.5, 1.5, 'plaster', gaps.map(([gx, gz]) => ({ at: (horiz ? gx - ax : gz - az) - 1.5, w: 3 })), { tint: 0xe8c8c0 });
-    for (const [gx, gz] of gaps) C.doorPts.push([gx, gz]);
-  }
-  C.bld({ x: 356, z: 56, w: 28, d: 22, storeys: 2, wall: 'plaster', tint: 0xe8c0b8, floor: 'wood', roof: 'roofTile', roofShape: 'gable', name: 'Rubie Residence',
+  for (const u of [184, 204, 216]) C.beacon(...L(u, -201.5));
+  // ---------------- Pattern House (walled compound, dam frame)
+  C.compound(G, -110, -266, -70, -228, 1.6, 'brick', [['s', 18], ['w', 16], ['e', 30]]);
+  const ph = C.B.ph = C.dbld({ u: -104, v: -244, w: 24, d: 12, storeys: 2, wall: 'brick', floor: 'tiles', roof: 'roofTile', roofShape: 'gable', name: 'Pattern House', tint: 0xf0d8c8,
+    doors: [{ side: 's', at: 10, w: 2, door: true }, { side: 'e', at: 8, w: 1.6, door: true }, { side: 's', at: 3, w: 2.4, sill: 0.9 }, { side: 's', at: 19, w: 2.4, sill: 0.9 }, { side: 'n', at: 3, w: 2.4, sill: 0.9 }, { side: 'n', at: 11, w: 2.4, sill: 0.9 }, { side: 'n', at: 19, w: 2.4, sill: 0.9 }, { side: 'w', at: 4, w: 2, sill: 0.9 }],
+    inner: [[8, 0, 8, 12, [{ at: 7, w: 1.6 }]], [16, 0, 16, 12, [{ at: 7, w: 1.6 }]], [16, 6, 24, 6, [{ at: 3, w: 1.6 }]]] });
+  C.F(ph, 'bedroom', 0, 0, 8, 12, { tier: 2 }); C.F(ph, 'living', 8, 0, 16, 12, { tier: 2 }); C.F(ph, 'office', 16, 0, 24, 6, { tier: 2 }); C.F(ph, 'storage', 16, 6, 24, 12, { tier: 1 });
+  const pk = C.dbld({ u: -80, v: -262, w: 8, d: 12, wall: 'brick', roof: 'roofTile', roofShape: 'gable', name: 'Pattern House Kitchen', doors: [{ side: 'w', at: 4, w: 1.6, door: true }, { side: 's', at: 3, w: 2, sill: 0.9 }] });
+  C.F(pk, 'kitchen', 0, 0, 8, 12, { tier: 1 });
+  const ps = C.dbld({ u: -108, v: -264, w: 8, d: 8, wall: 'wood', roof: 'corrugated', name: 'Garden Shed', floor: 'wood', doors: [{ side: 'e', at: 3, w: 1.6 }] });
+  C.F(ps, 'workshop', 0, 0, 8, 8, { tier: 1 });
+  const inPH = (x, z) => { const [u, v] = toL(x, z); return u > -108 && u < -72 && v > -264 && v < -230; };
+  C.clutter(...L(-90, -252), 16, 10, ['bush', 'dg_planter', 'barrel', 'crate'], { frame: G, avoid: (x, z) => !inPH(x, z) || C.reserved.some(([a, b]) => Math.hypot(a - x, b - z) < 3) });
+  C.gprop(G, 'car', -76, -236, PI / 2, { solid: true }); C.gcont(G, 'car_trunk', -76, -233.4, 0, { tier: 1 });
+  C.glamp(G, -90, -238, { y: 3, model: null, color: 0xffc890, intensity: 1.2, range: 9 }); C.glamp(G, -72, -229, { y: 4, color: 0xffc078, intensity: 1.55, range: 10 });
+  // ---------------- Rubie Residence (villa + garden + two houses, turned -15°)
+  const RU = G_RUB;
+  C.compound(RU, 348, 50, 392, 90, 1.5, 'plaster', [['s', 22], ['w', 26], ['e', 20]], { tint: 0xe8c8c0 });
+  const rv = C.B.rubie = C.gbld(RU, { x: 356, z: 56, w: 28, d: 22, storeys: 2, wall: 'plaster', tint: 0xe8c0b8, floor: 'wood', roof: 'roofTile', roofShape: 'gable', name: 'Rubie Residence',
     doors: [{ side: 's', at: 12, w: 2, door: true }, { side: 'n', at: 22, w: 1.6, door: true }, { side: 's', at: 3, w: 2.4, sill: 0.9 }, { side: 's', at: 21, w: 2.4, sill: 0.9 }, { side: 'w', at: 6, w: 2, sill: 0.9 }, { side: 'e', at: 14, w: 2, sill: 0.9 }, { side: 'n', at: 4, w: 2.4, sill: 0.9 }],
     inner: [[10, 0, 10, 22, [{ at: 14, w: 1.8 }, { at: 4, w: 1.6 }]], [18, 0, 18, 22, [{ at: 4, w: 1.8 }, { at: 15, w: 1.6 }]], [0, 12, 10, 12, [{ at: 4, w: 1.6 }]], [18, 11, 28, 11, [{ at: 5, w: 1.6 }]]] });
-  C.furnish('bedroom', 356, 56, 366, 68, { tier: 2 }); C.furnish('medical', 356, 68, 366, 78, { tier: 1, mul: 0.7 });
-  C.furnish('living', 366, 56, 374, 78, { tier: 2 }); C.furnish('kitchen', 374, 56, 384, 67, { tier: 1 }); C.furnish('office', 374, 67, 384, 78, { tier: 2 });
-  C.bld({ x: 322, z: 98, w: 18, d: 14, wall: 'plaster', tint: 0xd8c8b8, floor: 'wood', roof: 'roofTile', roofShape: 'gable', name: 'Rubie Cottage',
+  C.F(rv, 'bedroom', 0, 0, 10, 12, { tier: 2 }); C.F(rv, 'medical', 0, 12, 10, 22, { tier: 1, mul: 0.7 });
+  C.F(rv, 'living', 10, 0, 18, 22, { tier: 2 }); C.F(rv, 'kitchen', 18, 0, 28, 11, { tier: 1 }); C.F(rv, 'office', 18, 11, 28, 22, { tier: 2 });
+  const rc = C.gbld(RU, { x: 322, z: 98, w: 18, d: 14, wall: 'plaster', tint: 0xd8c8b8, floor: 'wood', roof: 'roofTile', roofShape: 'gable', name: 'Rubie Cottage',
     doors: [{ side: 's', at: 3, w: 1.8, door: true }, { side: 'e', at: 4, w: 2, sill: 0.9 }, { side: 'w', at: 6, w: 2, sill: 0.9 }], inner: [[9, 0, 9, 14, [{ at: 6, w: 1.6 }]]] });
-  C.furnish('living', 322, 98, 331, 112, { tier: 1 }); C.furnish('bedroom', 331, 98, 340, 112, { tier: 1 });
-  C.bld({ x: 368, z: 98, w: 20, d: 14, storeys: 2, wall: 'plaster', tint: 0xe0d0c0, floor: 'tiles', roof: 'roofTile', roofShape: 'gable', name: 'Rubie Guesthouse',
+  C.F(rc, 'living', 0, 0, 9, 14, { tier: 1 }); C.F(rc, 'bedroom', 9, 0, 18, 14, { tier: 1 });
+  const rg = C.gbld(RU, { x: 368, z: 98, w: 20, d: 14, storeys: 2, wall: 'plaster', tint: 0xe0d0c0, floor: 'tiles', roof: 'roofTile', roofShape: 'gable', name: 'Rubie Guesthouse',
     doors: [{ side: 's', at: 4, w: 1.8, door: true }, { side: 'n', at: 12, w: 1.6, door: true }, { side: 's', at: 12, w: 2.4, sill: 0.9 }], inner: [[10, 0, 10, 14, [{ at: 6, w: 1.6 }]]] });
-  C.furnish('kitchen', 368, 98, 378, 112, { tier: 1 }); C.furnish('bedroom', 378, 98, 388, 112, { tier: 2 });
-  C.clutter(370, 84, 20, 18, ['bush', 'bush', 'tree', 'dg_planter', 'rock'], { avoid: (x, z) => x < 350 || x > 390 || z < 52 || z > 88 });
+  C.F(rg, 'kitchen', 0, 0, 10, 14, { tier: 1 }); C.F(rg, 'bedroom', 10, 0, 20, 14, { tier: 2 });
+  const inRU = (x, z) => { const [X, Z] = GL(RU, x, z); return X > 350 && X < 390 && Z > 52 && Z < 88; };
+  C.clutter(...GW(RU, 370, 84), 20, 18, ['bush', 'bush', 'tree', 'dg_planter', 'rock'], { avoid: (x, z) => !inRU(x, z) });
   w.prop('car', 344, 120, 0.3, { solid: true }); w.prop('car', 392, 118, 1.2, { solid: true });
-  C.loot(370, 84, 16, ['basket', 'plant', 'trash'], 1);
-  for (const [x, z] of [[352, 86], [388, 54], [370, 92], [342, 112]]) w.lamp(x, z, { y: 3.6, color: 0xffc890, intensity: 1.55, range: 10 });
+  C.loot(...GW(RU, 370, 84), 16, ['basket', 'plant', 'trash'], 1, { avoid: (x, z) => !inRU(x, z) });
+  for (const [X, Z] of [[352, 86], [388, 54], [370, 92], [342, 112]]) C.glamp(RU, X, Z, { y: 3.6, color: 0xffc890, intensity: 1.55, range: 10 });
 }
 
-// ==================================================================================== WEST (swamp + NW ruins)
+// ==================================================================================== WEST (swamp + NW ruins + Water Treatment)
 function westPOIs(C) {
   const { w, R, rng } = C;
-  // ---------------- Pale Apartments
-  C.bld({ x: 250, z: 146, w: 30, d: 14, storeys: 3, wall: 'plaster', tint: 0xd8d4c8, floor: 'wood', roof: 'roofTar', name: 'Pale Apartments A',
+  // ---------------- Pale Apartments (-15°)
+  const PA = G_PALE;
+  const paA = C.B.pale = C.gbld(PA, { x: 250, z: 146, w: 30, d: 14, storeys: 3, wall: 'plaster', tint: 0xd8d4c8, floor: 'wood', roof: 'roofTar', name: 'Pale Apartments A',
     doors: [{ side: 's', at: 4, w: 1.6, door: true }, { side: 's', at: 14, w: 1.6, door: true }, { side: 's', at: 24, w: 1.6, door: true }, { side: 'n', at: 3, w: 2.2, sill: 1 }, { side: 'n', at: 13, w: 2.2, sill: 1 }, { side: 'n', at: 23, w: 2.2, sill: 1 }, { side: 'w', at: 5, w: 2, sill: 1 }],
     inner: [[10, 0, 10, 14, []], [20, 0, 20, 14, []], [0, 7, 10, 7, [{ at: 6, w: 1.6 }]], [10, 7, 20, 7, [{ at: 2, w: 1.6 }]], [20, 7, 30, 7, [{ at: 6, w: 1.6 }]]] });
-  for (let u = 0; u < 3; u++) { C.furnish(u === 1 ? 'kitchen' : 'bedroom', 250 + u * 10, 146, 260 + u * 10, 153, { tier: 1 }); C.furnish('living', 250 + u * 10, 153, 260 + u * 10, 160, { tier: u === 2 ? 2 : 1 }); }
-  C.bld({ x: 232, z: 176, w: 26, d: 14, storeys: 3, wall: 'plaster', tint: 0xd0ccc0, floor: 'wood', name: 'Pale Apartments B',
+  for (let u = 0; u < 3; u++) { C.F(paA, u === 1 ? 'kitchen' : 'bedroom', u * 10, 0, u * 10 + 10, 7, { tier: 1 }); C.F(paA, 'living', u * 10, 7, u * 10 + 10, 14, { tier: u === 2 ? 2 : 1 }); }
+  const paB = C.gbld(PA, { x: 232, z: 176, w: 26, d: 14, storeys: 3, wall: 'plaster', tint: 0xd0ccc0, floor: 'wood', name: 'Pale Apartments B',
     doors: [{ side: 'n', at: 5, w: 1.6, door: true }, { side: 'n', at: 18, w: 1.6, door: true }, { side: 's', at: 4, w: 2.2, sill: 1 }, { side: 's', at: 18, w: 2.2, sill: 1 }, { side: 'e', at: 6, w: 2, sill: 1 }],
     inner: [[13, 0, 13, 14, []], [0, 7, 13, 7, [{ at: 9, w: 1.6 }]], [13, 7, 26, 7, [{ at: 2, w: 1.6 }]]] });
-  C.furnish('living', 232, 176, 245, 183, { tier: 1 }); C.furnish('bedroom', 232, 183, 245, 190, { tier: 2 });
-  C.furnish('kitchen', 245, 176, 258, 183, { tier: 1 }); C.furnish('bunk', 245, 183, 258, 190, { tier: 1 });
-  C.bld({ x: 264, z: 172, w: 14, d: 12, storeys: 2, wall: 'plaster', tint: 0xc8c4b8, floor: 'tiles', name: 'Pale Apartments C',
+  C.F(paB, 'living', 0, 0, 13, 7, { tier: 1 }); C.F(paB, 'bedroom', 0, 7, 13, 14, { tier: 2 });
+  C.F(paB, 'kitchen', 13, 0, 26, 7, { tier: 1 }); C.F(paB, 'bunk', 13, 7, 26, 14, { tier: 1 });
+  const paC = C.gbld(PA, { x: 264, z: 172, w: 14, d: 12, storeys: 2, wall: 'plaster', tint: 0xc8c4b8, floor: 'tiles', name: 'Pale Apartments C',
     doors: [{ side: 'w', at: 4, w: 1.6, door: true }, { side: 's', at: 4, w: 2.2, sill: 1 }], inner: [[0, 6, 14, 6, [{ at: 9, w: 1.6 }]]] });
-  C.furnish('commercial', 264, 172, 278, 178, { tier: 1 }); C.furnish('medical', 264, 178, 278, 184, { tier: 1, mul: 0.8 });
-  w.prop('car', 240, 168, 1.57, { solid: true }); w.container('car_trunk', 242.5, 168, 1.57, { tier: 1 });
+  C.F(paC, 'commercial', 0, 0, 14, 6, { tier: 1 }); C.F(paC, 'medical', 0, 6, 14, 12, { tier: 1, mul: 0.8 });
+  C.gprop(PA, 'car', 240, 168, 1.57, { solid: true }); C.gcont(PA, 'car_trunk', 242.6, 168, 1.57, { tier: 1 });
   w.prop('car', 286, 160, 0.2, { solid: true });
-  C.clutter(258, 168, 16, 14, ['barrel', 'bush', 'crate', 'debris', 'dg_table'], { avoid: (x, z) => x < 230 || x > 284 });
-  C.loot(258, 167, 12, ['trash', 'basket', 'backpack'], 1);
-  for (const [x, z] of [[246, 164], [282, 168], [262, 196]]) w.lamp(x, z, { y: 4, color: 0xffc078, intensity: 1.55, range: 11 });
-  // ---------------- Ben Welda's Sunroof (house with a glass sunroof + welding garage)
-  C.bld({ x: 324, z: 190, w: 20, d: 16, storeys: 2, wall: 'brick', tint: 0xd8c8b0, floor: 'wood', roof: 'metalPanel', roofTint: 0x9ad6e6, peek: 0.55, name: "Ben Welda's Sunroof",
+  C.clutter(...GW(PA, 258, 168), 16, 14, ['barrel', 'bush', 'crate', 'debris', 'dg_table'], { frame: PA, avoid: (x, z) => { const [X] = GL(PA, x, z); return X < 230 || X > 284; } });
+  C.loot(...GW(PA, 258, 167), 12, ['trash', 'basket', 'backpack'], 1);
+  for (const [X, Z] of [[246, 164], [282, 168], [262, 196]]) C.glamp(PA, X, Z, { y: 4, color: 0xffc078, intensity: 1.55, range: 11 });
+  // ---------------- Ben Welda's Sunroof (house with a glass sunroof + welding garage, -15°)
+  const BW = G_BEN;
+  const bw = C.B.ben = C.gbld(BW, { x: 324, z: 190, w: 20, d: 16, storeys: 2, wall: 'brick', tint: 0xd8c8b0, floor: 'wood', roof: 'metalPanel', roofTint: 0x9ad6e6, peek: 0.55, name: "Ben Welda's Sunroof",
     doors: [{ side: 'w', at: 6, w: 1.8, door: true }, { side: 's', at: 13, w: 1.8, door: true }, { side: 's', at: 4, w: 2.4, sill: 0.9 }, { side: 'n', at: 6, w: 2.4, sill: 0.9 }, { side: 'n', at: 14, w: 2.4, sill: 0.9 }],
     inner: [[10, 0, 10, 16, [{ at: 6, w: 1.6 }]], [10, 8, 20, 8, [{ at: 3, w: 1.6 }]]] });
-  C.furnish('living', 324, 190, 334, 206, { tier: 2 }); C.furnish('bedroom', 334, 190, 344, 198, { tier: 2 }); C.furnish('kitchen', 334, 198, 344, 206, { tier: 1 });
-  C.bld({ x: 346, z: 194, w: 10, d: 10, wall: 'corrugated', roof: 'corrugated', floor: 'concrete', name: "Welda's Garage", doors: [{ side: 's', at: 2, w: 3.2 }, { side: 'w', at: 3, w: 1.6 }] });
-  C.furnish('workshop', 346, 194, 356, 204, { tier: 2, extra: [['toolbox', 1]] });
+  C.F(bw, 'living', 0, 0, 10, 16, { tier: 2 }); C.F(bw, 'bedroom', 10, 0, 20, 8, { tier: 2 }); C.F(bw, 'kitchen', 10, 8, 20, 16, { tier: 1 });
+  const bg = C.gbld(BW, { x: 346, z: 194, w: 10, d: 10, wall: 'corrugated', roof: 'corrugated', floor: 'concrete', name: "Welda's Garage", doors: [{ side: 's', at: 2, w: 3.2 }, { side: 'w', at: 3, w: 1.6 }] });
+  C.F(bg, 'workshop', 0, 0, 10, 10, { tier: 2, extra: [['toolbox', 1]] });
   C.hatch('sunroof_hatch', 'Sunroof Hatch', 318, 194);
-  w.prop('car', 352, 212, 1.4, { solid: true }); C.clutter(336, 212, 10, 6, ['barrel', 'crate', 'dg_planter', 'bush'], {});
-  w.lamp(330, 208, { y: 3.4, color: 0xffc890, intensity: 1.55, range: 9 }); w.lamp(356, 206, { y: 3.4, color: 0xffd8a0, intensity: 1.55, range: 9, flicker: 0.3 });
+  w.prop('car', 352, 214, 1.4, { solid: true }); C.clutter(...GW(BW, 336, 212), 10, 6, ['barrel', 'crate', 'dg_planter', 'bush'], { frame: BW });
+  C.glamp(BW, 330, 208, { y: 3.4, color: 0xffc890, intensity: 1.55, range: 9 }); C.glamp(BW, 356, 206, { y: 3.4, color: 0xffd8a0, intensity: 1.55, range: 9, flicker: 0.3 });
   // ---------------- Hydroponic Dome Complex
   const dome = (cx, cz, s, kind) => {
     const r = 7.1 * s;
@@ -926,17 +1021,17 @@ function westPOIs(C) {
   dome(446, 234, 0.55, 'garden');
   // greenhouse tunnels (arched film houses)
   const tunnel = (a, b) => {
-    const L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.round(L / 4), rot = Math.atan2(b[0] - a[0], b[1] - a[1]);
+    const L_ = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.round(L_ / 4), rot = Math.atan2(b[0] - a[0], b[1] - a[1]);
     w.ridge([a, b], 7, MID + 0.25, 2, 'set'); w.path([a, b], 6, 'tiles');
     for (let i = 0; i < n; i++) { const t = (i + 0.5) / n; w.prop('dg_arch', lerp(a[0], b[0], t), lerp(a[1], b[1], t), rot, {}); }
     for (let i = 1; i < n; i += 2) { const t = (i + 0.5) / n, x = lerp(a[0], b[0], t), z = lerp(a[1], b[1], t), ox = Math.cos(rot) * 1.8, oz = -Math.sin(rot) * 1.8; w.prop('dg_planter', x + ox, z + oz, rot + PI / 2, { solid: true }); w.prop('dg_planter', x - ox, z - oz, rot + PI / 2, { solid: true }); }
     for (let i = 0; i < 3; i++) { const t = (i + 0.7) / 3.4; w.container(i % 2 ? 'plant' : 'basket', lerp(a[0], b[0], t), lerp(a[1], b[1], t), rot, { tier: 1 }); }
-    w.lamp(lerp(a[0], b[0], 0.5), lerp(a[1], b[1], 0.5), { y: 2.8, model: null, color: 0xd8a0ff, intensity: 0.9, range: L * 0.6 });
-    C.addClear(lerp(a[0], b[0], 0.5), lerp(a[1], b[1], 0.5), L / 2 + 3);
+    w.lamp(lerp(a[0], b[0], 0.5), lerp(a[1], b[1], 0.5), { y: 2.8, model: null, color: 0xd8a0ff, intensity: 0.9, range: L_ * 0.6 });
+    C.addClear(lerp(a[0], b[0], 0.5), lerp(a[1], b[1], 0.5), L_ / 2 + 3);
   };
   tunnel([518, 248], [556, 262]);
   tunnel([469, 252], [469, 280]);
-  C.bld({ x: 506, z: 222, w: 18, d: 12, wall: 'metalPanel', tint: 0xd8e0d8, floor: 'tiles', roof: 'metalPanel', roofTint: 0xb0c8c0, name: 'Hydroponics Lab',
+  C.B.hydro = C.bld({ x: 506, z: 222, w: 18, d: 12, wall: 'metalPanel', tint: 0xd8e0d8, floor: 'tiles', roof: 'metalPanel', roofTint: 0xb0c8c0, name: 'Hydroponics Lab',
     doors: [{ side: 's', at: 4, w: 1.8, door: true }, { side: 'n', at: 12, w: 1.8, door: true }, { side: 'e', at: 4, w: 2.4, sill: 1 }], inner: [[9, 0, 9, 12, [{ at: 5, w: 1.6 }]]] });
   C.furnish('lab', 506, 222, 515, 234, { tier: 2 }); C.furnish('greenhouse', 515, 222, 524, 234, { tier: 2 });
   C.bld({ x: 538, z: 218, w: 10, d: 8, wall: 'corrugated', roof: 'corrugated', floor: 'concrete', name: 'Seed Store', doors: [{ side: 'w', at: 3, w: 1.8 }] });
@@ -964,46 +1059,47 @@ function westPOIs(C) {
   w.prop('dg_emptrap', 232, 318, 0, { solid: true });
   for (let i = 0; i < 3; i++) { const a = i * 2.094 + 0.4; w.prop('dg_switch', 232 + Math.cos(a) * 6.5, 318 + Math.sin(a) * 6.5, -a + PI / 2, { solid: true }); }
   w.lamp(232, 318, { y: 3, model: null, color: 0x40c0ff, intensity: 1.3, range: 9, flicker: 0.5 });
-  C.bld({ x: 194, z: 322, w: 10, d: 8, wall: 'concrete', roof: 'concrete', floor: 'concrete', name: 'Battleground Bunker', tint: 0xa8a498, doors: [{ side: 'e', at: 3, w: 1.8 }, { side: 'n', at: 3, w: 3, sill: 1.3 }] });
-  C.furnish('security', 194, 322, 204, 330, { tier: 2 });
-  C.bld({ x: 258, z: 292, w: 9, d: 7, wall: 'concrete', roof: 'concrete', floor: 'concrete', name: 'Pillbox', tint: 0xa8a498, doors: [{ side: 's', at: 3, w: 1.8 }, { side: 'w', at: 2, w: 3, sill: 1.3 }] });
-  C.furnish('storage', 258, 292, 267, 299, { tier: 2, extra: [['ammo_box', 1]] });
-  w.prop('dg_bigwreck', 256, 330, 0.7, { solid: true });                                     // Baron husk (reference ◎)
-  w.container('arc_husk', 251, 324, 0, { tier: 3 });
+  C.bld({ x: 194, z: 322, w: 10, d: 8, rot: 0.35, wall: 'concrete', roof: 'concrete', floor: 'concrete', name: 'Battleground Bunker', tint: 0xa8a498, doors: [{ side: 'e', at: 3, w: 1.8 }, { side: 'n', at: 3, w: 3, sill: 1.3 }] });
+  C.F(w.buildings[w.buildings.length - 1], 'security', 0, 0, 10, 8, { tier: 2 });
+  const pbx = C.bld({ x: 258, z: 292, w: 9, d: 7, rot: -0.4, wall: 'concrete', roof: 'concrete', floor: 'concrete', name: 'Pillbox', tint: 0xa8a498, doors: [{ side: 's', at: 3, w: 1.8 }, { side: 'w', at: 2, w: 3, sill: 1.3 }] });
+  C.F(pbx, 'storage', 0, 0, 9, 7, { tier: 2, extra: [['ammo_box', 1]] });
+  w.container('barron_husk', 250, 322, 0.7, { tier: 2 });                                   // Baron husk (reference ◎)
+  w.paintCircle('rock', 250, 322, 4.5, 0.4, 9);
   for (const [x, z, r] of [[214, 306, 0.2], [244, 344, 1.4], [270, 320, 2.3], [206, 340, 3.0]]) w.prop('dg_huskbig', x, z, r, { solid: true });
-  C.clutter(238, 322, 40, 30, ['dg_hedgehog', 'dg_hedgehog', 'husk', 'deadTree', 'debris', 'dg_rubble', 'dg_stump'], { sz: 0.8 });
+  C.clutter(238, 322, 40, 30, ['dg_hedgehog', 'dg_hedgehog', 'husk', 'deadTree', 'debris', 'dg_rubble', 'dg_stump'], { sz: 0.8, avoid: (x, z) => Math.hypot(x - 250, z - 322) < 5 });
   C.sandbags([[208, 304], [218, 300], [226, 302]]); C.sandbags([[240, 336], [250, 338], [256, 344]]); C.sandbags([[268, 304], [276, 308]]);
   w.path([[200, 300], [214, 296], [226, 306], [238, 302], [250, 290], [262, 300], [278, 296]], 2.2, 'mud');
   C.loot(238, 322, 36, ['arc_husk', 'arc_crate', 'ammo_box', 'arc_crate', 'weapon_case', 'crate', 'arc_husk', 'raider_cache', 'backpack'], 2);
   C.addClear(238, 322, 30);
-  // ---------------- Water Treatment Control (+ surveillance key room)
-  C.bld({ x: 366, z: 414, w: 32, d: 44, storeys: 2, floorY: MID + 0.35, blend: 2, name: 'Water Treatment Control', wall: 'concrete', tint: 0xd0d4cc, floor: 'tiles', roof: 'corrugated', roofTint: 0xb8c0b8,
-    doors: [{ side: 'e', at: 30, w: 2.4, door: true }, { side: 's', at: 22, w: 2, door: true }, { side: 'n', at: 14, w: 3 }, { side: 'e', at: 8, w: 3, sill: 1.1 }, { side: 'w', at: 10, w: 3, sill: 1.1 }, { side: 'w', at: 28, w: 3, sill: 1.1 }, { side: 'e', at: 18, w: 3, sill: 1.1 }],
+  // ---------------- Water Treatment Control (+ surveillance key room), turned -15° with its plaza
+  const WT = G_WTC;
+  const wtc = C.B.wtc = C.gbld(WT, { x: 366, z: 414, w: 32, d: 44, storeys: 2, floorY: MID + 0.35, blend: 2, name: 'Water Treatment Control', wall: 'concrete', tint: 0xd0d4cc, floor: 'tiles', roof: 'corrugated', roofTint: 0xb8c0b8,
+    doors: [{ side: 'e', at: 26, w: 2.4, door: true }, { side: 's', at: 22, w: 2, door: true }, { side: 'n', at: 14, w: 3 }, { side: 'e', at: 8, w: 3, sill: 1.1 }, { side: 'w', at: 10, w: 3, sill: 1.1 }, { side: 'w', at: 26, w: 3, sill: 1.1 }, { side: 'e', at: 36, w: 3, sill: 1.1 }],
     inner: [[0, 20, 32, 20, [{ at: 14, w: 2.4 }]], [0, 32, 32, 32, [{ at: 6, w: 1.8, door: true, locked: 'surveillance' }, { at: 24, w: 1.8 }]], [16, 32, 16, 44, []]] });
-  for (const [x, z] of [[372, 420], [380, 420], [388, 420]]) w.prop('dg_pump', x, z, PI / 2, { solid: true });
-  w.prop('dg_valve', 394, 427, 0, { solid: true }); w.prop('dg_bigpipe', 382, 431.5, 0, { solid: true, scale: 0.6 });
-  w.container('toolbox', 370, 432, 0, { tier: 2 }); w.container('crate', 396, 416, 0, { tier: 1 }); w.container('locker', 368, 426, PI / 2, { tier: 1 });
-  C.inLight(374, 424, 0xd0e0ff, 1.0, 10); C.inLight(390, 424, 0xd0e0ff, 1.0, 10);
-  C.furnish('control', 366, 434, 398, 446, { tier: 2 });
-  C.furnish('security', 366, 446, 382, 458, { tier: 3, room: 'surveillance', extra: [['electronics', 1], ['security_locker', 1]] });
-  w.prop('dg_server', 370, 447, 0, { solid: true });
-  w.keyRoom('surveillance', 366, 446, 382, 458, null, { name: 'Surveillance Room' });
-  C.furnish('office', 382, 446, 398, 458, { tier: 2 });
+  for (const lx of [6, 14, 22]) C.P(wtc, 'dg_pump', lx, 6, PI / 2, { solid: true });
+  C.P(wtc, 'dg_valve', 28, 13, 0, { solid: true }); C.P(wtc, 'dg_bigpipe', 16, 17.5, 0, { solid: true, scale: 0.6 });
+  C.Cn(wtc, 'toolbox', 4, 18, 0, { tier: 2 }); C.Cn(wtc, 'crate', 30, 2, 0, { tier: 1 }); C.Cn(wtc, 'locker', 2, 12, PI / 2, { tier: 1 });
+  C.IL(wtc, 8, 10, 0xd0e0ff, 1.0, 10); C.IL(wtc, 24, 10, 0xd0e0ff, 1.0, 10);
+  C.F(wtc, 'control', 0, 20, 32, 32, { tier: 2 });
+  C.F(wtc, 'security', 0, 32, 16, 44, { tier: 3, room: 'surveillance', extra: [['electronics', 1], ['security_locker', 1]] });
+  C.P(wtc, 'dg_server', 4, 33, 0, { solid: true });
+  C.K(wtc, 'surveillance', 0, 32, 16, 44, 'Surveillance Room');
+  C.F(wtc, 'office', 16, 32, 32, 44, { tier: 2 });
   // intake below WTC
-  w.prop('dg_bigpipe', 381, 404, PI / 2, { solid: true }); w.prop('dg_spillgrate', 381, 398, 0, {}); w.prop('dg_pump', 390, 408, 0, { solid: true });
-  w.lamp(384, 402, { y: 3, model: null, color: 0xffd090, intensity: 0.9, range: 8, flicker: 0.4 });
+  C.gprop(WT, 'dg_bigpipe', 381, 404, PI / 2, { solid: true }); C.gprop(WT, 'dg_spillgrate', 381, 398, 0, {}); C.gprop(WT, 'dg_pump', 392, 406, 0, { solid: true });
+  C.glamp(WT, 386, 402, { y: 3, model: null, color: 0xffd090, intensity: 0.9, range: 8, flicker: 0.4 });
   // plaza: settling basins, elevator
-  w.paint('concrete', 400, 428, 470, 502);
-  for (const [x0, z0, x1, z1] of [[404, 436, 430, 454], [404, 462, 430, 480]]) {
-    w.raiseRect(x0 + 1, z0 + 1, x1 - 1, z1 - 1, MID - 1.3, 0, 'set');
-    w.water(x0 + 1, z0 + 1, x1 - 1, z1 - 1, { level: MID - 0.4, material: C.swampMat });
-    for (const [a, b, c, d] of [[x0, z0, x1, z0 + 1], [x0, z1 - 1, x1, z1], [x0, z0, x0 + 1, z1], [x1 - 1, z0, x1, z1]]) w.block(a, b, c, d, 0.9, 'concrete', { y0: MID + 0.2 });
-    w.prop('dg_gantry', (x0 + x1) / 2, (z0 + z1) / 2, 0, { scale: 0.8 });
+  w.paintPoly('concrete', GR(WT, 400, 424, 440, 492));
+  for (const [x0, z0, x1, z1] of [[404, 434, 430, 452], [404, 460, 430, 478]]) {
+    C.lfill(WT, x0 + 1, z0 + 1, x1 - 1, z1 - 1, MID - 1.3);
+    w.waterPoly(GR(WT, x0 + 1, z0 + 1, x1 - 1, z1 - 1), { level: MID - 0.4, material: C.swampMat });
+    for (const [a, b, c, d] of [[x0, z0, x1, z0 + 1], [x0, z1 - 1, x1, z1], [x0, z0, x0 + 1, z1], [x1 - 1, z0, x1, z1]]) C.gblock(WT, a, b, c, d, 0.9, 'concrete', { y0: MID + 0.2 });
+    C.gprop(WT, 'dg_gantry', (x0 + x1) / 2, (z0 + z1) / 2, 0, { scale: 0.8 });
   }
   C.lift('water_treatment_elevator', 'Water Treatment Elevator', 440, 484);
-  C.clutter(445, 470, 22, 14, ['barrelBlue', 'crate', 'dg_container', 'pipe', 'dg_barrier', 'dg_toxic'], { avoid: (x, z) => x < 434 || (x > 438 && z < 456 && x < 472) });
-  C.loot(448, 470, 18, ['crate', 'toolbox', 'trash', 'ammo_box'], 1, { avoid: (x, z) => x < 434 });
-  for (const [x, z] of [[402, 432], [434, 430], [466, 466], [402, 500], [436, 500], [362, 412], [400, 462]]) w.lamp(x, z, { y: 4, color: 0xffd8a0, intensity: 1.55, range: 12 });
+  C.clutter(448, 472, 20, 12, ['barrelBlue', 'crate', 'dg_container', 'pipe', 'dg_barrier', 'dg_toxic'], { frame: WT, avoid: (x, z) => { const [X] = GL(WT, x, z); return X < 434 || C.inDam(x, z, 2); } });
+  C.loot(448, 472, 18, ['crate', 'toolbox', 'trash', 'ammo_box'], 1, { avoid: (x, z) => { const [X] = GL(WT, x, z); return X < 434 || C.inDam(x, z, 2); } });
+  for (const [X, Z] of [[402, 430], [434, 428], [402, 496], [436, 496], [362, 410], [400, 456]]) C.glamp(WT, X, Z, { y: 4, color: 0xffd8a0, intensity: 1.55, range: 12 });
   // clarifier (circular settling tank)
   w.raiseCircle(493, 522, 15, MID - 1.4, 0.15, 'set');
   w.waterPoly(Array.from({ length: 20 }, (_, i) => [493 + Math.cos(i / 20 * 2 * PI) * 15.5, 522 + Math.sin(i / 20 * 2 * PI) * 15.5]), { level: MID - 0.45, material: C.swampMat });
@@ -1011,63 +1107,13 @@ function westPOIs(C) {
   w.block(476, 521, 510, 523, 0.5, 'metalPanel', { y0: MID + 0.4, collide: false });     // rotating bridge
   w.prop('dg_ventbox', 493, 522, 0, { y: 0.9 });
   C.addClear(493, 522, 19);
-  // ---------------- Primary Facility (on the dam platform)
-  C.bld({ x: 476, z: 430, w: 56, d: 26, storeys: 3, floorY: HIGH, blend: 0.5, name: 'Primary Facility', wall: 'concrete', tint: 0xd8d2c4, floor: 'metalPanel',
-    doors: [{ side: 's', at: 8, w: 3.2 }, { side: 's', at: 44, w: 3.2 }, { side: 'w', at: 10, w: 2.4, door: true }, { side: 'e', at: 10, w: 2.4, door: true }, { side: 'n', at: 30, w: 2, door: true },
-      { side: 'n', at: 12, w: 3, sill: 1.1 }, { side: 'n', at: 44, w: 3, sill: 1.1 }, { side: 's', at: 20, w: 3, sill: 1.1 }, { side: 's', at: 32, w: 3, sill: 1.1 }],
-    inner: [[18, 0, 18, 26, [{ at: 11, w: 2.4 }]], [40, 0, 40, 26, [{ at: 11, w: 2.4 }]], [0, 13, 18, 13, [{ at: 7, w: 1.8 }]]],
-    roofExtras: [[22, 6, 36, 12, 1.8], [42, 16, 50, 22, 1.0]] });
-  C.furnish('office', 476, 430, 494, 443, { tier: 2 }); C.furnish('workshop', 476, 443, 494, 456, { tier: 2 });
-  w.prop('dg_turbine', 505, 441, 0, { solid: true }); w.prop('dg_console', 505, 452.5, PI, { solid: true }); w.prop('dg_generator', 505, 434, 0, { solid: true, scale: 0.7 });
-  w.container('toolbox', 498, 450, 0, { tier: 2 }); w.container('electronics', 512, 451, 0, { tier: 2 }); w.container('crate', 497, 433, 0, { tier: 1 });
-  C.inLight(500, 443, 0xffd090, 1.1, 11, 3.6); C.inLight(511, 443, 0xffd090, 1.1, 11, 3.6);
-  C.furnish('industrial', 516, 430, 532, 456, { tier: 2, extra: [['crate', 1]] });
-  C.bld({ x: 500, z: 464, w: 32, d: 18, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Primary Facility Annex', tint: 0xe0d8c8, floor: 'tiles',
-    doors: [{ side: 'n', at: 6, w: 2, door: true }, { side: 'w', at: 8, w: 2, door: true }, { side: 's', at: 24, w: 2, door: true }, { side: 'e', at: 6, w: 3, sill: 1.1 }, { side: 's', at: 8, w: 3, sill: 1.1 }],
-    inner: [[16, 0, 16, 18, [{ at: 4, w: 1.8 }]], [16, 9, 32, 9, [{ at: 6, w: 1.6 }]]] });
-  C.furnish('office', 500, 464, 516, 482, { tier: 2 }); C.furnish('medical', 516, 464, 532, 473, { tier: 2 }); C.furnish('storage', 516, 473, 532, 482, { tier: 1 });
-  C.fieldDepot(508, 492);
-  C.clutter(540, 470, 18, 12, ['crate', 'barrel', 'dg_container', 'dg_scaffold', 'pipe', 'dg_barrier'], { avoid: (x, z) => !C.inDam(x, z, -2) });
-  for (const [x, z] of [[472, 426], [534, 426], [472, 462], [540, 490], [490, 498]]) C.flood(x, z);
-  C.beacon(471, 499); C.beacon(555, 425);
-  // ---------------- Control Tower + Research & Administration
-  C.bld({ x: 584, z: 458, w: 32, d: 26, storeys: 4, floorY: HIGH, blend: 0.5, name: 'Control Tower', tint: 0xe4dccc, floor: 'tiles',
-    doors: [{ side: 's', at: 14, w: 2.4, door: true }, { side: 'w', at: 16, w: 1.8, door: true }, { side: 'e', at: 16, w: 1.8, door: true }, { side: 'n', at: 8, w: 4, sill: 1.0 }, { side: 'n', at: 20, w: 4, sill: 1.0 }, { side: 's', at: 4, w: 3, sill: 1.1 }, { side: 's', at: 24, w: 3, sill: 1.1 }],
-    inner: [[0, 11, 32, 11, [{ at: 13, w: 2.4, door: true, locked: 'control_tower' }]], [10, 11, 10, 26, [{ at: 6, w: 1.8 }]], [22, 11, 22, 26, [{ at: 6, w: 1.8 }]]],
-    roofExtras: [[4, 2, 12, 8, 2.0], [24, 14, 30, 22, 1.2]] });
-  C.furnish('control', 584, 458, 616, 469, { tier: 3, room: 'control_tower', extra: [['security_locker', 1], ['weapon_case', 1], ['electronics', 1]], li: 1.2 });
-  w.keyRoom('control_tower', 584, 458, 616, 469, null, { name: 'Control Tower Control Room' });
-  C.furnish('security', 584, 469, 594, 484, { tier: 2 }); C.furnish('office', 594, 469, 606, 484, { tier: 1, mul: 0.7 }); C.furnish('storage', 606, 469, 616, 484, { tier: 1 });
-  w.block(620, 458, 630, 468, 20, 'concrete', { y0: HIGH });                                // the tower shaft
-  w.prop('dg_ctrltop', 625, 463, 0, { yAbs: HIGH + 20 });
-  w.lamp(625, 469, { y: 21.5, model: null, color: 0x9ae8ff, intensity: 1.6, range: 13 });
-  C.bld({ x: 558, z: 496, w: 44, d: 40, storeys: 2, floorY: HIGH, blend: 0.5, name: 'Research & Administration', tint: 0xe8e0d0, floor: 'tiles', roofTint: 0xd0d0c8,
-    doors: [{ side: 's', at: 20, w: 2.4, door: true }, { side: 'n', at: 20, w: 2.4, door: true }, { side: 'w', at: 18, w: 1.8, door: true }, { side: 'e', at: 18, w: 1.8, door: true },
-      { side: 's', at: 6, w: 3, sill: 1.1 }, { side: 's', at: 34, w: 3, sill: 1.1 }, { side: 'e', at: 6, w: 3, sill: 1.1 }, { side: 'w', at: 6, w: 3, sill: 1.1 }, { side: 'n', at: 6, w: 3, sill: 1.1 }, { side: 'n', at: 34, w: 3, sill: 1.1 }],
-    inner: [[0, 14, 44, 14, [{ at: 6, w: 1.8 }, { at: 21, w: 1.8 }, { at: 36, w: 1.8 }]], [14, 0, 14, 14, []], [30, 0, 30, 14, []],
-      [0, 26, 44, 26, [{ at: 6, w: 1.8, door: true, locked: 'staff_room' }, { at: 21, w: 2.4 }, { at: 36, w: 1.8 }]], [16, 26, 16, 40, []], [28, 26, 28, 40, []]],
-    roofExtras: [[6, 4, 14, 10, 1.4], [30, 28, 38, 36, 1.4]] });
-  C.furnish('lab', 558, 496, 572, 510, { tier: 2 });                     // Lab 2
-  C.furnish('server', 572, 496, 588, 510, { tier: 2 });
-  C.furnish('lab', 588, 496, 602, 510, { tier: 2, extra: [['electronics', 1]] });  // Lab 1
-  C.furnish('commercial', 558, 510, 602, 522, { tier: 1 });
-  w.prop('dg_noticeboard', 580, 510.8, 0, { solid: true });
-  C.furnish('bunk', 558, 522, 574, 536, { tier: 3, room: 'staff_room', extra: [['security_locker', 1], ['weapon_case', 1], ['medical_bag', 1]] });
-  w.keyRoom('staff_room', 558, 522, 574, 536, null, { name: 'Staff Room' });
-  C.furnish('office', 574, 522, 586, 536, { tier: 1 });                  // reception
-  C.furnish('office', 586, 522, 602, 536, { tier: 2 });
-  w.prop('dg_sign', 580, 540.5, PI, { solid: true });
-  w.prop('dg_satdish', 612, 532, 2.4, { solid: true }); w.prop('dg_satdish', 612, 524, 2.0, { solid: true, scale: 0.7 });
-  w.prop('dg_barrier', 600, 452, 0, { solid: true }); w.prop('dg_barrier', 572, 454, 0, { solid: true });
-  C.clutter(625, 520, 14, 8, ['crate', 'barrel', 'dg_barrier', 'dg_container'], { avoid: (x, z) => !C.inDam(x, z, -2) });
-  for (const [x, z] of [[556, 456], [636, 456], [556, 544], [604, 544], [636, 500], [636, 540], [580, 490]]) C.flood(x, z);
-  for (const [x, z] of [[553, 547], [639, 453], [639, 547]]) C.beacon(x, z);
   // ---------------- South Swamp Outpost
-  w.prop('dg_radar', 213, 465, 0, { solid: true });
-  for (const [x, z, bw, bd, nm] of [[220, 470, 10, 8, 'Outpost Hut'], [198, 476, 8, 7, 'Outpost Store'], [224, 450, 9, 7, 'Outpost Radio']]) {
-    C.bld({ x, z, w: bw, d: bd, wall: 'corrugated', roof: 'corrugated', floor: 'wood', roofTint: 0xa89070, name: nm, floorY: MID + 0.45, blend: 1, doors: [{ side: 'w', at: 2, w: 1.8 }, { side: 's', at: 3, w: 2.2, sill: 1 }] });
+  w.prop('dg_radar', 213, 465, 0, { solid: true }); C.mastLight(213, 465, 9.6);
+  for (const [x, z, bw2, bd, nm, rot] of [[220, 470, 10, 8, 'Outpost Hut', 0.12], [198, 476, 8, 7, 'Outpost Store', -0.2], [224, 450, 9, 7, 'Outpost Radio', 0.3]]) {
+    C.bld({ x, z, w: bw2, d: bd, rot, wall: 'corrugated', roof: 'corrugated', floor: 'wood', roofTint: 0xa89070, name: nm, floorY: MID + 0.45, blend: 1, doors: [{ side: 'w', at: 2, w: 1.8 }, { side: 's', at: 3, w: 2.2, sill: 1 }] });
   }
-  C.furnish('raider', 220, 470, 230, 478, { tier: 2 }); C.furnish('storage', 198, 476, 206, 483, { tier: 1 }); C.furnish('control', 224, 450, 233, 457, { tier: 2 });
+  const nb = w.buildings.length;
+  C.F(w.buildings[nb - 3], 'raider', 0, 0, 10, 8, { tier: 2 }); C.F(w.buildings[nb - 2], 'storage', 0, 0, 8, 7, { tier: 1 }); C.F(w.buildings[nb - 1], 'control', 0, 0, 9, 7, { tier: 2 });
   w.prop('dg_watchtower', 238, 488, 0, { solid: true }); w.prop('dg_tent', 206, 456, 0.3, { solid: true });
   C.sandbags([[196, 448], [206, 446], [214, 446]]); C.fire(212, 484);
   C.fenceLine([[196, 494], [214, 494], [230, 494]]);
@@ -1078,9 +1124,11 @@ function westPOIs(C) {
   C.addClearRect(194, 444, 248, 496);
   // Baron husk in the southern swamp (reference ◎ between the outpost and Water Treatment)
   w.raiseRect(316, 466, 334, 482, MID + 0.4, 3, 'set');
-  w.prop('dg_bigwreck', 325, 474, 2.3, { solid: true }); w.container('arc_husk', 318, 468, 0, { tier: 2 }); w.container('arc_crate', 332, 480, 0, { tier: 2 });
+  w.container('barron_husk', 324, 474, 2.3, { tier: 2 }); w.container('arc_crate', 332, 480, 0, { tier: 2 });
+  w.paintCircle('rock', 324, 474, 5, 0.4, 4);
+  C.clutter(325, 474, 9, 7, ['dg_rubble', 'debris', 'husk'], { avoid: (x, z) => Math.hypot(x - 324, z - 474) < 4.5 });
   C.addClear(325, 474, 12);
-  // ---------------- swamp field depot + scattered swamp caches
+  // ---------------- swamp field depot + power line through the swamp
   w.raiseRect(283, 409, 293, 419, MID + 0.45, 1.5, 'set');
   C.fieldDepot(288, 414);
   C.addClear(288, 414, 7);
@@ -1090,27 +1138,28 @@ function westPOIs(C) {
 // ==================================================================================== SOUTH
 function southPOIs(C) {
   const { w, R, rng } = C;
-  // ---------------- Electrical Substation
-  C.fenceRect(352, 572, 394, 604, [[352, 588], [373, 572]]);
-  w.paint('gravel', 352, 572, 394, 604);
+  // ---------------- Electrical Substation (30°)
+  const SS = G_SS;
+  C.gfence(SS, 366, 580, 400, 606, [[366, 593], [383, 580]]);
+  w.paintPoly('gravel', GR(SS, 366, 580, 400, 606));
   for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
-    const x = 360 + i * 13, z = 580 + j * 15;
-    w.prop('dg_transformer', x, z, 0, { solid: true });
-    if ((i + j) % 2 === 0) w.prop('dg_pylon', x + 5, z + 3, PI / 2, { solid: true, scale: 0.45 });
+    const X = 372 + i * 11, Z = 587 + j * 12;
+    C.gprop(SS, 'dg_transformer', X, Z, 0, { solid: true });
+    if ((i + j) % 2 === 0) C.gprop(SS, 'dg_pylon', X + 4.5, Z + 3, PI / 2, { solid: true, scale: 0.45 });
   }
-  w.prop('dg_fusebox', 354, 599, PI / 2, { solid: true });
-  w.container('electronics', 391, 600, 0, { tier: 2 }); w.container('electronics', 356, 575, 0, { tier: 2 }); w.container('toolbox', 380, 602, 0, { tier: 1 });
-  for (const [x, z] of [[352, 572], [394, 604], [394, 572]]) C.flood(x, z, { color: 0xd8e8ff });
-  C.bld({ x: 398, z: 546, w: 18, d: 16, storeys: 2, name: 'Substation Control', tint: 0xd0ccc0, floor: 'tiles', floorY: MID + 0.2, blend: 2,
+  C.gprop(SS, 'dg_fusebox', 368, 603, PI / 2, { solid: true });
+  C.gcont(SS, 'electronics', 397, 603, 0, { tier: 2 }); C.gcont(SS, 'electronics', 369, 583, 0, { tier: 2 }); C.gcont(SS, 'toolbox', 388, 604, 0, { tier: 1 });
+  for (const [X, Z] of [[366, 580], [400, 606], [400, 580]]) C.flood(...GW(SS, X, Z), { color: 0xd8e8ff, rot: -SS.a });
+  const sc = C.B.sub = C.gbld(SS, { x: 370, z: 550, w: 18, d: 16, storeys: 2, name: 'Substation Control', tint: 0xd0ccc0, floor: 'tiles', floorY: MID + 0.2, blend: 2,
     doors: [{ side: 'w', at: 10, w: 2, door: true }, { side: 's', at: 12, w: 2.4, door: true }, { side: 'n', at: 6, w: 3, sill: 1.1 }, { side: 'e', at: 6, w: 3, sill: 1.1 }],
     inner: [[9, 0, 9, 16, [{ at: 10, w: 1.8 }]], [9, 8, 18, 8, [{ at: 4, w: 1.6 }]]] });
-  C.furnish('control', 398, 546, 407, 562, { tier: 2 }); C.furnish('server', 407, 546, 416, 554, { tier: 2 }); C.furnish('workshop', 407, 554, 416, 562, { tier: 1 });
-  C.bld({ x: 380, z: 554, w: 8, d: 7, wall: 'brick', roof: 'corrugated', name: 'Switch Hut', floor: 'concrete', floorY: MID + 0.2, blend: 1.5, doors: [{ side: 's', at: 3, w: 1.6, door: true }] });
-  C.furnish('storage', 380, 554, 388, 561, { tier: 1 });
-  C.clutter(390, 560, 16, 8, ['barrel', 'crate', 'dg_barrier', 'debris'], { avoid: (x, z) => x > 350 && x < 396 && z > 570 });
+  C.F(sc, 'control', 0, 0, 9, 16, { tier: 2 }); C.F(sc, 'server', 9, 0, 18, 8, { tier: 2 }); C.F(sc, 'workshop', 9, 8, 18, 16, { tier: 1 });
+  const sh = C.gbld(SS, { x: 392, z: 556, w: 8, d: 7, wall: 'brick', roof: 'corrugated', name: 'Switch Hut', floor: 'concrete', floorY: MID + 0.2, blend: 1.5, doors: [{ side: 's', at: 3, w: 1.6, door: true }] });
+  C.F(sh, 'storage', 0, 0, 8, 7, { tier: 1 });
+  C.clutter(...GW(SS, 390, 572), 14, 8, ['barrel', 'crate', 'dg_barrier', 'debris'], { frame: SS, avoid: (x, z) => { const [, Z] = GL(SS, x, z); return Z > 578; } });
   w.prop('dg_truck', 340, 612, 1.75, { solid: true }); w.container('car_trunk', 336.2, 611.4, 1.75, { tier: 1 }); w.container('toolbox', 344, 616, 0, { tier: 1 });
   // ---------------- Water Towers + football pitch
-  for (const [x, z] of [[283, 626], [301, 624], [320, 645], [284, 656]]) { w.prop('dg_watertower', x, z, R(0, 6.28), { solid: true }); C.addClear(x, z, 5); }
+  for (const [x, z] of [[283, 626], [301, 624], [320, 645], [284, 656]]) { w.prop('dg_watertower', x, z, R(0, 6.28), { solid: true }); C.mastLight(x, z, 12.8); C.addClear(x, z, 5); }
   C.bld({ x: 298, z: 638, w: 8, d: 8, wall: 'brick', roof: 'corrugated', floor: 'concrete', name: 'Water Tower Pump Hut', doors: [{ side: 's', at: 3, w: 1.6, door: true }] });
   C.furnish('industrial', 298, 638, 306, 646, { tier: 1 });
   w.paint('grass', 238, 596, 276, 618); w.path([[257, 596], [257, 618]], 0.5, 'sand'); w.path([[238.5, 596], [238.5, 618]], 0.5, 'sand'); w.path([[275.5, 596], [275.5, 618]], 0.5, 'sand');
@@ -1118,20 +1167,23 @@ function southPOIs(C) {
   C.addClearRect(236, 594, 278, 620);
   C.clutter(300, 640, 30, 14, ['barrel', 'crate', 'debris', 'rock'], { avoid: (x, z) => C.clear.some(([cx, cz, r]) => Math.hypot(x - cx, z - cz) < r) });
   C.loot(300, 640, 28, ['crate', 'trash', 'toolbox', 'backpack'], 1, { avoid: (x, z) => C.clear.some(([cx, cz, r]) => Math.hypot(x - cx, z - cz) < r) });
-  w.prop('dg_huskbig', 347, 681, 0.9, { solid: true }); w.container('arc_husk', 344, 678, 0, { tier: 2 });   // Baron husk
   for (const [x, z] of [[292, 612], [312, 660], [262, 620]]) w.lamp(x, z, { y: 4, color: 0xffc078, intensity: 1.55, range: 11 });
+  // Tower Hill: the open rise SE of the Water Towers where the reference spawns the Matriarch (kept clear)
+  w.prop('dg_huskbig', 366, 694, 0.9, { solid: true }); w.container('arc_husk', 362, 690, 0, { tier: 2 });
+  w.prop('dg_hedgehog', 334, 670, 0.4, { solid: true }); w.prop('dg_hedgehog', 358, 668, 1.1, { solid: true });
+  C.addClear(347, 680, 16);
   // the old dirt-bike circuit west of the Water Towers
   w.path([[178, 628], [186, 618], [198, 622], [204, 634], [214, 628], [226, 624], [232, 636], [222, 648], [210, 646], [204, 660], [192, 664], [182, 654], [190, 642], [180, 636], [178, 628]], 2.6, 'dirt');
   w.path([[204, 660], [214, 676], [226, 690], [222, 704], [208, 708], [200, 696], [206, 684]], 2.6, 'dirt');
   for (const [x, z, r] of [[196, 630, 0.4], [216, 642, 1.2], [188, 660, 2.0]]) w.prop('dg_barrier', x, z, r, { solid: true });
   w.prop('dg_tent', 240, 650, 1.2, { solid: true }); w.prop('dg_flagpole', 236, 644, 0, { solid: true }); C.loot(236, 652, 6, ['backpack', 'crate', 'toolbox'], 1);
   // ruined blocks between the Primary Facility and the substation (foundations + shells)
-  for (const [x, z, bw, bd, nm] of [[452, 552, 14, 10, 'Ruined Workshop'], [492, 566, 12, 9, 'Ruined Garage'], [426, 520, 10, 8, 'Guard Post']]) {
-    C.bld({ x, z, w: bw, d: bd, wall: 'concrete', tint: 0xb0aaa0, roof: 'corrugated', floor: 'concrete', name: nm, blend: 2,
-      doors: [{ side: 's', at: 2, w: 2.2 }, { side: 'n', at: bw - 4, w: 2.2 }, { side: 'e', at: 2, w: 2.4, sill: 1.1 }] });
-    C.furnish(nm === 'Guard Post' ? 'security' : 'workshop', x, z, x + bw, z + bd, { tier: 1 });
+  for (const [x, z, bw2, bd, nm, rot] of [[452, 552, 14, 10, 'Ruined Workshop', PI / 6], [492, 566, 12, 9, 'Ruined Garage', PI / 6], [426, 520, 10, 8, 'Guard Post', 0]]) {
+    const bb = C.bld({ x, z, w: bw2, d: bd, rot, wall: 'concrete', tint: 0xb0aaa0, roof: 'corrugated', floor: 'concrete', name: nm, blend: 2,
+      doors: [{ side: 's', at: 2, w: 2.2 }, { side: 'n', at: bw2 - 4, w: 2.2 }, { side: 'e', at: 2, w: 2.4, sill: 1.1 }] });
+    C.F(bb, nm === 'Guard Post' ? 'security' : 'workshop', 0, 0, bw2, bd, { tier: 1 });
   }
-  C.clutter(470, 560, 26, 14, ['dg_rubble', 'debris', 'barrel', 'crate', 'dg_container', 'car'], {});
+  C.clutter(470, 560, 26, 14, ['dg_rubble', 'debris', 'barrel', 'crate', 'dg_container', 'car'], { avoid: (x, z) => C.inDam(x, z, 3) });
 
   // ---------------- Good Ol' Barron's Hatch (pump station)
   C.bld({ x: 234, z: 538, w: 14, d: 10, storeys: 2, name: "Barron's Pump Station", wall: 'brick', tint: 0xc8b8a8, floor: 'concrete', floorY: MID + 0.2, blend: 1.5,
@@ -1142,54 +1194,55 @@ function southPOIs(C) {
   C.hatch('good_ol_barrons_hatch', "Good Ol' Barron's Hatch", 267, 574, { aliases: ['good_old_barons_hatch'] });
   w.lamp(250, 552, { y: 4, color: 0xffc078, intensity: 1.55, range: 11 });
   // ---------------- Small Creek (fishing shack + the barrel truck)
-  C.bld({ x: 556, z: 584, w: 6, d: 6, wall: 'wood', roof: 'corrugated', floor: 'wood', name: 'Fishing Shack', doors: [{ side: 's', at: 2, w: 1.6 }] });
-  C.furnish('storage', 556, 584, 562, 590, { tier: 1, light: false });
+  C.bld({ x: 556, z: 584, w: 6, d: 6, rot: 0.3, wall: 'wood', roof: 'corrugated', floor: 'wood', name: 'Fishing Shack', doors: [{ side: 's', at: 2, w: 1.6 }] });
+  C.F(w.buildings[w.buildings.length - 1], 'storage', 0, 0, 6, 6, { tier: 1, light: false });
   w.prop('dg_truck', 580, 624, 0.45, { solid: true }); w.container('car_trunk', 578.4, 627.5, 0.45, { tier: 2 });
   for (let i = 0; i < 7; i++) w.prop('dg_toxic', 586 + R(-4, 4), 628 + R(-3, 4), R(0, 6), { solid: true });
   w.lamp(583, 620, { y: 1.0, model: null, color: 0x90ff40, intensity: 0.8, range: 6, flicker: 0.3 });
   w.deck([[598, 618], [604, 640]], 2.6, MID + 0.35, 'wood', { rails: false, pillars: false });
   w.deck([[688, 676], [690, 698]], 2.6, MID + 0.35, 'wood', { rails: false, pillars: false });
   C.loot(570, 610, 20, ['crate', 'plant', 'basket', 'trash'], 1);
-  // ---------------- Testing Annex (+ Red Lakes Balcony Lift)
-  C.bld({ x: 708, z: 606, w: 44, d: 40, storeys: 2, name: 'Testing Annex', wall: 'concrete', tint: 0xece8e0, floor: 'tiles', roofTint: 0xd8d8d0, floorY: MID + 0.3, blend: 2,
-    doors: [{ side: 'n', at: 24, w: 2.4, door: true }, { side: 's', at: 18, w: 2.4, door: true }, { side: 'w', at: 26, w: 1.8, door: true }, { side: 'e', at: 10, w: 1.8, door: true },
-      { side: 'n', at: 6, w: 3, sill: 1.1 }, { side: 'n', at: 16, w: 3, sill: 1.1 }, { side: 's', at: 6, w: 3, sill: 1.1 }, { side: 's', at: 34, w: 3, sill: 1.1 }, { side: 'e', at: 26, w: 3, sill: 1.1 }],
-    inner: [[14, 0, 14, 40, [{ at: 9, w: 1.8 }, { at: 29, w: 1.8 }]], [0, 20, 14, 20, [{ at: 6, w: 1.8 }]], [14, 26, 32, 26, [{ at: 8, w: 2.4 }]],
-      [32, 0, 32, 40, [{ at: 6, w: 1.8 }, { at: 24, w: 1.8, door: true, locked: 'testing_annex' }]], [32, 14, 44, 14, []]],
-    roofExtras: [[18, 6, 28, 16, 2.2], [36, 30, 42, 36, 1.0]] });
-  C.furnish('medical', 708, 606, 722, 626, { tier: 2, extra: [['medical_bag', 1]] });
-  C.furnish('commercial', 708, 626, 722, 646, { tier: 1, extra: [['cabinet', 1]] });
-  w.prop('dg_testrig', 731, 618, 0, {}); w.paintCircle('metalPanel', 731, 618, 6.5);
-  w.container('electronics', 724, 609, PI / 2, { tier: 2 }); w.container('arc_crate', 738, 628, 0, { tier: 2 });
-  C.inLight(731, 618, 0x70e8ff, 1.4, 12, 3.6);
-  C.furnish('office', 722, 632, 740, 646, { tier: 1 });
-  C.furnish('office', 740, 606, 752, 620, { tier: 2 });
-  C.furnish('lab', 740, 620, 752, 646, { tier: 3, room: 'testing_annex', extra: [['medical_bag', 1], ['weapon_case', 1], ['electronics', 1]] });
-  w.keyRoom('testing_annex', 740, 620, 752, 646, null, { name: 'Testing Annex Secure Lab' });
-  C.bld({ x: 736, z: 650, w: 16, d: 12, name: 'Annex Storage', wall: 'corrugated', roof: 'corrugated', floor: 'concrete', floorY: MID + 0.3, blend: 1.5, doors: [{ side: 'w', at: 4, w: 2.4 }, { side: 'n', at: 10, w: 1.8, door: true }] });
-  C.furnish('storage', 736, 650, 752, 662, { tier: 1, extra: [['crate', 1]] });
+  // ---------------- Testing Annex (-60°) + Red Lakes Balcony Lift
+  const TA = G_TA;
+  const ta = C.B.ta = C.gbld(TA, { x: 700, z: 610, w: 56, d: 40, storeys: 2, name: 'Testing Annex', wall: 'concrete', tint: 0xece8e0, floor: 'tiles', roofTint: 0xd8d8d0, floorY: MID + 0.3, blend: 2,
+    doors: [{ side: 'n', at: 30, w: 2.4, door: true }, { side: 's', at: 22, w: 2.4, door: true }, { side: 'w', at: 26, w: 1.8, door: true }, { side: 'e', at: 6, w: 1.8, door: true },
+      { side: 'n', at: 6, w: 3, sill: 1.1 }, { side: 'n', at: 20, w: 3, sill: 1.1 }, { side: 's', at: 6, w: 3, sill: 1.1 }, { side: 's', at: 46, w: 3, sill: 1.1 }, { side: 'e', at: 26, w: 3, sill: 1.1 }],
+    inner: [[16, 0, 16, 40, [{ at: 9, w: 1.8 }, { at: 29, w: 1.8 }]], [0, 20, 16, 20, [{ at: 6, w: 1.8 }]], [16, 26, 40, 26, [{ at: 9, w: 2.4 }]],
+      [40, 0, 40, 40, [{ at: 6, w: 1.8 }, { at: 24, w: 1.8, door: true, locked: 'testing_annex' }]], [40, 14, 56, 14, []]],
+    roofExtras: [[20, 6, 30, 16, 2.2], [44, 30, 52, 36, 1.0]] });
+  C.F(ta, 'medical', 0, 0, 16, 20, { tier: 2, extra: [['medical_bag', 1]] });
+  C.F(ta, 'commercial', 0, 20, 16, 40, { tier: 1, extra: [['cabinet', 1]] });
+  C.P(ta, 'dg_testrig', 28, 13, 0, {}); w.paintCircle('metalPanel', ...C.Wp(ta, 28, 13), 6.5);
+  C.Cn(ta, 'electronics', 19, 3, PI / 2, { tier: 2 }); C.Cn(ta, 'arc_crate', 37, 23, 0, { tier: 2 });
+  C.IL(ta, 28, 13, 0x70e8ff, 1.4, 12, 3.6);
+  C.F(ta, 'office', 16, 26, 40, 40, { tier: 1 });
+  C.F(ta, 'office', 40, 0, 56, 14, { tier: 2 });
+  C.F(ta, 'lab', 40, 14, 56, 40, { tier: 3, room: 'testing_annex', extra: [['medical_bag', 1], ['weapon_case', 1], ['electronics', 1]] });
+  C.K(ta, 'testing_annex', 40, 14, 56, 40, 'Testing Annex Secure Lab');
+  const ts = C.gbld(TA, { x: 706, z: 656, w: 16, d: 12, name: 'Annex Storage', wall: 'corrugated', roof: 'corrugated', floor: 'concrete', floorY: MID + 0.3, blend: 1.5, doors: [{ side: 'w', at: 4, w: 2.4 }, { side: 'n', at: 10, w: 1.8, door: true }] });
+  C.F(ts, 'storage', 0, 0, 16, 12, { tier: 1, extra: [['crate', 1]] });
   C.lift('red_lakes_balcony_lift', 'Red Lakes Balcony Lift', 744, 594);
-  for (const [x, z, r] of [[716, 656, 0.1], [724, 657, 3.0], [704, 640, 1.5]]) w.prop('car', x, z, r, { solid: true });
-  C.clutter(730, 600, 26, 12, ['dg_barrier', 'crate', 'barrel', 'dg_container'], { avoid: (x, z) => z > 604 && z < 664 && x > 704 && x < 756 });
-  for (const [x, z] of [[706, 604], [754, 604], [706, 648], [754, 664], [730, 666], [760, 630]]) w.lamp(x, z, { y: 4, color: 0xe8f0ff, intensity: 1.55, range: 12 });
-  C.addClearRect(700, 590, 762, 668);
-  C.fieldDepot(682, 548);
-  // ---------------- Electrical Tower
-  C.bld({ x: 838, z: 624, w: 14, d: 12, wall: 'brick', tint: 0xb8a898, roof: 'corrugated', floor: 'concrete', name: 'Electrical Tower Station', floorY: MID + 0.2, blend: 1.5,
+  for (const [X, Z, r] of [[690, 640, 0.1], [692, 628, 0.2], [762, 664, 1.5]]) C.gprop(TA, 'car', X, Z, r, { solid: true });
+  C.clutter(...GW(TA, 728, 604), 14, 10, ['dg_barrier', 'crate', 'barrel', 'dg_container'], { frame: TA, avoid: (x, z) => C.inDam(x, z, 2) });
+  for (const [X, Z] of [[698, 606], [758, 606], [698, 652], [758, 652], [728, 672], [760, 630]]) C.glamp(TA, X, Z, { y: 4, color: 0xe8f0ff, intensity: 1.55, range: 12 });
+  C.addClearRect(694, 592, 764, 672);
+  // ---------------- Electrical Tower (30°)
+  const ET = G_ET;
+  const et = C.gbld(ET, { x: 838, z: 624, w: 14, d: 12, wall: 'brick', tint: 0xb8a898, roof: 'corrugated', floor: 'concrete', name: 'Electrical Tower Station', floorY: MID + 0.2, blend: 1.5,
     doors: [{ side: 'w', at: 4, w: 1.8, door: true }, { side: 's', at: 8, w: 3, sill: 1.1 }], inner: [[7, 0, 7, 12, [{ at: 4, w: 1.6 }]]] });
-  C.furnish('industrial', 838, 624, 845, 636, { tier: 1 }); C.furnish('server', 845, 624, 852, 636, { tier: 2 });
-  w.prop('dg_pylon', 864, 617, 0.4, { solid: true, scale: 1.25 });
-  for (const [x, z] of [[860, 632], [868, 640]]) w.prop('dg_transformer', x, z, 0, { solid: true });
-  C.fenceRect(855, 608, 874, 648, [[855, 642]]);
-  C.loot(846, 630, 14, ['electronics', 'toolbox', 'crate'], 1);
-  w.lamp(834, 622, { y: 4, color: 0xffc078, intensity: 1.55, range: 11 });
+  C.F(et, 'industrial', 0, 0, 7, 12, { tier: 1 }); C.F(et, 'server', 7, 0, 14, 12, { tier: 2 });
+  C.gprop(ET, 'dg_pylon', 864, 619, 0.4, { solid: true, scale: 1.25 }); C.mastLight(...GW(ET, 864, 619), 21);
+  for (const [X, Z] of [[860, 634], [868, 642]]) C.gprop(ET, 'dg_transformer', X, Z, 0, { solid: true });
+  C.gfence(ET, 855, 610, 874, 648, [[855, 642]]);
+  C.loot(...GW(ET, 846, 630), 14, ['electronics', 'toolbox', 'crate'], 1);
+  C.glamp(ET, 834, 622, { y: 4, color: 0xffc078, intensity: 1.55, range: 11 });
   C.powerLine([[880, 606], [920, 596], [960, 590], [1020, 560], [1080, 520]], { scale: 1 });
   // ---------------- Scrap Yard (+ the graves: hallowed ground)
-  C.bld({ x: 488, z: 682, w: 10, d: 8, wall: 'corrugated', roof: 'corrugated', floor: 'concrete', name: 'Scrap Office', floorY: MID + 0.3, blend: 1.5, doors: [{ side: 's', at: 3, w: 1.8, door: true }, { side: 'e', at: 3, w: 2, sill: 1 }] });
-  C.furnish('office', 488, 682, 498, 690, { tier: 1 });
-  C.bld({ x: 506, z: 700, w: 8, d: 6, wall: 'corrugated', roof: 'corrugated', floor: 'concrete', name: 'Scrap Shed', floorY: MID + 0.3, blend: 1.5, doors: [{ side: 'n', at: 2, w: 2.4 }] });
-  C.furnish('workshop', 506, 700, 514, 706, { tier: 1 });
-  w.prop('dg_crane', 528, 688, PI, { solid: true });
+  C.bld({ x: 488, z: 682, w: 10, d: 8, rot: -0.2, wall: 'corrugated', roof: 'corrugated', floor: 'concrete', name: 'Scrap Office', floorY: MID + 0.3, blend: 1.5, doors: [{ side: 's', at: 3, w: 1.8, door: true }, { side: 'e', at: 3, w: 2, sill: 1 }] });
+  C.F(w.buildings[w.buildings.length - 1], 'office', 0, 0, 10, 8, { tier: 1 });
+  C.bld({ x: 506, z: 700, w: 8, d: 6, rot: 0.25, wall: 'corrugated', roof: 'corrugated', floor: 'concrete', name: 'Scrap Shed', floorY: MID + 0.3, blend: 1.5, doors: [{ side: 'n', at: 2, w: 2.4 }] });
+  C.F(w.buildings[w.buildings.length - 1], 'workshop', 0, 0, 8, 6, { tier: 1 });
+  w.prop('dg_crane', 528, 688, PI, { solid: true }); C.mastLight(528, 688, 22);
   for (const [x, z, r, k] of [[520, 678, 0, 'dg_container'], [520, 678, 0.05, 'dg_containerB'], [534, 708, 1.6, 'dg_containerG'], [500, 712, 0.3, 'dg_container']]) w.prop(k, x, z, r, { solid: true, y: k === 'dg_containerB' ? 2.6 : 0 });
   C.clutter(512, 696, 26, 40, ['car', 'debris', 'debris', 'dg_rubble', 'barrel', 'pipe', 'crate', 'husk', 'dg_truck'], {});
   for (let i = 0; i < 7; i++) w.prop('dg_grave', 470 + (i % 4) * 2.6, 690 + Math.floor(i / 4) * 3.2, 0, { solid: true });
@@ -1208,10 +1261,11 @@ function southPOIs(C) {
   // ARK debris field on the hill east of the creek ford
   w.prop('dg_huskbig', 690, 716, 1.2, { solid: true }); w.prop('husk', 700, 726, 0.3, { solid: true }); w.container('arc_husk', 694, 712, 0, { tier: 1 });
   // ---------------- Formikai Outpost
-  for (const [x, z, bw, bd, nm] of [[510, 786, 12, 9, 'Outpost Barracks'], [528, 800, 10, 8, 'Outpost Armory'], [540, 784, 8, 6, 'Outpost Radio']]) {
-    C.bld({ x, z, w: bw, d: bd, wall: 'wood', roof: 'corrugated', floor: 'wood', roofTint: 0x9a8a6a, name: nm, blend: 1.5, doors: [{ side: 's', at: 2, w: 1.8, door: true }, { side: 'e', at: 2, w: 2.2, sill: 1 }] });
+  for (const [x, z, bw2, bd, nm, rot] of [[510, 786, 12, 9, 'Outpost Barracks', -0.25], [528, 800, 10, 8, 'Outpost Armory', 0.1], [540, 784, 8, 6, 'Outpost Radio', 0.35]]) {
+    C.bld({ x, z, w: bw2, d: bd, rot, wall: 'wood', roof: 'corrugated', floor: 'wood', roofTint: 0x9a8a6a, name: nm, blend: 1.5, doors: [{ side: 's', at: 2, w: 1.8, door: true }, { side: 'e', at: 2, w: 2.2, sill: 1 }] });
   }
-  C.furnish('bunk', 510, 786, 522, 795, { tier: 1 }); C.furnish('security', 528, 800, 538, 808, { tier: 2 }); C.furnish('control', 540, 784, 548, 790, { tier: 2 });
+  const nf = w.buildings.length;
+  C.F(w.buildings[nf - 3], 'bunk', 0, 0, 12, 9, { tier: 1 }); C.F(w.buildings[nf - 2], 'security', 0, 0, 10, 8, { tier: 2 }); C.F(w.buildings[nf - 1], 'control', 0, 0, 8, 6, { tier: 2 });
   w.prop('dg_watchtower', 554, 796, 0.2, { solid: true });                                   // platform overlooking the valley
   w.prop('dg_memorial', 520, 778, 0, { solid: true }); w.prop('dg_flagpole', 526, 777, 0, { solid: true });
   C.sandbags([[504, 782], [504, 798], [510, 806]]); C.sandbags([[546, 806], [556, 808]]);
@@ -1224,17 +1278,18 @@ function southPOIs(C) {
 // ==================================================================================== EAST
 function eastPOIs(C) {
   const { w, R } = C;
-  // ---------------- Pump House (+ hatch)
-  C.bld({ x: 892, z: 290, w: 22, d: 14, storeys: 2, name: 'Pump House', wall: 'brick', tint: 0xc0b0a0, floor: 'concrete', roof: 'corrugated', floorY: LOW + 0.7, blend: 1.5,
+  // ---------------- Pump House (+ hatch), 30°
+  const PH = G_PH;
+  const ph = C.B.pump = C.gbld(PH, { x: 892, z: 290, w: 22, d: 14, storeys: 2, name: 'Pump House', wall: 'brick', tint: 0xc0b0a0, floor: 'concrete', roof: 'corrugated', floorY: LOW + 0.7, blend: 1.5,
     doors: [{ side: 'w', at: 8, w: 2.4, door: true }, { side: 's', at: 16, w: 2, door: true }, { side: 'n', at: 4, w: 3, sill: 1.1 }],
     inner: [[13, 0, 13, 14, [{ at: 9, w: 1.8 }]]] });
-  for (const [x, z] of [[897, 294], [904, 294]]) w.prop('dg_pump', x, z, 0, { solid: true });
-  w.container('toolbox', 896, 302, 0, { tier: 2 }); w.container('crate', 909, 302, 0, { tier: 1 });
-  C.inLight(899, 297, 0xffd090, 1.0, 9);
-  C.furnish('office', 905, 290, 914, 304, { tier: 1 });
+  for (const lx of [5, 12]) C.P(ph, 'dg_pump', lx, 4, 0, { solid: true });
+  C.Cn(ph, 'toolbox', 4, 12, 0, { tier: 2 }); C.Cn(ph, 'crate', 11, 12, 0, { tier: 1 });
+  C.IL(ph, 7, 7, 0xffd090, 1.0, 9);
+  C.F(ph, 'office', 13, 0, 22, 14, { tier: 1 });
   C.hatch('pump_house_hatch', 'Pump House Hatch', 884, 302);
-  w.prop('dg_bigpipe', 872, 296, 0, { solid: true }); w.prop('dg_bigpipe', 862, 296, 0, { solid: true });
-  w.lamp(888, 292, { y: 4, color: 0xffc078, intensity: 1.55, range: 11 });
+  C.gprop(PH, 'dg_bigpipe', 878, 294, 0, { solid: true }); C.gprop(PH, 'dg_bigpipe', 868, 294, 0, { solid: true });
+  C.glamp(PH, 888, 288, { y: 4, color: 0xffc078, intensity: 1.55, range: 11 });
   // ---------------- Spillway Hatch (leaking hydraulic pipes)
   w.paint('concrete', 756, 474, 774, 490);
   C.hatch('spillway_hatch', 'Spillway Hatch', 765, 482);
@@ -1242,52 +1297,59 @@ function eastPOIs(C) {
   for (const [x, z] of [[757, 487], [773, 484]]) w.prop('dg_toxic', x, z, 0, { solid: true });
   w.waterPoly([[758, 478], [764, 477], [766, 480], [759, 481]], { level: LOW + 0.55, material: C.darkMat });
   C.loot(765, 482, 8, ['toolbox', 'crate'], 1);
-  // ---------------- basin: Red Lakes shores, wrecks, the queen husk site
-  w.prop('dg_bigwreck', 862, 368, 2.2, { solid: true }); w.container('arc_husk', 856, 374, 0, { tier: 2 });
+  // ---------------- basin: Red Lakes shores, wrecks; the Queen's arena (reference ♛ at 862,368) is kept open
+  w.prop('dg_bigwreck', 902, 344, 2.2, { solid: true }); w.container('arc_husk', 896, 350, 0, { tier: 2 });
   w.prop('dg_truck', 752, 372, 0.1, { solid: true }); w.container('car_trunk', 752, 376, 0.1, { tier: 1 });
   for (const [x, z, r] of [[720, 330, 0.4], [820, 330, 2.1], [700, 470, 1.0], [850, 560, 0.2], [780, 520, 2.6], [900, 450, 1.5]]) w.prop('husk', x, z, r, { solid: true });
-  C.loot(800, 430, 110, ['arc_husk', 'arc_crate', 'crate', 'arc_husk', 'trash', 'ammo_box', 'arc_crate', 'toolbox'], 1, { avoid: (x, z) => !C.basinAt(x, z) || w.groundAt(x, z) < -0.2 });
-  for (const [x, z] of [[700, 330], [770, 400], [840, 466], [760, 510], [880, 380], [826, 300]]) w.lamp(x, z, { y: 4.4, color: 0xffb070, intensity: 1.55, range: 12, flicker: 0.5 });
+  C.loot(800, 430, 110, ['arc_husk', 'arc_crate', 'crate', 'arc_husk', 'trash', 'ammo_box', 'arc_crate', 'toolbox'], 1, { avoid: (x, z) => !C.basinAt(x, z) || w.groundAt(x, z) < -0.2 || C.inDam(x, z, 3) });
+  for (const [x, z] of [[740, 330], [770, 400], [840, 466], [760, 510], [880, 380], [826, 300]]) w.lamp(x, z, { y: 4.4, color: 0xffb070, intensity: 1.55, range: 12, flicker: 0.5 });
+  C.addClear(862, 368, 18);
   // ---------------- east hills: farm ruins, power line
-  C.bld({ x: 1000, z: 560, w: 12, d: 9, wall: 'brick', tint: 0xb0a090, roof: 'roofTile', roofShape: 'gable', floor: 'wood', name: 'Hill Farmhouse', blend: 2, doors: [{ side: 's', at: 4, w: 1.8, door: true }, { side: 'w', at: 3, w: 2, sill: 1 }] });
-  C.furnish('living', 1000, 560, 1012, 569, { tier: 1 });
-  C.bld({ x: 1016, z: 566, w: 8, d: 8, wall: 'wood', roof: 'corrugated', floor: 'wood', name: 'Hill Barn', blend: 2, doors: [{ side: 'w', at: 2, w: 2.4 }] });
-  C.furnish('storage', 1016, 566, 1024, 574, { tier: 1, light: false });
+  C.bld({ x: 1000, z: 560, w: 12, d: 9, rot: 0.15, wall: 'brick', tint: 0xb0a090, roof: 'roofTile', roofShape: 'gable', floor: 'wood', name: 'Hill Farmhouse', blend: 2, doors: [{ side: 's', at: 4, w: 1.8, door: true }, { side: 'w', at: 3, w: 2, sill: 1 }] });
+  C.F(w.buildings[w.buildings.length - 1], 'living', 0, 0, 12, 9, { tier: 1 });
+  C.bld({ x: 1016, z: 566, w: 8, d: 8, rot: 0.15, wall: 'wood', roof: 'corrugated', floor: 'wood', name: 'Hill Barn', blend: 2, doors: [{ side: 'w', at: 2, w: 2.4 }] });
+  C.F(w.buildings[w.buildings.length - 1], 'storage', 0, 0, 8, 8, { tier: 1, light: false });
   w.lamp(1006, 572, { y: 3.4, color: 0xffb070, intensity: 1.55, range: 9, flicker: 0.4 });
   C.powerLine([[1000, 130], [1018, 230], [1040, 330], [1056, 420], [1070, 500]], { scale: 1 });
-  C.bld({ x: 960, z: 180, w: 10, d: 8, wall: 'concrete', roof: 'concrete', floor: 'concrete', name: 'Ridge Bunker', blend: 2, tint: 0xa8a498, doors: [{ side: 's', at: 3, w: 1.8 }] });
-  C.furnish('security', 960, 180, 970, 188, { tier: 2 });
+  C.bld({ x: 960, z: 180, w: 10, d: 8, rot: 0.5, wall: 'concrete', roof: 'concrete', floor: 'concrete', name: 'Ridge Bunker', blend: 2, tint: 0xa8a498, doors: [{ side: 's', at: 3, w: 1.8 }] });
+  C.F(w.buildings[w.buildings.length - 1], 'security', 0, 0, 10, 8, { tier: 2 });
 }
 
 // ==================================================================================== ROADSIDE + OUTSKIRTS
 function roadsideAndOutskirts(C) {
   const { w, R, rng } = C;
-  // general clutter over every dam / plateau surface (kept off buildings, doors, roads, chutes)
+  // general clutter over the dam surfaces (kept off buildings, doors, crest roads, chutes, pits, the tower)
   {
-    const crest = (x, z) => C.inDam(x, z, -2.5) && !C.inBuilding(x, z, 2.5) && !C.nearRoad(x, z, 0.5) &&
-      C.distLine(x, z, [[548, 452], [578, 420], [596, 392], [612, 360], [626, 330]]) > 4 && C.distLine(x, z, [[680, 288], [690, 262], [700, 236], [722, 200], [742, 176], [728, 150], [706, 140]]) > 4 &&
-      !CHUTES.some(([xf, zc]) => Math.abs(z - zc) < 6 && x > xf - 12) && C.distLine(x, z, HIGHWAY) > 6 &&
-      !(x > 700 && x < 724 && z > 188 && z < 214) && !(x > 728 && x < 756 && z > 208 && z < 238);
+    const crest = (x, z) => {
+      if (!C.inDam(x, z, -2.5) || C.inBuilding(x, z, 2.5)) return false;
+      const [u, v] = toL(x, z);
+      if (CREST_ROADS.some(r => C.distLine(u, v, r) < 4.5)) return false;
+      if (u > 8 && u < 60 && v > 38 && v < 152) return false;                                  // chute heads, gantries, piers
+      if (PITS.some(([a, b, c, d]) => u > a - 3 && u < c + 3 && v > b - 3 && v < d + 3)) return false;
+      if (u > 22 && u < 50 && v > 142 && v < 166) return false;                                  // tower shaft + spawn
+      if (v > -214 && v < -198) return false;                                                    // highway
+      return true;
+    };
     const kinds = ['dg_container', 'dg_containerB', 'dg_containerG', 'dg_barrier', 'dg_barrier', 'crate', 'crate', 'barrel', 'barrelBlue', 'dg_ventbox', 'dg_transformer', 'pipe', 'dg_bigpipe', 'sandbag', 'car', 'dg_truck', 'dg_rubble', 'dg_scaffold', 'dg_tankS'];
-    for (const [cx, cz, r, n] of [[600, 520, 34, 26], [596, 476, 22, 10], [508, 480, 30, 14], [620, 380, 40, 18], [680, 230, 34, 12], [740, 230, 30, 10], [700, 150, 40, 14], [800, 200, 40, 14], [760, 560, 50, 10], [860, 210, 24, 8]]) {
-      C.clutter(cx, cz, r, n, kinds, { avoid: (x, z) => !crest(x, z) });
-      C.clutter(cx, cz, r, Math.round(n * 0.8), ['debris', 'debris', 'dg_grass'], { avoid: (x, z) => !crest(x, z) });
-      C.loot(cx, cz, r, ['crate', 'trash', 'toolbox', 'ammo_box', 'crate', 'locker'].slice(0, 2 + (n > 12 ? 4 : 2)), 1, { avoid: (x, z) => !crest(x, z) });
+    for (const [u, v, r, n] of [[-40, -176, 44, 14], [40, -150, 40, 12], [110, -170, 30, 8], [-20, -76, 34, 12], [55, -76, 24, 8], [-10, 95, 44, 18], [-10, 214, 44, 18], [52, 206, 30, 10], [-78, 220, 24, 8], [180, 178, 100, 12]]) {
+      C.clutter(...L(u, v), r, n, kinds, { frame: DAM, avoid: (x, z) => !crest(x, z) });
+      C.clutter(...L(u, v), r, Math.round(n * 0.8), ['debris', 'debris', 'dg_grass'], { avoid: (x, z) => !crest(x, z) });
+      C.loot(...L(u, v), r, ['crate', 'trash', 'toolbox', 'ammo_box', 'crate', 'locker'].slice(0, 2 + (n > 12 ? 4 : 2)), 1, { avoid: (x, z) => !crest(x, z) });
     }
   }
   // street lamps along the asphalt roads
   for (const r of ROADS) C.street(r, 34, 5.2, { notDam: true });
   C.street(TRACKS[0], 40, 3.5, { color: 0xffb070, i: 1.0 });
   C.street(TRACKS[2], 44, 3.5, { color: 0xffb070, i: 1.0 });
-  C.street(HIGHWAY, 30, 5.5, { color: 0xe0ecff, model: 'dg_floodlight', i: 1.4, range: 14 });
+  C.street(HIGHWAY, 30, 5.6, { color: 0xe0ecff, model: 'dg_floodlight', i: 1.4, range: 14, rot: -DAM.a });
   // abandoned vehicles + barricades along roads
   const cars = [[448, 20, 0.05], [436, 90, 0.5], [372, 138, 1.0], [296, 184, 1.1], [205, 236, 1.2], [166, 320, 0.0], [130, 432, 0.8], [52, 476, 1.2], [90, 566, 1.6], [300, 540, 1.3], [352, 676, 0.7], [433, 600, 0.6], [520, 553, 1.1], [626, 604, 1.5], [540, 101, 1.5], [598, 105, 1.4]];
   for (const [x, z, r] of cars) { w.prop(C.chance(0.75) ? 'car' : 'dg_truck', x, z, r + C.R(-0.2, 0.2), { solid: true }); if (C.chance(0.6)) w.container('car_trunk', x + Math.cos(r) * 2.4, z - Math.sin(r) * 2.4, r, { tier: 1 }); }
   for (const [x, z, r] of [[452, 56, 0], [455, 50, 0.4], [168, 280, 1.6], [150, 400, 0.6], [438, 492, 0.9], [418, 620, 0.6], [700, 600, 0.1]]) w.prop('dg_barrier', x, z, r, { solid: true });
   // outskirts ruins: SW camp huts, far-west ruins, ridge shacks
-  for (const [x, z, bw, bd] of [[8, 530, 10, 8], [44, 602, 8, 7], [60, 622, 8, 6], [18, 262, 10, 10], [100, 708, 8, 6], [1060, 640, 9, 7], [140, 30, 10, 8]]) {
-    C.bld({ x, z, w: bw, d: bd, wall: C.pick(['brick', 'wood', 'corrugated']), roof: 'corrugated', floor: 'wood', name: 'Ruined Hut', blend: 2, doors: [{ side: 's', at: 2, w: 1.8 }, { side: 'e', at: 2, w: 2, sill: 1 }] });
-    C.furnish(C.pick(['storage', 'raider', 'living', 'bunk']), x, z, x + bw, z + bd, { tier: 1, light: C.chance(0.5) });
+  for (const [x, z, bw, bd, rot] of [[8, 530, 10, 8, 0.2], [44, 602, 8, 7, -0.3], [60, 622, 8, 6, 0.5], [18, 262, 10, 10, 0.1], [100, 708, 8, 6, -0.4], [1060, 640, 9, 7, 0.3], [140, 30, 10, 8, -0.2]]) {
+    const bb = C.bld({ x, z, w: bw, d: bd, rot, wall: C.pick(['brick', 'wood', 'corrugated']), roof: 'corrugated', floor: 'wood', name: 'Ruined Hut', blend: 2, doors: [{ side: 's', at: 2, w: 1.8 }, { side: 'e', at: 2, w: 2, sill: 1 }] });
+    C.F(bb, C.pick(['storage', 'raider', 'living', 'bunk']), 0, 0, bw, bd, { tier: 1, light: C.chance(0.5) });
   }
   for (const [x0, z0, x1, z1] of [[0, 274, 14, 275], [6, 284, 7, 300], [16, 292, 30, 293], [24, 280, 25, 292]]) w.block(x0, z0, x1, z1, 2.2, 'brick', {});
   C.powerLine([[30, 650], [80, 720], [130, 790], [150, 826]], {});
@@ -1295,7 +1357,7 @@ function roadsideAndOutskirts(C) {
   // husks + caches scattered in the wild
   const wild = [[120, 360], [80, 300], [60, 420], [200, 620], [160, 680], [240, 760], [380, 780], [620, 790], [760, 790], [900, 700], [980, 640], [1040, 600], [1000, 300], [1060, 260], [1040, 120], [940, 120], [800, 60], [720, 20], [600, 140], [520, 140], [420, 160], [380, 30], [260, 60], [160, 120], [60, 200], [40, 760], [960, 800], [1080, 800], [880, 640]];
   for (const [x, z] of wild) {
-    if (C.blocked(x, z)) continue;
+    if (C.blocked(x, z) || C.inDam(x, z, 4)) continue;
     const k = C.pick(['husk', 'husk', 'dg_huskbig', 'dg_container', 'car']);
     w.prop(k, x, z, C.R(0, 6.28), { solid: true });
     w.container(C.pick(['arc_husk', 'crate', 'trash', 'arc_crate', 'backpack']), x + 2.2, z + 1.5, 0, { tier: 1 });
@@ -1312,13 +1374,14 @@ function vegetation(C) {
   const markLine = (pts, r) => { for (let k = 0; k < pts.length - 1; k++) { const [ax, az] = pts[k], [bx, bz] = pts[k + 1];
     for (let z = Math.max(0, Math.floor(Math.min(az, bz) - r)); z < Math.min(H, Math.ceil(Math.max(az, bz) + r)); z++) for (let x = Math.max(0, Math.floor(Math.min(ax, bx) - r)); x < Math.min(W, Math.ceil(Math.max(ax, bx) + r)); x++)
       if (C.distLine(x + 0.5, z + 0.5, [[ax, az], [bx, bz]]) < r) AV[z * W + x] = 1; } };
+  const markPoly = (pts) => { const xs = pts.map(p => p[0]), zs = pts.map(p => p[1]);
+    for (let z = Math.max(0, Math.floor(Math.min(...zs))); z < Math.min(H, Math.ceil(Math.max(...zs))); z++) for (let x = Math.max(0, Math.floor(Math.min(...xs))); x < Math.min(W, Math.ceil(Math.max(...xs))); x++) if (pointInPoly(x + 0.5, z + 0.5, pts)) AV[z * W + x] = 1; };
   for (const r of ROADS) markLine(r, 4.5);
   for (const r of TRACKS) markLine(r, 3);
-  markLine(WBB, 7); markLine(EBB, 7); for (const b of BOARDWALKS) markLine(b, 2.2);
-  for (const [a0, b0, c0, d0] of DAM_RECTS) markRect(a0 - 3, b0 - 3, c0 + 3, d0 + 3);
-  markLine(BALCONY, 9.5);
-  for (let z = 50; z < 300; z++) for (let x = 600; x < 910; x++) if (C.inDam(x + 0.5, z + 0.5, 3)) AV[z * W + x] = 1;
-  for (const b of w.buildings) markRect(b.x0 - 0.8, b.z0 - 0.8, b.x1 + 0.8, b.z1 + 0.8);
+  for (const b of BOARDWALKS) markLine(b, 2.2);
+  for (const [a, b, c, d] of [...DAM_HIGH, ...DECK_RECTS]) markPoly(GR(DAM, a - 3, b - 3, c + 3, d + 3));
+  markPoly(GR(DAM, -86, -50, 86, 50)); markPoly(GR(DAM, 18, 36, 100, 154));                   // breach + spillway apron
+  for (const b of w.buildings) markPoly(b.R ? [[-0.8, -0.8], [b.x1 - b.x0 + 0.8, -0.8], [b.x1 - b.x0 + 0.8, b.z1 - b.z0 + 0.8], [-0.8, b.z1 - b.z0 + 0.8]].map(([a, c]) => w.local(b, a, c)) : [[b.x0 - 0.8, b.z0 - 0.8], [b.x1 + 0.8, b.z0 - 0.8], [b.x1 + 0.8, b.z1 + 0.8], [b.x0 - 0.8, b.z1 + 0.8]]);
   for (const [cx, cz, r] of C.clear) markLine([[cx, cz], [cx + 0.01, cz]], r);
   for (const [a0, b0, c0, d0] of C.clearRects) markRect(a0, b0, c0, d0);
   for (const [dx, dz] of C.doorPts) markRect(dx - 2.6, dz - 2.6, dx + 2.6, dz + 2.6);
@@ -1353,10 +1416,10 @@ function vegetation(C) {
     [640, 760, 22, 10, 2.2], [420, 760, 24, 10, 2.2], [200, 740, 30, 12, 2.2], [60, 690, 30, 12, 2.4], [380, 650, 18, 8, 2], [800, 330, 30, 8, 1.6], [740, 500, 20, 6, 1.5]]) outcrop(x, z, r, n, s);
   w.scatter('rock', [0, 0, W, H], 520, { solid: true, seed: 405, scale: 1.2, scaleVar: 0.6, avoid: (x, z) => avoidBase(x, z) || C.swampAt(x, z) });
   // ground cover
-  w.scatter('dg_reeds', SWAMP, 1300, { seed: 501, scaleVar: 0.4, avoid: (x, z) => { const g = w.groundAt(x, z); return g > SWAMP_WATER + 0.25 || g < SWAMP_WATER - 0.7 || C.blocked(x, z); } });
-  w.scatter('dg_lily', SWAMP, 340, { seed: 502, avoid: (x, z) => w.groundAt(x, z) > SWAMP_WATER - 0.25 || C.blocked(x, z) });
+  w.scatter('dg_reeds', SWAMP, 1300, { seed: 501, scaleVar: 0.4, avoid: (x, z) => { const g = w.groundAt(x, z); return g > SWAMP_WATER + 0.25 || g < SWAMP_WATER - 0.7 || avoidBase(x, z); } });
+  w.scatter('dg_lily', SWAMP, 340, { seed: 502, avoid: (x, z) => w.groundAt(x, z) > SWAMP_WATER - 0.25 || avoidBase(x, z) });
   for (const p of w.props) if (p.kind === 'dg_lily') { p.opts.yAbs = SWAMP_WATER + 0.02; }
-  w.scatter('dg_reeds', BASIN, 220, { seed: 503, avoid: (x, z) => { const g = w.groundAt(x, z); return g > 0.25 || g < -0.6; } });
+  w.scatter('dg_reeds', BASIN, 220, { seed: 503, avoid: (x, z) => { const g = w.groundAt(x, z); return g > 0.25 || g < -0.6 || avoidBase(x, z); } });
   w.scatter('dg_grass', SWAMP, 1400, { seed: 504, avoid: (x, z) => w.groundAt(x, z) < SWAMP_WATER || avoidBase(x, z) });
   w.scatter('dg_grass', [0, 0, W, H], 2600, { seed: 505, avoid: (x, z) => avoidBase(x, z) || w.groundAt(x, z) < 0.3 || C.swampAt(x, z) });
   w.scatter('dg_log', SWAMP, 70, { solid: true, seed: 506, avoid: avoidBase });
@@ -1382,8 +1445,8 @@ function vegetation(C) {
   lootScatter(BASIN, 14, ['arc_husk', 'trash', 'crate'], 1, 604, (x, z) => w.groundAt(x, z) < 0.05 || C.inDam(x, z, 7));
   for (const b of w.buildings) {                       // a bin or crate outside most buildings
     if (b.x1 - b.x0 < 7 || C.rng() < 0.35) continue;
-    const x = b.x0 - 1.4, z = b.z1 + 1.6;
-    const gy = w.groundAt(x, z), by = w.groundAt((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2);
+    const [x, z] = w.local(b, -1.4, b.z1 - b.z0 + 1.6);
+    const gy = w.groundAt(x, z), by = w.groundAt((b.ax0 + b.ax1) / 2, (b.az0 + b.az1) / 2);
     if (Math.abs(gy - by) < 0.6 && !C.propHit(x - 0.6, z - 0.6, x + 0.6, z + 0.6) && !C.nearDoor(x, z, x, z, 1.6) && !C.inBuilding(x, z, 0.6)) w.container(C.rng() < 0.6 ? 'trash' : 'crate', x, z, 0, { tier: 1 });
   }
   const worn = [[330, 470], [400, 400], [470, 404], [552, 420], [600, 300], [640, 230], [628, 150], [600, 100], [640, 60], [720, 60], [900, 170], [910, 240], [790, 280], [700, 300], [664, 330], [650, 470], [640, 560], [560, 590], [470, 640], [420, 660], [330, 620]];
@@ -1396,10 +1459,22 @@ function vegetation(C) {
 function arkSpawns(C) {
   const { w } = C;
   const A = (k, x, z, o = {}) => w.arkSpawn(k, x, z, o);
-  // Sentinels (reference positions) — fixed long-range lasers on the dam
-  for (const [x, z, roof] of [[731, 162, true], [646, 272, false], [607, 345, true], [668, 340, false], [568, 397, false], [592, 542, false]]) A('sentinel', x, z, { radius: 0, roof });
-  // turrets on rooftops / towers
-  for (const [x, z] of [[668, 116], [668, 214], [600, 462], [730, 612], [380, 418], [580, 500], [504, 434], [373, 588], [726, 240], [612, 340]]) A('turret', x, z, { radius: 0, roof: true });
+  const B = C.B;
+  const roofOf = (bb) => bb.h + 0.3;
+  const centre = (bb) => C.Wp(bb, (bb.x1 - bb.x0) / 2, (bb.z1 - bb.z0) / 2);
+  // Sentinals on the reference icons, perched on roofs / masts / the fallen monolith
+  A('sentinel', ...L(1, -164), { radius: 0, y: roofOf(B.pc) });                 // Power Control roof (ref 731,162)
+  A('sentinel', ...L(-18, -32), { radius: 0, y: 4.2 });                         // mast on the broken stub (ref 646,272)
+  A('sentinel', 607, 345, { radius: 0, y: roofOf(B.fc) });                      // Floodgate Control roof
+  A('sentinel', ...L(37, 22), { radius: 0, yAbs: 5.2 });                        // fallen monolith in The Breach (ref 668,340)
+  A('sentinel', 568, 397, { radius: 0, y: roofOf(B.gt) });                      // Gate Hut roof
+  A('sentinel', ...L(70, 234), { radius: 0, y: roofOf(B.ra) });                 // R&A roof (ref 592,542)
+  // turrets on rooftops
+  for (const k of ['gh', 'caz', 'ct', 'ta', 'wtc', 'pf', 'sub', 'pump']) {
+    const bb = B[k]; if (!bb) continue;
+    A('turret', ...C.Wp(bb, (bb.x1 - bb.x0) * 0.7, (bb.z1 - bb.z0) * 0.35), { radius: 0, y: roofOf(bb) });
+  }
+  A('turret', ...L(62, -76), { radius: 0, y: 6.3 });                            // Pipeline Tower catwalk
   // Wasps on patrol loops
   const loops = [
     [[200, 260], [300, 240], [320, 320], [230, 360]], [[360, 300], [450, 280], [470, 360], [380, 380]], [[220, 420], [320, 430], [330, 500], [240, 510]],
@@ -1414,30 +1489,39 @@ function arkSpawns(C) {
   for (const [x, z, p] of [[668, 226, [[650, 200], [700, 240], [690, 260]]], [600, 480, [[590, 455], [630, 520], [570, 530]]], [730, 626, [[710, 600], [760, 650], [700, 650]]],
     [515, 220, [[480, 200], [550, 210], [530, 260]]], [780, 170, [[740, 150], [820, 190]]], [390, 436, [[370, 410], [420, 450], [380, 470]]], [630, 306, [[600, 300], [670, 310]]], [240, 320, [[210, 300], [270, 340]]]]) A('hornet', x, z, { count: 1, radius: 6, patrol: p });
   // Ticks lurking in buildings
-  for (const [x, z] of [[670, 126], [520, 440], [380, 428], [715, 615], [565, 505], [900, 296], [495, 686], [405, 552], [260, 152], [370, 66], [615, 340], [680, 48], [330, 198]]) A('tick', x, z, { count: 2, radius: 4 });
+  for (const k of ['gh', 'pf', 'wtc', 'ta', 'ra', 'pump', 'sub', 'pale', 'rubie', 'fc', 'ph', 'ben', 'caz']) if (B[k]) A('tick', ...centre(B[k]), { count: 2, radius: 4 });
+  A('tick', 495, 686, { count: 2, radius: 4 });
   // Pops in the swamp / forest
   for (const [x, z] of [[300, 300], [400, 330], [250, 470], [330, 450], [560, 650], [640, 690], [500, 280], [240, 330], [440, 250]]) A('pop', x, z, { count: 3, radius: 10 });
   // Fireballs in industrial areas
-  for (const [x, z] of [[760, 170], [500, 460], [370, 590], [510, 700], [606, 700], [720, 250]]) A('fireball', x, z, { count: 2, radius: 6 });
+  for (const [x, z] of [[...L(30, -168)], [...L(-20, 200)], [370, 590], [510, 700], [606, 700], [...L(50, -80)]]) A('fireball', x, z, { count: 2, radius: 6 });
   // Snitches over open ground
   for (const [x, z, p] of [[500, 150, [[460, 120], [560, 160], [500, 180]]], [780, 420, [[720, 380], [840, 420], [780, 480]]], [300, 360, [[260, 340], [340, 380]]], [600, 650, [[560, 640], [650, 680]]], [900, 300, [[880, 260], [940, 320]]], [420, 560, [[380, 540], [460, 580]]]]) A('snitch', x, z, { radius: 6, patrol: p });
   // Surveyors (high loot, flee) in open terrain
   for (const [x, z, p] of [[800, 330, [[760, 300], [860, 340], [820, 400]]], [880, 450, [[850, 420], [910, 480], [860, 520]]], [620, 780, [[580, 760], [680, 790]]]]) A('surveyor', x, z, { patrol: p, radius: 8 });
   // Rocketeers over the basin / dam
   for (const [x, z, p] of [[720, 400, [[680, 360], [800, 380], [760, 460]]], [600, 300, [[560, 260], [650, 300], [620, 360]]], [820, 560, [[780, 540], [880, 560]]], [450, 480, [[420, 460], [480, 520]]]]) A('rocketeer', x, z, { patrol: p, radius: 10 });
-  // Leapers roam open areas
-  for (const [x, z, p] of [[790, 460, [[740, 420], [860, 480], [800, 540]]], [560, 760, [[520, 740], [620, 780]]], [990, 500, [[960, 460], [1040, 520]]], [170, 640, [[140, 600], [220, 680]]]]) A('leaper', x, z, { patrol: p, radius: 12 });
+  // Leapers roam open areas (the one by the Red Lakes stands down while the Queene holds the basin)
+  A('leaper', 790, 460, { patrol: [[740, 420], [860, 480], [800, 540]], radius: 12, notCondition: 'harvester' });
+  for (const [x, z, p] of [[560, 760, [[520, 740], [620, 780]]], [990, 500, [[960, 460], [1040, 520]]], [170, 640, [[140, 600], [220, 680]]]]) A('leaper', x, z, { patrol: p, radius: 12 });
   // Bastions — heavy walkers
-  for (const [x, z, p] of [[760, 330, [[720, 310], [820, 340], [780, 380]]], [850, 520, [[820, 500], [900, 540]]], [760, 170, [[720, 160], [820, 190]]], [380, 740, [[340, 720], [420, 760]]]]) A('bastion', x, z, { patrol: p, radius: 10 });
+  for (const [x, z, p] of [[760, 330, [[720, 310], [820, 340], [780, 380]]], [850, 520, [[820, 500], [900, 540]]], [...L(40, -150), [L(-40, -150), L(120, -150)]], [380, 740, [[340, 720], [420, 760]]]]) A('bastion', x, z, { patrol: p, radius: 10 });
   // Bombardiers + spotters
-  A('bombardier', 990, 420, { radius: 8 }); A('spotter', 900, 400, { radius: 10, patrol: [[880, 380], [920, 420]] });
+  A('bombardier', 990, 420, { radius: 8, notCondition: 'harvester' }); A('spotter', 900, 400, { radius: 10, patrol: [[880, 380], [920, 420]] });
   A('bombardier', 180, 700, { radius: 8 }); A('spotter', 250, 640, { radius: 10, patrol: [[230, 620], [270, 660]] });
+  // condition-only groups: the Queene's escort at the Red Lakes, the Matriark's brood on Tower Hill, night fireballs
+  A('hornet', 862, 368, { count: 2, radius: 16, condition: 'harvester', patrol: [[830, 340], [900, 360], [880, 410], [830, 400]] });
+  A('rocketeer', 820, 400, { count: 1, radius: 10, condition: 'harvester', patrol: [[790, 380], [860, 420]] });
+  A('wasp', 347, 680, { count: 3, radius: 12, condition: 'matriarch', patrol: [[320, 660], [370, 660], [370, 700], [320, 700]] });
+  A('hornet', 360, 700, { count: 2, radius: 10, condition: 'matriarch', patrol: [[330, 690], [380, 670]] });
+  A('fireball', 300, 380, { count: 2, radius: 8, condition: 'night_raid' }); A('fireball', 560, 650, { count: 2, radius: 8, condition: 'night_raid' });
+  A('snitch', ...L(20, 100), { radius: 6, condition: 'close_scrutiny', patrol: [L(-20, 60), L(-20, 140), L(40, 140)] });
 }
 
 // ==================================================================================== MARKERS
 function markers(C) {
   const { w } = C;
-  const P = (id, name, x, z, r, tier, aliases = []) => w.poi(id, name, x, z, r, { tier, aliases: aliases.length ? aliases : [id] });
+  const P = (id, name, x, z, r, tier, aliases = [], extra = {}) => w.poi(id, name, x, z, r, { tier, aliases: aliases.length ? aliases : [id], ...extra });
   P('west_broken_bridge', 'West Broken Bridge', 540, 17, 35, 1);
   P('pattern_house', 'Pattern House', 688, 54, 30, 2);
   P('rubie_residence', 'Rubie Residence', 368, 84, 45, 2, ['ruby_residence']);
@@ -1470,15 +1554,21 @@ function markers(C) {
   P('scrap_yard', 'Scrap Yard', 510, 696, 36, 2);
   P('wreckage', 'Wreckage', 606, 690, 30, 2);
   P('formikai_outpost', 'Formikai Outpost', 528, 796, 34, 2, ['formicai_outpost']);
+  // boss arenas from the reference's Queen / Matriarch icons (condition bosses spawn here)
+  P('red_lakes', 'Red Lakes', 862, 368, 60, 2, ['red_lakes'], { bossPoi: ['queene'] });
+  P('tower_hill', 'Tower Hill', 347, 680, 40, 1, ['tower_hill'], { bossPoi: ['matriark'] });
   // player insertion points (reference spawn icons)
   for (const [x, z] of SPAWNS) w.spawnPoint(x, z);
   // loot tier zones
   w.zone('Outskirts', [[0, 0], [W, 0], [W, H], [0, H]], { tier: 1 });
   const Z = (name, tier, x0, z0, x1, z1) => w.zone(name, [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], { tier });
-  w.zone('Power Generation Complex', PG_POLY, { tier: 2 }); Z('Controlled Access Zone', 3, 646, 208, 692, 244); Z('Pipeline Tower', 2, 712, 186, 772, 268);
-  Z('Floodgates', 2, 550, 322, 654, 456); Z('Control Tower', 3, 584, 458, 630, 484); Z('Research & Administration', 3, 558, 496, 602, 536);
-  Z('Primary Facility', 2, 470, 424, 556, 500); Z('Water Treatment Control', 2, 362, 400, 470, 502); Z('Hydroponic Dome Complex', 2, 460, 186, 560, 296);
-  Z('Testing Annex', 3, 704, 600, 756, 664); Z('Pattern House', 2, 660, 30, 716, 78); Z('Rubie Residence', 2, 320, 50, 392, 116); Z('Pale Apartments', 2, 226, 140, 286, 196);
-  Z("Ben Welda's Sunroof", 2, 316, 186, 358, 210); Z('Old Battleground', 2, 196, 290, 284, 350); Z('Electrical Substation', 2, 346, 540, 420, 612);
-  Z('Scrap Yard', 2, 470, 672, 542, 720); Z('Wreckage', 2, 582, 670, 630, 710); Z('Formikai Outpost', 2, 500, 776, 560, 816); Z('The Breach', 2, 586, 292, 700, 322);
+  const ZG = (name, tier, G, X0, Z0, X1, Z1) => w.zone(name, GR(G, X0, Z0, X1, Z1), { tier });
+  ZG('Power Generation Complex', 2, DAM, -100, -201, 140, -112); ZG('Controlled Access Zone', 3, DAM, -46, -96, 4, -58); ZG('Pipeline Tower', 2, DAM, 25, -112, 82, -54);
+  ZG('Floodgates', 2, DAM, -32, 40, 58, 152); ZG('Control Tower', 3, DAM, 30, 148, 74, 190); ZG('Research & Administration', 3, DAM, 28, 196, 76, 238);
+  ZG('Primary Facility', 2, DAM, -104, 150, 26, 242); ZG('The Breach', 2, DAM, -60, -40, 70, 40); ZG('Red Lakes Balcony', 2, DAM, 78, 168, 306, 210);
+  ZG('Water Treatment Control', 2, G_WTC, 362, 400, 440, 494); ZG('Testing Annex', 3, G_TA, 694, 604, 762, 672); ZG('Electrical Substation', 2, G_SS, 362, 546, 404, 610);
+  ZG('Pattern House', 2, DAM, -112, -268, -68, -226); ZG('Rubie Residence', 2, G_RUB, 320, 50, 392, 116); ZG('Pale Apartments', 2, G_PALE, 226, 140, 286, 196);
+  ZG("Ben Welda's Sunroof", 2, G_BEN, 316, 186, 358, 210);
+  Z('Hydroponic Dome Complex', 2, 460, 186, 560, 296); Z('Old Battleground', 2, 196, 290, 284, 350);
+  Z('Scrap Yard', 2, 470, 672, 542, 720); Z('Wreckage', 2, 582, 670, 630, 710); Z('Formikai Outpost', 2, 500, 776, 560, 816);
 }
