@@ -192,7 +192,7 @@ export class AudioSystem {
       const t = this.ctx.currentTime, gp = v.gn.gain;
       gp.cancelScheduledValues(t); gp.setValueAtTime(gp.value, t); gp.linearRampToValueAtTime(0, t + fade);
       v.src.stop(t + fade + 0.01);
-    } catch (e) { /* already stopped */ }
+    } catch { /* already stopped */ }
   }
 
   // ------------------------------------------------------------------ loops
@@ -342,7 +342,7 @@ export class AudioSystem {
       const b = ctx.createBuffer(1, data.length, SR); b.copyToChannel(data, 0);
       const s = ctx.createBufferSource(); s.buffer = b; s.loop = !!SFX[what.sfx].loop;
       const g = ctx.createGain(); g.gain.value = SFX[what.sfx].vol;
-      s.connect(g).connect(out); s.start(0);
+      s.connect(g).connect(out); s.start(0.25);           // let the limiter settle first
     } else {
       const m = new MusicEngine(ctx, out, { offline: true });
       if (what.intensity != null) m.intensity = what.intensity;

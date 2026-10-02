@@ -3,6 +3,8 @@ import { el, cell, DnD, Tooltip, RAR } from './itemui.js';
 import { ITEMS, makeStack } from '../game/items.js';
 import { capacities, fitLoadout, moveSlot, getSlot, setSlot, QUICK_TYPES } from '../game/inventory.js';
 import { TERRAIN } from '../engine/textures.js';
+import { RECIPES } from '../data/recipes.js';
+import { countIn, takeFrom, pickUp as pickUpInto } from '../game/inventory.js';
 
 const TERRAIN_COL = { grass: '#4a5a2a', dirt: '#5a4632', sand: '#c09c64', sandDark: '#8e7046', concrete: '#727068', damConcrete: '#857e70', asphalt: '#38383a', rock: '#5a544c', tiles: '#868076', wood: '#624432', mud: '#3e3424', gravel: '#6a665e', moss: '#3a4826', forest: '#2e3a1e', metalPanel: '#525a5c', hazard: '#a07a20' };
 
@@ -21,6 +23,19 @@ export class RaidUI {
       if (e.key === 'Escape') this.closeChat();
     });
     inp.addEventListener('input', () => { this.chatInput = inp.value; });
+    if (game.profile && !game.profile.seenIntro) this.showIntro();
+  }
+  showIntro() {
+    const p = el('div', 'panel col'); p.style.cssText = 'position:absolute;right:calc(var(--px)*8px);top:calc(var(--px)*40px);max-width:calc(var(--px)*190px);pointer-events:none';
+    p.innerHTML = `<h2 class="yellow">FIRST DROP</h2>
+      <div>Loot what you can, then <span class="green">EXTRACT</span> at an elevator, metro or hatch before the timer runs out.</div>
+      <div class="label">ARK GAZE: <span class="yellow">YELLOW</span> PATROL - <span style="color:var(--orange)">ORANGE</span> SUSPICIOUS - <span class="red">RED</span> HUNTING YOU. STAY OUT OF THE LIGHT OR BREAK LINE OF SIGHT.</div>
+      <div class="label">E SEARCH / INTERACT - TAB INVENTORY - M MAP - 1-6 QUICK USE - SPACE ROLL - C CROUCH - F FLASHLIGHT</div>
+      <div class="label">DIE AND YOU LOSE EVERYTHING EXCEPT YOUR SAFE POCKET.</div>`;
+    this.wrap.appendChild(p);
+    const kill = () => { p.remove(); removeEventListener('keydown', kill); };
+    setTimeout(() => addEventListener('keydown', kill), 1500); setTimeout(kill, 16000);
+    this.g.profile.seenIntro = true;
   }
   destroy() { this.wrap.remove(); Tooltip.hide(); this.g.o.input.typing = false; this.g.o.input.enabled = true; }
   get blocking() { return !!(this.inv || this.mapEl || this.pause); }
@@ -45,7 +60,20 @@ export class RaidUI {
   closeChat() { this.chatOpen = false; this.chatEl.classList.add('hidden'); this.chatField.blur(); this.g.o.input.typing = false; }
 
   // ------------------------------------------------------------------ inventory + loot
-  openLoot(it, items) { this.lootRef = it; this.lootItems = items; this.openInv(); }
+  openLoot(it, items) {
+    this.lootRef = it; this.lootItems = items;
+    // first search reveals items one by one (ARC Raiders style)
+    const key = it.kind + ':' + it.ref; this.revealed = this.revealed || new Set();
+    if (!this.revealed.has(key) && items.length) {
+      this.revealed.add(key);
+      this.revealN = 0; this.revealAt = performance.now();
+      const step = 320 / (this.g.stats0?.search_reveal || 1);
+      const tick = () => { if (this.lootRef !== it) return; this.revealN++; this.g.audio?.play('ui_hover'); this.renderInv(); if (this.revealN < items.length) setTimeout(tick, step); };
+      setTimeout(tick, step);
+      this.revealN = 0;
+    } else this.revealN = 1e9;
+    this.openInv();
+  }
   openInv() { if (!this.inv) { this.inv = el('div', 'overlay'); this.wrap.appendChild(this.inv); this.g.audio?.play('ui_open'); } this.renderInv(); }
   closeInv() { if (!this.inv) return; this.inv.remove(); this.inv = null; this.lootRef = null; this.lootItems = null; Tooltip.hide(); this.g.audio?.play('ui_close'); }
   renderInv() {
@@ -70,11 +98,30 @@ export class RaidUI {
     left.appendChild(sec(`BACKPACK  ${lo.backpack.filter(Boolean).length}/${caps.backpack}`, bp));
     left.appendChild(el('div', 'label', 'DRAG TO MOVE  -  RIGHT CLICK: USE / QUICK-MOVE  -  DRAG OUTSIDE: DROP'));
     this.inv.appendChild(left);
+    // field crafting (skill unlock): basic inRaid recipes from carried materials
+    const un = g.stats0?.unlocks;
+    if (!this.lootItems && (un?.has?.('field_craft_basic') || un?.has?.('field_craft_advanced'))) {
+      const fc = el('div', 'panel col'); fc.style.maxWidth = 'calc(var(--px) * 170px)';
+      fc.appendChild(el('h2', '', 'FIELD CRAFT'));
+      const adv = un.has('field_craft_advanced');
+      const known = new Set(g.profile?.blueprints || []);
+      for (const r of RECIPES.filter(r => r.inRaid && (adv || r.bench === 'workbench') && (!r.blueprint || known.has(r.id)))) {
+        const arrs = [lo.backpack, lo.safe, lo.quick];
+        const ok = Object.entries(r.in).every(([id, n]) => countIn(arrs, id) >= n);
+        const row = el('div', 'row');
+        const b = el('button', ok ? '' : '', (ITEMS[r.out]?.name || r.out).toUpperCase()); b.disabled = !ok; b.style.flex = '1';
+        b.title = Object.entries(r.in).map(([id, n]) => `${n}x ${ITEMS[id]?.name || id}`).join(', ');
+        b.onclick = () => { for (const [id, n] of Object.entries(r.in)) takeFrom(arrs, id, n); const left = pickUpInto(lo, makeStack(r.out, r.qty || 1)); if (left > 0) g.dropStack(makeStack(r.out, left)); g.audio?.play('ui_craft'); g.feed('CRAFTED ' + (ITEMS[r.out]?.name || r.out).toUpperCase(), '#68e088'); this.renderInv(); };
+        row.appendChild(b); fc.appendChild(row);
+        fc.appendChild(el('div', 'label', b.title));
+      }
+      this.inv.appendChild(fc);
+    }
     if (this.lootItems) {
       const right = el('div', 'panel col'); right.style.minWidth = 'calc(var(--cell) * 6)';
       right.appendChild(el('div', 'row', `<h2>${this.lootRef.label.replace(/^(SEARCH|OPEN|LOOT) /, '')}</h2>`));
       const grid = el('div', 'slots'); grid.style.maxWidth = 'calc(var(--cell) * 6 + var(--px) * 6px)';
-      this.lootItems.forEach((s, i) => grid.appendChild(cell(s, { c: 'loot', i })));
+      this.lootItems.forEach((s, i) => { if (i < (this.revealN ?? 1e9)) grid.appendChild(cell(s, { c: 'loot', i })); else { const c = cell(null, { c: 'loot-hidden', i }); c.innerHTML = '<span class="label">...</span>'; grid.appendChild(c); } });
       for (let k = this.lootItems.length; k < Math.max(6, this.lootItems.length); k++) grid.appendChild(cell(null, { c: 'loot', i: k }));
       right.appendChild(grid);
       const all = el('button', 'primary', 'TAKE ALL'); all.onclick = () => this.takeAll(); right.appendChild(all);

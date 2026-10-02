@@ -6,7 +6,7 @@ import { INST } from './instruments.js';
 import { compileSong, songInstruments, SongPlayer } from './sequencer.js';
 import { SONGS } from './songs.js';
 
-const LOOKAHEAD = 0.1, TICK_MS = 25, MAX_VOICES = 72;
+const LOOKAHEAD = 0.1, TICK_MS = 25, MAX_VOICES = 96;
 const RAID = { raid_calm: 0, raid_tense: 0.5, combat: 1 };
 const MAP_KEY = { damn_grounds: 0, green_gate: 2, sandy_city: -5 };
 export const MUSIC_STATES = ['menu', 'hub', 'lobby', 'raid_calm', 'raid_tense', 'combat', 'extract', 'extracted', 'death'];
@@ -21,11 +21,12 @@ export class MusicEngine {
     const g = (v = 1) => { const n = ctx.createGain(); n.gain.value = v; return n; };
 
     // post chain: mix → duck → muffle lowpass → out
-    this.mix = g(); this.duckG = g(); this.lp = ctx.createBiquadFilter();
+    // mix gain 1.7 = internal make-up so the music sits well against the compressed SFX bus
+    this.mix = g(1.7); this.duckG = g(); this.lp = ctx.createBiquadFilter();
     this.lp.type = 'lowpass'; this.lp.frequency.value = 20000; this.lp.Q.value = 0.5;
     this.mix.connect(this.duckG).connect(this.lp).connect(out);
     this.dryIn = g(); this.dryIn.connect(this.mix);
-    this.jingleIn = g(); this.jingleIn.connect(this.lp);       // jingles bypass ducking
+    this.jingleIn = g(1.7); this.jingleIn.connect(this.lp);       // jingles bypass ducking
 
     // SNES echo: input → HP → [L delay ⇄ R delay] with lowpass + feedback, panned returns
     this.echoIn = g(); const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 160;
@@ -88,7 +89,7 @@ export class MusicEngine {
       const poly = c.poly || inst.poly;
       if (ch.voices.length >= poly) {
         const o = ch.voices.shift();
-        try { o.g.gain.cancelScheduledValues(t); o.g.gain.setTargetAtTime(0, t, 0.012); o.src.stop(t + 0.08); } catch (e) { /* already stopped */ }
+        try { o.g.gain.cancelScheduledValues(t); o.g.gain.setTargetAtTime(0, t, 0.012); o.src.stop(t + 0.08); } catch { /* already stopped */ }
       }
       const src = ctx.createBufferSource(), g = ctx.createGain();
       src.buffer = inst.buffer;
@@ -127,14 +128,16 @@ export class MusicEngine {
   startTimer() {
     if (this.offline || this.timer) return;
     const tick = () => this.tick();
+    const fallback = () => { const id = setInterval(tick, TICK_MS); this.timer = { stop: () => clearInterval(id) }; };
     try {
+      // a Worker-driven 25 ms clock keeps scheduling steady when the tab throttles main-thread timers
       const code = `let id=null;onmessage=e=>{if(e.data==='start'){if(!id)id=setInterval(()=>postMessage(0),${TICK_MS})}else{clearInterval(id);id=null}}`;
       const w = new Worker(URL.createObjectURL(new Blob([code], { type: 'text/javascript' })));
       w.onmessage = tick; w.postMessage('start');
-      this.timer = { stop: () => { w.postMessage('stop'); w.terminate(); } };
-    } catch (e) {
-      const id = setInterval(tick, TICK_MS);
-      this.timer = { stop: () => clearInterval(id) };
+      w.onerror = () => { w.terminate(); if (this.timer?.worker === w) fallback(); };   // e.g. CSP blocks blob: workers
+      this.timer = { worker: w, stop: () => { w.postMessage('stop'); w.terminate(); } };
+    } catch {
+      fallback();
     }
   }
   stopTimer() { if (this.timer) { this.timer.stop(); this.timer = null; } }
@@ -201,10 +204,15 @@ export class MusicEngine {
   }
   applyIntensity() {
     const p = this.cur; if (!p || !p.id.startsWith('raid_')) return;
+    this.appliedTo = p;
     const tg = this.layerTargets();
     for (const [k, v] of Object.entries(tg)) { const L = p.layer(k); if (L) p.setLayer(k, v, v > L.target ? 1.0 : 2.4); }
   }
-  setIntensity(v) { this.intensity = Math.min(1, Math.max(0, +v || 0)); this.applyIntensity(); }
+  setIntensity(v) {
+    v = Math.min(1, Math.max(0, +v || 0));
+    if (Math.abs(v - this.intensity) < 0.015 && this.appliedTo === this.cur) return;   // cheap when called every frame
+    this.intensity = v; this.applyIntensity();
+  }
   jingle(name) {
     const id = 'j_' + name;
     if (!SONGS[id]) throw new Error('unknown jingle ' + name);

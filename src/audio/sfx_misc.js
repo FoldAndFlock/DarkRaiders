@@ -1,5 +1,5 @@
 // Extraction / raid flow, UI (SNES menu chirps) and ambient beds.
-import { SR, buf, noise, osc, fm, ad, env, filt, filtFn, layer, mix, snes, am, seamless, echo, unison } from './dsp.js';
+import { SR, buf, noise, osc, ad, env, filt, filtFn, layer, mix, snes, am, seamless, echo, unison } from './dsp.js';
 import {
   def, click, clack, whoosh, thump, ping, blips, bell, N, rain, wind, bubble, birdChirp, rustle, servo,
 } from './sfx_lib.js';

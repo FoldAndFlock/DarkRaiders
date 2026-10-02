@@ -9,7 +9,7 @@ import { VisionCones } from '../engine/cones.js';
 import { World, mulberry } from '../engine/world.js';
 import { GU } from '../engine/materials.js';
 import { HUD, UI } from '../ui/hud.js';
-import { drawIcon } from '../ui/icons.js';
+import { drawIcon, drawItemIcon } from '../ui/icons.js';
 import { Sim } from './sim.js';
 import { View } from './view.js';
 import { PlayerController } from './player.js';
@@ -82,7 +82,7 @@ export class RaidGame {
     }
     for (const d of this.doorsData) d.lockedNow = !!d.locked;
     this.view = new View(this);
-    this.hud = new HUD(this.hudCanvas); this.hud.icons = drawIcon;
+    this.hud = new HUD(this.hudCanvas); this.hud.icons = drawIcon; this.hud.itemIcons = drawItemIcon || null;
     this.hud.resize(this.R.scale);
     addEventListener('resize', () => this.hud.resize(this.R.scale));
     // spawn the local player (+ remote squad on host)
@@ -394,7 +394,7 @@ export class RaidGame {
       raid: { map: this.o.map.name, time: Math.max(0, this.timeLeft ?? 0), condition: (this.cond?.name || '').toUpperCase(), weather: `${this.timeOfDay.toUpperCase()}  ${this.weather.toUpperCase()}` },
       player: { name: this.o.name, level: this.profile?.level, hp: me.st === 'downed' ? me.downHp : me.hp, hpMax: me.st === 'downed' ? 75 : me.maxHp, shield: me.sh, shieldMax: me.shMax, stamina: pc.stamina / pc.stats.max_stamina, weight: pc.weight(), weightMax: caps.weightLimit },
       weapon: w ? { name: ITEMS[w.id].name, tier: ROMAN[w.tier || 1], rarity: ITEMS[w.id].rarity, mag: w.ammo || 0, reserve: countLoadout(lo, ws.ammo), mode: pc.reloadT > 0 ? 'RELOADING' : ((w.dur ?? 1) <= 0 ? 'BROKEN' : ws.mode.toUpperCase()), alt: lo.weapons.filter((x, i) => x && i !== pc.slot).map(x => ITEMS[x.id].name).join(' / ') } : { name: 'Unarmed', tier: '', rarity: 'common', mag: 0, reserve: 0, mode: '' },
-      quick: lo.quick.map((s, i) => s ? { icon: ITEMS[s.id]?.icon, count: s.qty, active: pc.useSlot === i && pc.useItem } : {}),
+      quick: lo.quick.map((s, i) => s ? { item: s.id, icon: ITEMS[s.id]?.icon, count: s.qty, active: pc.useSlot === i && pc.useItem } : {}),
       feed: this.feedList,
       chat: { lines: this.chatLines, open: this.ui.chatOpen, input: this.ui.chatInput || '', teamCount: 0 },
       banner: this.bannerS,

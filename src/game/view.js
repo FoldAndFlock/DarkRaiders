@@ -110,7 +110,17 @@ export class View {
   removeVisual(id) {
     const v = this.vis.get(id); if (!v) return;
     this.R.scene.remove(v.obj);
+    if (v.loop) { try { v.loop.stop(); } catch (e) { /* */ } v.loop = null; }
     this.vis.delete(id);
+  }
+  // positional engine/fire loops for nearby entities
+  updLoop(v, name, active) {
+    const me = this.g.me;
+    const near = me && Math.hypot(v.px - me.x, v.pz - me.z) < 38;
+    if (active && near && name) {
+      if (!v.loop) v.loop = this.g.audio?.loop?.(name, { x: v.px, z: v.pz }) || null;
+      else v.loop.setPos?.(v.px, v.pz);
+    } else if (v.loop) { try { v.loop.stop(); } catch (e) { /* */ } v.loop = null; }
   }
 
   // called every frame with the authoritative entity map
@@ -148,6 +158,11 @@ export class View {
       const fy = v.py + 1.4;
       this.L.spot(v.px + Math.sin(e.f) * 0.3, fy, v.pz + Math.cos(e.f) * 0.3, e.f, 0.42, 0xfff2d8, this.L.isNight ? 3.0 : 1.4, 17, e.id === this.g.meId ? 3 : 1.6);
     }
+    // remote footsteps
+    if (e.id !== this.g.meId && e.moving && e.st === 'alive' && !e.crouch) {
+      v.stepT = (v.stepT ?? 0) - dt * (e.sprint ? 1.5 : 1);
+      if (v.stepT <= 0) { v.stepT = 0.4; const me = this.g.me; if (me && Math.hypot(v.px - me.x, v.pz - me.z) < 22) this.g.audio?.play(SURF_SND[this.world.grid.surfAt(v.px, v.pz)] || 'step_grass', { x: v.px, z: v.pz, vol: e.sprint ? 0.35 : 0.2 }); }
+    }
     // faint personal light so your own raider always reads in the dark
     if (e.id === this.g.meId && this.L.isNight && e.st !== 'dead') this.L.light(v.px, v.py + 1.6, v.pz, 0xc8d8ff, 0.55, 4.5, 2.8);
     // tagged enemies glow red outline
@@ -155,6 +170,8 @@ export class View {
   }
   updArk(v, e, dt) {
     const def = ARK[e.kind] || {};
+    const LOOP = { wasp: 'wazp_loop', hornet: 'hornit_loop', rocketeer: 'rocketier_loop', snitch: 'wazp_loop', pop: 'popp_roll_loop' };
+    this.updLoop(v, LOOP[def.model], e.st !== 'dead' && !e.dormant && (def.model !== 'pop' || e.st === 'alert'));
     const t = performance.now() / 1000;
     const alt = e.alt || 0;
     const bob = def.flying ? Math.sin(t * 3 + e.id) * 0.08 : 0;
@@ -186,6 +203,7 @@ export class View {
   }
   updHazard(v, e, dt) {
     const r = Math.random;
+    this.updLoop(v, e.kind === 'fire' ? 'fire_loop' : null, true);
     if (e.kind === 'smoke' && r() < dt * 30) this.fx.smoke(e.x + (r() - .5) * e.r * 1.4, e.y, e.z + (r() - .5) * e.r * 1.4, 1, false, e.r * 0.6);
     if (e.kind === 'fire') { this.fx.fire(e.x, e.y + 0.1, e.z, 2, e.r * 1.2); if (r() < dt * 6) this.fx.smoke(e.x, e.y + 0.5, e.z, 1, true, e.r); this.L.light(e.x, e.y + 0.8, e.z, 0xff7a20, 1.6 + r() * 0.5, e.r + 6, 1.8); }
     if (e.kind === 'gas' && r() < dt * 25) this.fx.parts.emit({ x: e.x + (r() - .5) * e.r * 1.6, y: e.y + 0.2, z: e.z + (r() - .5) * e.r * 1.6, vy: 0.3, life: 2.5, size: 8, size1: 16, color: 0x8ac040, color1: 0x5a8a30, alpha: 0.45, shape: 1, drag: 0.5 });

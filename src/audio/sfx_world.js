@@ -2,7 +2,7 @@
 import { buf, noise, osc, fm, ad, env, filt, filtFn, layer, mix, snes, am, seamless, echo } from './dsp.js';
 import { def, explosion, click, clack, rustle, whoosh, thump, ping, blips, bell, N, bubble } from './sfx_lib.js';
 
-const STEP = { v: 4, vol: 0.4, dist: 20, max: 4, pj: 0.08, prio: 0 };
+const STEP = { v: 4, vol: 0.55, dist: 20, max: 4, pj: 0.08, prio: 0 };
 
 function step(R, o) {
   const { f = 900, q = 1, dec = 0.06, low = 0.4, lowF = 140, hiss = 0, hissF = 4000, grit = 0, crunch = 0 } = o;

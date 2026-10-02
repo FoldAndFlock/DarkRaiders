@@ -108,8 +108,25 @@ const LIGHTS_INJECT = /* glsl */`
   #endif
 `;
 
-function hook(mat, { cutaway = false, xray = true, glow = false, lights = true, extraFragPars = '', diffuse = null, extraUniforms = {}, key = '' } = {}) {
+const SWAY_VERT = /* glsl */`
+  #ifdef DW_SWAY
+  {
+    vec2 ip = vec2(0.0);
+    #ifdef USE_INSTANCING
+      ip = instanceMatrix[3].xz;
+    #endif
+    float h = max(0.0, transformed.y - 0.6);
+    float w = length(uWind) * 0.5 + 0.15;
+    float ph = uTime * (1.3 + w * 0.6) + ip.x * 0.37 + ip.y * 0.21;
+    vec2 dir = length(uWind) > 0.01 ? normalize(uWind) : vec2(1.0, 0.0);
+    float amt = (sin(ph) * 0.6 + sin(ph * 2.3 + 1.7) * 0.25 + 0.35) * w * 0.018 * pow(h, 1.35);
+    transformed.x += dir.x * amt; transformed.z += dir.y * amt;
+  }
+  #endif
+`;
+function hook(mat, { cutaway = false, xray = true, glow = false, lights = true, sway = false, extraFragPars = '', diffuse = null, extraUniforms = {}, key = '' } = {}) {
   mat.defines = mat.defines || {};
+  if (sway) mat.defines.DW_SWAY = '';
   if (cutaway) mat.defines.DW_CUTAWAY = '';
   if (xray) mat.defines.DW_XRAY = '';
   if (glow) mat.defines.DW_GLOW = '';
@@ -117,8 +134,8 @@ function hook(mat, { cutaway = false, xray = true, glow = false, lights = true, 
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, GU, extraUniforms);
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\n' + COMMON_VERT_PARS + (glow ? 'attribute float glow; varying float vGlow;' : ''))
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + COMMON_VERT + (glow ? 'vGlow = glow;' : ''));
+      .replace('#include <common>', '#include <common>\n' + COMMON_VERT_PARS + 'uniform float uTime; uniform vec2 uWind;\n' + (glow ? 'attribute float glow; varying float vGlow;' : ''))
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + SWAY_VERT + COMMON_VERT + (glow ? 'vGlow = glow;' : ''));
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\n' + COMMON_FRAG_PARS + extraFragPars + (glow ? 'varying float vGlow; uniform float uGlowBoost;' : ''))
       .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + COMMON_FRAG_CLIP)
@@ -127,7 +144,7 @@ function hook(mat, { cutaway = false, xray = true, glow = false, lights = true, 
     if (glow) sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>',
       '#include <emissivemap_fragment>\n totalEmissiveRadiance += diffuseColor.rgb * vGlow * 1.6 * uGlowBoost;');
   };
-  mat.customProgramCacheKey = () => ['dw2', cutaway, xray, glow, lights, !!diffuse, key].join('|');
+  mat.customProgramCacheKey = () => ['dw2', cutaway, xray, glow, lights, sway, !!diffuse, key].join('|');
   return mat;
 }
 export { hook as hookMaterial };
@@ -139,10 +156,10 @@ export function litTex(texture, { cutaway = false, xray = true, color = 0xffffff
   const m = hook(new THREE.MeshLambertMaterial({ map: texture, color, transparent, side }), { cutaway, xray });
   cache.set(key, m); return m;
 }
-export function litVox({ xray = false, cutaway = false } = {}) {
-  const key = 'vox' + xray + cutaway;
+export function litVox({ xray = false, cutaway = false, sway = false } = {}) {
+  const key = 'vox' + xray + cutaway + sway;
   if (cache.has(key)) return cache.get(key);
-  const m = hook(new THREE.MeshLambertMaterial({ vertexColors: true }), { xray, cutaway, glow: true });
+  const m = hook(new THREE.MeshLambertMaterial({ vertexColors: true }), { xray, cutaway, glow: true, sway });
   cache.set(key, m); return m;
 }
 

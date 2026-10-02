@@ -11,6 +11,12 @@ export function makeCode(n = 5) { let s = ''; for (let i = 0; i < n; i++) s += C
 
 // ------------------------------------------------------------------ transports
 // PeerJS transport (default) or BroadcastChannel (same-browser testing: ?net=local)
+// Optional self-hosted signalling: ?peerhost=example.com&peerport=443&peerpath=/myapp&peersecure=1
+function peerOptions() {
+  const q = new URLSearchParams(location.search), o = { debug: 0 };
+  if (q.get('peerhost')) { o.host = q.get('peerhost'); o.port = +(q.get('peerport') || 443); o.path = q.get('peerpath') || '/'; o.secure = q.get('peersecure') !== '0'; }
+  return o;
+}
 class PeerTransport {
   constructor() { this.peer = null; this.conns = new Map(); this.handlers = {}; }
   on(ev, fn) { this.handlers[ev] = fn; }
@@ -18,9 +24,11 @@ class PeerTransport {
   host(code) {
     return new Promise((res, rej) => {
       if (typeof Peer === 'undefined') return rej(new Error('PeerJS failed to load (are you offline?)'));
-      this.peer = new Peer(PREFIX + code, { debug: 0 });
+      try { this.peer?.destroy(); } catch (e) { /* */ }
+      this.peer = new Peer(PREFIX + code, peerOptions());
       this.peer.on('open', () => res());
-      this.peer.on('error', (e) => { if (!this.opened) rej(e); this.emit('error', e); });
+      this.peer.on('error', (e) => { if (!this.opened) { try { this.peer.destroy(); } catch (x) { /* */ } rej(e); } else this.emit('error', e); });
+      this.peer.on('disconnected', () => { try { this.peer.reconnect(); } catch (e) { /* */ } });
       this.peer.on('connection', (c) => this._wire(c));
       this.peer.on('open', () => { this.opened = true; });
     });
@@ -28,7 +36,7 @@ class PeerTransport {
   join(code) {
     return new Promise((res, rej) => {
       if (typeof Peer === 'undefined') return rej(new Error('PeerJS failed to load (are you offline?)'));
-      this.peer = new Peer(undefined, { debug: 0 });
+      this.peer = new Peer(undefined, peerOptions());
       this.peer.on('error', (e) => { rej(e); this.emit('error', e); });
       this.peer.on('open', () => {
         const c = this.peer.connect(PREFIX + code.toUpperCase(), { reliable: true, serialization: 'json' });
@@ -122,9 +130,10 @@ export class Net {
     else this.t.send('host', msg);
   }
   broadcastLobby() { if (!this.isHost) return; const s = this.lobbyState(); this.t.broadcast({ k: 'lobby', s }); this.emit('lobby', s); }
+  resetRaidState() { this.game = null; this.myEnt = null; this._youResolve = null; this.sessions.clear(); this.pending.clear(); this.done = new Set(); }
   startRaid(opts) {      // host
+    this.resetRaidState();
     this.raidOpts = opts;
-    this.done = new Set();
     this.t.broadcast({ k: 'start', opts });
     this.emit('start', opts);
   }
@@ -257,8 +266,8 @@ export class Net {
       case 'busy': this.emit('error', new Error('That squad is already in a raid - try again when they return')); break;
       case 'lobby': this.members = m.s.members; this.map = m.s.map; this.emit('lobby', m.s); break;
       case 'chat': this.emit('chat', m); if (this.game) this.game.onChat({ from: m.from, text: m.text, slot: m.slot }); break;
-      case 'start': this.raidOpts = m.opts; this.emit('start', m.opts); break;
-      case 'you': this.myEnt = m; this._youResolve?.(m); break;
+      case 'start': this.resetRaidState(); this.raidOpts = m.opts; this.emit('start', m.opts); break;
+      case 'you': this.myEnt = m; this._youResolve?.(m); this._youResolve = null; break;
       case 'snap': this.applySnap(m); break;
       case 'ev': for (const ev of m.e) this.game?.dispatch(ev); break;
       case 'res': { const r = this.pending.get(m.id); if (r) { this.pending.delete(m.id); r(m.d); } break; }

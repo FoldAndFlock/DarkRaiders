@@ -93,8 +93,8 @@ const raid_sandy_city = {
   bpm: 112, echo: { beats: 0.75, fb: 0.45, lp: 3200, mix: 0.55 }, rev: 0.55,
   layers: {
     base: [
-      { inst: 'drone', notes: 'A1,E2:256', vol: 0.65, echo: 0, rev: 0.3 },
-      { inst: 'strings', chords: PROG_A, oct: 5, vol: 0.32, rev: 0.7, echo: 0.35, adsr: [2.2, 1, 0.85, 2.5] },  // heat shimmer
+      { inst: 'drone', notes: 'A1,E2:256', vol: 0.75, echo: 0, rev: 0.3 },
+      { inst: 'strings', chords: PROG_A, oct: 5, vol: 0.42, rev: 0.7, echo: 0.35, adsr: [2.2, 1, 0.85, 2.5] },  // heat shimmer
       { inst: 'koto', vol: 0.6, echo: 0.5, rev: 0.45, pan: 0.3, notes: [
         'E5:2 F5:2 G#5:4 A5:2 G#5:2 F5:4 | E5:16', bars(2),
         'A5:2 C6:2 E6:4 D6:2 C6:2 A5:4 | C6:16', bars(2),

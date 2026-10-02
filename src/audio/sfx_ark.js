@@ -1,6 +1,6 @@
 // ARK machine sounds: metallic FM, rotors, servos, alarms.
 import { SR, buf, noise, osc, fm, metal, ad, env, filt, filtFn, layer, mix, snes, am, seamless, comb, echo } from './dsp.js';
-import { def, gunshot, explosion, click, clack, whoosh, thump, ping, rotor, sparks, servo, chirp, N } from './sfx_lib.js';
+import { def, gunshot, explosion, click, clack, whoosh, thump, ping, rotor, sparks, servo, N } from './sfx_lib.js';
 
 const ARK_LOOP = { loop: true, v: 1, pj: 0, vol: 0.55, dist: 50, max: 6 };
 

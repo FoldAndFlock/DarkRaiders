@@ -679,12 +679,13 @@ export class World {
       if (!byKey.has(key)) byKey.set(key, []);
       byKey.get(key).push(p);
     }
-    const xrayMat = litVox({ xray: true });
+    const xrayMat = litVox({ xray: true }), swayMat = litVox({ xray: true, sway: true });
+    const SWAY = /tree|pine|palm|bush|olive|reed|grass|fern|shrub|cypress|willow|birch|oak|foliage|hedge|vine|weed/i;
     for (const [key, list] of byKey) {
       const kind = key.split('|')[0];
       const geo = propGeo(kind);
       if (!geo) { console.warn('unknown prop', kind); continue; }
-      const im = new THREE.InstancedMesh(geo, xrayMat, list.length);
+      const im = new THREE.InstancedMesh(geo, (propInfo(kind).sway ?? SWAY.test(kind)) ? swayMat : xrayMat, list.length);
       list.forEach((p, i) => { dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(0, p.rot, 0); dummy.scale.setScalar(p.opts.scale || 1); dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix); });
       im.castShadow = propInfo(kind).cast !== false; im.receiveShadow = true;
       im.computeBoundingSphere();
