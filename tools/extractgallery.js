@@ -7,17 +7,17 @@ import { Lighting } from '../src/engine/lighting.js';
 import { FX } from '../src/engine/fx.js';
 import { World } from '../src/engine/world.js';
 import { GU } from '../src/engine/materials.js';
-import { createExtractModel, extractTris, EXTRACT_KINDS } from '../src/engine/extracts.js';
+import { createExtractModel, extractTris, extractWorldPoints, EXTRACT_KINDS } from '../src/engine/extracts.js';
 import { RaiderModel, OUTFITS } from '../src/engine/models.js';
 import { drawText } from '../src/ui/pixelfont.js';
 
 const q = new URLSearchParams(location.search);
-const STATES = ['idle', 'called', 'open', 'gone', 'offline'];
+const STATES = ['idle', 'called', 'open', 'closing', 'gone', 'offline'];
 const pick = (param, all) => { const v = q.get(param); if (!v) return all; const want = v.split(',').map(s => s.trim()); return all.filter(k => want.includes(k)); };
 const kinds = pick('kind', EXTRACT_KINDS), states = pick('state', STATES);
 const face = (+(q.get('face') ?? 0)) * Math.PI / 180;
 const frames = +(q.get('frames') || 90);
-const CT = +(q.get('ct') ?? 3), OT = +(q.get('ot') ?? 8), GE = +(q.get('ge') ?? 3.5);
+const CT = +(q.get('ct') ?? 3), OT = +(q.get('ot') ?? 80), CL = +(q.get('cl') ?? 5), GE = +(q.get('ge') ?? 3.5), INSIDE = q.get('inside') === '1';
 const canvas = document.getElementById('gl'), ov = document.getElementById('ov'), info = document.getElementById('info');
 
 const R = new Renderer(canvas, { preserve: true });
@@ -31,10 +31,10 @@ world.finalize();
 // ------------------------------------------------------------------ layout: kinds = columns, states = rows
 // per kind: x extent (incl. the scale raider), screen-space z extent (z - K*height .. z), raider spot (local)
 const BOX = {
-  elevator: { x0: -3.6, x1: 4.2, top: -5.6, bot: 3.6, raider: [3.4, 0, 0.6] },
+  elevator: { x0: -4.0, x1: 4.6, top: -7.6, bot: 6.4, raider: [3.6, 0, 6.1] },
   hatch: { x0: -1.6, x1: 2.4, top: -2.0, bot: 1.6, raider: [1.6, 0, 0.1] },
-  metro: { x0: -14.2, x1: 14.2, top: -5.8, bot: 4.9, raider: [-1.2, 0.375, 0.4] },
-  airshaft: { x0: -3.6, x1: 4.0, top: -5.4, bot: 3.6, raider: [2.6, 0, 1.4] },
+  metro: { x0: -13.9, x1: 13.9, top: -5.6, bot: 5.6, raider: [-1.5, 0.375, -0.6] },
+  airshaft: { x0: -4.1, x1: 4.1, top: -7.4, bot: 4.0, raider: [3.3, 0, 3.5] },
 };
 const GAP = 1.6, ROWGAP = 2.2;
 const colX = []; let xc = 0;
@@ -67,19 +67,23 @@ R._updateProjection = function () {
 const toScreen = (x, y, z) => ({ x: R.cssW / 2 + (x - R.center.x) * ppm * R.scale, y: R.cssH / 2 + (z - R.center.y - y * OBLIQUE_K) * ppm * R.scale });
 
 // ------------------------------------------------------------------ models
-const ctx = { L, fx, near: true, play: null, shake: null };
+const ctx = { L, fx, near: true, play: null, shake: null, viewer: null };
 const tris = {};
 for (const it of items) {
   it.m = createExtractModel(it.kind, { kind: it.kind, face, name: it.kind });
   it.m.root.position.set(it.x, 0, it.z); it.m.root.rotation.y = face;
   R.scene.add(it.m.root);
   tris[it.kind] = it.tris = extractTris(it.m);
-  if (q.get('raider') !== '0') {
-    const rm = new RaiderModel(OUTFITS.teal, 'rifle'), [lx, ly, lz] = BOX[it.kind].raider;
-    const c = Math.cos(face), s = Math.sin(face);
-    rm.root.position.set(it.x + lx * c + lz * s, ly, it.z - lx * s + lz * c);
-    rm.update(0.1, false, face + 0.4);
+  it.pts = extractWorldPoints({ kind: it.kind, x: it.x, z: it.z, y: 0, face });
+  const c = Math.cos(face), s = Math.sin(face), place = (lx, ly, lz, f, outfit) => {
+    const rm = new RaiderModel(OUTFITS[outfit], 'rifle');
+    rm.root.position.set(it.x + lx * c + lz * s, ly, it.z - lx * s + lz * c); rm.update(0.1, false, f);
     R.scene.add(rm.root); markEntity(R, rm.root, 0x0c0c10, false);
+  };
+  if (q.get('raider') !== '0') {
+    place(...BOX[it.kind].raider, face + 0.4, 'teal');
+    // a passenger inside the cabin while it boards / departs
+    if (it.kind !== 'hatch' && (it.st === 'open' || it.st === 'closing')) { const cb = it.pts.cabin; place(cb.shape === 'rect' ? (it.kind === 'metro' ? 1.2 : 0.4) : 0, cb.y, it.kind === 'metro' ? 3.0 : -0.4, face + 2.6, 'red'); }
   }
 }
 window.__stats = tris;
@@ -89,7 +93,8 @@ const dt = 1 / 30;
 function timerAt(st, i) {
   const left = (frames - 1 - i) * dt;
   if (st === 'called') return Math.min(25, Math.max(0, CT + left));
-  if (st === 'open') return Math.min(12, Math.max(0, OT + left));
+  if (st === 'open') return Math.min(90, Math.max(0, OT + left));
+  if (st === 'closing') return Math.min(10, Math.max(0, CL + left));
   if (st === 'gone') return Math.min(75, Math.max(0, 75 - GE - left));
   return null;
 }
@@ -97,8 +102,10 @@ let t = 0, frame = 0;
 function step() {
   t += dt;
   for (const it of items) {
-    if (it.kind === 'hatch' && it.st === 'open' && frame === Math.max(0, frames - 30)) it.m.trigger('use');
-    it.m.update(dt, it.st, timerAt(it.st, frame), ctx);
+    // inside=1: the viewer stands in each cabin (roofs fade, walls cut, the car roof hides)
+    ctx.viewer = INSIDE ? { x: it.pts.cabin.cx, y: it.pts.cabin.y + 0.05, z: it.pts.cabin.cz } : null;
+    const hst = it.kind === 'hatch' ? (it.st === 'open' ? 'open' : it.st === 'offline' ? 'offline' : 'idle') : it.st;
+    it.m.update(dt, hst, it.kind === 'hatch' && hst === 'open' ? Math.min(15, Math.max(0, 14 + (frames - 1 - frame) * dt - 1)) : timerAt(it.st, frame), ctx);
   }
   frame++;
   GU.uTime.value = t;
@@ -115,7 +122,7 @@ function drawLabels() {
   const sc = zoom >= 1.5 ? 2 : 1;
   for (const it of items) {
     const p = toScreen(it.x, 0, it.z + BOX[it.kind].bot + 0.2);
-    const st = it.kind === 'hatch' ? (it.st === 'offline' ? 'offline' : it.st === 'open' ? 'in use' : 'idle') : it.st;
+    const st = it.kind === 'hatch' ? (it.st === 'offline' ? 'offline' : it.st === 'open' ? 'open (15s window)' : 'idle') : it.st;
     drawText(octx, `${it.kind.toUpperCase()}  ${st.toUpperCase()}`, p.x, p.y, { align: 'center', color: '#f0d890', shadow: '#000', scale: sc });
     drawText(octx, `${(it.tris / 1000).toFixed(1)}k tri`, p.x, p.y + 9 * sc, { align: 'center', color: '#a0a0a0', shadow: '#000', scale: sc });
   }

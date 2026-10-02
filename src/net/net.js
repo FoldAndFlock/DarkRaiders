@@ -193,6 +193,7 @@ export class Net {
         case 'drop': s.dropItems(a.stacks, a.label); break;
         case 'door': s.door(a.i, a.key); break;
         case 'xcall': s.callExtract(a.i); break;
+        case 'xdepart': s.departExtract(a.i); break;
         case 'hatch': s.hatch(a.i); break;
         case 'revive': s.reviveNow(a.id); break;
         case 'eff': s.useEffect(a.eff); break;
@@ -242,7 +243,7 @@ export class Net {
         else if (e.type === 'ark') { if (near || (e.st === 'alert' && Math.abs(e.x - me.x) < 110)) ents.push(packArk(e)); }
         else if (near) ents.push(packOther(e));
       }
-      this.t.send(pid, { k: 'snap', t: sim.t, tl: sim.timeLeft, ents, x: sim.extracts.map(x => [x.state, +x.t.toFixed(1)]), d: sim.doors.map(d => d.open ? 1 : 0), ended: sim.raidEnded });
+      this.t.send(pid, { k: 'snap', t: sim.t, tl: sim.timeLeft, ents, x: sim.extracts.map(x => [x.state, +x.t.toFixed(1), x.callDur || 0]), d: sim.doors.map(d => d.open ? 1 : 0), ended: sim.raidEnded });
     }
   }
   checkAllDone() {
@@ -292,7 +293,8 @@ export class Net {
   applySnap(m) {
     const g = this.game; if (!g) return;
     g.timeLeft = m.tl; g.simTime = m.t;
-    m.x.forEach(([st], i) => { if (g.extractsData[i]) g.extractsData[i].state = st; });
+    // extract state + timer (+ call length for the countdown displays) mirror the host every snapshot
+    m.x.forEach(([st, t, cd], i) => { const x = g.extractsData[i]; if (!x) return; x.state = st; x.t = t; if (cd) x.callDur = cd; });
     m.d.forEach((o, i) => { if (g.doorsData[i] && g.doorsData[i].open !== !!o) { g.doorsData[i].open = !!o; g.view?.setDoor(i, !!o); } });
     const now = performance.now();
     const seen = new Set();
@@ -344,6 +346,7 @@ export class ClientSession {
   dropItems(stacks, label) { this.net.act({ t: 'drop', stacks, label }); }
   door(i, key) { this.net.act({ t: 'door', i, key }); }
   callExtract(i) { this.net.act({ t: 'xcall', i }); }
+  departExtract(i) { this.net.act({ t: 'xdepart', i }); }
   hatch(i) { this.net.act({ t: 'hatch', i }); }
   reviveNow(id) { this.net.act({ t: 'revive', id }); }
   useEffect(eff) { this.net.act({ t: 'eff', eff }); }

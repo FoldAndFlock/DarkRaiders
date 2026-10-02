@@ -26,12 +26,22 @@ await p.evaluate(() => { const g = window.app.game, me = g.me; const c = g.conta
 await wait(1500);
 await p.screenshot({ path: out + '_loot.png' });
 await p.evaluate(async () => { const ui = window.app.game.ui; await ui.takeAll(); ui.closeInv(); });
-// call the north lift and stand on it
-await p.evaluate(() => { const g = window.app.game, me = g.me, x = g.extractsData.find(e => e.kind === 'elevator'); me.x = x.x; me.z = x.z; g.doInteract({ kind: 'extract', ref: x.i, x: x.x, z: x.z }); });
+// call the north lift at its call button (gantry), fast-forward the arrival, walk into the cabin, pull the
+// departure lever, fast-forward the closing doors
+const xstate = () => p.evaluate(() => { const x = window.app.game.sim.extracts.find(e => e.kind === 'elevator'); return x.state + ' ' + x.t.toFixed(1); });
+await p.evaluate(() => { const g = window.app.game, me = g.me, x = g.extractsData.find(e => e.kind === 'elevator'); const [cx, cz] = x.pts.call; me.x = cx; me.z = cz; me.y = x.y; g.camX = cx; g.camZ = cz; g.doInteract({ kind: 'extract', ref: x.i, x: cx, z: cz }); });
 await wait(1000);
+console.log('called:', await xstate());
 await p.screenshot({ path: out + '_extract.png' });
-// speed up: fast-forward the extract timer
-await p.evaluate(() => { const g = window.app.game; const x = g.sim.extracts.find(e => e.state === 'called'); if (x) x.t = 1; });
+await p.evaluate(() => { const x = window.app.game.sim.extracts.find(e => e.kind === 'elevator'); if (x.state === 'called') x.t = 0.05; });
+await p.waitForFunction(() => window.app.game.sim.extracts.find(e => e.kind === 'elevator').state === 'open', null, { timeout: 120000 }).catch(() => console.log('elevator never opened'));
+await p.evaluate(() => { const g = window.app.game, me = g.me, x = g.extractsData.find(e => e.kind === 'elevator'); const [dx, dz] = x.pts.depart; me.x = dx; me.z = dz; me.y = x.y; g.camX = dx; g.camZ = dz; });
+await wait(600);
+await p.screenshot({ path: out + '_cabin.png' });
+await p.evaluate(() => { const g = window.app.game, x = g.extractsData.find(e => e.kind === 'elevator'); g.doInteract({ kind: 'depart', ref: x.i }); });
+await wait(300);
+console.log('depart:', await xstate());
+await p.evaluate(() => { const x = window.app.game.sim.extracts.find(e => e.kind === 'elevator'); if (x.state === 'closing') x.t = 0.05; });
 await p.waitForFunction('window.app.game.localDone', null, { timeout: 120000 }).catch(() => console.log('no extraction'));
 await p.waitForFunction('!window.app.game.running', null, { timeout: 60000 }).catch(() => console.log('raid did not end'));
 await wait(1500);

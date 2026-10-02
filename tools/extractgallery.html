@@ -16,18 +16,20 @@
 <div id="info">loading…</div>
 <!--
   Extraction structure gallery (src/engine/extracts.js): every kind (columns) in every state (rows) with the
-  game's Renderer + Lighting + World on a flat floor and a raider for scale. URL params:
+  game's Renderer + Lighting + World on a flat floor and raiders for scale. URL params:
     kind=elevator,metro          kinds to show (elevator, hatch, metro, airshaft; default all)
-    state=called,open            states to show (idle, called, open, gone, offline; default all)
-    time=noon|dusk|night|dawn  weather=clear|rain|fog…
+    state=called,open            states (idle, called, open, closing, gone, offline; default all)
+    time=noon|dusk|night|dawn  weather=clear|rain|fog...
     zoom=fit|1|3                 fit = everything (default), 1 = game scale (16 px/m), 3 = close-up
-    ct=3                         seconds left on the call timer for 'called' (cage / train mid-arrival)
-    ot=8                         seconds left before departure for 'open'
+    inside=1                     the viewer stands in each cabin: bunker roof fades, walls cut, car roof hides
+    ct=3                         seconds left on the call timer for 'called' (car / train / dropship arriving)
+    ot=80                        seconds left before the auto-departure for 'open'
+    cl=5                         seconds left of 'closing'
     ge=3.5                       seconds since departure for 'gone'
-    face=0                       facing in degrees (0 = front toward the camera)
+    face=0                       facing in degrees (0 = front toward the camera; metro reads best at 180)
     frames=90                    frames simulated before window.__ready; live=0 stops animating after that
-    raider=0                     hide the scale raiders
-  The hatch has no call cycle: its 'open' cell shows a raider using it (lid up, steam), called/gone show idle.
+    raider=0                     hide the scale raiders (one outside, one in the cabin while boarding)
+  The hatch has no call cycle: its 'open' row shows the 15 s key window (lid up, steam); other rows idle.
 -->
 <script type="module" src="./extractgallery.js"></script>
 </body>

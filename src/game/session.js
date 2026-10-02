@@ -41,8 +41,9 @@ export class HostSession {
   put(kind, ref, stack) { const list = this._list(kind, ref); if (list) list.push(stack); }
   dropItems(stacks, label = null) { return this.sim.dropLoot(this.ent.x + (Math.random() - .5), this.ent.z + (Math.random() - .5), stacks, 'bag', label || this.ent.name, this.ent.y); }
   door(i, hasKey) { const d = this.sim.doors[i]; if (d) return this.sim.toggleDoor(d, this.ent, hasKey); return false; }
-  callExtract(i) { const x = this.sim.extracts[i]; if (x) this.sim.callExtract(x, this.ent); }
-  hatch(i) { const x = this.sim.extracts[i]; if (x) this.sim.extractRaider(this.ent, x); }
+  callExtract(i) { const x = this.sim.extracts[i]; if (x) this.sim.callExtract(x, this.ent); }       // at the call button
+  departExtract(i) { const x = this.sim.extracts[i]; if (x) this.sim.departExtract(x, this.ent); }   // lever inside the cabin
+  hatch(i) { const x = this.sim.extracts[i]; if (x) this.sim.openHatch(x, this.ent); }               // key: opens the 15 s window
   reviveNow(id) { const t = this.sim.entities.get(id); if (t && t.st === 'downed') this.sim.revive(t, this.ent); }
   useEffect(eff) {
     const e = this.ent;

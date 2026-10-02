@@ -1,11 +1,13 @@
-// Extraction sequence sounds, timed to the rigs in src/engine/extracts.js and the xcall / xopen / xgone /
-// xidle / extracted events in src/game/view.js. Gameplay timings: called 25 s (cage/car arrives over the
-// last 6 s, ticks in the last 5 s), open 12 s, gone 75 s cooldown. Modelled on ARC Raiders' extracts:
-// the cargo-elevator call is a loud, zone-wide alarm that draws ARK and Raiders; metro stations use the
-// same alarm family; airshafts announce themselves with an approaching engine that carries less far;
-// Raider Hatches are silent apart from the key and the seal. Original synthesis only.
+// Extraction sequence sounds, timed to the rigs in src/engine/extracts.js and the xcall / xopen / xclose /
+// xgone / xidle / extracted events in src/game/view.js. Gameplay flow (sim.js): called 30-45 s (the car /
+// train / dropship arrives over the last 6-8 s, ticks in the last 5 s) -> open (auto-departs after 90 s) ->
+// a raider pulls the departure lever -> closing 10 s (buzzer, warning lights, doors) -> gone (cooldown 75 s;
+// a metro station closes for the raid). Modelled on ARC Raiders' extracts: the cargo-elevator call is a loud,
+// zone-wide alarm that draws ARK and Raiders; metro stations use the same alarm family; airshafts announce
+// themselves with an approaching VTOL dropship that carries less far; Raider Hatches are silent apart from
+// the key and the seal. Original synthesis only.
 import { SR, buf, noise, osc, fm, ad, env, filt, layer, mix, snes, am, seamless, echo, unison } from './dsp.js';
-import { def, click, clack, whoosh, thump, blips, bell, N, rotor, rustle } from './sfx_lib.js';
+import { def, click, clack, whoosh, thump, blips, bell, N, rotor, rustle, servo } from './sfx_lib.js';
 
 const X = { v: 1, pj: 0, max: 2, prio: 3 };
 // one horn blast of the two-tone klaxon
@@ -209,4 +211,76 @@ export const EXTRACT = {
     layer(out, whoosh(R, 0.8, 400, 3000, 1), 0.3);
     return snes(echo(out, 0.16, 0.3, 2), { bits: 9, p: 0.8 });
   }, { ...X, bus: 'ui', vol: 0.75, max: 1, prio: 2 }),
+
+  // ---------------------------------------------------------------- departure (lever -> closing -> gone)
+  // departure lever: ratchet, heavy clunk, relay + acknowledgement beep (xclose with a raider)
+  extract_lever: def((R) => {
+    const out = buf(1.1);
+    for (let k = 0; k < 6; k++) mix(out, click(R, 2600 - k * 120, 0.015, 5), 0.4, k * 0.07);
+    layer(out, clack(R, 520, 0.16), 0.75, 0.45); layer(out, thump(R, 110, 55, 0.25, 0.07), 0.6, 0.45);
+    layer(out, click(R, 3400, 0.02, 6), 0.4, 0.62);
+    layer(out, blips(R, [[N('A5'), 0.08], [N('E6'), 0.14]], { pw: 0.25 }), 0.3, 0.7);
+    return snes(out, { drv: 1.3, bits: 8, p: 0.75 });
+  }, { ...X, vol: 0.65, dist: 30 }),
+  // closing (10 s): departure buzzer pulsing faster, two-tone warning chime, door motor in the last 2 s
+  extract_close_seq: def((R) => {
+    const d = 10.2, out = buf(d);
+    let t = 0.05, gap = 1.0;
+    while (t < 9.3) {
+      const z = osc(0.24, { wave: 'rawsq', f: 196 + (t / 9.3) * 60, pw: 0.5 }); filt(z, 'lp', 2600);
+      env(z, [[0, 0], [0.01, 1], [0.22, 1], [0.24, 0]]); layer(out, z, 0.42, t);
+      t += gap; gap = Math.max(0.45, gap * 0.9);
+    }
+    for (const t0 of [0.3, 5.3]) { layer(out, bell(R, N('B5'), 0.6), 0.28, t0); layer(out, bell(R, N('G5'), 0.7), 0.28, t0 + 0.25); }
+    const mo = osc(2.0, { wave: 'saw', f: 95, f1: 70 }); filt(mo, 'lp', 520); env(mo, [[0, 0], [0.2, 1], [1.8, 0.8], [2.0, 0]]); layer(out, mo, 0.3, 8.0);
+    layer(out, servo(R, 160, 1.6, 1.3), 0.18, 8.1);
+    return snes(out, { drv: 1.4, bits: 8, p: 0.8 });
+  }, { ...X, vol: 0.62, dist: 55 }),
+
+  // ---------------------------------------------------------------- airshaft dropship (black-and-red VTOL)
+  // final approach over the last 8 s of the call: turbines spooling down from cruise into a hover, wash rising
+  extract_dropship_arrive: def((R) => {
+    const d = 8.6, out = buf(d);
+    const tb = unison(d, 'saw', 1, [-8, 7], { fn: (t) => 620 - 240 * Math.min(1, t / 7.5) }); filt(tb, 'bp', 2400, 1500, 2.2, 8);
+    env(tb, [[0, 0], [1.5, 0.6], [7.0, 1], [d, 0.6]]); layer(out, tb, 0.3);
+    const wash = noise(d, 'white', R); filt(wash, 'bp', 600, 900, 0.7, 8); am(wash, 24, 0.35); env(wash, [[0, 0], [3, 0.4], [7.5, 1], [d, 0.8]]); layer(out, wash, 0.55);
+    const lo = noise(d, 'brown', R); filt(lo, 'lp', 200); env(lo, [[0, 0], [2, 0.5], [7.5, 1], [d, 0.7]]); layer(out, lo, 0.65);
+    layer(out, whoosh(R, 2.2, 300, 1500, 1), 0.35, 0.3);
+    return snes(out, { drv: 1.5, bits: 8, p: 0.82, fade: 0.3 });
+  }, { ...X, vol: 0.7, dist: 70 }),
+  // hovering: ducted fans + turbine whine (loop; the view plays it nearby while the dropship is present)
+  extract_dropship_loop: def((R) => {
+    const out = rotor(R, 2, 38, 152, { body: 700, whineG: 0.3, chopDepth: 0.45, lowG: 0.6 });
+    const tb = unison(2, 'saw', 380, [-7, 6]); filt(tb, 'bp', 1900, 1900, 2.5); layer(out, tb, 0.25);
+    const wash = noise(2, 'pink', R); filt(wash, 'bp', 500, 500, 0.6); am(wash, 19, 0.3); layer(out, wash, 0.45);
+    return snes(seamless(out, 0.3), { bits: 8, fade: 0, p: 0.72 });
+  }, { loop: true, v: 1, pj: 0, vol: 0.55, dist: 45, max: 3 }),
+  // the pull: winch whine climbing + whoosh up the beam as the raiders are lifted (gone, first 1.6 s)
+  extract_beam_lift: def((R) => {
+    const out = buf(2.0);
+    const w = osc(1.7, { wave: 'sq', pw: 0.3, f: 220, f1: 660 }); filt(w, 'bp', 1200, 2600, 2.5); env(w, [[0, 0], [0.1, 1], [1.5, 0.8], [1.7, 0]]); layer(out, w, 0.3);
+    layer(out, whoosh(R, 1.6, 300, 2600, 1), 0.5, 0.05);
+    layer(out, clack(R, 900, 0.1), 0.45, 1.6);
+    return snes(out, { drv: 1.3, bits: 8, p: 0.78 });
+  }, { ...X, vol: 0.62, dist: 45 }),
+  // departure: power up, nose down, climbing roar receding
+  extract_dropship_depart: def((R) => {
+    const d = 6.2, out = buf(d);
+    const tb = unison(d, 'saw', 1, [-8, 7], { fn: (t) => 380 + 420 * Math.min(1, t / 2.5) }); filt(tb, 'bp', 1900, 3200, 2.2, 3);
+    env(tb, [[0, 0], [0.4, 1], [2.5, 1], [d, 0]]); layer(out, tb, 0.3);
+    const wash = noise(d, 'white', R); filt(wash, 'bp', 900, 500, 0.7, d); am(wash, 26, 0.35); env(wash, [[0, 0.6], [1.0, 1], [d, 0]]); layer(out, wash, 0.6);
+    const lo = noise(d, 'brown', R); filt(lo, 'lp', 220); env(lo, [[0, 0.8], [1.2, 1], [d, 0]]); layer(out, lo, 0.6);
+    layer(out, whoosh(R, 2.5, 1800, 400, 1), 0.3, 1.2);
+    return snes(out, { drv: 1.5, bits: 8, p: 0.82 });
+  }, { ...X, vol: 0.72, dist: 80 }),
+
+  // ---------------------------------------------------------------- raider hatch: the 15 s window closes
+  hatch_close: def((R) => {
+    const out = buf(1.4);
+    const c = osc(0.5, { wave: 'saw', fn: (t) => 150 + 60 * Math.sin(t * 8) }); filt(c, 'bp', 850, 850, 5); env(c, [[0, 0], [0.1, 1], [0.5, 0]]); layer(out, c, 0.2);
+    layer(out, thump(R, 82, 38, 0.4, 0.1), 0.8, 0.5); layer(out, clack(R, 600, 0.12), 0.6, 0.51);
+    layer(out, hiss(R, 0.6, 3600), 0.3, 0.55);
+    for (let k = 0; k < 4; k++) mix(out, click(R, 3000, 0.012, 5), 0.25, 0.75 + k * 0.05);
+    return snes(out, { drv: 1.3, bits: 8, p: 0.72 });
+  }, { ...X, vol: 0.55, dist: 26 }),
 };

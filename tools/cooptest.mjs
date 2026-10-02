@@ -39,6 +39,19 @@ console.log('A sees', JSON.stringify(sA)); console.log('B sees', JSON.stringify(
 await A.evaluate(() => { const g = window.app.game, sim = g.sim; const b = [...sim.entities.values()].find(e => e.type === 'raider' && e.name === 'BUDDY'); const k = [...sim.entities.values()].find(e => e.type === 'ark' && Object.keys(e.parts).length); if (!k || !b) return; k.brain.update = () => {}; k.x = b.x + 4; k.z = b.z; k.dormant = false; const pk = Object.keys(k.parts)[0]; k.parts[pk] = 0; k.brain.stunT = 99; });
 await wait(1500);
 console.log('B ark', await B.evaluate(() => JSON.stringify([...window.app.game.ents.values()].filter(e => e.type === 'ark').map(e => ({ kind: e.kind, fl: e.fl, broken: e.broken })))));
+// extraction mirroring: the host calls the north lift, opens it and pulls the lever; the client's state,
+// timer, call length and rig follow (events + snapshots)
+const ex = (P) => P.evaluate(() => { const g = window.app.game, x = g.extractsData.find(e => e.kind === 'elevator'); return `${x.state} t=${(+x.t || 0).toFixed(1)} callDur=${x.callDur} rig=${g.view.extractVis[x.i].m.rig.st}`; });
+await A.evaluate(() => { const g = window.app.game, x = g.sim.extracts.find(e => e.kind === 'elevator'); g.sim.callExtract(x, null); });
+await B.waitForFunction(() => window.app.game.extractsData.find(e => e.kind === 'elevator').state === 'called', null, { timeout: 60000 }).catch(() => console.log('B never saw called'));
+await wait(1500);
+console.log('A extract', await ex(A)); console.log('B extract', await ex(B));
+await A.evaluate(() => { window.app.game.sim.extracts.find(e => e.kind === 'elevator').t = 0.05; });
+await B.waitForFunction(() => window.app.game.extractsData.find(e => e.kind === 'elevator').state === 'open', null, { timeout: 60000 }).catch(() => console.log('B never saw open'));
+await A.evaluate(() => { const g = window.app.game; g.sim.departExtract(g.sim.extracts.find(e => e.kind === 'elevator'), null); });
+await B.waitForFunction(() => window.app.game.extractsData.find(e => e.kind === 'elevator').state === 'closing', null, { timeout: 60000 }).catch(() => console.log('B never saw closing'));
+await wait(800);
+console.log('A extract', await ex(A)); console.log('B extract', await ex(B));
 await A.screenshot({ path: out + '_raidA.png' }); await B.screenshot({ path: out + '_raidB.png' });
 for (const [k, v] of errs) console.log(v + 'x', k);
 await b.close();

@@ -20,6 +20,7 @@ import { searchTime } from './loot.js';
 import { ARK } from '../data/arc.js';
 import { CONDITIONS } from '../data/conditions.js';
 import { RaidUI } from '../ui/raidui.js';
+import { extractWorldPoints } from '../engine/extracts.js';
 
 const TICK = 1 / 30;
 const SQUAD_COLORS = ['#30d0d0', '#f0a030', '#e84a30', '#9a70ff'];
@@ -78,7 +79,8 @@ export class RaidGame {
       this.ents = new Map();
       this.containersData = this.world.containers.map((c, i) => ({ ...c, i, opened: false }));
       this.doorsData = this.world.doors.map((d, i) => ({ ...d, i, open: !d.locked && !d.closed }));
-      this.extractsData = this.world.extracts.map((e, i) => ({ ...e, i, state: 'idle' }));
+      this.extractsData = this.world.extracts.map((e, i) => ({ ...e, i, state: 'idle', t: 0, callDur: 0 }));
+      for (const x of this.extractsData) x.pts = extractWorldPoints(x);
     }
     for (const d of this.doorsData) d.lockedNow = !!d.locked;
     this.view = new View(this);
@@ -166,6 +168,7 @@ export class RaidGame {
       this.simTime = this.sim.t; this.timeLeft = this.sim.timeLeft;
     } else {
       this.net.clientUpdate(dt);
+      for (const x of this.extractsData) if (x.t > 0 && x.state !== 'idle' && x.state !== 'offline') x.t = Math.max(0, x.t - dt);
     }
     // presentation
     this.view.sync(this.ents, dt);
@@ -217,7 +220,17 @@ export class RaidGame {
       case 'opened': { const c = this.containersData[ev.i]; if (c) c.opened = true; break; }
       case 'door': { const d = this.doorsData[ev.i]; if (d) d.open = ev.open; break; }
       case 'unlocked': { const d = this.doorsData[ev.i]; if (d) { d.lockedNow = false; d.locked = null; } break; }
-      case 'xcall': case 'xopen': case 'xgone': case 'xidle': { const x = this.extractsData[ev.i]; if (x && !this.isHost) x.state = { xcall: 'called', xopen: 'open', xgone: 'gone', xidle: 'idle' }[ev.e]; break; }
+      case 'xcall': case 'xopen': case 'xclose': case 'xgone': case 'xidle': case 'xoffline': {
+        // clients mirror state + timer from the event (snapshots keep correcting it)
+        const x = this.extractsData[ev.i];
+        if (x && !this.isHost) {
+          x.state = { xcall: 'called', xopen: 'open', xclose: 'closing', xgone: 'gone', xidle: 'idle', xoffline: 'offline' }[ev.e];
+          x.t = ev.t ?? 0;
+          if (ev.e === 'xcall') x.callDur = ev.t;
+          if (ev.e === 'xoffline' && ev.why === 'used') x.used = true;
+        }
+        break;
+      }
     }
   }
   camera(dt) {
@@ -292,11 +305,16 @@ export class RaidGame {
         break;
       }
       case 'extract': this.session.callExtract(it.ref); break;
+      case 'depart': this.session.departExtract(it.ref); break;
+      case 'info': break;
       case 'hatch': {
+        const x = this.extractsData[it.ref];
+        if (x?.state === 'open') return;
+        if (this.extractsData.some(h => h.kind === 'hatch' && h.state === 'open')) { this.hudMsg('ANOTHER HATCH IS OPEN', '#e84a30'); return; }
         const k = ['raider_hatch_key'].find(id => countLoadout(lo, id) > 0);
         if (!k) { this.hudMsg('REQUIRES A RAIDER HATCH KEY', '#e84a30'); return; }
         takeFrom([lo.backpack, lo.safe, lo.quick], k, 1);
-        this.audio?.play('hatch_open', { x: it.x, z: it.z });
+        this.hudMsg('HATCH OPEN - STEP IN (15S)', '#68e088');
         this.session.hatch(it.ref);
         break;
       }
@@ -354,8 +372,21 @@ export class RaidGame {
     if (ev.id === this.meId) this.onLocalExtract();
     else { const e = this.ents.get(ev.id); if (e && !e.bot) this.feed(`${ev.name} EXTRACTED`, '#68e088'); }
   }
-  onExtractCall(ev) { const x = this.extractsData[ev.i]; if (this.isHost) {} if (this.me && Math.hypot(x.x - this.me.x, x.z - this.me.z) < 120) { this.banner('EXTRACTION CALLED', '#68e088', `${x.name} - arriving in ${Math.round(x.callTime || 25)}s. Hold the zone.`, 4); this.audio?.music?.('extract'); } }
-  onExtractOpen(ev) { const x = this.extractsData[ev.i]; if (this.me && Math.hypot(x.x - this.me.x, x.z - this.me.z) < 60) this.banner((x.kind === 'metro' ? 'METRO' : x.kind === 'airshaft' ? 'AIRSHAFT LIFT' : 'ELEVATOR') + ' OPEN', '#68e088', 'Get inside the zone! Departing in 12s', 3); }
+  near(x, r) { return this.me && Math.hypot(x.x - this.me.x, x.z - this.me.z) < r; }
+  onExtractCall(ev) {
+    const x = this.extractsData[ev.i]; if (!x) return;
+    const loud = x.kind !== 'airshaft';          // the alarm carries across the zone; the dropship engine less so
+    if (this.near(x, loud ? 140 : 70)) {
+      this.banner('EXTRACTION CALLED', '#f0c030', `${x.name} - ${extractNoun(x.kind).toLowerCase()} arriving in ${Math.round(ev.t || x.callDur || 38)}s. Hold the area.`, 4);
+      if (this.near(x, 120)) this.audio?.music?.('extract');
+    }
+  }
+  onExtractOpen(ev) {
+    const x = this.extractsData[ev.i]; if (!x) return;
+    if (x.kind === 'hatch') { if (this.near(x, 25)) this.banner('RAIDER HATCH OPEN', '#68e088', 'Step onto it - it seals in 15s', 3); return; }
+    if (this.near(x, 70)) this.banner(extractNoun(x.kind) + ' OPEN', '#68e088', `Get inside and pull the departure lever - it leaves on its own in ${Math.round(ev.t || 90)}s`, 4);
+  }
+  onExtractClose(ev) { const x = this.extractsData[ev.i]; if (x && this.near(x, 70)) this.banner('DOORS CLOSING', '#e84a30', `${x.name} departs in 10s - get inside!`, 3); }
   onEmote(ev) { this.emotes = this.emotes || new Map(); this.emotes.set(ev.id, { text: ev.text, ttl: 3 }); }
   onChat(ev) { this.chatLines.push({ from: ev.from, text: ev.text, ttl: 10, color: SQUAD_COLORS[(ev.slot ?? 0) % 4] }); if (this.chatLines.length > 30) this.chatLines.shift(); this.audio?.play('chat_msg'); }
   onPing(ev) { this.pings.set(ev.by, { x: ev.x, z: ev.z, t: 8, slot: ev.slot }); }
@@ -439,7 +470,7 @@ export class RaidGame {
     const lo = pc.lo, ws = pc.wstats, w = pc.weapon;
     const caps = pc.caps;
     const st = {
-      raid: { map: this.o.map.name, time: Math.max(0, this.timeLeft ?? 0), condition: (this.cond?.name || '').toUpperCase(), weather: `${this.timeOfDay.toUpperCase()}  ${this.weather.toUpperCase()}`, where: this.whereLabel(me) },
+      raid: { map: this.o.map.name, time: Math.max(0, this.timeLeft ?? 0), condition: (this.timeLeft ?? 1) <= 0 ? 'OVERTIME - EXTRACTION IN PROGRESS' : (this.cond?.name || '').toUpperCase(), weather: `${this.timeOfDay.toUpperCase()}  ${this.weather.toUpperCase()}`, where: this.whereLabel(me) },
       player: { name: this.o.name, level: this.profile?.level, hp: me.st === 'downed' ? me.downHp : me.hp, hpMax: me.st === 'downed' ? 75 : me.maxHp, shield: me.sh, shieldMax: me.shMax, stamina: pc.stamina / pc.stats.max_stamina, weight: pc.weight(), weightMax: caps.weightLimit },
       weapon: w ? { name: ITEMS[w.id].name, tier: ROMAN[w.tier || 1], rarity: ITEMS[w.id].rarity, mag: w.ammo || 0, reserve: countLoadout(lo, ws.ammo), mode: pc.reloadT > 0 ? 'RELOADING' : ((w.dur ?? 1) <= 0 ? 'BROKEN' : ws.mode.toUpperCase()), alt: lo.weapons.filter((x, i) => x && i !== pc.slot).map(x => ITEMS[x.id].name).join(' / ') } : { name: 'Unarmed', tier: '', rarity: 'common', mag: 0, reserve: 0, mode: '' },
       quick: lo.quick.map((s, i) => s ? { item: s.id, icon: ITEMS[s.id]?.icon, count: s.qty, active: pc.useSlot === i && pc.useItem } : {}),
@@ -462,7 +493,7 @@ export class RaidGame {
     // compass + off-screen ARK
     st.heading = 0;
     const marks = [];
-    for (const x of this.extractsData) if (x.state !== 'offline') marks.push({ bearing: Math.atan2(x.x - me.x, -(x.z - me.z)), color: x.state === 'called' || x.state === 'open' ? '#f0c030' : x.kind === 'hatch' ? '#c8a020' : '#68e088' });
+    for (const x of this.extractsData) if (x.state !== 'offline') marks.push({ bearing: Math.atan2(x.x - me.x, -(x.z - me.z)), color: x.state === 'closing' ? '#e84a30' : x.state === 'called' || x.state === 'open' ? '#f0c030' : x.kind === 'hatch' ? '#c8a020' : '#68e088' });
     for (const p of this.pings.values()) marks.push({ bearing: Math.atan2(p.x - me.x, -(p.z - me.z)), color: SQUAD_COLORS[(p.slot ?? 0) % 4] });
     st.compassMarks = marks;
     const off = [], markers = [];
@@ -479,8 +510,10 @@ export class RaidGame {
     for (const x of this.extractsData) {
       const d = Math.hypot(x.x - me.x, x.z - me.z); if (d > 90) continue;
       const s = R.worldToScreen(x.x, (x.y ?? this.world.groundAt(x.x, x.z)) + 2.5, x.z);
-      const sub = x.state === 'called' ? 'INBOUND' : x.state === 'open' ? 'BOARD NOW' : x.state === 'gone' ? 'DEPARTED' : x.state === 'offline' ? 'OFFLINE' : `${Math.round(d)}M`;
-      markers.push({ sx: s.x, sy: s.y, label: x.name.toUpperCase(), sub, color: x.kind === 'hatch' ? '#f0c030' : '#68e088' });
+      const sec = `${Math.max(0, Math.ceil(x.t || 0))}S`;
+      const sub = x.state === 'called' ? 'INBOUND ' + sec : x.state === 'open' ? (x.kind === 'hatch' ? 'OPEN ' : 'BOARD - LEAVES IN ') + sec : x.state === 'closing' ? 'DEPARTING ' + sec
+        : x.state === 'gone' ? 'DEPARTED' : x.state === 'offline' ? (x.used ? 'CLOSED' : 'OFFLINE') : `${Math.round(d)}M`;
+      markers.push({ sx: s.x, sy: s.y, label: x.name.toUpperCase(), sub, color: x.state === 'closing' ? '#e84a30' : x.state === 'called' ? '#f0c030' : x.kind === 'hatch' ? '#f0c030' : '#68e088' });
     }
     for (const p of this.pings.values()) { const s = R.worldToScreen(p.x, this.view.floorNear(p.x, p.z, p.y) + 1, p.z); markers.push({ sx: s.x, sy: s.y, label: 'PING', sub: `${Math.round(Math.hypot(p.x - me.x, p.z - me.z))}M`, color: SQUAD_COLORS[(p.slot ?? 0) % 4] }); }
     if (this.emotes) for (const [id, em] of this.emotes) { em.ttl -= dt; if (em.ttl <= 0) { this.emotes.delete(id); continue; } const v = this.view.vis.get(id); if (v) { const s = R.worldToScreen(v.px, v.py + 2.4, v.pz); markers.push({ sx: s.x, sy: s.y, label: '"' + em.text + '"', color: '#e8e0c8', bubble: true }); } }
@@ -492,6 +525,7 @@ export class RaidGame {
 }
 
 function tick() { return new Promise(r => setTimeout(r, 0)); }
+export function extractNoun(kind) { return kind === 'metro' ? 'METRO' : kind === 'airshaft' ? 'DROPSHIP' : kind === 'hatch' ? 'RAIDER HATCH' : 'ELEVATOR'; }
 
 // Condition-driven world additions, deterministic from the raid seed so every peer agrees.
 function applyConditionToWorld(w, cond, seed) {

@@ -198,17 +198,38 @@ export class BotBrain {
       this.searchC = null;
     }
   }
+  // extraction: walk to the call button and call it, wait by the entrance while it comes, board when it
+  // opens, pull the departure lever after a short wait (or let the doors auto-close), stay inside until it
+  // leaves. Missed / used extracts are skipped for a while.
   extract(dt) {
     const e = this.e, sim = this.sim;
-    if (!this.xgoal) {
+    this.skipX = this.skipX || new Map();
+    const usable = (x) => x.kind !== 'hatch' && x.state !== 'offline' && !(this.skipX.get(x.i) > sim.t);
+    if (!this.xgoal || !usable(this.xgoal)) {
       let best = null, bd = 1e9;
-      for (const x of sim.extracts) { if (x.kind === 'hatch') continue; const d = Math.hypot(x.x - e.x, x.z - e.z); if (d < bd) { bd = d; best = x; } }
-      this.xgoal = best;
-      if (!best) { this.leaveAt = 1e9; return; }
+      for (const x of sim.extracts) {
+        if (!usable(x)) continue;
+        const d = Math.hypot(x.x - e.x, x.z - e.z) - (x.state === 'called' || x.state === 'open' ? 60 : 0);   // join one already coming
+        if (d < bd) { bd = d; best = x; }
+      }
+      this.xgoal = best; this.boardT = 0; this.boardWait = 3 + sim.rng() * 9;
+      if (!best) { this.leaveAt = sim.t + 30; return; }
     }
-    const x = this.xgoal;
-    if (Math.hypot(x.x - e.x, x.z - e.z) > 2.2 || Math.abs((x.y ?? e.y) - e.y) > 1.5) { this.go(x.x, x.z, dt, 1.1, x.y); e.sprint = true; return; }
-    e.sprint = false; e.moving = false;
-    if (x.state === 'idle') sim.callExtract(x, e);
+    const x = this.xgoal, P = x.pts, ty = P.cabin.y;
+    const inside = sim.cabinRaiders(x).includes(e);
+    const goTo = (p, mul = 1.1, r = 0.9) => { if (Math.hypot(p[0] - e.x, p[1] - e.z) > r || Math.abs(ty - e.y) > 1.5) { this.go(p[0], p[1], dt, mul, ty); return false; } e.moving = false; return true; };
+    e.sprint = x.state === 'open' || x.state === 'closing';
+    switch (x.state) {
+      case 'idle': if (goTo(P.call, 1.1, 1.2)) sim.callExtract(x, e); break;
+      case 'called': goTo(P.entry, 1.0, 1.5); break;
+      case 'open':
+        if (!inside) { goTo([P.cabin.cx, P.cabin.cz], 1.2, 0.6); this.boardT = 0; break; }
+        this.boardT += dt;
+        if (this.boardT > this.boardWait) { if (goTo(P.depart, 1.0, 0.7)) sim.departExtract(x, e); }
+        else e.moving = false;
+        break;
+      case 'closing': if (!inside) goTo([P.cabin.cx, P.cabin.cz], 1.3, 0.6); else e.moving = false; break;
+      default: this.skipX.set(x.i, sim.t + 80); this.xgoal = null; break;   // gone without us
+    }
   }
 }

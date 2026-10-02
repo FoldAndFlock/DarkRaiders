@@ -733,7 +733,7 @@ export class World {
     this.extracts.push(e);
     if (opts.structure === false) return e;
     const R = rotFrame(x, z, -(e.face || 0));
-    for (const [x0, z0, x1, z1, h, y0] of extractSolids(e.kind, e)) {
+    for (const [x0, z0, x1, z1, h, y0] of extractSolids(e.kind, e, this)) {   // world: the metro fits its hall
       this.block(x + x0, z + z0, x + x1, z + z1, h, 'metalPanel', { R, nodraw: true, ...(e.yAbs != null ? { y0: e.yAbs + (y0 || 0) } : y0 ? { rel0: y0 } : {}) });
     }
     return e;

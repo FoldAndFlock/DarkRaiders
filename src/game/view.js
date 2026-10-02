@@ -4,7 +4,7 @@ import * as THREE from '../../vendor/three.module.js';
 import { markEntity, OBLIQUE_K } from '../engine/renderer.js';
 import { RaiderModel, OUTFITS, arcMesh, gunGeo, voxMesh } from '../engine/models.js';
 import { createArkModel } from '../engine/arkmodels.js';
-import { createExtractModel } from '../engine/extracts.js';
+import { createExtractModel, metroFit, inCabin } from '../engine/extracts.js';
 import { ContainerRenderer, containerGeo } from '../engine/containers.js';
 import { GU, litVox } from '../engine/materials.js';
 import { SURF } from '../engine/world.js';
@@ -81,11 +81,12 @@ export class View {
   buildExtracts(xs) {
     for (const x of xs) {
       const y = x.y ?? this.world.groundAt(x.x, x.z);
+      if (x.kind === 'metro' && !x.fit) x.fit = metroFit(x, this.world) || undefined;   // track between the hall's end walls
       const m = createExtractModel(x.kind || 'elevator', x);
       m.root.position.set(x.x, y, x.z); m.root.rotation.y = x.face || 0;
       this.R.scene.add(m.root);
       const ctx = {
-        L: this.L, fx: this.fx, near: true,
+        L: this.L, fx: this.fx, near: true, viewer: null,
         play: (name, o) => this.g.audio?.play(name, { x: x.x, z: x.z, ...(o || {}) }),
         shake: (a) => { const me = this.g.me; if (me && Math.hypot(me.x - x.x, me.z - x.z) < 16 && Math.abs((me.y ?? y) - y) < 4) this.shake = Math.max(this.shake, a); },
       };
@@ -101,6 +102,7 @@ export class View {
       if (!xv) continue;
       const x = xv.x, st = g.extractState?.(x.i) ?? x.state ?? 'idle';
       xv.ctx.near = Math.abs(x.x - cx) < hw && Math.abs(x.z - cz) < hh;
+      xv.ctx.viewer = me && me.st !== 'out' ? me : null;    // roofs fade / walls cut / the car roof hides while you are inside
       xv.m.update(dt, st, typeof x.t === 'number' ? x.t : null, xv.ctx);
       const d = me ? Math.hypot(x.x - me.x, x.z - me.z) : 1e9, level = me && Math.abs((me.y ?? xv.y) - xv.y) < 6;
       const lp = xv.m.loop;
@@ -108,9 +110,9 @@ export class View {
         if (!xv.loop) xv.loop = A?.loop?.(lp.name, { x: x.x, z: x.z, vol: lp.vol, pitch: lp.pitch }) || null;
         else { xv.loop.setVol?.(lp.vol); xv.loop.setPitch?.(lp.pitch); }
       } else if (xv.loop) { try { xv.loop.stop(); } catch (e) { /* */ } xv.loop = null; }
-      if (st === 'called' && level && d < 30) {
+      if ((st === 'called' || st === 'closing') && level && d < 30) {      // last 5 s of the arrival / the departure
         const s = Math.ceil(xv.m.timeLeft);
-        if (s >= 1 && s <= 5 && s !== xv.tick) { xv.tick = s; A?.play('extract_countdown_tick'); }
+        if (s >= 1 && s <= 5 && s !== xv.tick) { xv.tick = s; A?.play('extract_countdown_tick', { x: x.x, z: x.z }); }
       } else xv.tick = null;
     }
   }
@@ -196,6 +198,11 @@ export class View {
     const sp = e.sprint ? 1.5 : e.crouch ? 0.6 : 1;
     m.update(dt, e.moving, e.f, sp, e.crouch, e.mf ?? e.f);
     m.root.visible = e.st !== 'out';
+    if (v.carry) {   // extracted: ride down with the elevator car / out with the train / up into the dropship
+      const c = v.carry, off = c.xv.m.carry((performance.now() - c.t0) / 1000, c);
+      if (!off || off.hide) { m.root.visible = false; if ((performance.now() - c.t0) > 1500) v.carry = null; }
+      else { m.root.visible = true; v.obj.position.set(c.x + off.dx, c.y + off.dy, c.z + off.dz); }
+    }
     if (e.st === 'downed') { m.body.rotation.x = -1.35; m.body.position.y = 0.25; }
     else if (e.st === 'dead') { m.body.rotation.x = -1.5; m.body.position.y = 0.15; }
     else { m.body.rotation.x = 0; m.body.position.y = 0; }
@@ -369,8 +376,9 @@ export class View {
       case 'killed': g.onKilled?.(ev); break;
       case 'extracted': {
         g.onExtracted?.(ev); A?.play('extract_success', this.posOf(ev.id));
-        const xv = this.extractVis[ev.x];   // raider hatch: lid swings open with a puff of steam
-        if (xv?.x.kind === 'hatch') { xv.m.trigger('use'); A?.play('extract_hatch_steam', this.extractPos(ev.x)); A?.play('hatch_extract', { ...this.extractPos(ev.x), delay: 1.0 }); }
+        const xv = this.extractVis[ev.x], v = this.vis.get(ev.id);
+        if (xv && v) v.carry = { xv, t0: performance.now(), x: v.px, y: v.py, z: v.pz };
+        if (xv?.x.kind === 'hatch') A?.play('hatch_extract', this.extractPos(ev.x));
         break;
       }
       case 'loot': break;
@@ -379,11 +387,20 @@ export class View {
       case 'door': this.setDoor(ev.i, ev.open); A?.play('door_open', this.doorPos(ev.i)); break;
       case 'locked': if (ev.by === g.meId) { A?.play('door_locked'); g.hudMsg('LOCKED - KEY REQUIRED', '#e84a30'); } break;
       case 'unlocked': A?.play('door_unlock', this.doorPos(ev.i)); break;
-      case 'xcall': g.onExtractCall?.(ev); A?.play('extract_call', this.extractPos(ev.i)); break;   // the rig cues the per-kind alarm / engine
-      // metro: the rig cues rumble / brakes before arrival, here the doors open; lifts keep the arrival thump
-      case 'xopen': { const metro = this.extractVis[ev.i]?.x.kind === 'metro'; A?.play(metro ? 'elevator_door' : 'elevator_arrive', { ...this.extractPos(ev.i), delay: metro ? 0.45 : 0 }); g.onExtractOpen?.(ev); break; }
-      case 'xgone': if (this.extractVis[ev.i]?.x.kind !== 'metro') A?.play('elevator_door', this.extractPos(ev.i)); break;   // metro doors already shut (rig)   // departure sounds are cued by the rig
-      case 'xidle': A?.play('extract_ready', this.extractPos(ev.i)); break;
+      // extraction flow (sim.js): xcall -> xopen -> xclose -> xgone -> xidle / xoffline; hatches use xopen / xidle.
+      // The rigs cue the timeline sounds (alarm cycles, engines, arrival, closing sequence, departure).
+      case 'xcall': g.onExtractCall?.(ev); A?.play('extract_call', this.extractCallPos(ev.i)); break;
+      case 'xopen': {
+        const k = this.extractVis[ev.i]?.x.kind;
+        if (k === 'hatch') A?.play('hatch_open', this.extractPos(ev.i));
+        else A?.play(k === 'elevator' ? 'elevator_arrive' : 'elevator_door', { ...this.extractPos(ev.i), delay: k === 'metro' ? 0.45 : 0 });
+        g.onExtractOpen?.(ev); break;
+      }
+      case 'xclose': if (ev.by != null) A?.play('extract_lever', this.extractPos(ev.i)); g.onExtractClose?.(ev); break;
+      case 'xgone': break;
+      case 'xidle': A?.play(this.extractVis[ev.i]?.x.kind === 'hatch' ? 'hatch_close' : 'extract_ready', this.extractCallPos(ev.i)); break;
+      case 'xoffline': { const x = this.extractVis[ev.i]?.x; if (x && ev.why === 'used') g.feed(`${x.name.toUpperCase()} CLOSED FOR THE RAID`, '#9a9484'); break; }
+      case 'hatchbusy': if (ev.by === g.meId) g.hudMsg('ANOTHER HATCH IS OPEN', '#e84a30'); break;
       case 'throw': A?.play('grenade_pin', this.posOf(ev.by)); break;
       case 'bounce': A?.play('grenade_bounce', { x: ev.x, z: ev.z }); break;
       case 'pop': A?.play(ev.k === 'smoke' ? 'smoke_pop' : ev.k === 'gas' ? 'gas_hiss' : 'smoke_pop', { x: ev.x, z: ev.z }); break;
@@ -461,6 +478,7 @@ export class View {
   nameOf(id) { return this.vis.get(id)?.e?.name || '?'; }
   doorPos(i) { const m = this.doorMeshes[i]; return m ? { x: m.position.x, z: m.position.z } : {}; }
   extractPos(i) { const x = this.extractVis[i]; return x ? { x: x.x.x, z: x.x.z } : {}; }
+  extractCallPos(i) { const p = this.extractVis[i]?.x.pts?.call; return p ? { x: p[0], z: p[1] } : this.extractPos(i); }
   pickEntity(mx, my, selfId) {
     let best = null, bd = 26 * this.R.scale / 3;
     for (const v of this.vis.values()) {
@@ -506,13 +524,33 @@ export class View {
       if (db < 1.4 && Math.abs(me.y - l.y0) < 1.2) consider({ kind: 'ladder', ref: i, up: true, x: l.x0, z: l.z0, time: 0.45, label: 'CLIMB UP' }, db + 0.3);
       else if (dt < 1.4 && Math.abs(me.y - l.y1) < 1.2) consider({ kind: 'ladder', ref: i, up: false, x: l.x1, z: l.z1, time: 0.45, label: 'CLIMB DOWN' }, dt + 0.3);
     });
+    // extracts: CALL at the call button, DEPART on the lever inside the cabin, the hatch with a key
     for (const x of g.extractsData) {
-      const dd = Math.hypot(x.x - me.x, x.z - me.z) + (Math.abs((x.y ?? me.y) - me.y) > 1.6 ? 99 : 0);
-      if (dd < 2.6) {
-        const st = g.extractState?.(x.i);
-        if (st === 'offline') consider({ kind: 'offline', ref: x.i, x: x.x, z: x.z, time: 999, label: (x.kind === 'hatch' ? 'HATCH' : 'EXTRACT') + ' OFFLINE (MAP CONDITION)' }, dd);
-        else if (x.kind === 'hatch') consider({ kind: 'hatch', ref: x.i, x: x.x, z: x.z, time: 2.5, label: 'USE RAIDER HATCH (KEY)' }, dd);
-        else if (st === 'idle') consider({ kind: 'extract', ref: x.i, x: x.x, z: x.z, time: 1.2, label: 'CALL ' + (x.kind === 'metro' ? 'METRO' : x.kind === 'airshaft' ? 'AIRSHAFT LIFT' : 'ELEVATOR') + ' - ' + x.name }, dd);
+      const P = x.pts; if (!P || Math.abs((x.y ?? me.y) - me.y) > 2.0) continue;
+      const st = g.extractState?.(x.i), noun = extractNoun(x.kind), dc = Math.hypot(P.call[0] - me.x, P.call[1] - me.z);
+      const at = { ref: x.i, x: P.call[0], z: P.call[1] };
+      if (x.kind === 'hatch') {
+        if (dc > 2.4) continue;
+        if (st === 'offline') consider({ ...at, kind: 'offline', time: 999, label: 'HATCH OFFLINE (MAP CONDITION)' }, dc);
+        else if (st === 'open') consider({ ...at, kind: 'info', time: 999, label: `HATCH OPEN - STEP IN (${Math.ceil(x.t || 0)}S)` }, dc);
+        else if (g.extractsData.some(h => h.kind === 'hatch' && h.state === 'open')) consider({ ...at, kind: 'info', time: 999, label: 'ANOTHER HATCH IS OPEN' }, dc);
+        else consider({ ...at, kind: 'hatch', time: 2.5, label: 'OPEN RAIDER HATCH (KEY)' }, dc);
+        continue;
+      }
+      if (dc < (P.callR || 1.8)) {
+        if (st === 'offline') consider({ ...at, kind: 'offline', time: 999, label: x.used ? `${x.name.toUpperCase()} - CLOSED (USED)` : `${noun} OFFLINE (MAP CONDITION)` }, dc);
+        else if (st === 'idle') consider({ ...at, kind: 'extract', time: 1.2, label: `CALL ${noun} - ${x.name}` }, dc);
+        else {
+          const s = Math.ceil(x.t || 0);
+          const label = st === 'called' ? `${noun} INBOUND - ${s}S` : st === 'open' ? `${noun} BOARDING - GET IN (${s}S)` : st === 'closing' ? `${noun} DEPARTING - ${s}S` : `${noun} RETURNING - ${s}S`;
+          consider({ ...at, kind: 'info', time: 999, label }, dc + 0.5);
+        }
+      }
+      if (st === 'open' && inCabin(x, me.x, me.y, me.z)) {
+        for (const p of P.departs) {
+          const d = Math.hypot(p[0] - me.x, p[1] - me.z);
+          if (d < 1.4) consider({ ref: x.i, x: p[0], z: p[1], kind: 'depart', time: 1.5, label: x.kind === 'metro' ? 'DEPART - PULL THE EMERGENCY LEVER' : x.kind === 'airshaft' ? 'DEPART - SIGNAL THE DROPSHIP' : 'DEPART - PULL THE LEVER' }, d - 0.5);
+        }
       }
     }
     if (best && (best.kind === 'container' || best.kind === 'loot')) this.setHighlight(best); else this.setHighlight(null);
@@ -534,6 +572,7 @@ export class View {
 export function containerLabel(kind) {
   return ({ locker: 'Locker', crate: 'Crate', weapon_case: 'Weapon Case', ammo_box: 'Ammo Box', medical_bag: 'Medical Bag', toolbox: 'Toolbox', electronics: 'Electronics', cabinet: 'Cabinet', desk: 'Desk', safe: 'Safe', trash: 'Trash', car_trunk: 'Car Trunk', fridge: 'Fridge', suitcase: 'Suitcase', backpack: 'Backpack', arc_crate: 'ARK Crate', arc_husk: 'ARK Husk', barron_husk: 'Barron Husk', deforestr_husk: 'Deforestr Husk', raider_cache: 'Raider Cache', field_depot: 'Field Depot', plant: 'Plant', basket: 'Basket', security_locker: 'Security Locker', bag: 'Bag' })[kind] || kind;
 }
+function extractNoun(kind) { return kind === 'metro' ? 'METRO' : kind === 'airshaft' ? 'DROPSHIP' : kind === 'hatch' ? 'RAIDER HATCH' : 'ELEVATOR'; }
 function distToSeg(px, pz, ax, az, bx, bz) {
   const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1;
   const t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / l2));

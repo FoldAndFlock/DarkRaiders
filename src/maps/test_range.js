@@ -33,7 +33,7 @@ export default {
       containers: [['cabinet', 3, 2, 0, { storey: 1, tier: 2 }], ['desk', 5, 8, 0, { storey: 1 }], ['locker', 2, 8, 0]] });
     w.building({ x: 204, z: 36, w: 36, d: 13, under: 5, wall: 'concrete', floor: 'concrete', roof: 'grass', name: 'Test Tunnel',
       stairs: [{ x: 1.2, z: 9.6, w: 2.2, dir: 'w', from: 0, to: 'top' }],
-      containers: [['crate', 22, 11], ['ammo_box', 30, 11.5]] });
+      containers: [['crate', 33, 11], ['ammo_box', 30, 11.5]] });   // clear of the metro platform (world x 214-230)
     // metro platform: face PI puts the track along the far (north) wall, train doors toward the camera
     w.extract('test_metro', 'Test Metro', 222, 44.5, { kind: 'metro', face: Math.PI });
     w.bridge([[150, 150], [190, 150]], 4, 5);

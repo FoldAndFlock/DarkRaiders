@@ -7,6 +7,7 @@ import { rollContainer, rollArkDrops, searchTime } from './loot.js';
 import { ArkBrain, arkDefFor } from './ark_ai.js';
 export { arkDefFor };
 import { BotBrain } from './bot_ai.js';
+import { extractWorldPoints, inCabin } from '../engine/extracts.js';
 
 const HASH = 16;
 export const RAIDER_R = 0.35, RAIDER_H = 1.85, CROUCH_H = 1.2;
@@ -29,7 +30,8 @@ export class Sim {
     this.smokes = [];
     this.containers = world.containers.map((c, i) => ({ ...c, i, contents: null, opened: false }));
     this.doors = world.doors.map((d, i) => ({ ...d, i, open: !d.locked && !d.closed }));
-    this.extracts = world.extracts.map((e, i) => ({ ...e, i, state: 'idle', t: 0, y: e.y ?? world.groundAt(e.x, e.z) }));
+    this.extracts = world.extracts.map((e, i) => ({ ...e, i, state: 'idle', t: 0, callDur: 0, y: e.y ?? world.groundAt(e.x, e.z) }));
+    for (const x of this.extracts) x.pts = extractWorldPoints(x);   // call button / cabin / departure lever in world space
     this.raidEnded = false;
     this.squads = new Map();
     this.warned = {};
@@ -498,28 +500,71 @@ export class Sim {
   }
   _doorBlock(d, closed) { this.world.setDoor(d.blk, closed); }
 
+  // ---- extraction flow: idle -> called (30-45 s) -> open (doors, auto-departs after 90 s) -> closing (10 s,
+  // after a raider in the cabin pulls the departure lever or the 90 s ran out) -> everyone inside the cabin
+  // extracts -> gone (cooldown 75 s -> idle; a metro station closes for the rest of the raid). Raider hatch:
+  // a key opens it for 15 s, anyone stepping onto it extracts, one open hatch per map.
   callExtract(x, by) {
-    if (x.state !== 'idle') return false;
-    if (x.kind === 'hatch') return false;
-    x.state = 'called'; x.t = x.callTime || 25;
-    this.emit({ e: 'xcall', i: x.i, by: by?.id });
-    this.noise(x.x, x.z, 70, by);
-    // the ARK hear the elevator: pull nearby machines toward it
-    this.near(x.x, x.z, 70, (e) => { if (e.type === 'ark') e.brain.investigate(x.x, x.z, true); });
+    if (x.state !== 'idle' || x.kind === 'hatch' || this.raidEnded || this.timeLeft <= 0) return false;
+    if (by && !this._atPoint(by, x, x.pts.call, (x.pts.callR || 1.8) + 1.2)) return false;
+    const T = x.callTime || Math.round(x.kind === 'airshaft' ? 30 + this.rng() * 8 : 30 + this.rng() * 15);
+    x.state = 'called'; x.t = x.callDur = T;
+    this.emit({ e: 'xcall', i: x.i, by: by?.id, t: T });
+    // elevators + metro blare a zone-wide alarm; the airshaft dropship is only heard closer by
+    const loud = x.kind !== 'airshaft', r = loud ? 75 : 45;
+    this.noise(x.x, x.z, r, by);
+    this.near(x.x, x.z, loud ? 70 : 40, (e) => { if (e.type === 'ark') e.brain.investigate(x.x, x.z, true); });
     return true;
   }
+  departExtract(x, by) {
+    if (x.state !== 'open' || x.kind === 'hatch') return false;
+    if (by && !inCabin(x, by.x, by.y, by.z)) return false;
+    x.state = 'closing'; x.t = 10;
+    this.emit({ e: 'xclose', i: x.i, by: by?.id, t: 10 });
+    this.noise(x.x, x.z, 25, by);
+    return true;
+  }
+  openHatch(x, by) {
+    if (x.kind !== 'hatch' || x.state !== 'idle') return false;
+    if (by && !this._atPoint(by, x, x.pts.call, (x.pts.callR || 2.4) + 1.0)) return false;
+    if (this.extracts.some(h => h.kind === 'hatch' && h.state === 'open')) { this.emit({ e: 'hatchbusy', i: x.i, by: by?.id }); return false; }
+    x.state = 'open'; x.t = 15;
+    this.emit({ e: 'xopen', i: x.i, by: by?.id, t: 15 });
+    return true;
+  }
+  _atPoint(e, x, p, r) { return Math.hypot(e.x - p[0], e.z - p[1]) <= r && Math.abs((e.y ?? x.y) - x.y) < 2.2; }
+  // raiders (alive or downed - you can crawl in) inside an extract's cabin
+  cabinRaiders(x, downed = true) {
+    const out = [];
+    for (const e of this.entities.values()) if (e.type === 'raider' && (e.st === 'alive' || (downed && e.st === 'downed')) && inCabin(x, e.x, e.y, e.z)) out.push(e);
+    return out;
+  }
+  // any public extract still on its way / boarding / departing (keeps the raid in overtime)
+  extractInProgress() { return this.extracts.some(x => x.kind !== 'hatch' && (x.state === 'called' || x.state === 'open' || x.state === 'closing')); }
   _extracts(dt) {
     for (const x of this.extracts) {
-      if (x.state === 'called') { x.t -= dt; if (x.t <= 0) { x.state = 'open'; x.t = 12; this.emit({ e: 'xopen', i: x.i }); } }
+      if (x.state === 'called') { x.t -= dt; if (x.t <= 0) { x.state = 'open'; x.t = 90; this.emit({ e: 'xopen', i: x.i, t: 90 }); } }
       else if (x.state === 'open') {
         x.t -= dt;
+        if (x.kind === 'hatch') {
+          for (const e of this.cabinRaiders(x, false)) this.extractRaider(e, x);
+          if (x.t <= 0) { x.state = 'idle'; x.t = 0; this.emit({ e: 'xidle', i: x.i }); }
+        } else if (x.t <= 0) { x.state = 'closing'; x.t = 10; this.emit({ e: 'xclose', i: x.i, t: 10, auto: true }); }
+      } else if (x.state === 'closing') {
+        x.t -= dt;
         if (x.t <= 0) {
-          const who = [];
-          for (const e of this.entities.values()) if (e.type === 'raider' && e.st === 'alive' && Math.hypot(e.x - x.x, e.z - x.z) < 3.4 && Math.abs(e.y - x.y) < 2) who.push(e);
+          const who = this.cabinRaiders(x);
           for (const e of who) this.extractRaider(e, x);
-          x.state = 'gone'; x.t = 75; this.emit({ e: 'xgone', i: x.i, n: who.length });
+          x.state = 'gone'; x.t = x.kind === 'metro' ? 9 : 75;
+          this.emit({ e: 'xgone', i: x.i, n: who.length, t: x.t });
         }
-      } else if (x.state === 'gone') { x.t -= dt; if (x.t <= 0) { x.state = 'idle'; this.emit({ e: 'xidle', i: x.i }); } }
+      } else if (x.state === 'gone') {
+        x.t -= dt;
+        if (x.t <= 0) {
+          if (x.kind === 'metro') { x.state = 'offline'; x.used = true; x.t = 0; this.emit({ e: 'xoffline', i: x.i, why: 'used' }); }
+          else { x.state = 'idle'; x.t = 0; this.emit({ e: 'xidle', i: x.i }); }
+        }
+      }
     }
   }
   _condition(dt) {
@@ -556,7 +601,7 @@ export class Sim {
     }
   }
   extractRaider(e, x) {
-    if (e.st !== 'alive') return;
+    if (e.st !== 'alive' && e.st !== 'downed') return;
     e.st = 'out'; e.extractedAt = this.t;
     this.emit({ e: 'extracted', id: e.id, x: x?.i ?? -1, name: e.name });
     if (e.bot) this.remove(e);
@@ -567,6 +612,11 @@ export class Sim {
       if (tl <= mark && !this.warned[mark]) { this.warned[mark] = true; this.emit({ e: 'warn', msg, t: mark }); }
     }
     if (tl <= 0 && !this.raidEnded) {
+      // overtime: an extraction called before the timer ran out holds the end until it departs (cap 3 min)
+      if (this.extractInProgress() && tl > -180) {
+        if (!this.overtime) { this.overtime = true; this.emit({ e: 'warn', msg: 'OVERTIME - EXTRACTION IN PROGRESS', t: 0 }); }
+        return;
+      }
       this.raidEnded = true;
       for (const e of this.entities.values()) if (e.type === 'raider' && (e.st === 'alive' || e.st === 'downed')) this.kill(e, null);
       this.emit({ e: 'raidover' });
