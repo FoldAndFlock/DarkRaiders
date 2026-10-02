@@ -32,8 +32,8 @@ const ARK_LOOP = { wasp: 'wazp_loop', hornet: 'hornit_loop', rocketeer: 'rocketi
 const ARK_STEP = { tick: ['tikk_skitter', 0.5, 1], leaper: ['bastian_step', 0.55, 1.35], bastion: ['bastian_step', 0.95, 1], bombardier: ['bastian_step', 0.8, 0.85], queen: ['leapr_stomp', 1.2, 0.8] };
 // tracers by source (shot event kind): colour, speed (m/s), tail (m), head (px). Raiders yellow-white, energy
 // cyan, ARK guns red-orange, lasers per machine (ARK_LASER); beams (lasers) flash the whole line
-const TRACER = { rifle: 0xffe0a0, smg: 0xffe8b0, pistol: 0xffe8c0, shotgun: 0xffd090, sniper: 0xfff0d0, heavy: 0xffd080, energy: 0x60d8ff, launcher: 0xffa040, ark: 0xff6040, laser: 0xff3020 };
-const TRACER_MOVE = { rifle: [210, 2.8, 3], smg: [190, 2.4, 2], pistol: [170, 2.0, 2], shotgun: [160, 1.6, 2], sniper: [320, 4.5, 3], heavy: [240, 3.2, 3], energy: [150, 2.6, 3], launcher: [120, 2, 3], ark: [120, 2.4, 3] };
+export const TRACER = { rifle: 0xffe0a0, smg: 0xffe8b0, pistol: 0xffe8c0, shotgun: 0xffd090, sniper: 0xfff0d0, heavy: 0xffd080, energy: 0x60d8ff, launcher: 0xffa040, ark: 0xff6040, laser: 0xff3020 };
+export const TRACER_MOVE = { rifle: [210, 2.8, 3], smg: [190, 2.4, 2], pistol: [170, 2.0, 2], shotgun: [160, 1.6, 2], sniper: [320, 4.5, 3], heavy: [240, 3.2, 3], energy: [150, 2.6, 3], launcher: [120, 2, 3], ark: [120, 2.4, 3] };
 const ARK_LASER = { sentinal: 0xffd040, vaporiser: 0xff3020 };
 
 // -------------------------------------------------------------- door leaves

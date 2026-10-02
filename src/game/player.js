@@ -5,6 +5,7 @@ import { capacities, countLoadout, takeFrom, loadoutWeight, QUICK_TYPES } from '
 import { OBLIQUE_K, PX_PER_M } from '../engine/renderer.js';
 import { wrapAngle } from './sim.js';
 import { SKILL_TREE } from '../data/skills.js';
+import { TRACER, TRACER_MOVE } from './view.js';
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 // distance (px) from (px, py) along the unit direction (dx, dy) to the screen rect inset by m
@@ -338,7 +339,8 @@ export class PlayerController {
       if (!g.isHost) {   // client-side tracer prediction against the world
         const sa = shot.a + (Math.random() - 0.5) * spread * Math.PI / 180, dx = Math.sin(sa), dz = Math.cos(sa);
         const d = g.world.grid.ray(ox, oz, dx, dz, (ws.range || 30) * 2, oy, dy);
-        g.fx.tracers.add(ox, oy, oz, ox + dx * d, oy + dy * d, oz + dz * d, 0xffe0a0, 0.07);
+        const mv = TRACER_MOVE[shot.vis] || TRACER_MOVE.rifle;   // same look as everyone else's shots
+        g.fx.tracers.add(ox, oy, oz, ox + dx * d, oy + dy * d, oz + dz * d, TRACER[shot.vis] || TRACER.rifle, 0.07, { speed: mv[0], tail: mv[1], head: mv[2] });
       }
     }
     this.lastFireAt = g.time;
