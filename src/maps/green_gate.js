@@ -251,7 +251,7 @@ export default {
         if (d.side === 'n') g.push([o.x + c, o.z, d.w]); else if (d.side === 's') g.push([o.x + c, o.z + o.d, d.w]);
         else if (d.side === 'w') g.push([o.x, o.z + c, d.w]); else g.push([o.x + o.w, o.z + c, d.w]);
       }
-      for (const iw of o.inner || []) { const [x0, z0, x1, z1, gs = []] = iw; const hz = Math.abs(z0 - z1) < 1e-6; for (const gg of gs) g.push(hz ? [o.x + x0 + gg.at + gg.w / 2, o.z + z0, gg.w] : [o.x + x0, o.z + z0 + gg.at + gg.w / 2, gg.w]); }
+      for (const iw of o.inner || []) { const [x0, z0, , z1, gs = []] = iw; const hz = Math.abs(z0 - z1) < 1e-6; for (const gg of gs) g.push(hz ? [o.x + x0 + gg.at + gg.w / 2, o.z + z0, gg.w] : [o.x + x0, o.z + z0 + gg.at + gg.w / 2, gg.w]); }
       return g;
     };
     const FURN = {
