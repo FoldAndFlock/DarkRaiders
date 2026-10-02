@@ -98,6 +98,15 @@ export default {
     const inPlay = (x, z) => pointInPoly(x, z, PLAY);
 
     // ======================================================================== 1. TERRAIN
+    // scanline 'set' of every heightfield vertex inside pts (same inside test as pointInPoly; much faster on big polys)
+    const fillPoly = (pts, h) => {
+      const W1 = w.tw + 1; let z0 = 1e9, z1 = -1e9; for (const p of pts) { z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
+      for (let z = Math.max(0, Math.ceil(z0)); z <= Math.min(w.th, Math.floor(z1)); z++) {
+        const xs = []; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, zi] = pts[i], [xj, zj] = pts[j]; if ((zi > z) !== (zj > z)) xs.push((xj - xi) * (z - zi) / (zj - zi + 1e-12) + xi); }
+        xs.sort((p, q) => p - q);
+        for (let k = 0; k + 1 < xs.length; k += 2) for (let x = Math.max(0, Math.ceil(xs[k])); x < xs[k + 1] && x <= w.tw; x++) w.hv[z * W1 + x] = h;
+      }
+    };
     // coarse signed distance to the playable polygon (positive = outside)
     const DS = 4, dw = Math.ceil(W / DS) + 1, dh = Math.ceil(H / DS) + 1, DF = new Float32Array(dw * dh);
     for (let j = 0; j < dh; j++) for (let i = 0; i < dw; i++) { const x = i * DS, z = j * DS, d = polyEdgeDist(PLAY, x, z); DF[j * dw + i] = pointInPoly(x, z, PLAY) ? -d : d; }
@@ -135,10 +144,10 @@ export default {
     w.raisePoly(EFIELD, 6.6, 14, 'set');
     w.raisePoly([[858, 186], [995, 186], [995, 230], [858, 230]], 10.2, 10, 'set');      // peak south foot
     w.river(CREEK, 9, { level: 3.4, depth: 1.3, bank: 4, bed: 'mud' });
-    w.raisePoly(BENCH, BENCH_Y, 0, 'set');
-    w.raisePoly(PEAK, PEAK_Y, 0, 'set');
+    fillPoly(BENCH, BENCH_Y);
+    fillPoly(PEAK, PEAK_Y);
     // gentle bumps on the bench / peak tops away from structures
-    w.heightFn((x, z) => (x > 476 && x < 870 && z > 40 && z < 382 && pointInPoly(x, z, BENCH) && (x > 800 || (z < 110 && x < 600))) ? (N2(x, z, 24) - 0.5) * 1.6 * ss(0, 14, polyEdgeDist(BENCH, x, z)) : null, 'add');
+    w.heightFn((x, z) => (x > 476 && x < 870 && z > 40 && z < 382 && (x > 800 || (z < 110 && x < 600)) && pointInPoly(x, z, BENCH)) ? (N2(x, z, 24) - 0.5) * 1.6 * ss(0, 14, polyEdgeDist(BENCH, x, z)) : null, 'add');
     // lakes, gorge, pond
     w.raisePoly(LAKE_NE, 1.0, 8, 'set'); w.waterPoly(LAKE_NE.map(([x, z]) => [x + (x - 1027) * 0.12, z + (z - 64) * 0.12]), { level: 3.4, deep: 0x1c4a5c, shallow: 0x3a8088 });
     w.raisePoly(LAKE_SW, -2.2, 10, 'set'); w.waterPoly([[0, 680], [50, 678], [90, 700], [106, 736], [96, 778], [56, 802], [0, 804]], { level: 0.3, deep: 0x1a3a44, shallow: 0x30605c });
@@ -199,7 +208,7 @@ export default {
       levelPath(C, C.map(([x, z]) => { const a = (x - GC[0]) * NV[0] + (z - GC[1]) * NV[1]; return a < -40 ? 3.6 : a < 4 ? 3.6 + (TUN_Y - 3.6) * ss(-40, 4, a) : TUN_Y; }), 17, 2);
     }
     // the yard behind the gate (sunk into the bench), then tunnel ramps later
-    w.raisePoly(YARD, TUN_Y, 0, 'set');
+    fillPoly(YARD, TUN_Y);
     w.road(resample(HWY_W, 5), 12, 'concrete', { edge: 'gravel', edgeW: 0.8, level: false });
     w.road(resample([cp(-212, 0), cp(4, 0), [610, 284], [621, 256]], 5), 15, 'concrete', { edge: 'gravel', edgeW: 1, level: false });
     // painted lane markings (flat rotatable props: the terrain atlas can't draw diagonal lines)
@@ -1221,7 +1230,8 @@ export default {
       // Cliffside Airshaft at the foot of the bench cliff
       airshaftSite('cliffside_airshaft', 'Cliffside Airshaft', 459, 218, faceTo(459, 218, 447, 224));
       // Broken Earth: a trail of destruction — craters, upturned slabs, downed ARK machines
-      w.paintPoly('mud', [[706, 528], [722, 540], [672, 590], [632, 622], [616, 610], [660, 566]]);
+      paintPolyN('dirt', [[706, 528], [722, 540], [672, 590], [632, 622], [616, 610], [660, 566]], 7, 8);   // scorched trail, ragged edges
+      for (const [cx, cz, r] of [[668, 562, 7], [652, 580, 6], [690, 548, 8], [636, 596, 5], [706, 534, 6], [622, 612, 5]]) w.paintCircle('mud', cx, cz, r + 1, 0.35, cx + cz);
       for (const [x, z, k, r] of [[690, 550, 'gg_husk_big', 0.8], [656, 578, 'husk', 1.2], [638, 600, 'husk', 2.0], [710, 538, 'gg_rubble', 0.4], [668, 566, 'gg_slab', 0.7], [646, 590, 'gg_slab', 2.2], [700, 560, 'gg_rock_l2', 1.0], [628, 612, 'gg_rubble', 2.4]])
         w.prop(k, x, z, r, { solid: true });
       for (const [x, z] of [[690, 552], [656, 580], [638, 602]]) w.container('arc_husk', x + 3, z + 2, 0, { tier: 2, poi: 'broken_earth' });

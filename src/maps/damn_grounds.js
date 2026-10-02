@@ -513,23 +513,23 @@ function makeCtx(w, rng) {
     w.poi('field_depot', 'Field Depot', x, z, 10, { tier: 1, aliases: ['field_depot'] });
     return bb;
   };
-  // extraction points: the structure (cage / hatch) is modelled + collided by the engine (engine/extracts.js);
-  // the map gives it a facing (0 = +z, toward where players arrive), keeps it clear and dresses the spot.
+  // extraction points: the structure (cage / hatch, its lights and beacons) is modelled + collided by the engine
+  // (engine/extracts.js); the map gives it a facing (0 = +z, toward where players arrive), keeps it clear
+  // (elevator: ~6 m in front, 1 m round the 4.5 m cage + console; hatch: 2 m) and dresses the spot.
   C.lift = (id, name, x, z, face, o = {}) => {
     const base = o.yAbs ?? null, Rf = rotFrame(x, z, -face), P2 = (lx, lz) => rotPt(Rf, x + lx, z + lz);
-    if (o.paint !== false) { const q = [[-5, -5], [5, -5], [5, 5], [-5, 5]].map(([a, b]) => P2(a, b)); w.paintPoly('concrete', q); w.paintPoly('hazard', [P2(-5, 4.2), P2(5, 4.2), P2(5, 5), P2(-5, 5)]); }
-    const lampY = (lx, lz, oo) => { const [px, pz] = P2(lx, lz); if (base != null) C.lampAt(px, pz, base, oo); else w.lamp(px, pz, oo); };
-    lampY(-4.2, -3.8, { y: 6.6, model: 'dg_floodlight', color: 0xe0ffe8, intensity: 1.6, range: 14, rot: -face });
-    lampY(0, 4.8, { y: 1.8, model: null, color: 0x60ff88, intensity: 1.6, range: 9 });
-    const [sx, sz] = P2(4.6, 4.4); w.prop('dg_extsign', sx, sz, -face, base != null ? { solid: true, yAbs: base } : { solid: true });
+    if (o.paint !== false) { const q = [[-5, -5], [5, -5], [5, 5], [-5, 5]].map(([a, b]) => P2(a, b)); w.paintPoly('concrete', q); w.paintPoly('hazard', [P2(-3, 3.2), P2(3, 3.2), P2(3, 3.9), P2(-3, 3.9)]); }
+    const [fx, fz] = P2(-4.2, -3.8), fl = { y: 6.6, model: 'dg_floodlight', color: 0xe0ffe8, intensity: 1.5, range: 14, rot: -face };   // yard floodlight behind the shaft
+    if (base != null) C.lampAt(fx, fz, base, fl); else w.lamp(fx, fz, fl);
+    const [sx, sz] = P2(4.4, -0.6); w.prop('dg_extsign', sx, sz, -face, base != null ? { solid: true, yAbs: base } : { solid: true });   // board beside the cage
     w.extract(id, name, x, z, { kind: 'elevator', face, ...(base != null ? { yAbs: base } : {}), ...o });
     C.addClear(x, z, 7); C.reserved.push([x, z, 6.5]);
+    C.reserved.push([...P2(0, 6.5), 3.5]);                                        // the approach in front
   };
   C.hatch = (id, name, x, z, face, o = {}) => {
     const Rf = rotFrame(x, z, -face), P2 = (lx, lz) => rotPt(Rf, x + lx, z + lz);
     w.paintCircle('concrete', x, z, 2.4, 0.15, 5);
-    const [sx, sz] = P2(1.8, 1.6); w.prop('dg_hatchsign', sx, sz, -face, { solid: true });
-    const [lx, lz] = P2(-1.6, 1.8); w.lamp(lx, lz, { y: 1.4, model: null, color: 0xffc040, intensity: 1.4, range: 8, flicker: 0.2 });
+    const [sx, sz] = P2(2.4, 1.4); w.prop('dg_hatchsign', sx, sz, -face, { solid: true });
     w.extract(id, name, x, z, { kind: 'hatch', needsKey: 'raider_hatch_key', face, ...o });
     C.addClear(x, z, 3.5); C.reserved.push([x, z, 2.5]);
   };

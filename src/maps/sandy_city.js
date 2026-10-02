@@ -1333,16 +1333,17 @@ function freeSpot(ctx, x, z, r = 1.5, max = 18) {
 function stLamp(w, x, z, o = {}) { w.lamp(x, z, { color: 0xffd8a0, ...o, y: 2.8, model: null }); w.prop('sc_lamppost', x, z, (x * 7.31 + z) % 6.28, { solid: [0.15, 0.15, 2.1] }); }
 function ring(ctx, cx, cz, r, n, fn) { for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; fn(cx + Math.cos(a) * r, cz + Math.sin(a) * r, a, i); } }
 // ---- underground metro stations ------------------------------------------------------------------
-// A 30 x 15 m hall sunk 5 m under the street (World `under`): two street stairwells (railings, M totems,
-// lamps) lead down at both ends onto a platform; the track runs along the hall's long axis 3 m in front of
-// the extract point, which faces it. 16 x 8 m around the point stays clear for the animated metro set.
-const ST_L = 30, ST_D = 15, ST_UNDER = 5, ST_STAIR = 7.7;
+// A 34 x 16 m hall sunk 5 m under the street (World `under`). The metro extract set (platform, 32 m of track,
+// signals, roundel, console, the 12 m car) faces the far (north) wall, so the train runs along the back of
+// the hall and is seen doors-on from the camera; two 4 m street stairwells (railings, M totems, lamps)
+// come down at both ends of the concourse on the near side. 16 x 8 m around the point stays clear.
+const ST_L = 34, ST_D = 16, ST_UNDER = 5, ST_STAIR = 7.7, ST_PZ = 8.5;
 function siteFree(ctx, cx, cz, rot, L, D, pad) {
   const R = rotFrame(cx, cz, rot), { w } = ctx;
   let gmin = 1e9, gmax = -1e9;
   for (let lz = -pad; lz <= D + pad; lz += 1.5) for (let lx = -pad - 4; lx <= L + pad + 4; lx += 1.5) {
     const inEnt = lx < -pad || lx > L + pad;                       // street in front of the two stair exits
-    if (inEnt && (lz < 0 || lz > 6)) continue;
+    if (inEnt && (lz < D - 6 || lz > D)) continue;
     const [x, z] = rotPt(R, cx - L / 2 + lx, cz - D / 2 + lz);
     if (x < 8 || z < 8 || x > MW - 8 || z > MH - 8) return null;
     if (ctx.occ.at(x, z) !== -1 || ctx.onDeck(x, z) || ctx.keepClear.some(([kx, kz, kr]) => Math.hypot(kx - x, kz - z) < kr)) return null;
@@ -1354,65 +1355,69 @@ function siteFree(ctx, cx, cz, rot, L, D, pad) {
 function metroStation(ctx, id, name, rx, rz, opts = {}) {
   const { w, rng } = ctx, L = ST_L, D = ST_D;
   let best = null;
-  for (let r = 0; r <= 40 && !best; r += 2) for (let a = 0; a < (r ? Math.ceil(r * 1.6) : 1); a++) {
+  // axis-aligned halls (the stairwells line up with the 2 m nav grid); east-west (track along the north
+  // wall) preferred, north-south only when nothing fits nearby
+  for (let r = 0; r <= 40; r += 2) for (let a = 0; a < (r ? Math.ceil(r * 1.6) : 1); a++) {
     const an = a / Math.ceil(r * 1.6 || 1) * Math.PI * 2, cx = rx + Math.cos(an) * r, cz = rz + Math.sin(an) * r;
-    for (const deg of [0, 90]) {   // axis-aligned halls: the stairwells line up with the 2 m nav grid
+    for (const deg of [0, 90]) {
+      const sc = r + (deg ? 24 : 0); if (best && sc >= best.sc) continue;
       const f = siteFree(ctx, cx, cz, deg * D2R, L, D, 1.5);
-      if (f) { const sc = r; if (!best || sc < best.sc) best = { sc, cx, cz, rot: deg * D2R, ...f }; }
+      if (f) best = { sc, cx, cz, rot: deg * D2R, ...f };
     }
   }
   if (!best) { (ctx.stationFail ||= []).push(id); return null; }
-  // snap so the 4 m wide stair flights fill whole 2 m nav cells (the AI walks them)
-  if (best.rot === 0) best.cz += Math.round((best.cz - 6.5) / 2) * 2 - (best.cz - 6.5);
-  else best.cx += Math.round((best.cx + 2.5) / 2) * 2 - (best.cx + 2.5);
+  // snap so the 4 m wide stair flights (local z 11..15) fill whole 2 m nav cells (the AI walks them)
+  if (best.rot === 0) best.cz += Math.round((best.cz + 3) / 2) * 2 - (best.cz + 3);
+  else best.cx += Math.round((best.cx - 7) / 2) * 2 - (best.cx - 7);
   const { cx, cz, rot } = best, R = rotFrame(cx, cz, rot);
   let sum = 0, n = 0; for (let lz = 0; lz <= D; lz += 3) for (let lx = 0; lx <= L; lx += 3) { sum += w.groundAt(...rotPt(R, cx - L / 2 + lx, cz - D / 2 + lz)); n++; }
   const surf = sum / n, floor = surf - ST_UNDER;
   const L2 = (lx, lz) => rotPt(R, cx - L / 2 + lx, cz - D / 2 + lz);
+  const blk = (x0, z0, x1, z1, h, tex, o) => w.block(cx - L / 2 + x0, cz - D / 2 + z0, cx - L / 2 + x1, cz - D / 2 + z1, h, tex, { R, ...o });
   const hallPoly = [[0, 0], [L, 0], [L, D], [0, D]].map(([lx, lz]) => L2(lx, lz));
   const lid = opts.lid || 'concrete';
   w.building({ x: cx - L / 2, z: cz - D / 2, w: L, d: D, rot: rot || undefined, under: ST_UNDER, floorY: surf, wall: 'concrete', floor: 'tiles', roof: lid, tint: 0xf0e8dc, name,
-    stairs: [{ x: 0.8, z: 1.0, w: 4.0, dir: 'w', from: 0, to: 'top' }, { x: L - 0.8 - ST_STAIR, z: 1.0, w: 4.0, dir: 'e', from: 0, to: 'top' }] });
+    stairs: [{ x: 0.8, z: 11.0, w: 4.0, dir: 'w', from: 0, to: 'top' }, { x: L - 0.8 - ST_STAIR, z: 11.0, w: 4.0, dir: 'e', from: 0, to: 'top' }] });
   const hall = { id, poly: hallPoly, surf, floor, cx, cz, rot, R };
   ctx.halls.push(hall);
   ctx.occ.markPoly([[-1.5, -1.5], [L + 1.5, -1.5], [L + 1.5, D + 1.5], [-1.5, D + 1.5]].map(([lx, lz]) => L2(lx, lz)), 99990);
-  // ---- inside: track bed + tunnel mouths, pillars, benches, lights, signs, a little loot
-  const inH = { inHall: true }, face = -rot;
-  // (platform, track, signals, benches, roundel and the sliding car come from the metro extract set:
-  //  28 m of track along the hall at local z 12, so only the dark tunnel mouths in the end walls are ours)
-  for (const lx of [0.95, L - 1.05]) w.block(cx - L / 2 + lx, cz - D / 2 + 10.2, cx - L / 2 + lx + 0.1, cz - D / 2 + 13.9, 3.8, 'roofTar', { y0: floor, R, collide: false, cast: false, tint: 0x202020 });
-  for (const lx of [10.5, 15, 19.5]) w.block(cx - L / 2 + lx - 0.4, cz - D / 2 + 2.2, cx - L / 2 + lx + 0.4, cz - D / 2 + 3.0, ST_UNDER, 'concrete', { y0: floor, R, tint: 0xd8d0c4 });
-  for (const lx of [12.75, 17.25]) w.prop('sc_bench', ...L2(lx, 4.2), face, inH);
-  for (const lx of [6, 15, 24]) w.lamp(...L2(lx, 7.5), { yAbs: floor + 3.6, color: 0xe8f0ff, intensity: 1.3, range: 12, flicker: rng() < 0.4 ? 0.4 : 0, model: null });
-  for (const lx of [4, 26]) w.lamp(...L2(lx, 3.0), { yAbs: floor + 3.0, color: 0xfff0d0, intensity: 0.9, range: 8, model: null });
-  w.prop('sc_sign', ...L2(15, 1.4), face, inH);
-  w.prop('sc_kiosk', ...L2(26.5, 7.6), face, { inHall: true, solid: true });
-  w.container('locker', ...L2(11.5, 1.6), face, { tier: 1, inHall: true });
-  w.container('trash', ...L2(4.2, 6.6), face, { tier: 1, inHall: true });
-  w.container(rng() < 0.5 ? 'backpack' : 'suitcase', ...L2(25.2, 9.4), face, { tier: 2, inHall: true });
-  // ---- the extract on the platform, facing the track
-  const [ex, ez] = L2(L / 2, 9);
-  w.extract(id, name, ex, ez, { kind: 'metro', face, trackZ: 3, trackLen: L - 2, platformLen: 18 });
+  // ---- inside. The extract set brings platform (x 9..25, z 6.9..11.25), track bed (z 3.75..6.9) and car;
+  // ours: dark tunnel mouths where the track meets the end walls, concourse pillars / benches / sign, kiosk,
+  // a little loot in the corners, ceiling lights
+  const inH = { inHall: true }, face = Math.PI - rot;   // extract-local +z (toward the track) = hall north
+  for (const lx of [0.95, L - 1.05]) blk(lx, 3.3, lx + 0.1, 7.6, 3.8, 'roofTar', { y0: floor, collide: false, cast: false, tint: 0x202020 });
+  for (const lx of [12, 17, 22]) blk(lx - 0.4, 13.7, lx + 0.4, 14.5, ST_UNDER, 'concrete', { y0: floor, tint: 0xd8d0c4, cutaway: true });
+  for (const lx of [14.5, 19.5]) w.prop('sc_bench', ...L2(lx, 12.5), face, inH);
+  w.prop('sc_sign', ...L2(17, 14.6), face, inH);
+  w.prop('sc_kiosk', ...L2(30.2, 9.2), face, { inHall: true, solid: true });
+  w.container('locker', ...L2(3.4, 8.8), face, { tier: 1, inHall: true });
+  w.container('trash', ...L2(10.4, 14.1), face, { tier: 1, inHall: true });
+  w.container(rng() < 0.5 ? 'backpack' : 'suitcase', ...L2(23.6, 14.1), face, { tier: 2, inHall: true });
+  for (const lx of [9, 17, 25]) w.lamp(...L2(lx, 9.5), { yAbs: floor + 3.6, color: 0xe8f0ff, intensity: 1.3, range: 12, flicker: rng() < 0.4 ? 0.4 : 0, model: null });
+  for (const lx of [4.6, L - 4.6]) w.lamp(...L2(lx, 13), { yAbs: floor + 3.0, color: 0xfff0d0, intensity: 0.9, range: 8, model: null });
+  // ---- the extract on the platform, facing the track (final position: its collision is placed now)
+  const [ex, ez] = L2(L / 2, ST_PZ);
+  w.extract(id, name, ex, ez, { kind: 'metro', face, trackZ: 3, trackLen: L - 2, platformLen: 16 });
   // ---- street level: railings round both stairwells, M totems + lamps at the entrances
-  const rail = (x0, z0, x1, z1) => w.block(cx - L / 2 + x0, cz - D / 2 + z0, cx - L / 2 + x1, cz - D / 2 + z1, 1.0, 'rust', { y0: surf + 0.02, R, xray: false });
+  const rail = (x0, z0, x1, z1) => blk(x0, z0, x1, z1, 1.0, 'rust', { y0: surf + 0.02, xray: false });
   for (const [xa, xb, xe] of [[1.0, 9.1, 9.1], [L - 9.1, L - 1.0, L - 9.25]]) {
-    rail(xa, 0.4, xb, 0.52); rail(xa, 5.5, xb, 5.62); rail(xe, 0.4, xe + 0.15, 5.62);
+    rail(xa, 10.38, xb, 10.5); rail(xa, 15.5, xb, 15.62); rail(xe, 10.38, xe + 0.15, 15.62);
   }
-  for (const [lx, lz, f] of [[-1.3, -0.4, face + Math.PI / 2], [L + 1.3, -0.4, face - Math.PI / 2]]) {
-    w.prop('sc_metro_sign', ...L2(lx, lz), f, { solid: true });
-    w.lamp(...L2(lx, 6.4), { y: 2.6, color: 0xfff0d0, intensity: 1.2, range: 10, model: 'sc_lamppost' });
+  for (const [lx, f] of [[-1.3, -rot + Math.PI / 2], [L + 1.3, -rot - Math.PI / 2]]) {
+    w.prop('sc_metro_sign', ...L2(lx, D + 0.4), f, { solid: true });
+    w.lamp(...L2(lx, 9.6), { y: 2.6, color: 0xfff0d0, intensity: 1.2, range: 10, model: 'sc_lamppost' });
   }
-  for (const lx of [-3, L + 3]) w.paintPoly('concrete', [L2(lx - 2.5, -0.5), L2(lx + 2.5, -0.5), L2(lx + 2.5, 6.5), L2(lx - 2.5, 6.5)]);
+  for (const lx of [-3, L + 3]) w.paintPoly('concrete', [L2(lx - 2.5, D - 6.5), L2(lx + 2.5, D - 6.5), L2(lx + 2.5, D + 0.5), L2(lx - 2.5, D + 0.5)]);
   return [cx, cz];
 }
-// raider hatch: the animated hatch + key post come from the extract set; keep ~2 m clear, face the street
+// raider hatch: the animated hatch, key post and its lights come from the extract set; keep ~2 m clear
+// and face the most open side
 function hatch(ctx, id, name, x, z) {
   const { w } = ctx; [x, z] = freeSpot(ctx, x, z, 2.2);
   let face = 0, best = -1;
   for (let a = 0; a < 8; a++) { const an = a * Math.PI / 4, dx = Math.sin(an), dz = Math.cos(an); let free = 0; for (let d = 2; d <= 8; d += 2) if (ctx.occ.at(x + dx * d, z + dz * d) === -1 && !ctx.onDeck(x + dx * d, z + dz * d)) free++; if (free > best) { best = free; face = an; } }
   w.paint('metalPanel', x - 1.5, z - 1.5, x + 1.5, z + 1.5);
   w.extract(id, name, x, z, { kind: 'hatch', needsKey: 'raider_hatch_key', face });
-  w.lamp(x - Math.cos(face) * 2.4, z + Math.sin(face) * 2.4, { y: 2.6, color: 0xffc040, intensity: 0.9, range: 7, flicker: 0.2, model: 'sc_lamppost' });
   ctx.keepClear.push([x, z, 2.4]);
   return [x, z];
 }
@@ -1833,7 +1838,7 @@ function markers(ctx) {
     const al = orig.toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
     w.poi(id, name, x, z, r, { tier, aliases: al === id ? [] : [al], ...(BOSS_ARENAS[id] ? { bossPoi: BOSS_ARENAS[id] } : {}) });
   }
-  for (const [id, name, k] of STATION_POIS) { const m = ctx.metro[k]; if (m) w.poi(id, name, m[0], m[1], 14, { tier: 1, aliases: [] }); }
+  for (const [id, name, k] of STATION_POIS) { const m = ctx.metro[k]; if (m) w.poi(id, name, m[0], m[1], 18, { tier: 1, aliases: [] }); }
   // key rooms (one entry per locked building; multi-wing key areas list each rotated wing in `polys`)
   const byId = new Map();
   for (const k of ctx.keySegs) {
