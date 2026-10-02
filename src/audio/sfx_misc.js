@@ -1,7 +1,7 @@
 // Extraction / raid flow, UI (SNES menu chirps) and ambient beds.
 import { SR, buf, noise, osc, ad, env, filt, filtFn, layer, mix, snes, am, seamless, echo, unison } from './dsp.js';
 import {
-  def, click, clack, whoosh, thump, ping, blips, bell, N, rain, wind, bubble, birdChirp, rustle, servo,
+  def, click, clack, whoosh, thump, ping, blips, bell, N, rain, wind, bubble, birdChirp, rustle,
 } from './sfx_lib.js';
 
 const UI = { bus: 'ui', vol: 0.55, max: 3, pj: 0, v: 1, prio: 2 };
@@ -11,45 +11,7 @@ const AMB = { loop: true, v: 1, pj: 0, vol: 0.5, max: 2, dist: 1e9, prio: 0 };
 const ui = (notes, o = {}, e = 0.05) => (R) => snes(echo(blips(R, notes, o), e, 0.25, 2), { bits: 8, p: 0.6 });
 
 export const MISC = {
-  // ---------------------------------------------------------------- extraction / raid
-  extract_call: def((R) => {
-    const out = buf(1.4);
-    const st = noise(0.35, 'crunch', R, 3); filt(st, 'bp', 1800, 1800, 0.8); am(st, 31, 0.6); env(st, [[0, 0], [0.03, 1], [0.35, 0]]);
-    layer(out, st, 0.35);
-    layer(out, blips(R, [[N('E5'), 0.09], [0, 0.04], [N('B5'), 0.09], [0, 0.04], [N('E6'), 0.2]], { pw: 0.25 }), 0.45, 0.3);
-    layer(out, bell(R, N('E4'), 1.0), 0.35, 0.3);
-    return snes(echo(out, 0.14, 0.3, 2), { bits: 8, p: 0.75 });
-  }, { ...UI, bus: 'sfx', vol: 0.7, max: 1, dist: 1e9, prio: 4 }),
-  extract_countdown_tick: def((R) => {
-    const out = buf(0.12); const b = osc(0.06, { wave: 'rawsq', f: 1046, pw: 0.5 }); ad(b, 0.001, 0.06, 0.02); layer(out, b, 1);
-    layer(out, click(R, 3000, 0.01), 0.4);
-    return snes(out, { bits: 8, p: 0.5 });
-  }, { ...UI, bus: 'sfx', vol: 0.6, max: 2, dist: 1e9 }),
-  elevator_arrive: def((R) => {
-    const d = 2.8, out = buf(d);
-    const r = noise(2.2, 'brown', R); filt(r, 'lp', 160, 420, 1.2, 2); env(r, [[0, 0], [1.6, 1], [2.2, 0]]); layer(out, r, 0.8);
-    const m = osc(2.2, { wave: 'saw', f: 60, f1: 95, sweep: 2 }); filt(m, 'lp', 400); env(m, [[0, 0], [1.6, 1], [2.2, 0]]); layer(out, m, 0.3);
-    layer(out, thump(R, 90, 40, 0.4, 0.1), 0.9, 2.15);
-    layer(out, clack(R, 600, 0.15), 0.6, 2.15);
-    layer(out, bell(R, N('A5'), 0.6), 0.3, 2.35); layer(out, bell(R, N('E6'), 0.5), 0.25, 2.5);
-    return snes(out, { drv: 1.5, bits: 8, p: 0.85 });
-  }, { vol: 0.8, dist: 60, max: 1, v: 1, prio: 4 }),
-  elevator_door: def((R) => {
-    const out = buf(1.3);
-    const h = noise(0.4, 'white', R); filt(h, 'hp', 2500); env(h, [[0, 0], [0.02, 1], [0.4, 0]]); layer(out, h, 0.5);
-    const sl = noise(0.8, 'brown', R); filt(sl, 'lp', 500); env(sl, [[0, 0], [0.2, 1], [0.8, 0.6], [0.85, 0]]); layer(out, sl, 0.6, 0.15);
-    layer(out, servo(R, 140, 0.7, 1.3), 0.25, 0.15);
-    layer(out, thump(R, 110, 50, 0.3, 0.08), 0.8, 0.95);
-    layer(out, clack(R, 700, 0.12), 0.5, 0.95);
-    return snes(out, { drv: 1.4, bits: 8, p: 0.8 });
-  }, { vol: 0.75, dist: 45, max: 2, v: 2 }),
-  extract_success: def((R) => {
-    const out = buf(2.2);
-    ['D5', 'F#5', 'A5', 'D6', 'F#6', 'A6'].forEach((n, i) => mix(out, bell(R, N(n), 1.2), 0.3, i * 0.08));
-    const p = unison(1.8, 'saw', N('D4'), [-9, 0, 8]); filt(p, 'lp', 600, 3500, 1, 0.6); env(p, [[0, 0], [0.4, 1], [1.8, 0]]); layer(out, p, 0.3, 0.1);
-    layer(out, whoosh(R, 0.8, 400, 3000, 1), 0.3);
-    return snes(echo(out, 0.16, 0.3, 2), { bits: 9, p: 0.8 });
-  }, { ...UI, bus: 'ui', vol: 0.75, max: 1 }),
+  // ---------------------------------------------------------------- raid flow (extraction sounds: sfx_extract.js)
   raid_start: def((R) => {
     const d = 2.6, out = buf(d);
     for (const [f, g] of [[N('D2'), 0.9], [N('A2'), 0.6], [N('D3'), 0.5], [N('F3'), 0.35]]) {
@@ -75,16 +37,6 @@ export const MISC = {
     layer(out, s2, 0.2);
     return snes(echo(out, 0.3, 0.35, 2), { bits: 8, p: 0.85 });
   }, { ...UI, bus: 'sfx', vol: 0.75, max: 1, dist: 1e9, prio: 4 }),
-  hatch_extract: def((R) => {
-    const out = buf(1.8);
-    layer(out, clack(R, 600, 0.15), 0.8);
-    const h = noise(0.6, 'white', R); filt(h, 'bp', 2600, 1200, 1.2); env(h, [[0, 0], [0.03, 1], [0.6, 0]]); layer(out, h, 0.5, 0.05);
-    layer(out, ping(R, 180, 1.0, 2.76, 4), 0.4, 0.02);
-    layer(out, whoosh(R, 1.0, 900, 200, 1), 0.6, 0.6);
-    layer(out, thump(R, 80, 35, 0.4, 0.1), 0.6, 1.4);
-    return snes(out, { drv: 1.5, bits: 8, p: 0.85 });
-  }, { vol: 0.8, dist: 50, max: 1, v: 2, prio: 4 }),
-
   // ---------------------------------------------------------------- UI
   ui_hover: def(ui([[2400, 0.025]], { pw: 0.25 }, 0.03), { ...UI, vol: 0.3, max: 2 }),
   ui_click: def(ui([[1200, 0.03], [1800, 0.04]], { pw: 0.5 }), UI),

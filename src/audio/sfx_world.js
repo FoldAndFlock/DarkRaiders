@@ -1,6 +1,6 @@
 // Explosions & fire, player body sounds, loot & interaction.
 import { buf, noise, osc, fm, ad, env, filt, filtFn, layer, mix, snes, am, seamless, echo } from './dsp.js';
-import { def, explosion, click, clack, rustle, whoosh, thump, ping, blips, bell, N, bubble, rotor, servo } from './sfx_lib.js';
+import { def, explosion, click, clack, rustle, whoosh, thump, ping, blips, bell, N, bubble } from './sfx_lib.js';
 
 const STEP = { v: 4, vol: 0.55, dist: 20, max: 4, pj: 0.08, prio: 0 };
 
@@ -245,85 +245,5 @@ export const WORLD = {
     return snes(out, { bits: 8, p: 0.6 });
   }, { vol: 0.6, dist: 12, max: 2 }),
 
-  // ---------------------------------------------------------------- extraction machinery (engine/extracts.js rigs)
-  // cage winding up the shaft: motor rising in pitch, cable rattle, lock-in clank as it arrives (~6 s)
-  elevator_rise: def((R) => {
-    const d = 6.4, out = buf(d);
-    const m = osc(d, { wave: 'saw', f: 46, f1: 84, sweep: 5.8 }); filt(m, 'lp', 240, 440, 1.2); env(m, [[0, 0], [0.6, 1], [5.6, 1], [6.1, 0.15], [6.4, 0]]); layer(out, m, 0.55);
-    const w = osc(d, { wave: 'sq', pw: 0.3, f: 170, f1: 310, sweep: 5.8, vib: 0.01, vibHz: 7 }); filt(w, 'bp', 700, 950, 3); env(w, [[0, 0], [0.8, 0.5], [5.5, 1], [6.0, 0]]); layer(out, w, 0.16);
-    const r = noise(d, 'brown', R); filt(r, 'lp', 190); env(r, [[0, 0], [1.0, 1], [5.7, 1], [6.4, 0]]); layer(out, r, 0.5);
-    const rat = buf(d); for (let t = 0.3; t < 5.8; t += R.r(0.06, 0.15)) mix(rat, click(R, R.r(900, 2600), 0.02, 3), R.r(0.2, 0.7) * (0.4 + 0.6 * t / 5.8), t);
-    layer(out, rat, 0.22);
-    layer(out, clack(R, 600, 0.14), 0.6, 5.95); layer(out, thump(R, 100, 45, 0.3, 0.08), 0.75, 5.95);
-    return snes(out, { drv: 1.4, bits: 8, p: 0.8 });
-  }, { vol: 0.7, dist: 55, max: 2, v: 2, prio: 3 }),
-  // cage released and dropping away: clunk, motor winding down, fading rattle (~5 s)
-  elevator_depart: def((R) => {
-    const d = 5.2, out = buf(d);
-    layer(out, clack(R, 520, 0.16), 0.7); layer(out, thump(R, 95, 40, 0.35, 0.1), 0.7);
-    const m = osc(d, { wave: 'saw', f: 86, f1: 38, sweep: 4.8 }); filt(m, 'lp', 420, 180, 1.2); env(m, [[0, 0], [0.3, 1], [3.5, 0.7], [5.2, 0]]); layer(out, m, 0.5, 0.1);
-    const r = noise(d, 'brown', R); filt(r, 'lp', 170); env(r, [[0, 0], [0.4, 1], [4.6, 0.3], [5.2, 0]]); layer(out, r, 0.45);
-    const rat = buf(d); for (let t = 0.3; t < 4.6; t += R.r(0.07, 0.18)) mix(rat, click(R, R.r(800, 2200), 0.02, 3), R.r(0.2, 0.6) * (1 - t / 4.8), t);
-    layer(out, rat, 0.2);
-    return snes(out, { drv: 1.3, bits: 8, p: 0.75 });
-  }, { vol: 0.65, dist: 50, max: 2, v: 2, prio: 2 }),
-  // call alarm at the lift: two-tone klaxon, twice
-  extract_klaxon: def((R) => {
-    const out = buf(1.9);
-    for (let k = 0; k < 4; k++) {
-      const f = k & 1 ? 466 : 370, x = osc(0.4, { wave: 'saw', f, vib: 0.006, vibHz: 9 }); filt(x, 'bp', f * 2.2, f * 2.2, 1.6);
-      env(x, [[0, 0], [0.02, 1], [0.36, 0.85], [0.4, 0]]); layer(out, x, 0.6, k * 0.42);
-    }
-    return snes(echo(out, 0.11, 0.25, 2), { drv: 1.8, bits: 8, p: 0.8 });
-  }, { vol: 0.6, dist: 75, max: 2, v: 1, prio: 3 }),
-  // console back online after a departure
-  extract_ready: def((R) => snes(echo(blips(R, [[N('G5'), 0.07], [0, 0.03], [N('C6'), 0.14]], { pw: 0.25 }), 0.07, 0.25, 2), { bits: 8, p: 0.55 }), { vol: 0.45, dist: 22, max: 2, v: 1 }),
-  // metro approaching in the tunnel: swelling rumble, wheel-joint clatter, a distant horn (~5 s)
-  extract_metro_rumble: def((R) => {
-    const d = 5.4, out = buf(d);
-    const r = noise(d, 'brown', R); filt(r, 'lp', 120, 260, 1.0); env(r, [[0, 0], [4.6, 1], [5.4, 0.6]]); layer(out, r, 0.85);
-    const h = noise(d, 'pink', R); filt(h, 'bp', 900, 1600, 0.8); env(h, [[0, 0], [4.8, 0.7], [5.4, 0.4]]); layer(out, h, 0.18);
-    const cl = buf(d); let t = 0.8, gap = 0.55;
-    while (t < d - 0.2) { mix(cl, clack(R, R.r(380, 520), 0.07), 0.25 + 0.75 * t / d, t); mix(cl, clack(R, R.r(380, 520), 0.07), 0.2 + 0.7 * t / d, t + 0.09); t += gap; gap = Math.max(0.16, gap * 0.9); }
-    layer(out, cl, 0.4);
-    for (const f of [233, 277]) { const x = osc(0.7, { wave: 'saw', f }); filt(x, 'lp', 900); env(x, [[0, 0], [0.05, 1], [0.6, 0.8], [0.7, 0]]); layer(out, x, 0.22, 3.4); }
-    return snes(out, { drv: 1.5, bits: 8, p: 0.85 });
-  }, { vol: 0.8, dist: 90, max: 1, v: 1, prio: 3 }),
-  // metro pulling in: brake squeal, air hiss, door chime (~3 s)
-  extract_metro_arrive: def((R) => {
-    const d = 3.1, out = buf(d);
-    const sq = osc(1.9, { wave: 'saw', f: 2350, f1: 1900, vib: 0.012, vibHz: 11 }); filt(sq, 'bp', 2400, 2000, 6); env(sq, [[0, 0], [0.15, 1], [1.5, 0.7], [1.9, 0]]); layer(out, sq, 0.32);
-    const r = noise(2.0, 'brown', R); filt(r, 'lp', 220, 120, 1); env(r, [[0, 1], [1.9, 0]]); layer(out, r, 0.6);
-    const hs = noise(0.9, 'white', R); filt(hs, 'hp', 2600); env(hs, [[0, 0], [0.03, 1], [0.9, 0]]); layer(out, hs, 0.4, 1.85);
-    layer(out, thump(R, 110, 50, 0.25, 0.08), 0.5, 1.85);
-    layer(out, bell(R, N('E5'), 0.7), 0.3, 2.25); layer(out, bell(R, N('C5'), 0.8), 0.3, 2.55);
-    return snes(out, { drv: 1.3, bits: 8, p: 0.8 });
-  }, { vol: 0.75, dist: 70, max: 1, v: 1, prio: 3 }),
-  // metro leaving: door thunk, traction motor "song" rising, rumble fading down the tunnel (~4.5 s)
-  extract_metro_depart: def((R) => {
-    const d = 4.6, out = buf(d);
-    layer(out, thump(R, 120, 55, 0.25, 0.06), 0.5); layer(out, clack(R, 700, 0.1), 0.4);
-    const m = osc(d, { wave: 'sq', pw: 0.4, fn: (t) => 110 + 520 * Math.min(1, t / 3.6) ** 1.4 }); filt(m, 'bp', 800, 1800, 2.5); env(m, [[0, 0], [0.4, 0.8], [3.0, 1], [4.6, 0]]); layer(out, m, 0.25, 0.2);
-    const r = noise(d, 'brown', R); filt(r, 'lp', 220, 120, 1); env(r, [[0, 0], [0.6, 1], [4.6, 0]]); layer(out, r, 0.7);
-    const cl = buf(d); let t = 0.9, gap = 0.5;
-    while (t < d - 0.2) { mix(cl, clack(R, R.r(380, 520), 0.07), 0.8 * (1 - t / d), t); t += gap; gap = Math.max(0.17, gap * 0.88); }
-    layer(out, cl, 0.35);
-    return snes(out, { drv: 1.4, bits: 8, p: 0.8 });
-  }, { vol: 0.75, dist: 80, max: 1, v: 1, prio: 3 }),
-  // raider hatch: seals crack, pressurised steam hiss, heavy lid clank, hinge creak (~1.8 s)
-  extract_hatch_steam: def((R) => {
-    const out = buf(1.9);
-    layer(out, clack(R, 480, 0.16), 0.7);
-    const h = noise(1.6, 'white', R); filt(h, 'bp', 4200, 2200, 0.9); env(h, [[0, 0], [0.04, 1], [0.5, 0.7], [1.6, 0]]); am(h, 17, 0.12); layer(out, h, 0.75, 0.08);
-    const c = osc(0.6, { wave: 'saw', fn: (t) => 160 + 70 * Math.sin(t * 9) + 30 * Math.sin(t * 37) }); filt(c, 'bp', 900, 900, 5); env(c, [[0, 0], [0.1, 1], [0.5, 0.6], [0.6, 0]]); layer(out, c, 0.25, 0.3);
-    layer(out, thump(R, 85, 40, 0.35, 0.1), 0.7, 0.85); layer(out, clack(R, 620, 0.12), 0.5, 0.86);
-    return snes(out, { drv: 1.3, bits: 8, p: 0.8 });
-  }, { vol: 0.75, dist: 40, max: 2, v: 2 }),
-  // airshaft ventilation fan (loop; the rig sets volume + pitch from the rotor speed)
-  extract_fan_loop: def((R) => {
-    const out = rotor(R, 2, 26, 104, { body: 520, whineG: 0.25, chopDepth: 0.55, lowG: 0.7 });
-    const hm = osc(2, { wave: 'tri', f: 52 }); layer(out, hm, 0.35);
-    const air = noise(2, 'pink', R); filt(air, 'bp', 1400, 1400, 0.6); layer(out, air, 0.25);
-    return snes(seamless(out, 0.3), { bits: 8, fade: 0, p: 0.7 });
-  }, { loop: true, v: 1, pj: 0, vol: 0.45, dist: 32, max: 4 }),
+  // extraction machinery sounds live in sfx_extract.js
 };

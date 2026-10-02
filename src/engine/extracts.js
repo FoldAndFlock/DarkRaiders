@@ -516,6 +516,8 @@ function animElevator(R, dt, st, t, el, ctx) {
     if (Math.random() < dt * 6) { const sx = Math.random() < 0.5 ? -1 : 1, p = R.w(sx * 1.7, 0.25, -1.7 + Math.random() * 3.4); fx.sparks(p.x, p.y, p.z, 3, 0xffc070, 2.5); }
   }
   if (st === 'called' && t < EL.RISE + 0.3) R.cue(ctx, 'rise', 'elevator_rise');
+  if (st === 'called' && t > EL.RISE + 0.3) R.cue(ctx, 'klax' + Math.floor((R.callDur - t) / 4), 'extract_klaxon');   // zone-wide alarm, 4 s cycles
+  if (st === 'open' && t < 3.2) R.cue(ctx, 'warn', 'extract_depart_warn');
   if (st === 'gone' && el > 1.3) R.cue(ctx, 'drop', 'elevator_depart');
   if (st === 'open' && R.prev === 'called' && el < 0.1 && R.once('land') && fx) R.dust(fx, 2.2, 26);
   R.ringState(st, t, el, dt);
@@ -805,6 +807,9 @@ function animMetro(R, dt, st, t, el, ctx) {
   if (st === 'called' && t < 9.5) { R.cue(ctx, 'rumble', 'extract_metro_rumble'); if (t < 6) ctx.shake?.(0.05 * (1 - t / 6)); }
   if (st === 'called' && t < 2.4) R.cue(ctx, 'brake', 'extract_metro_arrive');
   if (st === 'gone' && el > 0.9) R.cue(ctx, 'depart', 'extract_metro_depart');
+  if (st === 'called' && t > 10) R.cue(ctx, 'alarm' + Math.floor((R.callDur - t) / 4), 'extract_metro_alarm');   // station alarm until the rumble
+  if (st === 'open' && t < 3.2) R.cue(ctx, 'warn', 'extract_depart_warn', { pitch: 1.12 });
+  if (st === 'open' && t < 1.25) R.cue(ctx, 'shut', 'elevator_door');   // doors close over the last 1.2 s
   if (fx && moving && Math.abs(tx) < D - 4 && Math.random() < dt * 20) {
     const p = R.w((Math.random() - 0.5) * o.PL, PT + 0.1, E - 0.3 - Math.random() * 0.6);
     fx.parts.emit({ x: p.x, y: p.y, z: p.z, vx: dir * (1 + Math.random() * 2), vy: 0.3 + Math.random() * 0.5, vz: 0, life: 0.9, size: 3, size1: 7, color: 0x8a8274, alpha: 0.4, shape: 1, drag: 1.5 });
@@ -960,7 +965,9 @@ function animAirshaft(R, dt, st, t, el, ctx) {
   else if (st === 'gone') R.light(ctx, 0, 3.6, 0.6, COL.amber, 0.25 + 0.3 * Math.pow(Math.sin(T * 2.4), 2), 5, 1.0);
   else R.light(ctx, 1.35, 1.4, 1.6, COL.red, 0.65, 3.4, 1.0);
   if (lite > 0.5 && st !== 'open') R.light(ctx, 0, cy + 1.7, 0.2, COL.white, lite, 5, 1.4);
-  if (st === 'called' && t < AS.RISE + 0.3) R.cue(ctx, 'rise', 'elevator_rise', { pitch: 1.15 });
+  if (st === 'called' && t < 5.5) R.cue(ctx, 'rise', 'elevator_rise', { pitch: 1.15 });   // pitched up: 6.25 s / 1.15 -> clunk lands at arrival
+  if (st === 'called' && t > AS.RISE + 0.3) { const k = Math.floor((R.callDur - t) / 9); R.cue(ctx, 'eng' + k, 'extract_airshaft_engine', { pitch: 1 + 0.07 * k, vol: 0.75 + 0.15 * k }); }   // engine approach, no siren
+  if (st === 'open' && t < 3.2) R.cue(ctx, 'warn', 'extract_depart_warn', { pitch: 0.9 });
   if (st === 'gone' && el > 1.1) R.cue(ctx, 'drop', 'elevator_depart', { pitch: 1.15 });
   if (st === 'open' && R.prev === 'called' && el < 0.1 && R.once('land') && fx) R.dust(fx, 1.1, 14);
   R.ringState(st, t, el, dt);

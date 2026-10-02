@@ -370,7 +370,7 @@ export class View {
       case 'extracted': {
         g.onExtracted?.(ev); A?.play('extract_success', this.posOf(ev.id));
         const xv = this.extractVis[ev.x];   // raider hatch: lid swings open with a puff of steam
-        if (xv?.x.kind === 'hatch') { xv.m.trigger('use'); A?.play('extract_hatch_steam', this.extractPos(ev.x)); }
+        if (xv?.x.kind === 'hatch') { xv.m.trigger('use'); A?.play('extract_hatch_steam', this.extractPos(ev.x)); A?.play('hatch_extract', { ...this.extractPos(ev.x), delay: 1.0 }); }
         break;
       }
       case 'loot': break;
@@ -379,10 +379,10 @@ export class View {
       case 'door': this.setDoor(ev.i, ev.open); A?.play('door_open', this.doorPos(ev.i)); break;
       case 'locked': if (ev.by === g.meId) { A?.play('door_locked'); g.hudMsg('LOCKED - KEY REQUIRED', '#e84a30'); } break;
       case 'unlocked': A?.play('door_unlock', this.doorPos(ev.i)); break;
-      case 'xcall': g.onExtractCall?.(ev); A?.play('extract_call', this.extractPos(ev.i)); if (this.extractVis[ev.i]?.x.kind !== 'metro') A?.play('extract_klaxon', this.extractPos(ev.i)); break;
+      case 'xcall': g.onExtractCall?.(ev); A?.play('extract_call', this.extractPos(ev.i)); break;   // the rig cues the per-kind alarm / engine
       // metro: the rig cues rumble / brakes before arrival, here the doors open; lifts keep the arrival thump
-      case 'xopen': A?.play(this.extractVis[ev.i]?.x.kind === 'metro' ? 'elevator_door' : 'elevator_arrive', this.extractPos(ev.i)); g.onExtractOpen?.(ev); break;
-      case 'xgone': A?.play('elevator_door', this.extractPos(ev.i)); break;   // departure sounds are cued by the rig
+      case 'xopen': { const metro = this.extractVis[ev.i]?.x.kind === 'metro'; A?.play(metro ? 'elevator_door' : 'elevator_arrive', { ...this.extractPos(ev.i), delay: metro ? 0.45 : 0 }); g.onExtractOpen?.(ev); break; }
+      case 'xgone': if (this.extractVis[ev.i]?.x.kind !== 'metro') A?.play('elevator_door', this.extractPos(ev.i)); break;   // metro doors already shut (rig)   // departure sounds are cued by the rig
       case 'xidle': A?.play('extract_ready', this.extractPos(ev.i)); break;
       case 'throw': A?.play('grenade_pin', this.posOf(ev.by)); break;
       case 'bounce': A?.play('grenade_bounce', { x: ev.x, z: ev.z }); break;

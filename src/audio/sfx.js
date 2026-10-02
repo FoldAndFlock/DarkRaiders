@@ -5,8 +5,9 @@ import { GUNS } from './sfx_guns.js';
 import { WORLD } from './sfx_world.js';
 import { ARKS } from './sfx_ark.js';
 import { MISC } from './sfx_misc.js';
+import { EXTRACT } from './sfx_extract.js';
 
-export const SFX = { ...WEAPONS, ...GUNS, ...WORLD, ...ARKS, ...MISC };
+export const SFX = { ...WEAPONS, ...GUNS, ...WORLD, ...ARKS, ...MISC, ...EXTRACT };
 
 // generic class sounds also get a distance layer (per-weapon gun_<id> defs set their own)
 const CLASS_FAR = {
