@@ -93,14 +93,14 @@ export class VisionCones {
         this.col.set([col.r, col.g, col.b, c.alpha], k * 4);
         this.cone.set([c.x, c.z, c.facing, c.halfAngle], k * 4);
       };
-      put(b, c.x, this.groundAt(c.x, c.z) + lift, c.z, 0);
+      put(b, c.x, this.groundAt(c.x, c.z, c.eyeY) + lift, c.z, 0);
       for (let r = 0; r <= RAYS; r++) {
         const a = c.facing - c.halfAngle + (2 * c.halfAngle) * r / RAYS;
         const dx = Math.sin(a), dz = Math.cos(a);
         const d = Math.max(0.3, c.grid ? c.grid.ray(c.x, c.z, dx, dz, c.range, c.eyeY) : c.range);
         for (let s = 0; s < SEG; s++) {
           const dd = d * (s + 1) / SEG, vx = c.x + dx * dd, vz = c.z + dz * dd;
-          put(b + 1 + r * SEG + s, vx, this.groundAt(vx, vz) + lift, vz, dd / c.range);
+          put(b + 1 + r * SEG + s, vx, this.groundAt(vx, vz, c.eyeY) + lift, vz, dd / c.range);
         }
       }
     });

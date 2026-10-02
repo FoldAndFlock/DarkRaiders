@@ -198,6 +198,7 @@ export class Net {
         case 'eff': s.useEffect(a.eff); break;
         case 'shield': s.setShield(a.stack, a.charge); break;
         case 'dodge': s.dodge(); break;
+        case 'fall': s.fall(a.dmg); break;
         case 'noise': s.noise(a.r); break;
         case 'chat': s.chat(a.text); break;
         case 'ping': s.ping(a.x, a.z); break;
@@ -220,7 +221,7 @@ export class Net {
       const e = sim.addRaider({ pid: m.pid, name: m.name, team: 1, x, z, outfit: m.outfit, stats: m.stats || {} });
       e.slot = m.slot;
       this.sessions.set(m.pid, new HostSession(sim, e));
-      this.t.send(m.pid, { k: 'you', id: e.id, x, z });
+      this.t.send(m.pid, { k: 'you', id: e.id, x, z, y: e.y });
     }
     this.snapT = 0;
   }
@@ -278,7 +279,7 @@ export class Net {
   async clientJoinRaid(game, sp) {
     this.game = game;
     const you = this.myEnt || await new Promise(r => this._youResolve = r);
-    const e = { id: you.id, type: 'raider', x: you.x, z: you.z, y: game.world.groundAt(you.x, you.z), f: 0, mf: 0, team: 1, slot: this.mySlot ?? 1,
+    const e = { id: you.id, type: 'raider', x: you.x, z: you.z, y: you.y ?? game.world.grid.floorAt(you.x, you.z, game.world.groundAt(you.x, you.z) + 0.5), f: 0, mf: 0, team: 1, slot: this.mySlot ?? 1,
       name: this.app.profile.name, outfit: this.app.profile.settings.outfit || 'scav', st: 'alive', hp: 100, maxHp: 100, sh: 0, shMax: 0, buffs: {}, stats: game.stats0 };
     game.ents.set(e.id, e);
     this.session = new ClientSession(this, e);
@@ -348,6 +349,7 @@ export class ClientSession {
   useEffect(eff) { this.net.act({ t: 'eff', eff }); }
   setShield(stack, charge) { this.net.act({ t: 'shield', stack, charge }); }
   dodge() { this.net.act({ t: 'dodge' }); }
+  fall(dmg) { this.net.act({ t: 'fall', dmg }); }
   noise(r) { this.net.act({ t: 'noise', r }); }
   chat(text) { this.net.act({ t: 'chat', text }); }
   ping(x, z) { this.net.act({ t: 'ping', x, z }); }

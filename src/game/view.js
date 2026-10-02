@@ -43,14 +43,14 @@ export class View {
   }
   // -------------------------------------------------------------- static-ish
   buildDoors(doors) {
-    const mat = litVox({ xray: true });
+    const mat = litVox({ xray: true, cutaway: true });
     const v = new Vox(10, 22, 1, 0.1, [5, 0, 0.5]); v.box(0, 0, 0, 9, 21, 0, 0x5a4a3a); v.box(1, 1, 0, 8, 20, 0, 0x6a5440); v.set(8, 10, 0, 0xc8a040);
     const g = v.build();
     const vl = new Vox(10, 22, 1, 0.1, [5, 0, 0.5]); vl.box(0, 0, 0, 9, 21, 0, 0x4a5258); vl.box(4, 9, 0, 5, 11, 0, 0xff3020); vl.glow(0xff3020);
     const gl = vl.build();
     for (const d of doors) {
       const m = new THREE.Mesh(d.locked ? gl : g, mat);
-      const y = this.world.groundAt(d.x, d.z);
+      const y = d.y ?? this.world.groundAt(d.x, d.z);
       m.position.set(d.x, y, d.z);
       m.scale.set(d.w, 1.05, 1);
       m.rotation.y = (d.axis === 'x' ? 0 : Math.PI / 2) - (d.R?.a || 0);
@@ -66,7 +66,7 @@ export class View {
   }
   buildExtracts(xs) {
     for (const x of xs) {
-      const y = this.world.groundAt(x.x, x.z);
+      const y = x.y ?? this.world.groundAt(x.x, x.z);
       const kind = x.kind === 'hatch' ? 'hatch' : 'extractPad';
       const m = voxMesh(kind === 'hatch' ? this.hatchGeo() : this.padGeo());
       m.position.set(x.x, y + 0.02, x.z); this.R.scene.add(m);
@@ -139,6 +139,11 @@ export class View {
       else if (e.type === 'proj') { v.obj.position.set(e.x, e.y, e.z); if (Math.random() < 0.6) this.fx.parts.emit({ x: e.x, y: e.y, z: e.z, life: 0.5, size: e.kind === 'rocket' ? 4 : 2, size1: 6, color: 0x8a8680, alpha: 0.5, shape: 1 }); if (e.kind === 'rocket') { this.fx.fire(e.x, e.y, e.z, 1, 0.1); this.L.light(e.x, e.y, e.z, 0xffa040, 1.5, 5, 2); } }
       else if (e.type === 'hz') this.updHazard(v, e, dt);
       else v.obj.position.set(v.px, v.py, v.pz);
+      // multi-level: anything above the cutaway (upper floors / the surface over a tunnel you are in) is hidden
+      if (e.id !== this.g.meId) {
+        const hide = this.world.cutHides(v.px, v.pz, v.py + 0.3);
+        if (hide) { v.obj.visible = false; v.cutHidden = true; } else if (v.cutHidden) { v.obj.visible = true; v.cutHidden = false; }
+      }
     }
     for (const id of [...this.vis.keys()]) if (!ents.has(id)) this.removeVisual(id);
     // doors animate
@@ -235,7 +240,7 @@ export class View {
       const vr = def.vision.range;
       if (Math.abs(e.x - cx) > W / 2 + vr || e.z - cz > H / 2 + vr || cz - e.z > H / 2 + vr + 8) continue;
       const st = e.st === 'alert' ? 'alert' : e.st === 'search' ? 'search' : 'idle';
-      const gy = this.world.groundAt(e.x, e.z), eye = gy + (e.alt || 0) + (def.flying ? 0 : Math.min(def.height || 1, 2.2) * 0.8);
+      const gy = e.y ?? this.world.groundAt(e.x, e.z), eye = gy + (e.alt || 0) + (def.flying ? 0 : Math.min(def.height || 1, 2.2) * 0.8);
       const half = (def.vision.fov / 2) * Math.PI / 180;
       const r = vr * (st === 'alert' ? 1 : 0.92) * range;
       const vis = this.vis.get(e.id);
@@ -316,19 +321,19 @@ export class View {
       case 'throw': A?.play('grenade_pin', this.posOf(ev.by)); break;
       case 'bounce': A?.play('grenade_bounce', { x: ev.x, z: ev.z }); break;
       case 'pop': A?.play(ev.k === 'smoke' ? 'smoke_pop' : ev.k === 'gas' ? 'gas_hiss' : 'smoke_pop', { x: ev.x, z: ev.z }); break;
-      case 'beep': A?.play('mine_beep', { x: ev.x, z: ev.z }); fx.rings.add(ev.x, this.world.groundAt(ev.x, ev.z), ev.z, 3, 0xff3020, 1, 0); break;
+      case 'beep': A?.play('mine_beep', { x: ev.x, z: ev.z }); fx.rings.add(ev.x, this.floorNear(ev.x, ev.z, ev.y), ev.z, 3, 0xff3020, 1, 0); break;
       case 'armed': A?.play('mine_arm'); break;
       case 'emote': g.onEmote?.(ev); break;
       case 'warn': g.banner(ev.msg, '#e84a30', null, 4); A?.play('raid_warning'); break;
       case 'raidover': A?.play('raid_end_siren'); break;
-      case 'leap': { const gy = this.world.groundAt(ev.x, ev.z); fx.rings.add(ev.x, gy, ev.z, 3.5, 0xff4020, ev.T + 0.2, 1); A?.play('leapr_jump', this.posOf(ev.id)); break; }
+      case 'leap': { const gy = this.floorNear(ev.x, ev.z, ev.y); fx.rings.add(ev.x, gy, ev.z, 3.5, 0xff4020, ev.T + 0.2, 1); A?.play('leapr_jump', this.posOf(ev.id)); break; }
       case 'latch': if (ev.tgt === g.meId) g.hudMsg('TIKK LATCHED! DODGE ROLL TO SHAKE IT', '#e84a30'); break;
-      case 'mortar': { const gy = this.world.groundAt(ev.x, ev.z); fx.rings.add(ev.x, gy, ev.z, 4, 0xff2010, ev.t, 1); A?.play('bombadier_mortar', this.posOf(ev.id)); break; }
+      case 'mortar': { const gy = this.floorNear(ev.x, ev.z, ev.y); fx.rings.add(ev.x, gy, ev.z, 4, 0xff2010, ev.t, 1); A?.play('bombadier_mortar', this.posOf(ev.id)); break; }
       case 'rockets': A?.play('rocket_launch', this.posOf(ev.id)); break;
       case 'alarm': A?.play('snytch_alarm', { x: ev.x, z: ev.z }); g.feed('SNYTCH RAISED THE ALARM - REINFORCEMENTS INBOUND', '#e84a30'); break;
       case 'flame': if (Math.random() < 0.5) { const v = this.vis.get(ev.id); if (v) for (let i = 0; i < 4; i++) { const a = v.e.f + (Math.random() - .5) * 0.8, s = 6 + Math.random() * 4; fx.glow.emit({ x: v.px, y: v.py + 0.5, z: v.pz, vx: Math.sin(a) * s, vy: 0.5, vz: Math.cos(a) * s, life: 0.45, size: 6, size1: 12, color: 0xffd060, color1: 0xc02000, shape: 1, drag: 2 }); } } break;
       case 'reload': A?.play('reload_start', this.posOf(ev.id)); break;
-      case 'strikeWarn': { const gy = this.world.groundAt(ev.x, ev.z); fx.rings.add(ev.x, gy, ev.z, ev.r, 0x80c8ff, ev.t, 1); this.flash(ev.x, gy + 8, ev.z, 0x80b0ff, 0.6, ev.r * 2, ev.t, 2); break; }
+      case 'strikeWarn': { const gy = this.world.grid.floorAt(ev.x, ev.z, 1e9); fx.rings.add(ev.x, gy, ev.z, ev.r, 0x80c8ff, ev.t, 1); this.flash(ev.x, gy + 8, ev.z, 0x80b0ff, 0.6, ev.r * 2, ev.t, 2); break; }
       case 'strike': {
         const gy = this.world.groundAt(ev.x, ev.z);
         for (let k = 0, y = gy + 30, x = ev.x, z = ev.z; k < 10; k++) { const ny = y - 3, nx = ev.x + (Math.random() - .5) * 2 * (k < 9 ? 1 : 0), nz = ev.z + (Math.random() - .5) * 1.5 * (k < 9 ? 1 : 0); fx.tracers.add(x, y, z, nx, Math.max(gy, ny), nz, 0xd0e8ff, 0.35); x = nx; y = ny; z = nz; }
@@ -341,7 +346,7 @@ export class View {
       }
       case 'melee': { const v = this.vis.get(ev.id); if (v?.model && ev.id !== g.meId) v.model.kick(1.2); if (ev.hit) A?.play('hit_metal', this.posOf(ev.id)); break; }
       case 'chat': g.onChat?.(ev); break;
-      case 'ping': fx.rings.add(ev.x, this.world.groundAt(ev.x, ev.z), ev.z, 1.2, ev.col || 0xf0c030, 6, 0, 'ping' + ev.by); g.onPing?.(ev); A?.play('ui_quest', { x: ev.x, z: ev.z }); break;
+      case 'ping': fx.rings.add(ev.x, this.floorNear(ev.x, ev.z, ev.y), ev.z, 1.2, ev.col || 0xf0c030, 6, 0, 'ping' + ev.by); g.onPing?.(ev); A?.play('ui_quest', { x: ev.x, z: ev.z }); break;
     }
   }
   impact(h, mine) {
@@ -415,27 +420,36 @@ export class View {
     for (const v of this.vis.values()) { const e = v.e; if (e.type === 'raider' && e.st === 'downed' && e.id !== me.id && e.team === me.team) { const d = Math.hypot(e.x - me.x, e.z - me.z); if (d < bd) { bd = d; best = e; } } }
     return best;
   }
+  // floor height at (x, z) for an event at height y (or near the local player's level)
+  floorNear(x, z, y) { return this.world.grid.floorAt(x, z, (y ?? this.g.me?.y ?? this.world.groundAt(x, z)) + 1.2); }
   findInteractable(me, pc) {
     const g = this.g; let best = null, bd = 2.1;
-    const consider = (o, d) => { if (d < bd) { bd = d; best = o; } };
+    const lvl = (y) => y == null || Math.abs(y - me.y) < 1.6;      // only things on our floor
+    const consider = (o, d) => { if (d < bd && lvl(o.y)) { bd = d; best = o; } };
     // downed squadmates
     for (const v of this.vis.values()) {
       const e = v.e;
-      if (e.type === 'raider' && e.st === 'downed' && e.id !== me.id && e.team === me.team) consider({ kind: 'revive', ref: e.id, x: e.x, z: e.z, time: 5, label: 'REVIVE ' + e.name }, Math.hypot(e.x - me.x, e.z - me.z) - 0.3);
-      if (e.type === 'loot') consider({ kind: 'loot', ref: e.id, x: e.x, z: e.z, time: 0.4, label: e.label ? 'LOOT ' + e.label : 'LOOT REMAINS' }, Math.hypot(e.x - me.x, e.z - me.z));
+      if (e.type === 'raider' && e.st === 'downed' && e.id !== me.id && e.team === me.team) consider({ kind: 'revive', ref: e.id, x: e.x, z: e.z, y: e.y, time: 5, label: 'REVIVE ' + e.name }, Math.hypot(e.x - me.x, e.z - me.z) - 0.3);
+      if (e.type === 'loot') consider({ kind: 'loot', ref: e.id, x: e.x, z: e.z, y: e.y, time: 0.4, label: e.label ? 'LOOT ' + e.label : 'LOOT REMAINS' }, Math.hypot(e.x - me.x, e.z - me.z));
     }
     for (const c of g.containersData) {
       if (Math.abs(c.x - me.x) > 2.5 || Math.abs(c.z - me.z) > 2.5) continue;
       const d = Math.hypot(c.x - me.x, c.z - me.z);
       const opened = g.containerOpened?.(c.i);
-      consider({ kind: 'container', ref: c.i, x: c.x, z: c.z, time: opened ? 0.25 : g.searchTime(c.kind), label: (opened ? 'OPEN ' : 'SEARCH ') + (c.label || containerLabel(c.kind)), locked: c.locked }, d);
+      consider({ kind: 'container', ref: c.i, x: c.x, z: c.z, y: c.y, time: opened ? 0.25 : g.searchTime(c.kind), label: (opened ? 'OPEN ' : 'SEARCH ') + (c.label || containerLabel(c.kind)), locked: c.locked }, d);
     }
     for (const d of g.doorsData) {
       const dd = Math.hypot(d.x - me.x, d.z - me.z);
-      if (dd < 2.0) consider({ kind: 'door', ref: d.i, x: d.x, z: d.z, time: d.lockedNow ? 1.2 : 0, instant: !d.lockedNow, label: d.lockedNow ? 'UNLOCK DOOR' : (g.doorOpen?.(d.i) ? 'CLOSE DOOR' : 'OPEN DOOR') }, dd + 0.2);
+      if (dd < 2.0) consider({ kind: 'door', ref: d.i, x: d.x, z: d.z, y: d.y, time: d.lockedNow ? 1.2 : 0, instant: !d.lockedNow, label: d.lockedNow ? 'UNLOCK DOOR' : (g.doorOpen?.(d.i) ? 'CLOSE DOOR' : 'OPEN DOOR') }, dd + 0.2);
     }
+    // ladders: climb between levels (bottom -> top, top -> bottom)
+    (this.world.ladders || []).forEach((l, i) => {
+      const db = Math.hypot(l.x0 - me.x, l.z0 - me.z), dt = Math.hypot(l.x1 - me.x, l.z1 - me.z);
+      if (db < 1.4 && Math.abs(me.y - l.y0) < 1.2) consider({ kind: 'ladder', ref: i, up: true, x: l.x0, z: l.z0, time: 0.45, label: 'CLIMB UP' }, db + 0.3);
+      else if (dt < 1.4 && Math.abs(me.y - l.y1) < 1.2) consider({ kind: 'ladder', ref: i, up: false, x: l.x1, z: l.z1, time: 0.45, label: 'CLIMB DOWN' }, dt + 0.3);
+    });
     for (const x of g.extractsData) {
-      const dd = Math.hypot(x.x - me.x, x.z - me.z);
+      const dd = Math.hypot(x.x - me.x, x.z - me.z) + (Math.abs((x.y ?? me.y) - me.y) > 1.6 ? 99 : 0);
       if (dd < 2.6) {
         const st = g.extractState?.(x.i);
         if (st === 'offline') consider({ kind: 'offline', ref: x.i, x: x.x, z: x.z, time: 999, label: (x.kind === 'hatch' ? 'HATCH' : 'EXTRACT') + ' OFFLINE (MAP CONDITION)' }, dd);

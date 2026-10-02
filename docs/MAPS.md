@@ -43,6 +43,37 @@ Structures: `block(x0,z0,x1,z1,h,tex,{y0?,collide?,cast?,tint?,xray?,rot?,R?})` 
 `wallLine(ax,az,bx,bz,thick,h,tex,gaps)`, `fence(points,h,tex)`,
 `building({ x,z,w,d, storeys, wall, floor, roof, roofShape:'gable'|undefined, roofTint, tint, thick,
  doors:[{side,at,w,sill?,door?:true,locked?:roomId}], inner:[[x0,z0,x1,z1,gaps]], peek, name, roofExtras })`.
+**Multi-level (upper floors, roofs, towers, tunnels, metro, bridges):** the collision grid stores, per
+0.5 m cell, a ground column plus floating solid spans, so you can stand on a slab and walk under it.
+* `building({ storeys: n, storeyH: 3.2, ... })` gets walkable floor slabs between storeys (`floors: false`
+  to skip) and walls built per storey; give openings a storey: `doors: [{ side, at, w, sill?, storey: 1 }]`,
+  inner walls `[x0,z0,x1,z1,gaps, storey]`, contents `containers/props: [[kind, lx, lz, rot, { storey: 1 }]]`.
+* `stairs: [{ x, z, w = 1.4, len?, dir: 'n'|'s'|'e'|'w' (direction you climb), from = 0, to = from+1 | 'top' }]`
+  in the building's local frame. Steps rise <= 0.38 m every 0.55 m (len defaults to that). The slab above
+  gets a stairwell opening (a cell wider than the flight). **Leave >= 1 m clear at the foot and the top**
+  (not against a wall), or neither players nor the AI can get on/off.
+* Roofs are solid and walkable (gables step up, parapets/vents are obstacles; `roofWalk: false` to turn
+  off). Reach them with `ladders: [{ side, at }]` (exterior: ground outside that wall -> roof) or
+  `{ x, z, to: 'top' | storey }` (interior, cuts a hatch). Players climb ladders with the interact key; AI
+  only uses stairs. Free-standing ladders: `ladder(x0, z0, y0|null, x1, z1, y1, face)`.
+* Towers: a tall narrow `building` with `storeys`, stairs or ladders between them, and a walkable roof;
+  put Sentinels/turrets on it with `arkSpawn(..., { yAbs | y })`.
+* Underground: `building({ under: depth, roof: '<surface texture>', ... })` sinks the floor `depth` m below
+  the surrounding ground, builds 1 m earth walls inside the footprint and a lid flush with the surface that
+  you walk on (opaque from outside, hidden while you are inside). Entrances: `stairs` with `to: 'top'`
+  (cuts the lid), or wall gaps onto a sunk cutting. Use it for tunnels, bunkers and **metro stations**: put
+  the `extract(..., { kind: 'metro' })` on the platform inside. Stacking a building on top of an
+  underground hall is fine.
+* Markers on other levels: `container/prop/extract(..., { yAbs })` or `{ surface: true }` (the top walkable
+  surface, e.g. on a tunnel lid); building-local `{ storey }`; `lamp(x, z, { yAbs })` keeps an exact light
+  height (upstairs, in tunnels: lamps default to ~2.8 m above the heightfield, which is the tunnel floor).
+  `arkSpawn(..., { surface: true })` spawns on the top surface (ground over a tunnel).
+* Bridges / overpasses / catwalks you can walk on AND under: `bridge(points, width, y, tex, { thick, railH,
+  rails, pillars: spacing })` (absolute deck height). The old `deck()` still raises the terrain instead.
+* Doors only block their own storey; lintels and window heads are real solids now (they block shots).
+* Check it in `tools/leveltest.mjs`-style scripts: `grid.floorAt(x, z, y)`, `grid.surfacesI(i)`,
+  `nav.find(sx, sz, tx, tz, budget, sy, ty)`.
+
 **Rotated buildings:** add `rot` (radians) to `building()` to rotate the whole footprint about its centre.
 `doors`/`inner` stay in the building's own frame; put contents in the same frame with
 `containers:[[kind, lx, lz, rot?, opts?]]` and `props:[[kind, lx, lz, rot?, opts?]]` (offsets from the

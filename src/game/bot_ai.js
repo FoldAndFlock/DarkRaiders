@@ -53,12 +53,12 @@ export class BotBrain {
   }
 
   // --------------------------------------------------------------- movement
-  go(x, z, dt, mul = 1) {
+  go(x, z, dt, mul = 1, ty = null) {
     const e = this.e, sim = this.sim;
     this.pathT -= dt;
     if (!this.path || this.pathT <= 0 || !this.pgoal || Math.hypot(this.pgoal[0] - x, this.pgoal[1] - z) > 3) {
       this.pgoal = [x, z]; this.pathT = 2 + sim.rng() * 2;
-      this.path = sim.nav.find(e.x, e.z, x, z, 4000) || [[x, z]];
+      this.path = sim.nav.find(e.x, e.z, x, z, 4000, e.y, ty ?? e.y) || [[x, z]];
     }
     let wp = this.path[0];
     while (wp && Math.hypot(wp[0] - e.x, wp[1] - e.z) < 1.0 && this.path.length > 1) { this.path.shift(); wp = this.path[0]; }
@@ -66,10 +66,10 @@ export class BotBrain {
     const dx = wp[0] - e.x, dz = wp[1] - e.z, d = Math.hypot(dx, dz);
     if (d < 0.5 && this.path.length <= 1) { e.moving = false; return true; }
     const sp = (e.sprint ? 6.0 : 4.0) * mul * (e.buffs?.slowed ? 0.5 : 1) * dt;
-    const p = { x: e.x, z: e.z };
+    const p = { x: e.x, z: e.z, y: e.y };
     sim.grid.move(p, dx / d * Math.min(d, sp), dz / d * Math.min(d, sp), e.r);
     e.vx = (p.x - e.x) / dt; e.vz = (p.z - e.z) / dt;
-    e.x = p.x; e.z = p.z; e.moving = true; e.mf = Math.atan2(dx, dz);
+    e.x = p.x; e.z = p.z; e.y = sim.floor(p.x, p.z, p.y); e.moving = true; e.mf = Math.atan2(dx, dz);
     return false;
   }
 
@@ -125,7 +125,7 @@ export class BotBrain {
     const ty = t.y + (t.alt || 0) + (t.type === 'raider' ? (t.crouch ? 0.8 : 1.2) : 0.6);
     const vis = sim.grid.los(e.x, e.y + 1.4, e.z, t.x, ty, t.z) && !sim.smokeBetween(e.x, e.z, t.x, t.z);
     e.f += Math.max(-dt * 7, Math.min(dt * 7, wrapAngle(a - e.f)));
-    if (!vis) { this.lostT += dt; if (this.lostT > 8) { this.target = null; return; } this.go(t.x, t.z, dt, 0.8); e.crouch = false; return; }
+    if (!vis) { this.lostT += dt; if (this.lostT > 8) { this.target = null; return; } this.go(t.x, t.z, dt, 0.8, t.y); e.crouch = false; return; }
     this.lostT = 0;
     // positioning: keep preferred range; strafe
     const want = Math.min(this.w.range * 0.8, 22);
@@ -135,8 +135,8 @@ export class BotBrain {
     mx += dz / d * this.strafe * 0.7; mz += -dx / d * this.strafe * 0.7;
     const ml = Math.hypot(mx, mz) || 1;
     const sp = (e.crouch ? 2 : 3.4) * dt;
-    const p = { x: e.x, z: e.z }; sim.grid.move(p, mx / ml * sp, mz / ml * sp, e.r);
-    e.moving = Math.hypot(p.x - e.x, p.z - e.z) > 0.001; e.mf = Math.atan2(mx, mz); e.x = p.x; e.z = p.z;
+    const p = { x: e.x, z: e.z, y: e.y }; sim.grid.move(p, mx / ml * sp, mz / ml * sp, e.r);
+    e.moving = Math.hypot(p.x - e.x, p.z - e.z) > 0.001; e.mf = Math.atan2(mx, mz); e.x = p.x; e.z = p.z; e.y = sim.floor(p.x, p.z, p.y);
     // shooting
     if (this.reloadT > 0) return;
     if (this.mag <= 0) { this.reloadT = this.w.reload || 2.5; this.sim.emit({ e: 'reload', id: e.id }); return; }
@@ -165,7 +165,7 @@ export class BotBrain {
       if (lead.brain?.searchC && !this.searchC && sim.rng() < dt) this.pickContainer(10);
       return;
     }
-    if (!this.goal || this.go(this.goal[0], this.goal[1], dt, 0.9)) {
+    if (!this.goal || this.go(this.goal[0], this.goal[1], dt, 0.9, this.goal[2])) {
       if (this.goal && this.pickContainer(18)) return;
       const pois = sim.world.pois;
       const p = pois.length ? pois[Math.floor(sim.rng() * pois.length)] : { x: sim.world.w * sim.rng(), z: sim.world.h * sim.rng(), r: 10 };
@@ -185,7 +185,7 @@ export class BotBrain {
   loot(dt) {
     const e = this.e, c = this.searchC;
     if (c.opened && c.botClaim !== e.id) { this.searchC = null; return; }
-    if (Math.hypot(c.x - e.x, c.z - e.z) > 1.4) { this.go(c.x, c.z, dt, 0.9); return; }
+    if (Math.hypot(c.x - e.x, c.z - e.z) > 1.4 || Math.abs((c.y ?? e.y) - e.y) > 1.5) { this.go(c.x, c.z, dt, 0.9, c.y); return; }
     e.moving = false; this.searchT += dt;
     e.f = Math.atan2(c.x - e.x, c.z - e.z);
     if (this.searchT > this.sim.searchTimeFor(c.kind) * 1.4) {
@@ -207,7 +207,7 @@ export class BotBrain {
       if (!best) { this.leaveAt = 1e9; return; }
     }
     const x = this.xgoal;
-    if (Math.hypot(x.x - e.x, x.z - e.z) > 2.2) { this.go(x.x, x.z, dt, 1.1); e.sprint = true; return; }
+    if (Math.hypot(x.x - e.x, x.z - e.z) > 2.2 || Math.abs((x.y ?? e.y) - e.y) > 1.5) { this.go(x.x, x.z, dt, 1.1, x.y); e.sprint = true; return; }
     e.sprint = false; e.moving = false;
     if (x.state === 'idle') sim.callExtract(x, e);
   }

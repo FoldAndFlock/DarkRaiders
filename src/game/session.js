@@ -39,7 +39,7 @@ export class HostSession {
     return Promise.resolve(s);
   }
   put(kind, ref, stack) { const list = this._list(kind, ref); if (list) list.push(stack); }
-  dropItems(stacks, label = null) { return this.sim.dropLoot(this.ent.x + (Math.random() - .5), this.ent.z + (Math.random() - .5), stacks, 'bag', label || this.ent.name); }
+  dropItems(stacks, label = null) { return this.sim.dropLoot(this.ent.x + (Math.random() - .5), this.ent.z + (Math.random() - .5), stacks, 'bag', label || this.ent.name, this.ent.y); }
   door(i, hasKey) { const d = this.sim.doors[i]; if (d) return this.sim.toggleDoor(d, this.ent, hasKey); return false; }
   callExtract(i) { const x = this.sim.extracts[i]; if (x) this.sim.callExtract(x, this.ent); }
   hatch(i) { const x = this.sim.extracts[i]; if (x) this.sim.extractRaider(this.ent, x); }
@@ -58,6 +58,8 @@ export class HostSession {
   setShield(stack, charge) { this.sim.setShield(this.ent, stack, charge); }
   dodge() { this.ent.dodged = true; this.ent.buffs.invuln = 0.22; if (this.ent.latchedBy) { const t = this.sim.entities.get(this.ent.latchedBy); t?.brain?.unlatch(); } }
   noise(r) { this.sim.noise(this.ent.x, this.ent.z, r, this.ent); }
+  // landing from a drop (roofs, ledges): bypasses shields, never more than ~a downing blow
+  fall(dmg) { if (this.ent.st === 'alive' && dmg > 0) this.sim.damage(this.ent, Math.min(+dmg || 0, 200), null, { bypassShield: true, x: this.ent.x, z: this.ent.z, fall: true }); }
   chat(text) { this.sim.emit({ e: 'chat', from: this.ent.name, id: this.ent.id, text: String(text).slice(0, 120), slot: this.ent.slot }); }
   ping(x, z) { this.sim.emit({ e: 'ping', by: this.ent.id, x, z, slot: this.ent.slot }); }
   emote(text) { this.ent.emote = text; this.ent.emoteT = 3; this.sim.emit({ e: 'emote', id: this.ent.id, text }); }

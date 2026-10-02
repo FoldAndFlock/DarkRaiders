@@ -56,12 +56,13 @@ export class PlayerController {
     const downed = e.st === 'downed';
     // --- aim
     const padAim = input.padAimDir();
-    const feet = g.world.groundAt(e.x, e.z);
+    const feet = e.y;
     if (padAim) { this.aim.x = e.x + padAim.x * 9; this.aim.z = e.z + padAim.z * 9; }
     else { const p = R.screenToGround(input.mouse.x, input.mouse.y, feet + 1.1); this.aim.x = p.x; this.aim.z = p.z; }
     const hov = g.view.pickEntity(input.mouse.x, input.mouse.y, e.id);
     this.aim.entity = hov;
-    this.aim.y = hov ? hov.aimY : g.world.groundAt(this.aim.x, this.aim.z) + 1.0;
+    // aim height: the floor under the cursor at our level (or lower: shooting down off a roof)
+    this.aim.y = hov ? hov.aimY : g.world.grid.floorAt(this.aim.x, this.aim.z, feet + 1.5) + 1.0;
     this.aim.a = Math.atan2(this.aim.x - e.x, this.aim.z - e.z);
     // --- movement
     const mv = input.move();
@@ -99,10 +100,25 @@ export class PlayerController {
     }
     let vx = mv.x * speed, vz = mv.z * speed;
     if (this.dodgeT > 0) { this.dodgeT -= dt; const ds = st.dodge_distance / 0.34; vx = this.dodgeDir[0] * ds; vz = this.dodgeDir[1] * ds; }
-    const p = { x: e.x, z: e.z };
+    const p = { x: e.x, z: e.z, y: e.y };
     g.world.grid.move(p, vx * dt, vz * dt, 0.33);
     this.vx = (p.x - e.x) / dt; this.vz = (p.z - e.z) / dt;
-    e.x = p.x; e.z = p.z; e.y = g.world.groundAt(e.x, e.z);
+    // multi-level: walk up stairs / kerbs (move), fall off ledges and roofs with gravity
+    const fl = g.world.grid.floorAt(p.x, p.z, p.y);
+    if (fl < p.y - 0.06) {
+      this.vy = (this.vy || 0) - 20 * dt; this.fallFrom ??= p.y;
+      p.y = Math.max(fl, p.y + this.vy * dt);
+    }
+    if (p.y <= fl + 0.06) {
+      if (this.fallFrom != null) {
+        const drop = this.fallFrom - fl;
+        if (drop > 1.2) g.audio?.play('jump_land', { x: p.x, z: p.z, vol: Math.min(1, drop / 5) });
+        if (drop > 3.4) { const dmg = (drop - 3.4) * 16 * (1 - (st.fall_resist || 0)); g.session.fall?.(dmg); if (dmg > 5 && g.view) g.view.shake = Math.max(g.view.shake || 0, Math.min(0.5, dmg / 60)); }
+        this.fallFrom = null;
+      }
+      this.vy = 0; p.y = fl;
+    }
+    e.x = p.x; e.z = p.z; e.y = p.y;
     e.moving = Math.hypot(this.vx, this.vz) > 0.3; e.sprint = wantSprint && e.moving; e.crouch = this.crouch || downed;
     e.mf = moving ? Math.atan2(mv.x, mv.z) : e.f;
     e.f = downed ? e.mf : (e.sprint ? e.mf : this.aim.a);

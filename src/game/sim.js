@@ -29,7 +29,7 @@ export class Sim {
     this.smokes = [];
     this.containers = world.containers.map((c, i) => ({ ...c, i, contents: null, opened: false }));
     this.doors = world.doors.map((d, i) => ({ ...d, i, open: !d.locked && !d.closed }));
-    this.extracts = world.extracts.map((e, i) => ({ ...e, i, state: 'idle', t: 0, y: world.groundAt(e.x, e.z) }));
+    this.extracts = world.extracts.map((e, i) => ({ ...e, i, state: 'idle', t: 0, y: e.y ?? world.groundAt(e.x, e.z) }));
     this.raidEnded = false;
     this.squads = new Map();
     this.warned = {};
@@ -52,12 +52,21 @@ export class Sim {
   remove(e) { this.entities.delete(e.id); this.emit({ e: 'rm', id: e.id }); }
   emit(ev) { this.events.push(ev); }
   ground(x, z) { return this.world.groundAt(x, z); }
+  // standable height under (x, z) for something at height y (multi-level: floors, roofs, tunnels)
+  floor(x, z, y) { return this.grid.floorAt(x, z, y); }
+  // insertion height: inside a building -> its floor; elsewhere the top walkable surface (ground over tunnels)
+  spawnY(x, z) {
+    const i = this.grid.idx(x, z), gy = this.world.groundAt(x, z);
+    if (i < 0) return gy;
+    for (const id of [this.grid.indoor[i], this.grid.indoor2[i]]) if (id >= 0 && !this.world.buildings[id].under) return this.grid.floorAt(x, z, gy);
+    return this.grid.floorAt(x, z, 1e9) > gy + 4 ? this.grid.floorAt(x, z, gy) : this.grid.floorAt(x, z, 1e9);
+  }
 
   addRaider(o) {
     const st = o.stats || {};
     const e = this.add({
       type: 'raider', pid: o.pid, name: o.name || 'Raider', bot: !!o.bot, team: o.team ?? 1, outfit: o.outfit || 'scav',
-      x: o.x, z: o.z, y: this.ground(o.x, o.z), f: o.f || 0, mf: 0, moving: false, sprint: false, crouch: false,
+      x: o.x, z: o.z, y: o.y ?? this.spawnY(o.x, o.z), f: o.f || 0, mf: 0, moving: false, sprint: false, crouch: false,
       hp: st.max_hp || 100, maxHp: st.max_hp || 100, sh: 0, shMax: 0, shMit: 0, st: 'alive', downHp: 0,
       wid: null, wk: 'rifle', flash: false, r: RAIDER_R, h: RAIDER_H, hot: [], buffs: {}, regenPause: 0, grace: o.bot ? 0 : this.t + 8,
       stats: st, kills: 0, dmgDealt: 0, temper: o.temper || 'player', lastHit: -99, emote: null, emoteT: 0,
@@ -76,7 +85,7 @@ export class Sim {
     const def = arkDefFor(arch);
     if (!def) return null;
     const e = this.add({
-      type: 'ark', kind: def.id, arch, def, x, z, y: this.ground(x, z), f: opts.f ?? this.rng() * Math.PI * 2,
+      type: 'ark', kind: def.id, arch, def, x, z, y: opts.baseY ?? this.ground(x, z), f: opts.f ?? this.rng() * Math.PI * 2,
       alt: def.flying ? (def.altitude || def.height || 2.4) : 0, hp: def.hp * (opts.hpMul || 1), maxHp: def.hp * (opts.hpMul || 1),
       st: 'idle', r: def.radius || 0.6, h: def.size?.height ?? def.height ?? 1, parts: {}, zones: [], vis: 0, dormant: true,
     });
@@ -138,7 +147,8 @@ export class Sim {
   }
 
   _raider(e, dt) {
-    e.y = this.ground(e.x, e.z);
+    // players own their height (client-authoritative, incl. falls); bots follow the floor they walk on
+    if (e.bot) e.y = this.floor(e.x, e.z, e.y);
     if (e.emoteT > 0) { e.emoteT -= dt; if (e.emoteT <= 0) e.emote = null; }
     if (e.st === 'alive') {
       // heal/shield over time queue
@@ -159,7 +169,7 @@ export class Sim {
       e.downHp -= dt * (e.bot ? 8 : 2.4);
       if (e.reviveBy) {
         const r = this.entities.get(e.reviveBy);
-        if (!r || r.st !== 'alive' || Math.hypot(r.x - e.x, r.z - e.z) > 2.2) { e.reviveBy = null; e.reviveT = 0; }
+        if (!r || r.st !== 'alive' || Math.hypot(r.x - e.x, r.z - e.z) > 2.2 || Math.abs(r.y - e.y) > 1.5) { e.reviveBy = null; e.reviveT = 0; }
         else { e.reviveT += dt * (r.stats?.revive_speed || 1); if (e.reviveT >= 5) this.revive(e, r); }
       }
       if (e.downHp <= 0) this.kill(e, e.lastSrc);
@@ -181,10 +191,6 @@ export class Sim {
   }
   canSee(obs, tgt, eyeY) {
     const ty = tgt.y + (tgt.alt || 0) + (tgt.crouch ? 0.8 : 1.3);
-    // roofs aren't in the occlusion grid: an observer above roof level (on it, over it or beside it)
-    // can't see a target inside the building below
-    const bi = this.grid.indoorAt(tgt.x, tgt.z);
-    if (bi >= 0) { const b = this.world.buildings[bi]; if (b && eyeY > b.floorY + b.h - 0.2 && ty < b.floorY + b.h) return false; }
     if (!this.grid.los(obs.x, eyeY, obs.z, tgt.x, ty, tgt.z)) return false;
     if (this.smokeBetween(obs.x, obs.z, tgt.x, tgt.z)) return false;
     return true;
@@ -252,6 +258,7 @@ export class Sim {
     let best = null, bd = 2.4;
     this.near(e.x, e.z, 2.6, (t) => {
       if (t === e || t.st === 'dead' || t.st === 'out' || (t.type === 'raider' && t.team === e.team)) return;
+      if (Math.abs((t.y + (t.alt || 0)) - e.y) > 2) return;
       const d = Math.hypot(t.x - e.x, t.z - e.z) - (t.r || 0.35);
       if (d > bd) return;
       if (Math.abs(ang(Math.atan2(t.x - e.x, t.z - e.z) - a)) > 1.1) return;
@@ -322,7 +329,7 @@ export class Sim {
     if (e.bot) {
       // bots drop their kit as a bag
       const items = e.brain?.dropItems() || [];
-      this.dropLoot(e.x, e.z, items, 'raider');
+      this.dropLoot(e.x, e.z, items, 'raider', null, e.y);
       this.later(20, () => this.entities.has(e.id) && this.remove(e));
     }
   }
@@ -332,7 +339,7 @@ export class Sim {
     if (src) src.kills = (src.kills || 0) + 1;
     this.emit({ e: 'arkdown', id: e.id, kind: e.kind, x: e.x, z: e.z, y: e.y + (e.alt || 0), src: src?.id, w: weapon, xp: e.def.xp || 20, big: (e.def.hp || 100) > 600 });
     const items = rollArkDrops(e.def.loot, this.rng, this.condEffects.lootMul || 1);
-    this.dropLoot(e.x, e.z, items, 'ark', e.kind);
+    this.dropLoot(e.x, e.z, items, 'ark', e.kind, e.y);
     if (e.def.explodeOnDeath || (e.def.behavior === 'pop' && !e.def.noDeathBlast && e.kind !== 'komet')) this.explode(e.x, e.y + 0.5, e.z, e.def.attack?.radius || 3.5, e.def.attack?.dmg || 40, null, 'frag');
     if ((e.def.hp || 0) >= 300 && !e.def.flying) {
       // big husks stay as salvageable containers
@@ -341,9 +348,9 @@ export class Sim {
     }
     this.remove(e);
   }
-  dropLoot(x, z, items, kind = 'bag', label = null) {
+  dropLoot(x, z, items, kind = 'bag', label = null, y = null) {
     if (!items.length) return null;
-    const l = this.add({ type: 'loot', kind, x, z, y: this.ground(x, z), items, born: this.t, label });
+    const l = this.add({ type: 'loot', kind, x, z, y: y == null ? this.ground(x, z) : this.floor(x, z, y + 0.3), items, born: this.t, label });
     this.emit({ e: 'loot', id: l.id, x, z, y: l.y, kind, label, n: items.length });
     return l;
   }
@@ -370,7 +377,7 @@ export class Sim {
     const a = Math.atan2(dx, dz); dx = Math.sin(a); dz = Math.cos(a);
     const isMine = d.kind?.startsWith('mine') || d.kind === 'barricade';
     const T = isMine ? 0.35 : 0.55 + dist * 0.035;
-    const vh = (isMine ? Math.min(dist, 3) : dist) / T, vy = 9.8 * T / 2 + ((this.ground(tx, tz) - oy) / T);
+    const vh = (isMine ? Math.min(dist, 3) : dist) / T, vy = 9.8 * T / 2 + ((this.floor(tx, tz, owner.y + 1) - oy) / T);
     const p = this.add({ type: 'proj', kind: 'throw', item: itemId, td: d, owner: owner.id, team: owner.team, x: ox, y: oy, z: oz,
       vx: dx * vh, vy, vz: dz * vh, fuse: d.fuse ?? 2.5, armed: false, settled: false, age: 0, g: 9.8 });
     this.emit({ e: 'throw', id: p.id, by: owner.id, item: itemId });
@@ -390,13 +397,16 @@ export class Sim {
     if (!p.settled) {
       p.vy -= p.g * dt;
       const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt, nz = p.z + p.vz * dt;
-      const top = this.grid.topAt(nx, nz);
-      if (ny <= top) {
+      const ci = this.grid.idx(nx, nz);
+      if (ci < 0) { this.remove(p); return; }
+      if (this.grid.solidAtI(ci, ny)) {
         const impact = p.td?.kind === 'impact' || p.td?.kind === 'sticky' || p.kind === 'rocket' || p.kind === 'mortar';
-        if (impact) { p.x = nx; p.z = nz; p.y = Math.max(top, ny); this._detonate(p, owner); return; }
-        // bounce: wall (top above current height) reflects horizontally, ground stops
-        if (top > p.y + 0.2) { p.vx *= -0.35; p.vz *= -0.35; }
-        else { p.y = top; p.vy = Math.abs(p.vy) * 0.25; p.vx *= 0.5; p.vz *= 0.5; if (Math.hypot(p.vx, p.vz) < 0.6) { p.settled = true; p.vx = p.vz = 0; } }
+        const fl = this.grid.floorAt(nx, nz, p.y);
+        if (impact) { p.x = nx; p.z = nz; p.y = Math.max(fl, Math.min(ny, p.y)); this._detonate(p, owner); return; }
+        // bounce: a wall at our height reflects horizontally, a ceiling knocks it down, the floor stops it
+        if (this.grid.solidAtI(ci, p.y + 0.05)) { p.vx *= -0.35; p.vz *= -0.35; }
+        else if (ny > p.y) { p.vy = -Math.abs(p.vy) * 0.3; }
+        else { p.x = nx; p.z = nz; p.y = fl; p.vy = Math.abs(p.vy) * 0.25; p.vx *= 0.5; p.vz *= 0.5; if (Math.hypot(p.vx, p.vz) < 0.6) { p.settled = true; p.vx = p.vz = 0; } }
         if (!p.bounced) { p.bounced = true; this.emit({ e: 'bounce', x: p.x, z: p.z }); }
       } else { p.x = nx; p.y = ny; p.z = nz; }
       // direct hit on ARK for rockets/impact
@@ -420,14 +430,14 @@ export class Sim {
     const d = p.td || {}, k = d.kind || p.kind;
     const r = (d.radius || p.radius || 3) * (owner?.stats?.grenade_radius || 1), dmg = d.dmg ?? p.dmg ?? 40;
     switch (k) {
-      case 'smoke': this.addHazard('smoke', p.x, p.z, r, d.dur || 18, owner); this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
-      case 'fire': this.addHazard('fire', p.x, p.z, r, d.dur || 8, owner, d.dmg || 12).item = p.item; this.explode(p.x, p.y, p.z, r * 0.5, dmg * 0.4, owner, 'fire', p.item); break;
-      case 'gas': this.addHazard('gas', p.x, p.z, r, d.dur || 12, owner, d.dmg || 6).item = p.item; this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
-      case 'lure': case 'noise': this.addHazard('lure', p.x, p.z, 30, d.dur || 12, owner); this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
+      case 'smoke': this.addHazard('smoke', p.x, p.z, r, d.dur || 18, owner, 0, p.y); this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
+      case 'fire': this.addHazard('fire', p.x, p.z, r, d.dur || 8, owner, d.dmg || 12, p.y).item = p.item; this.explode(p.x, p.y, p.z, r * 0.5, dmg * 0.4, owner, 'fire', p.item); break;
+      case 'gas': this.addHazard('gas', p.x, p.z, r, d.dur || 12, owner, d.dmg || 6, p.y).item = p.item; this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
+      case 'lure': case 'noise': this.addHazard('lure', p.x, p.z, 30, d.dur || 12, owner, 0, p.y); this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
       case 'stun': case 'mine_jolt': this.emit({ e: 'boom', x: p.x, y: p.y, z: p.z, r, k: 'stun' }); this.near(p.x, p.z, r, (e) => { if (e.type === 'ark') e.brain.stun(d.dur || 4); else if (e.team !== p.team) e.buffs.stunned = d.dur || 2; }); break;
       case 'tagging': this.near(p.x, p.z, r * 2, (e) => { if (e.type === 'ark' || e.team !== p.team) e.tagged = this.t + (d.dur || 15); }); this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
-      case 'flare': this.addHazard('flare', p.x, p.z, 12, d.dur || 40, owner); break;
-      case 'barricade': this.addHazard('barricade', p.x, p.z, 1.2, d.dur || 60, owner); break;
+      case 'flare': this.addHazard('flare', p.x, p.z, 12, d.dur || 40, owner, 0, p.y); break;
+      case 'barricade': this.addHazard('barricade', p.x, p.z, 1.2, d.dur || 60, owner, 0, p.y); break;
       case 'wolfpack': {
         for (let i = 0; i < 5; i++) { let tgt = null, bd = 30; this.near(p.x, p.z, 30, (e) => { if (e.type === 'ark' && e.st !== 'dead') { const dd = Math.hypot(e.x - p.x, e.z - p.z); if (dd < bd) { bd = dd; tgt = e; } } });
           const a = this.rng() * Math.PI * 2; this.launch(owner, 'rocket', p.x, p.y + 1, p.z, Math.sin(a) * 10, 6, Math.cos(a) * 10, { dmg: (d.dmg || 60) / 2, radius: 2.5, g: 4, homing: tgt?.id, team: p.team }); }
@@ -437,16 +447,16 @@ export class Sim {
     }
     this.remove(p);
   }
-  addHazard(kind, x, z, r, dur, owner, dps = 0) {
-    const h = this.add({ type: 'hz', kind, x, z, y: this.ground(x, z), r, dur, age: 0, owner: owner?.id, team: owner?.team, dps });
+  addHazard(kind, x, z, r, dur, owner, dps = 0, y = null) {
+    const h = this.add({ type: 'hz', kind, x, z, y: this.floor(x, z, (y ?? owner?.y ?? this.ground(x, z)) + 0.3), r, dur, age: 0, owner: owner?.id, team: owner?.team, dps });
     if (kind === 'smoke') this.smokes.push(h);
-    if (kind === 'barricade') this.world.setTop(x - 1, z - 0.3, x + 1, z + 0.3, h.y + 1.3);
+    if (kind === 'barricade' && h.y <= this.grid.floorAt(x, z, -1e9) + 0.5) this.world.setTop(x - 1, z - 0.3, x + 1, z + 0.3, h.y + 1.3);
     return h;
   }
   _hazard(h, dt) {
     h.age += dt;
     if (h.kind === 'fire' || h.kind === 'gas') {
-      this.near(h.x, h.z, h.r, (e) => { if (e.st === 'alive' || e.type === 'ark') { if (e.type === 'ark' && h.kind === 'gas') return; this.damage(e, h.dps * dt, this.entities.get(h.owner), { bypassShield: h.kind === 'gas', x: e.x, z: e.z, weapon: h.item || null }); if (h.kind === 'gas' && e.type === 'raider') e.buffs.gassed = 1; } });
+      this.near(h.x, h.z, h.r, (e) => { if (Math.abs((e.y || 0) - h.y) > 2.6) return; if (e.st === 'alive' || e.type === 'ark') { if (e.type === 'ark' && h.kind === 'gas') return; this.damage(e, h.dps * dt, this.entities.get(h.owner), { bypassShield: h.kind === 'gas', x: e.x, z: e.z, weapon: h.item || null }); if (h.kind === 'gas' && e.type === 'raider') e.buffs.gassed = 1; } });
     }
     if (h.kind === 'lure') this.noise(h.x, h.z, 45, { id: h.owner, team: h.team });
     if (h.age >= h.dur) {
@@ -486,13 +496,7 @@ export class Sim {
     this.noise(d.x, d.z, 8, by);
     return true;
   }
-  _doorBlock(d, closed) {
-    const hw = d.w / 2, ht = (d.thick || 0.3) / 2 + 0.05, g = this.ground(d.x, d.z);
-    const top = closed ? g + 2.4 : g;
-    const x = d.lx ?? d.x, z = d.lz ?? d.z;
-    if (d.axis === 'x') this.world.setTop(x - hw, z - ht, x + hw, z + ht, top, d.R);
-    else this.world.setTop(x - ht, z - hw, x + ht, z + hw, top, d.R);
-  }
+  _doorBlock(d, closed) { this.world.setDoor(d.blk, closed); }
 
   callExtract(x, by) {
     if (x.state !== 'idle') return false;
@@ -511,7 +515,7 @@ export class Sim {
         x.t -= dt;
         if (x.t <= 0) {
           const who = [];
-          for (const e of this.entities.values()) if (e.type === 'raider' && e.st === 'alive' && Math.hypot(e.x - x.x, e.z - x.z) < 3.4) who.push(e);
+          for (const e of this.entities.values()) if (e.type === 'raider' && e.st === 'alive' && Math.hypot(e.x - x.x, e.z - x.z) < 3.4 && Math.abs(e.y - x.y) < 2) who.push(e);
           for (const e of who) this.extractRaider(e, x);
           x.state = 'gone'; x.t = 75; this.emit({ e: 'xgone', i: x.i, n: who.length });
         }
@@ -580,10 +584,11 @@ export class Sim {
       if (s.notCondition && cid && [].concat(s.notCondition).includes(cid)) continue;
       const n = Math.max(1, Math.round(s.count * (s.condition ? 1 : mul)));
       for (let i = 0; i < n; i++) {
-        const [x, z] = this.nav.randomOpenNear(s.x, s.z, s.radius || 4, this.rng);
+        const hint = s.yAbs ?? (s.surface ? this.grid.floorAt(s.x, s.z, 1e9) : -Infinity);
+        const [x, z, y] = this.nav.randomOpenNear(s.x, s.z, s.radius || 4, this.rng, hint);
         const def = arkDefFor(s.kind);
         const fixed = !!def?.static || def?.speed === 0;
-        this.spawnArk(s.kind, fixed ? s.x : x, fixed ? s.z : z, { patrol: s.patrol, home: [s.x, s.z], fixed, y: fixed ? s.y : 0, yAbs: fixed ? s.yAbs : null, boss: !!s.boss, f: s.f ?? s.facing });
+        this.spawnArk(s.kind, fixed ? s.x : x, fixed ? s.z : z, { patrol: s.patrol, home: [s.x, s.z], fixed, y: fixed ? s.y : 0, yAbs: fixed ? s.yAbs : null, boss: !!s.boss, f: s.f ?? s.facing, baseY: fixed ? this.floor(s.x, s.z, hint === -Infinity ? this.ground(s.x, s.z) : hint) : y });
       }
     }
     if (fx.spawnBoss) {

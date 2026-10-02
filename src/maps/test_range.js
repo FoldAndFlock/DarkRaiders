@@ -23,6 +23,21 @@ export default {
     w.building({ x: 166, z: 70, w: 14, d: 10, rot: 0.55, storeys: 2, wall: 'plaster', tint: 0xf0d8b0, floor: 'tiles', roof: 'roofTile', roofShape: 'gable', name: 'Leaning House',
       doors: [{ side: 's', at: 2, w: 1.6, door: true }, { side: 'n', at: 9, w: 2.4, sill: 1 }], inner: [[7, 0, 7, 10, [{ at: 5, w: 1.4 }]]],
       containers: [['cabinet', 2, 1.2, 0, { tier: 2 }], ['desk', 11, 7, 0]] });
+    // multi-level test area: 2 storeys + stairs + roof ladder, an underground tunnel with a stairwell and
+    // a metro platform, and a bridge you can walk on and under
+    w.building({ x: 186, z: 96, w: 14, d: 10, storeys: 2, wall: 'brick', floor: 'wood', roof: 'roofTar', name: 'Two-Storey House',
+      doors: [{ side: 's', at: 2, w: 1.6, door: true }, { side: 'w', at: 4, w: 2, sill: 1 }, { side: 's', at: 7, w: 2, sill: 1, storey: 1 }, { side: 'n', at: 3, w: 2, sill: 1, storey: 1 }],
+      inner: [[7, 0, 7, 6, [{ at: 2, w: 1.4 }], 1]],
+      stairs: [{ x: 11.6, z: 1.6, w: 1.6, dir: 's', from: 0, to: 1 }],
+      ladders: [{ side: 'e', at: 7.5 }],
+      containers: [['cabinet', 3, 2, 0, { storey: 1, tier: 2 }], ['desk', 5, 8, 0, { storey: 1 }], ['locker', 2, 8, 0]] });
+    w.building({ x: 204, z: 36, w: 34, d: 8, under: 5, wall: 'concrete', floor: 'concrete', roof: 'grass', name: 'Test Tunnel',
+      stairs: [{ x: 0.8, z: 0.8, w: 2.2, dir: 'w', from: 0, to: 'top' }],
+      containers: [['crate', 22, 4], ['ammo_box', 30, 2]] });
+    w.extract('test_metro', 'Test Metro', 32, 40, { kind: 'metro' });
+    w.extracts[w.extracts.length - 1].x = 232; w.extracts[w.extracts.length - 1].z = 40;
+    w.bridge([[150, 150], [190, 150]], 4, 5);
+    w.ladder(150.6, 152.6, null, 150.6, 150.5, 5, 0);
     w.keyRoom('depot_office', 105, 74, 114, 81, null);
     w.container('locker', 98, 76, 0, { tier: 1 }); w.container('weapon_case', 112, 76, 0, { tier: 2 });
     w.container('toolbox', 126, 78, 0); w.container('medical_bag', 150, 100, 0); w.container('trash', 120, 110, 0);

@@ -48,6 +48,11 @@ const COMMON_FRAG_PARS = /* glsl */`
     float m[16] = float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);
     for(int j=0;j<16;j++){ if(j==k) return m[j]/16.0; } return 0.0; }
   float dwTop(vec2 q){ return texture2D(tOcc, q / uOccSize).r * 63.75 - 8.0; }
+  // multi-level occlusion: column top (r) or inside the first floating span (g..b: slab / roof / lid)
+  bool dwBlocked(vec2 q, float h){
+    vec4 o = texture2D(tOcc, q / uOccSize) * 63.75 - 8.0;
+    return h < o.r || (h > o.g && h < o.b);
+  }
   // march from surface point p toward light l through the occlusion grid
   float dwShadow(vec3 p, vec3 l){
     vec2 dir = l.xz - p.xz; float len = length(dir);
@@ -57,7 +62,7 @@ const COMMON_FRAG_PARS = /* glsl */`
       float fs = float(s); if (fs >= steps) break;
       float t = fs / steps;
       if (len * (1.0 - t) < 0.6) break;             // the light's own post / housing never shadows it
-      if (dwTop(p.xz + dir * t) > mix(p.y, l.y, t)) return 0.0;
+      if (dwBlocked(p.xz + dir * t, mix(p.y, l.y, t))) return 0.0;
     }
     return 1.0;
   }

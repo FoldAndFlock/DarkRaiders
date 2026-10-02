@@ -62,7 +62,7 @@ export class RaidGame {
     onProgress(0.45, 'Meshing terrain');
     this.world.finalize();
     for (const l of this.world.lamps) this.L.addStatic(l);
-    this.cones = new VisionCones(this.R.scene, 64, (x, z) => this.world.groundAt(x, z));
+    this.cones = new VisionCones(this.R.scene, 64, (x, z, y) => this.world.grid.floorAt(x, z, y ?? 1e9));
     await tick();
     onProgress(0.7, 'Waking the ARK');
     // gameplay state
@@ -243,13 +243,13 @@ export class RaidGame {
       this.fx.rain.update(dt, this.camX, this.camZ, this.R.viewW, this.R.viewH, (x, z) => {
         const lvl = this.world.grid.waterLevel(x, z);
         if (lvl != null) this.fx.ripples.add(x, z, lvl + 0.02, 0.22, 0.6, 0.7);
-        else if (this.world.grid.indoorAt(x, z) < 0 && Math.random() < 0.3) this.fx.splash(x, z, this.world.groundAt(x, z) + 0.02);
+        else if (Math.random() < 0.3) this.fx.splash(x, z, this.world.grid.floorAt(x, z, 1e9) + 0.02);   // splashes on the top surface (roofs, lids)
       });
     }
-    if (w.sand && Math.random() < 0.9) for (let k = 0; k < 4; k++) this.fx.parts.emit({ x: this.camX + (Math.random() - .5) * this.R.viewW * 1.2, y: this.world.groundAt(this.camX, this.camZ) + Math.random() * 3, z: this.camZ + (Math.random() - .5) * this.R.viewH * 1.6, vx: GU.uWind.value.x * 4, vz: GU.uWind.value.y * 4, life: 1.2, size: 1, color: 0xd8c090, alpha: 0.9 });
-    if (w.snow) for (let k = 0; k < 3; k++) this.fx.parts.emit({ x: this.camX + (Math.random() - .5) * this.R.viewW * 1.2, y: this.world.groundAt(this.camX, this.camZ) + 6 + Math.random() * 4, z: this.camZ + (Math.random() - .5) * this.R.viewH * 1.6, vx: GU.uWind.value.x, vy: -1.5, vz: GU.uWind.value.y, life: 4, size: 1, color: 0xf0f4ff, alpha: 0.9 });
+    if (w.sand && Math.random() < 0.9) for (let k = 0; k < 4; k++) this.fx.parts.emit({ x: this.camX + (Math.random() - .5) * this.R.viewW * 1.2, y: (this.me?.y ?? this.world.groundAt(this.camX, this.camZ)) + Math.random() * 3, z: this.camZ + (Math.random() - .5) * this.R.viewH * 1.6, vx: GU.uWind.value.x * 4, vz: GU.uWind.value.y * 4, life: 1.2, size: 1, color: 0xd8c090, alpha: 0.9 });
+    if (w.snow) for (let k = 0; k < 3; k++) this.fx.parts.emit({ x: this.camX + (Math.random() - .5) * this.R.viewW * 1.2, y: (this.me?.y ?? this.world.groundAt(this.camX, this.camZ)) + 6 + Math.random() * 4, z: this.camZ + (Math.random() - .5) * this.R.viewH * 1.6, vx: GU.uWind.value.x, vy: -1.5, vz: GU.uWind.value.y, life: 4, size: 1, color: 0xf0f4ff, alpha: 0.9 });
     // drifting dust motes / fireflies at night for atmosphere
-    if (this.L.isNight && Math.random() < dt * 6) this.fx.glow.emit({ x: this.camX + (Math.random() - .5) * this.R.viewW, y: this.world.groundAt(this.camX, this.camZ) + 0.5 + Math.random() * 1.5, z: this.camZ + (Math.random() - .5) * this.R.viewH, vx: (Math.random() - .5) * 0.4, vy: 0.1, vz: (Math.random() - .5) * 0.4, life: 3, size: 1, color: 0xc0ff60, alpha: 0.8 });
+    if (this.L.isNight && Math.random() < dt * 6) this.fx.glow.emit({ x: this.camX + (Math.random() - .5) * this.R.viewW, y: (this.me?.y ?? this.world.groundAt(this.camX, this.camZ)) + 0.5 + Math.random() * 1.5, z: this.camZ + (Math.random() - .5) * this.R.viewH, vx: (Math.random() - .5) * 0.4, vy: 0.1, vz: (Math.random() - .5) * 0.4, life: 3, size: 1, color: 0xc0ff60, alpha: 0.8 });
   }
 
   // ------------------------------------------------------------------ interactions
@@ -261,6 +261,14 @@ export class RaidGame {
   async doInteract(it) {
     const lo = this.pc.lo;
     switch (it.kind) {
+      case 'ladder': {
+        const l = this.world.ladders[it.ref], me = this.me; if (!l || !me) return;
+        const [x, z, y] = it.up ? [l.x1, l.z1, l.y1] : [l.x0, l.z0, l.y0];
+        me.x = x; me.z = z; me.y = y; this.pc.vy = 0; this.pc.fallFrom = null;
+        this.session.state({ x, y, z });
+        this.audio?.play('step_metal', { x, z, vol: 0.6 });
+        return;
+      }
       case 'container': case 'loot': {
         const c = it.kind === 'container' ? this.containersData[it.ref] : null;
         if (c?.locked && !c.unlocked) {
@@ -454,11 +462,11 @@ export class RaidGame {
     // world markers: extracts near, pings, squad names, emotes
     for (const x of this.extractsData) {
       const d = Math.hypot(x.x - me.x, x.z - me.z); if (d > 90) continue;
-      const s = R.worldToScreen(x.x, this.world.groundAt(x.x, x.z) + 2.5, x.z);
+      const s = R.worldToScreen(x.x, (x.y ?? this.world.groundAt(x.x, x.z)) + 2.5, x.z);
       const sub = x.state === 'called' ? 'INBOUND' : x.state === 'open' ? 'BOARD NOW' : x.state === 'gone' ? 'DEPARTED' : x.state === 'offline' ? 'OFFLINE' : `${Math.round(d)}M`;
       markers.push({ sx: s.x, sy: s.y, label: x.name.toUpperCase(), sub, color: x.kind === 'hatch' ? '#f0c030' : '#68e088' });
     }
-    for (const p of this.pings.values()) { const s = R.worldToScreen(p.x, this.world.groundAt(p.x, p.z) + 1, p.z); markers.push({ sx: s.x, sy: s.y, label: 'PING', sub: `${Math.round(Math.hypot(p.x - me.x, p.z - me.z))}M`, color: SQUAD_COLORS[(p.slot ?? 0) % 4] }); }
+    for (const p of this.pings.values()) { const s = R.worldToScreen(p.x, this.view.floorNear(p.x, p.z, p.y) + 1, p.z); markers.push({ sx: s.x, sy: s.y, label: 'PING', sub: `${Math.round(Math.hypot(p.x - me.x, p.z - me.z))}M`, color: SQUAD_COLORS[(p.slot ?? 0) % 4] }); }
     if (this.emotes) for (const [id, em] of this.emotes) { em.ttl -= dt; if (em.ttl <= 0) { this.emotes.delete(id); continue; } const v = this.view.vis.get(id); if (v) { const s = R.worldToScreen(v.px, v.py + 2.4, v.pz); markers.push({ sx: s.x, sy: s.y, label: '"' + em.text + '"', color: '#e8e0c8', bubble: true }); } }
     for (const e of this.ents.values()) if (e.type === 'raider' && !e.bot && e.team === this.myTeam && e.id !== this.meId && e.st !== 'out') { const v = this.view.vis.get(e.id); if (v) { const s = R.worldToScreen(v.px, v.py + 2.3, v.pz); markers.push({ sx: s.x, sy: s.y, label: e.name, color: SQUAD_COLORS[(e.slot ?? 0) % 4], small: true }); } }
     st.markers = markers;

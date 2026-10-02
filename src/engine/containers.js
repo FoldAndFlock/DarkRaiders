@@ -47,7 +47,7 @@ export class ContainerRenderer {
     containers.forEach((c, i) => { const k = B[c.kind] ? c.kind : 'crate'; if (!byKind.has(k)) byKind.set(k, []); byKind.get(k).push(c); });
     const dummy = new THREE.Object3D(), white = new THREE.Color(1, 1, 1);
     for (const [k, list] of byKind) {
-      const im = new THREE.InstancedMesh(containerGeo(k), litVox({ xray: true }), list.length + 32);
+      const im = new THREE.InstancedMesh(containerGeo(k), litVox({ xray: true, cutaway: true }), list.length + 32);
       im.count = list.length;
       list.forEach((c, j) => {
         dummy.position.set(c.x, c.y ?? 0, c.z); dummy.rotation.set(0, c.rot || 0, 0); dummy.scale.setScalar(1); dummy.updateMatrix();
@@ -62,7 +62,7 @@ export class ContainerRenderer {
     const k = B[c.kind] ? c.kind : 'crate';
     let im = this.meshes.get(k);
     if (!im || im.count >= im.instanceMatrix.count) {
-      im = new THREE.InstancedMesh(containerGeo(k), litVox({ xray: true }), 64); im.count = 0; im.frustumCulled = false; im.castShadow = true; im.receiveShadow = true;
+      im = new THREE.InstancedMesh(containerGeo(k), litVox({ xray: true, cutaway: true }), 64); im.count = 0; im.frustumCulled = false; im.castShadow = true; im.receiveShadow = true;
       this.scene.add(im); this.meshes.set(k + '_dyn' + this.meshes.size, im);
     }
     const dummy = new THREE.Object3D(); dummy.position.set(c.x, c.y ?? 0, c.z); dummy.rotation.set(0, c.rot || 0, 0); dummy.updateMatrix();

@@ -42,7 +42,7 @@ export class ArkBrain {
   onHit(src, dmg) {
     if (this.latched && this.sim.rng() < 0.15) this.unlatch();
     if (src && (src.type === 'raider') && src.st === 'alive') {
-      this.target = src.id; this.e.st = 'alert'; this.lastSeen = [src.x, src.z]; this.lostT = 0; this.e.vis = 1;
+      this.target = src.id; this.e.st = 'alert'; this.lastSeen = [src.x, src.z, src.y]; this.lostT = 0; this.e.vis = 1;
     }
   }
   partBroken(zone) {
@@ -101,8 +101,8 @@ export class ArkBrain {
       e.vis = Math.min(1, e.vis + rate * dt * (e.st === 'alert' ? 3 : 1));
       if (e.vis >= 1) {
         if (e.st !== 'alert') this.sim.emit({ e: 'alert', id: e.id, kind: e.kind, x: e.x, z: e.z });
-        e.st = 'alert'; this.target = best.id; this.lastSeen = [best.x, best.z]; this.lostT = 0;
-      } else if (e.st === 'idle' && e.vis > 0.35) { e.st = 'search'; this.lastSeen = [best.x, best.z]; }
+        e.st = 'alert'; this.target = best.id; this.lastSeen = [best.x, best.z, best.y]; this.lostT = 0;
+      } else if (e.st === 'idle' && e.vis > 0.35) { e.st = 'search'; this.lastSeen = [best.x, best.z, best.y]; }
       return best;
     }
     e.vis = Math.max(0, e.vis - dt * 0.35);
@@ -120,7 +120,8 @@ export class ArkBrain {
     const e = this.e, r = (rate ?? this.def.turnRate ?? 180) * DEG * dt;
     e.f += clamp(wrapAngle(a - e.f), -r, r);
   }
-  moveTo(x, z, dt, mul = 1) {
+  // ty: target height (chasing a raider upstairs / into a tunnel); default = stay on our own level
+  moveTo(x, z, dt, mul = 1, ty = null) {
     const e = this.e;
     if (this.fixed) return true;
     const dx = x - e.x, dz = z - e.z, d = Math.hypot(dx, dz);
@@ -130,7 +131,7 @@ export class ArkBrain {
       const a = Math.atan2(dx, dz); this.turnTo(a, dt);
       e.x += dx / d * Math.min(d, sp); e.z += dz / d * Math.min(d, sp);
       // rise over obstacles
-      const g = this.sim.ground(e.x, e.z), top = this.sim.grid.topAt(e.x, e.z);
+      const g = this.sim.ground(e.x, e.z), top = this.sim.grid.floorAt(e.x, e.z, 1e9);
       const want = Math.max(this.def.altitude || 2.4, top - g + 1.2);
       e.alt += clamp(want - e.alt, -2 * dt, 4 * dt);
       return false;
@@ -139,16 +140,16 @@ export class ArkBrain {
     this.pathT -= dt;
     if (!this.path || this.pathT <= 0 || !this.goal || Math.hypot(this.goal[0] - x, this.goal[1] - z) > 2) {
       this.goal = [x, z]; this.pathT = 1.5 + this.sim.rng();
-      this.path = this.sim.nav.find(e.x, e.z, x, z, 2500) || [[x, z]];
+      this.path = this.sim.nav.find(e.x, e.z, x, z, 2500, e.y, ty ?? e.y) || [[x, z]];
     }
     let wp = this.path[0];
     while (wp && Math.hypot(wp[0] - e.x, wp[1] - e.z) < 1.2 && this.path.length > 1) { this.path.shift(); wp = this.path[0]; }
     if (!wp) return true;
     const wx = wp[0] - e.x, wz = wp[1] - e.z, wd = Math.hypot(wx, wz) || 1;
     this.turnTo(Math.atan2(wx, wz), dt);
-    const p = { x: e.x, z: e.z };
+    const p = { x: e.x, z: e.z, y: e.y };
     this.sim.grid.move(p, wx / wd * Math.min(wd, sp), wz / wd * Math.min(wd, sp), Math.min(e.r, 0.9));
-    e.x = p.x; e.z = p.z; e.y = this.sim.ground(e.x, e.z);
+    e.x = p.x; e.z = p.z; e.y = this.sim.floor(e.x, e.z, p.y);
     return false;
   }
   wander(dt) {
@@ -159,8 +160,8 @@ export class ArkBrain {
       if (this.moveTo(p[0], p[1], dt, 0.55)) this.pi++;
     } else {
       this.wanderT -= dt;
-      if (this.wanderT <= 0 || !this.goal) { this.goal = this.sim.nav.randomOpenNear(this.home[0], this.home[1], this.def.flying ? 30 : 18, this.sim.rng); this.wanderT = 6 + this.sim.rng() * 8; this.path = null; }
-      this.moveTo(this.goal[0], this.goal[1], dt, 0.45);
+      if (this.wanderT <= 0 || !this.goal) { this.goal = this.sim.nav.randomOpenNear(this.home[0], this.home[1], this.def.flying ? 30 : 18, this.sim.rng, this.def.flying ? -Infinity : e.y); this.wanderT = 6 + this.sim.rng() * 8; this.path = null; }
+      this.moveTo(this.goal[0], this.goal[1], dt, 0.45, this.goal[2]);
     }
     e.gaze = e.f + Math.sin(this.sim.t * 0.8 + e.id) * 0.35;
   }
@@ -186,12 +187,12 @@ export class ArkBrain {
     if (e.st === 'alert') {
       if (!tgt || (tgt.st !== 'alive' && tgt.st !== 'downed')) { this.target = null; e.st = 'search'; return; }
       if (!seen || seen.id !== tgt.id) { this.lostT += dt; if (this.lostT > (this.def.vision?.lose || 6)) { e.st = 'search'; this.goal = this.lastSeen; } }
-      else this.lastSeen = [tgt.x, tgt.z];
+      else this.lastSeen = [tgt.x, tgt.z, tgt.y];
       this.engage(tgt, dt, !!seen && seen.id === tgt.id);
     } else if (e.st === 'search') {
       e.tele = 0;
       if (this.lastSeen) {
-        const arrived = this.moveTo(this.lastSeen[0], this.lastSeen[1], dt, 0.8);
+        const arrived = this.moveTo(this.lastSeen[0], this.lastSeen[1], dt, 0.8, this.lastSeen[2]);
         e.gaze = e.f + Math.sin(sim.t * 1.6 + e.id) * 0.6;
         if (arrived || this.fixed) { this.lostT += dt; if (this.lostT > 5) { e.st = 'idle'; this.lastSeen = null; this.lostT = 0; } }
       } else e.st = 'idle';
@@ -210,7 +211,7 @@ export class ArkBrain {
     switch (beh) {
       case 'pop': case 'fireball': {
         this.turnTo(a, dt);
-        if (d > (atk.range || 1.6) + 0.4) { this.moveTo(t.x, t.z, dt, 1); e.tele = 0; this.wind = 0; return; }
+        if (d > (atk.range || 1.6) + 0.4) { this.moveTo(t.x, t.z, dt, 1, t.y); e.tele = 0; this.wind = 0; return; }
         this.wind += dt; e.tele = this.wind / (atk.windup || 1);
         if (beh === 'fireball') {
           if (this.wind >= (atk.windup || 0.8)) { this.flame(t, dt); if (this.wind > (atk.windup || 0.8) + (atk.duration || 3)) { this.wind = 0; this.cool = atk.cooldown || 3; } }
@@ -219,7 +220,7 @@ export class ArkBrain {
       }
       case 'tick': {
         this.turnTo(a, dt);
-        if (d > 5 || !visible) { this.moveTo(t.x, t.z, dt, 1); return; }
+        if (d > 5 || !visible) { this.moveTo(t.x, t.z, dt, 1, t.y); return; }
         if (this.cool <= 0) { this.startLeap(t, atk.airTime || 0.5, 0.2); this.cool = atk.cooldown || 3; }
         return;
       }
@@ -230,7 +231,7 @@ export class ArkBrain {
           if (this.wind >= (atk.windup || 0.9)) { this.wind = 0; e.tele = 0; this.startLeap(t, atk.airTime || 0.9, 0); this.cool = atk.cooldown || 4.5; }
         } else if (d < 5 && this.cool <= 0 && def.abilities?.[0]) {
           const ab = def.abilities[0]; sim.explode(e.x, e.y + 0.5, e.z, ab.radius || 5, ab.dmg || 20, e, 'shock'); this.cool = ab.cooldown || 6;
-        } else if (d > 6) this.moveTo(t.x, t.z, dt, 0.9);
+        } else if (d > 6) this.moveTo(t.x, t.z, dt, 0.9, t.y);
         return;
       }
       case 'surveyor': {
@@ -250,7 +251,7 @@ export class ArkBrain {
       }
       case 'spotter': {
         e.gaze = a; this.turnTo(a, dt);
-        sim.near(e.x, e.z, 90, (o) => { if (o.type === 'ark' && o.def.behavior === 'bombardier' && o.brain) { o.brain.target = t.id; o.brain.lastSeen = [t.x, t.z]; o.st = 'alert'; o.brain.spotted = sim.t; } });
+        sim.near(e.x, e.z, 90, (o) => { if (o.type === 'ark' && o.def.behavior === 'bombardier' && o.brain) { o.brain.target = t.id; o.brain.lastSeen = [t.x, t.z, t.y]; o.st = 'alert'; o.brain.spotted = sim.t; } });
         if (d < 10) this.moveTo(e.x - dx, e.z - dz, dt, 0.8);
         return;
       }
@@ -263,7 +264,7 @@ export class ArkBrain {
       case 'rocketeer': {
         this.turnTo(a, dt);
         const want = 16;
-        if (d > want + 4 || !visible) this.moveTo(t.x, t.z, dt, 0.7); else if (d < want - 4) this.moveTo(e.x - dx, e.z - dz, dt, 0.6);
+        if (d > want + 4 || !visible) this.moveTo(t.x, t.z, dt, 0.7, t.y); else if (d < want - 4) this.moveTo(e.x - dx, e.z - dz, dt, 0.6);
         if (visible && this.cool <= 0 && !this.disarmed) {
           this.wind += dt; e.tele = this.wind / (atk.windup || 1);
           if (this.wind >= (atk.windup || 1)) { this.wind = 0; e.tele = 0; this.rockets(t, atk.count || atk.burst || 3); this.cool = atk.cooldown || 4; }
@@ -280,7 +281,7 @@ export class ArkBrain {
       }
       case 'shredder': case 'matriarch': case 'queen': {
         this.turnTo(a, dt);
-        if (d > 3) this.moveTo(t.x, t.z, dt, 1);
+        if (d > 3) this.moveTo(t.x, t.z, dt, 1, t.y);
         if (d < 4 && this.cool <= 0) { sim.explode(e.x + dx / d * 1.5, e.y + 0.5, e.z + dz / d * 1.5, 3, atk.dmg || 35, e, 'shock'); this.cool = atk.cooldown || 2; }
         else if (visible && this.cool <= 0 && (beh !== 'shredder')) {
           if (sim.rng() < 0.5) this.mortar(t); else this.rockets(t, 4);
@@ -292,7 +293,7 @@ export class ArkBrain {
         const want = beh === 'turret' ? 0 : beh === 'bastion' ? 14 : def.flying ? 10 : 8;
         this.turnTo(a, dt, beh === 'bastion' ? (def.gunTurnRate || 120) : null);
         if (!this.fixed) {
-          if (d > want + 6 || !visible) this.moveTo(t.x, t.z, dt, 0.9);
+          if (d > want + 6 || !visible) this.moveTo(t.x, t.z, dt, 0.9, t.y);
           else if (d < want - 3) this.moveTo(e.x - dx / d * 4, e.z - dz / d * 4, dt, 0.5);
           else if (def.flying) { const s = Math.sin(sim.t * 0.9 + e.id) > 0 ? 1 : -1; this.moveTo(e.x + dz / d * 3 * s, e.z - dx / d * 3 * s, dt, 0.35); }
         }
@@ -341,19 +342,19 @@ export class ArkBrain {
   mortar(t) {
     const e = this.e, atk = this.def.attack || {};
     const tx = t.x + (this.sim.rng() - 0.5) * 4, tz = t.z + (this.sim.rng() - 0.5) * 4;
-    const T = 2.4, g = 12, o = this.muzzle(), ty = this.sim.ground(tx, tz);
+    const T = 2.4, g = 12, o = this.muzzle(), ty = this.sim.floor(tx, tz, t.y + 0.5);
     this.sim.launch(e, 'mortar', o.x, o.y + 1, o.z, (tx - o.x) / T, (ty - o.y - 1 + 0.5 * g * T * T) / T, (tz - o.z) / T, { dmg: atk.dmg || 50, radius: atk.radius || 4, team: -1, g });
     this.sim.emit({ e: 'mortar', id: e.id, x: tx, z: tz, t: T });
   }
   startLeap(t, airTime, latchChance) {
     const e = this.e;
-    this.leap = { x0: e.x, z0: e.z, x1: t.x, z1: t.z, T: airTime, t: 0, latch: latchChance, tgt: t.id };
+    this.leap = { x0: e.x, z0: e.z, y0: e.y, x1: t.x, z1: t.z, y1: t.y ?? e.y, T: airTime, t: 0, latch: latchChance, tgt: t.id };
     this.sim.emit({ e: 'leap', id: e.id, x: t.x, z: t.z, T: airTime });
   }
   updateLeap(dt) {
     const e = this.e, L = this.leap, atk = this.def.attack || {};
     L.t += dt; const k = Math.min(1, L.t / L.T);
-    e.x = L.x0 + (L.x1 - L.x0) * k; e.z = L.z0 + (L.z1 - L.z0) * k; e.y = this.sim.ground(e.x, e.z);
+    e.x = L.x0 + (L.x1 - L.x0) * k; e.z = L.z0 + (L.z1 - L.z0) * k; e.y = this.sim.floor(e.x, e.z, Math.max(L.y0, L.y1) + 0.5);
     e.alt = Math.sin(k * Math.PI) * (this.def.behavior === 'leaper' ? 4 : 1.5);
     if (k >= 1) {
       this.leap = null; e.alt = 0;
@@ -383,7 +384,7 @@ export class ArkBrain {
       for (let i = 0; i < n; i++) {
         const a = sim.rng() * Math.PI * 2, x = t.x + Math.cos(a) * 35, z = t.z + Math.sin(a) * 35;
         const w = sim.spawnArk('wasp', Math.max(5, Math.min(sim.world.w - 5, x)), Math.max(5, Math.min(sim.world.h - 5, z)), {});
-        if (w) { w.st = 'search'; w.brain.lastSeen = [t.x, t.z]; }
+        if (w) { w.st = 'search'; w.brain.lastSeen = [t.x, t.z, t.y]; }
       }
     });
   }
