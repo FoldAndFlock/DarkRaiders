@@ -210,6 +210,60 @@ export class Ripples {
   }
 }
 
+// --- Ground rings: telegraphs (mortar targets, leap landings), pings, extraction zones
+export class GroundRings {
+  constructor(scene, max = 64) {
+    this.max = max; this.list = [];
+    const g = new THREE.InstancedBufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1], 3));
+    g.setIndex([0, 2, 1, 0, 3, 2]);
+    this.a = new THREE.InstancedBufferAttribute(new Float32Array(max * 4), 4).setUsage(THREE.DynamicDrawUsage);  // x,y,z,r
+    this.b = new THREE.InstancedBufferAttribute(new Float32Array(max * 4), 4).setUsage(THREE.DynamicDrawUsage);  // rgb, alpha
+    this.c = new THREE.InstancedBufferAttribute(new Float32Array(max * 2), 2).setUsage(THREE.DynamicDrawUsage);  // progress, style
+    g.setAttribute('aA', this.a); g.setAttribute('aB', this.b); g.setAttribute('aC', this.c);
+    g.instanceCount = 0;
+    this.mesh = new THREE.Mesh(g, new THREE.ShaderMaterial({
+      uniforms: { uTime: GU.uTime },
+      vertexShader: /* glsl */`
+        attribute vec4 aA; attribute vec4 aB; attribute vec2 aC; varying vec2 vL; varying vec4 vB; varying vec2 vC; varying float vR;
+        void main(){ vL = position.xz * aA.w; vB = aB; vC = aC; vR = aA.w;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(aA.x + position.x * aA.w, aA.y, aA.z + position.z * aA.w, 1.0); }`,
+      fragmentShader: /* glsl */`
+        uniform float uTime; varying vec2 vL; varying vec4 vB; varying vec2 vC; varying float vR;
+        void main(){
+          vec2 q = floor(vL * 16.0 + 0.5) / 16.0; float d = length(q);
+          if (d > vR) discard;
+          float edge = 1.0 - smoothstep(0.0, 0.09, abs(d - vR + 0.06));
+          float fill = vC.y > 0.5 ? step(d, vR * vC.x) * 0.35 : 0.0;           // style 1: filling disk (countdown)
+          float pulse = 0.6 + 0.4 * sin(uTime * 10.0);
+          float a = max(edge * pulse, fill) * vB.a;
+          if (a < 0.05) discard;
+          gl_FragColor = vec4(vB.rgb * a, a);
+        }`,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8,
+    }));
+    this.mesh.frustumCulled = false; this.mesh.renderOrder = 7;
+    scene.add(this.mesh);
+  }
+  add(x, y, z, r, color = 0xff3020, life = 2, style = 1, key = null) {
+    if (key) this.list = this.list.filter(l => l.key !== key);
+    if (this.list.length >= this.max) this.list.shift();
+    const c = new THREE.Color(color);
+    this.list.push({ x, y, z, r, c, life, age: 0, style, key });
+  }
+  update(dt) {
+    this.list = this.list.filter(l => (l.age += dt) < l.life || l.life < 0);
+    this.list.forEach((l, i) => {
+      this.a.setXYZW(i, l.x, l.y + 0.05, l.z, l.r);
+      this.b.setXYZW(i, l.c.r, l.c.g, l.c.b, l.life < 0 ? 1 : Math.min(1, (l.life - l.age) * 3));
+      this.c.setXY(i, l.life < 0 ? 1 : l.age / l.life, l.style);
+    });
+    this.a.needsUpdate = this.b.needsUpdate = this.c.needsUpdate = true;
+    this.mesh.geometry.instanceCount = this.list.length;
+  }
+}
+
 // --- Tracers: short bright additive line segments
 export class Tracers {
   constructor(scene, max = 300) {
@@ -247,8 +301,9 @@ export class FX {
     this.rain = new Rain(scene);
     this.ripples = new Ripples(scene);
     this.tracers = new Tracers(scene);
+    this.rings = new GroundRings(scene);
   }
-  update(dt) { this.parts.update(dt); this.glow.update(dt); this.ripples.update(dt); this.tracers.update(dt); }
+  update(dt) { this.parts.update(dt); this.glow.update(dt); this.ripples.update(dt); this.tracers.update(dt); this.rings.update(dt); }
   smoke(x, y, z, n = 6, dark = false, spread = 0.6, wind = GU.uWind.value) {
     for (let i = 0; i < n; i++) this.parts.emit({
       x: x + (Math.random() - .5) * spread, y: y + Math.random() * 0.4, z: z + (Math.random() - .5) * spread,

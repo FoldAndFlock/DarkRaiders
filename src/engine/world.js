@@ -298,6 +298,13 @@ export class World {
     }, 'add');
   }
   flatten(x0, z0, x1, z1, h = null, blend = 2) { this.flattens.push({ x0, z0, x1, z1, h, blend }); }
+  // linear ramp inside a rectangle from height h0 to h1 along axis 'x' (west->east) or 'z' (north->south)
+  ramp(x0, z0, x1, z1, h0, h1, axis = 'z') {
+    this._area(x0, z0, x1, z1, (x, z, i) => {
+      const t = axis === 'x' ? (x - x0) / Math.max(1e-6, x1 - x0) : (z - z0) / Math.max(1e-6, z1 - z0);
+      this.hv[i] = h0 + (h1 - h0) * clamp(t, 0, 1);
+    });
+  }
 
   // =============================================================== PAINT
   paint(name, x0, z0, x1, z1) {
@@ -636,7 +643,15 @@ export class World {
       const B = this.buildings[bid], fy = B.floorY, x = b.x, z = b.z, w = b.w, d = b.d, wall = b.wall || 'plaster';
       const rt = b.roof || 'roofTar', top = fy + h;
       box(rt, b.roofTint, bid, x - 0.15, top, z - 0.15, x + w + 0.15, top + 0.25, z + d + 0.15);
-      if (b.parapet !== false) {
+      if (b.roofShape === 'gable') {
+        // stepped voxel gable along the long axis
+        const alongX = w >= d, span = alongX ? d : w, steps = Math.max(2, Math.floor(span / 0.9));
+        for (let s2 = 1; s2 < steps / 2; s2++) {
+          const inset = s2 * span / steps, y0 = top + 0.25 + (s2 - 1) * 0.45, y1 = y0 + 0.45;
+          if (alongX) box(rt, b.roofTint, bid, x - 0.3, y0, z + inset - 0.3, x + w + 0.3, y1, z + d - inset + 0.3);
+          else box(rt, b.roofTint, bid, x + inset - 0.3, y0, z - 0.3, x + w - inset + 0.3, y1, z + d + 0.3);
+        }
+      } else if (b.parapet !== false) {
         const p = 0.4, y0 = top + 0.25, y1 = y0 + p;
         box(wall, b.tint, bid, x - 0.15, y0, z - 0.15, x + w + 0.15, y1, z + 0.15);
         box(wall, b.tint, bid, x - 0.15, y0, z + d - 0.15, x + w + 0.15, y1, z + d + 0.15);

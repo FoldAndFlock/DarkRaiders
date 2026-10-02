@@ -91,21 +91,16 @@ export class HUD {
 
   player(st) {
     const p = st.player; if (!p) return;
-    const c = this.x, x = 6, y = this.H - 44;
+    const x = 6, y = this.H - 44;
     this.panel(x, y, 128, 38);
-    this.text(p.name, x + 5, y + 4, { color: UI.cream });
-    this.text(String(Math.ceil(p.hp)), x + 123, y + 4, { color: p.hp / p.hpMax < 0.3 ? UI.red : UI.cream, align: 'right' });
-    if (p.level) this.text('LV' + p.level, x + 98, y + 4, { color: UI.yellow, align: 'right' });
-    // shield segments
+    this.text(p.name.slice(0, 12).toUpperCase(), x + 5, y + 4, { color: UI.cream });
+    if (p.level) this.text('LV' + p.level, x + 123, y + 4, { color: UI.yellow, align: 'right' });
     this.bar(x + 5, y + 14, 118, 4, p.shield / Math.max(1, p.shieldMax), UI.cyan, '#1c2a30', p.shieldMax ? Math.max(1, Math.round(p.shieldMax / 20)) : 0);
-    // health
     const hcol = p.hp / p.hpMax < 0.3 ? (Math.floor(this.t * 3) % 2 ? UI.red : '#a83020') : UI.cream;
     this.bar(x + 5, y + 20, 118, 6, p.hp / p.hpMax, hcol, '#2a1a18');
-
-    // stamina
-    this.bar(x + 5, y + 29, 118, 2, p.stamina, UI.yellow, '#2a2618');
-    if (p.weight) this.text(`${p.weight.toFixed(1)}/${p.weightMax}KG`, x + 70, y + 4, { color: p.weight > p.weightMax ? UI.red : UI.dim, align: 'right' });
-    void c;
+    this.bar(x + 5, y + 28, 118, 2, p.stamina, UI.yellow, '#2a2618');
+    this.text(String(Math.ceil(p.hp)) + ' HP', x + 5, y + 31, { color: p.hp / p.hpMax < 0.3 ? UI.red : UI.dim, font: 'small' });
+    if (p.weight != null) this.text(`${p.weight.toFixed(1)}/${p.weightMax}KG`, x + 123, y + 31, { color: p.weight > p.weightMax ? UI.red : UI.dim, align: 'right', font: 'small' });
   }
 
   team(team) {

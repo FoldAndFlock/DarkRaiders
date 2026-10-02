@@ -1,0 +1,559 @@
+// Host-authoritative raid simulation. Pure logic: no rendering. The local view and the network
+// layer consume `sim.events` (cleared each tick by the caller) and entity state.
+import { mulberry } from '../engine/world.js';
+import { Nav } from './nav.js';
+import { ITEMS, makeStack } from './items.js';
+import { rollContainer, rollArkDrops, searchTime } from './loot.js';
+import { ArkBrain, arkDefFor } from './ark_ai.js';
+export { arkDefFor };
+import { BotBrain } from './bot_ai.js';
+
+const HASH = 16;
+export const RAIDER_R = 0.35, RAIDER_H = 1.85, CROUCH_H = 1.2;
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const ang = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
+
+export class Sim {
+  constructor(world, map, opts = {}) {
+    this.world = world; this.grid = world.grid; this.map = map;
+    this.nav = new Nav(world);
+    this.seed = opts.seed || 1;
+    this.rng = mulberry(this.seed * 31 + 7);
+    this.t = 0; this.raidLen = opts.raidLen || 1800; this.timeLeft = this.raidLen;
+    this.cond = opts.condition || null;       // condition def
+    this.condEffects = this.cond?.effects || {};
+    this.entities = new Map(); this.nextId = 1;
+    this.events = [];
+    this.hash = new Map();
+    this.noises = [];
+    this.smokes = [];
+    this.containers = world.containers.map((c, i) => ({ ...c, i, contents: null, opened: false }));
+    this.doors = world.doors.map((d, i) => ({ ...d, i, open: !d.locked && !d.closed }));
+    this.extracts = world.extracts.map((e, i) => ({ ...e, i, state: 'idle', t: 0, y: world.groundAt(e.x, e.z) }));
+    this.raidEnded = false;
+    this.squads = new Map();
+    this.warned = {};
+    this.timers = [];
+    this.mapId = map.id;
+    for (const d of this.doors) if (!d.open) this._doorBlock(d, true);
+  }
+
+  // ------------------------------------------------------------------ entities
+  add(e) { e.id = this.nextId++; this.entities.set(e.id, e); return e; }
+  remove(e) { this.entities.delete(e.id); this.emit({ e: 'rm', id: e.id }); }
+  emit(ev) { this.events.push(ev); }
+  ground(x, z) { return this.world.groundAt(x, z); }
+
+  addRaider(o) {
+    const st = o.stats || {};
+    const e = this.add({
+      type: 'raider', pid: o.pid, name: o.name || 'Raider', bot: !!o.bot, team: o.team ?? 1, outfit: o.outfit || 'scav',
+      x: o.x, z: o.z, y: this.ground(o.x, o.z), f: o.f || 0, mf: 0, moving: false, sprint: false, crouch: false,
+      hp: st.max_hp || 100, maxHp: st.max_hp || 100, sh: 0, shMax: 0, shMit: 0, st: 'alive', downHp: 0,
+      wid: null, wk: 'rifle', flash: false, r: RAIDER_R, h: RAIDER_H, hot: [], buffs: {}, regenPause: 0,
+      stats: st, kills: 0, dmgDealt: 0, temper: o.temper || 'player', lastHit: -99, emote: null, emoteT: 0,
+    });
+    if (o.shield) this.setShield(e, o.shield);
+    return e;
+  }
+  setShield(e, shieldStack, charge = null) {
+    const d = shieldStack ? ITEMS[shieldStack.id]?.shield : null;
+    if (!d) { e.sh = e.shMax = e.shMit = 0; e.shCls = null; return; }
+    e.shMax = d.capacity * (e.stats?.shield_capacity || 1); e.shMit = d.mitigation; e.shCls = d.cls;
+    e.sh = charge ?? e.shMax;
+  }
+
+  spawnArk(arch, x, z, opts = {}) {
+    const def = arkDefFor(arch);
+    if (!def) return null;
+    const e = this.add({
+      type: 'ark', kind: def.id, arch, def, x, z, y: this.ground(x, z), f: opts.f ?? this.rng() * Math.PI * 2,
+      alt: def.flying ? (def.altitude || def.height || 2.4) : 0, hp: def.hp * (opts.hpMul || 1), maxHp: def.hp * (opts.hpMul || 1),
+      st: 'idle', r: def.radius || 0.6, h: def.size?.height ?? def.height ?? 1, parts: {}, zones: [], vis: 0, dormant: true,
+    });
+    for (const z0 of def.hitzones || []) {
+      const mx = z0.mirrorX ? [1, -1] : [1], mz = z0.mirrorZ ? [1, -1] : [1];
+      let k = 0;
+      for (const sx of mx) for (const sz of mz) {
+        const zn = { ...z0, x: (z0.x || 0) * sx, z: (z0.z || 0) * sz, key: z0.name + (mx.length * mz.length > 1 ? '_' + (k++) : '') };
+        e.zones.push(zn); if (zn.hp) e.parts[zn.key] = zn.hp;
+      }
+    }
+    e.brain = new ArkBrain(this, e, opts);
+    return e;
+  }
+
+  // ------------------------------------------------------------------ spatial hash
+  _rehash() {
+    this.hash.clear();
+    for (const e of this.entities.values()) {
+      if (e.type !== 'raider' && e.type !== 'ark') continue;
+      const k = Math.floor(e.x / HASH) + ',' + Math.floor(e.z / HASH);
+      let b = this.hash.get(k); if (!b) this.hash.set(k, b = []); b.push(e);
+    }
+  }
+  near(x, z, r, fn) {
+    const x0 = Math.floor((x - r) / HASH), x1 = Math.floor((x + r) / HASH), z0 = Math.floor((z - r) / HASH), z1 = Math.floor((z + r) / HASH);
+    for (let bz = z0; bz <= z1; bz++) for (let bx = x0; bx <= x1; bx++) {
+      const b = this.hash.get(bx + ',' + bz); if (!b) continue;
+      for (const e of b) if ((e.x - x) ** 2 + (e.z - z) ** 2 <= r * r) fn(e);
+    }
+  }
+  raiders() { return [...this.entities.values()].filter(e => e.type === 'raider'); }
+  players() { return [...this.entities.values()].filter(e => e.type === 'raider' && !e.bot); }
+
+  // ------------------------------------------------------------------ main tick
+  tick(dt) {
+    this.t += dt; this.timeLeft -= dt;
+    this._rehash();
+    const players = this.players().filter(p => p.st === 'alive' || p.st === 'downed');
+    for (const e of [...this.entities.values()]) {
+      if (e.type === 'raider') this._raider(e, dt);
+      else if (e.type === 'ark') {
+        // AI LOD: only think near any raider
+        let near = false; for (const p of players) if (Math.abs(p.x - e.x) < 80 && Math.abs(p.z - e.z) < 70) { near = true; break; }
+        if (!near) for (const b of this.entities.values()) if (b.type === 'raider' && b.bot && b.st === 'alive' && Math.abs(b.x - e.x) < 40 && Math.abs(b.z - e.z) < 40) { near = true; break; }
+        e.dormant = !near;
+        if (near || e.st === 'alert') e.brain.update(dt);
+      } else if (e.type === 'proj') this._proj(e, dt);
+      else if (e.type === 'hz') this._hazard(e, dt);
+      else if (e.type === 'loot' && e.items.length === 0 && this.t - e.born > 2) this.remove(e);
+    }
+    this._extracts(dt);
+    this._timer();
+    if (this.timers.length) { const due = this.timers.filter(t => t.at <= this.t); this.timers = this.timers.filter(t => t.at > this.t); for (const t of due) t.fn(); }
+    this.noises = this.noises.filter(n => this.t - n.t < 0.25);
+  }
+
+  _raider(e, dt) {
+    e.y = this.ground(e.x, e.z);
+    if (e.emoteT > 0) { e.emoteT -= dt; if (e.emoteT <= 0) e.emote = null; }
+    if (e.st === 'alive') {
+      // heal/shield over time queue
+      for (const h of e.hot) {
+        const step = Math.min(h.left, h.rate * dt); h.left -= step;
+        if (h.kind === 'hp') e.hp = Math.min(e.maxHp, e.hp + step); else e.sh = Math.min(e.shMax, e.sh + step);
+      }
+      e.hot = e.hot.filter(h => h.left > 0.01);
+      if (e.stats?.shield_regen && this.t - e.lastHit > 6) e.sh = Math.min(e.shMax, e.sh + e.stats.shield_regen * dt);
+      if (e.regen && this.t - e.lastHit > e.regen.pauseAfterHit) { e.regenAcc = (e.regenAcc || 0) + dt; if (e.regenAcc >= e.regen.every) { e.regenAcc = 0; e.hp = Math.min(e.maxHp, e.hp + e.regen.amount); } }
+      for (const k in e.buffs) { e.buffs[k] -= dt; if (e.buffs[k] <= 0) delete e.buffs[k]; }
+      // footstep noise for AI hearing
+      if (e.moving && !e.crouch) {
+        e.stepAcc = (e.stepAcc || 0) + dt;
+        if (e.stepAcc > 0.5) { e.stepAcc = 0; this.noise(e.x, e.z, (e.sprint ? 11 : 6) * (e.stats?.footstep_mul || 1) * (e.stats?.noise_mul || 1), e); }
+      }
+    } else if (e.st === 'downed') {
+      e.downHp -= dt * (e.bot ? 8 : 2.4);
+      if (e.reviveBy) {
+        const r = this.entities.get(e.reviveBy);
+        if (!r || r.st !== 'alive' || Math.hypot(r.x - e.x, r.z - e.z) > 2.2) { e.reviveBy = null; e.reviveT = 0; }
+        else { e.reviveT += dt * (r.stats?.revive_speed || 1); if (e.reviveT >= 5) this.revive(e, r); }
+      }
+      if (e.downHp <= 0) this.kill(e, e.lastSrc);
+    }
+    if (e.bot && e.brain) e.brain.update(dt);
+  }
+
+  // ------------------------------------------------------------------ perception helpers
+  later(delay, fn) { this.timers.push({ at: this.t + delay, fn }); }
+  noise(x, z, r, src = null) { this.noises.push({ x, z, r, src: src?.id, t: this.t, team: src?.team }); }
+  inSmoke(x, z) { for (const s of this.smokes) if ((s.x - x) ** 2 + (s.z - z) ** 2 < s.r * s.r) return true; return false; }
+  smokeBetween(x0, z0, x1, z1) {
+    for (const s of this.smokes) {
+      const dx = x1 - x0, dz = z1 - z0, l2 = dx * dx + dz * dz || 1;
+      const t = clamp(((s.x - x0) * dx + (s.z - z0) * dz) / l2, 0, 1);
+      if ((x0 + dx * t - s.x) ** 2 + (z0 + dz * t - s.z) ** 2 < s.r * s.r * 0.8) return true;
+    }
+    return false;
+  }
+  canSee(obs, tgt, eyeY) {
+    const ty = tgt.y + (tgt.alt || 0) + (tgt.crouch ? 0.8 : 1.3);
+    if (!this.grid.los(obs.x, eyeY, obs.z, tgt.x, ty, tgt.z)) return false;
+    if (this.smokeBetween(obs.x, obs.z, tgt.x, tgt.z)) return false;
+    return true;
+  }
+
+  // ------------------------------------------------------------------ combat
+  // resolve a shot (all pellets). o={x,y,z}, a = yaw, dy = vertical slope, w = weapon stats
+  shoot(owner, o, a, dy, w, opts = {}) {
+    const pellets = Math.max(1, Math.round(w.pellets || 1));
+    const spreadDeg = opts.spread ?? 0;
+    const hits = [];
+    for (let p = 0; p < pellets; p++) {
+      const sa = a + ((this.rng() + this.rng() - 1) * spreadDeg * Math.PI / 180) * (pellets > 1 ? 1 : 1);
+      const dx = Math.sin(sa), dz = Math.cos(sa);
+      const maxD = (w.range || 30) * (w.mode === 'launcher' ? 1.5 : 2.0);
+      let bestD = this.grid.ray(o.x, o.z, dx, dz, maxD, o.y, dy);
+      let best = null, bestZone = null;
+      const cx = o.x + dx * bestD / 2, cz = o.z + dz * bestD / 2;
+      this.near(cx, cz, bestD / 2 + 3, (e) => {
+        if (e === owner || e.st === 'dead' || e.st === 'out') return;
+        if (owner?.type === 'ark' && e.type === 'ark') return;
+        if (opts.team != null && e.type === 'raider' && e.team === opts.team) return;
+        if (e.type === 'raider' && opts.team != null && owner?.bot === false && !e.bot && e.team === owner.team) return;
+        const t = rayCircle(o.x, o.z, dx, dz, e.x, e.z, e.r + (e.type === 'ark' ? 0.15 : 0.05));
+        if (t == null || t >= bestD) return;
+        const hy = o.y + dy * t, base = e.y + (e.alt || 0) - (e.type === 'ark' && e.alt ? e.h * 0.5 : 0);
+        const top = base + (e.type === 'raider' ? (e.crouch || e.st === 'downed' ? (e.st === 'downed' ? 0.6 : CROUCH_H) : RAIDER_H) : e.h + 0.4);
+        if (hy < base - 0.3 || hy > top + 0.3) return;
+        let zone = null, zt = t;
+        if (e.type === 'ark' && e.zones.length) {
+          for (const zn of e.zones) {
+            if (zn.hp && e.parts[zn.key] <= 0) continue;
+            if (zn.requiresBroken && !zn.requiresBroken.every(n => Object.entries(e.parts).some(([k, v]) => k.startsWith(n) && v <= 0))) continue;
+            if (zn.exposedWhen === 'landed' && !(e.brain?.exposedUntil > this.t)) continue;
+            const [wx, wz] = zoneWorld(e, zn);
+            const tz = rayCircle(o.x, o.z, dx, dz, wx, wz, zn.r || 0.3);
+            if (tz == null || tz > zt + 0.6) continue;
+            if (zn.arc) { // only exposed toward one side: `dir` degrees from the ARK's forward
+              let ex, ez;
+              if (zn.dir != null) { const da = e.f + zn.dir * Math.PI / 180; ex = Math.sin(da); ez = Math.cos(da); }
+              else { const zx = wx - e.x, zz = wz - e.z, zl = Math.hypot(zx, zz) || 1; ex = zx / zl; ez = zz / zl; }
+              if (-(dx * ex + dz * ez) < Math.cos((zn.arc / 2) * Math.PI / 180)) continue;
+            }
+            if (!zone || tz < zt) { zone = zn; zt = Math.min(zt, tz); }
+          }
+        }
+        bestD = zone ? Math.min(t, zt) : t; best = e; bestZone = zone;
+      });
+      const hx = o.x + dx * bestD, hz = o.z + dz * bestD, hy = o.y + dy * bestD;
+      let res = 'w';
+      if (best) {
+        let dmg = (w.dmg || 10) * (opts.dmgMul || 1);
+        if (bestD > (w.range || 30)) dmg *= Math.max(0.3, 1 - (bestD - w.range) / (w.range * 1.2));
+        res = this.damage(best, dmg, owner, { zone: bestZone, armorPen: w.armorPen || 0, x: hx, z: hz, dirX: dx, dirZ: dz, weapon: opts.weaponId, arkMul: opts.arkMul });
+      }
+      hits.push({ h: [+hx.toFixed(2), +hy.toFixed(2), +hz.toFixed(2)], r: res, s: best ? 0 : this.grid.surfAt(hx - dx * 0.3, hz - dz * 0.3) });
+    }
+    const ev = { e: 'shot', s: owner?.id, o: [+o.x.toFixed(2), +o.y.toFixed(2), +o.z.toFixed(2)], hits, k: opts.vis || 'rifle', snd: opts.snd };
+    this.emit(ev);
+    this.noise(o.x, o.z, (w.noise || 35) * (owner?.stats?.noise_mul || 1), owner);
+    return hits;
+  }
+
+  // returns result code for the hit marker: 'a' ark, 'aw' weak point, 'aa' armour, 'p' raider, 's' shield, 'k' kill
+  damage(e, dmg, src, o = {}) {
+    if (e.st === 'dead' || e.st === 'out') return 'w';
+    let res = 'p';
+    if (e.type === 'ark') {
+      res = 'a';
+      let mul = o.zone?.mul ?? 1, armor = o.zone?.armor ?? (e.def.armor || 0);
+      if (o.zone && (o.zone.mul || 1) > 1.2) res = 'aw';
+      if (armor > 0.3) res = 'aa';
+      dmg = dmg * mul * (1 - armor * (1 - (o.armorPen || 0))) * (o.arkMul || src?.stats?.arc_damage || 1);
+      if (o.explosive && e.def.explosiveMul) dmg *= e.def.explosiveMul;
+      if (o.zone?.hp && e.parts[o.zone.key] > 0) {
+        e.parts[o.zone.key] -= dmg;
+        if (e.parts[o.zone.key] <= 0) { this.emit({ e: 'part', id: e.id, zone: o.zone.key, x: o.x, z: o.z }); e.brain.partBroken(o.zone); }
+      }
+      e.hp -= dmg;
+      e.brain.onHit(src, dmg);
+      if (src) src.dmgDealt = (src.dmgDealt || 0) + dmg;
+      if (e.hp <= 0) { this.killArk(e, src); res = 'k'; }
+    } else if (e.type === 'raider') {
+      if (e.buffs?.invuln) return 'w';
+      dmg *= 1 - (e.stats?.damage_reduction || 0);
+      if (o.explosive) dmg *= 1 - (e.stats?.explosive_resist || 0);
+      e.lastHit = this.t; e.lastSrc = src?.id;
+      if (e.st === 'downed') { e.downHp -= dmg; if (e.downHp <= 0) this.kill(e, src?.id); return 'p'; }
+      if (e.sh > 0 && !o.bypassShield) {
+        const absorb = Math.min(e.sh, dmg * e.shMit);
+        e.sh -= absorb; dmg -= absorb; res = 's';
+        if (e.sh <= 0.01) { e.sh = 0; this.emit({ e: 'shieldbreak', id: e.id }); }
+      }
+      e.hp -= dmg;
+      this.emit({ e: 'hurt', id: e.id, d: Math.round(dmg), src: src?.id, x: o.x, z: o.z });
+      if (e.bot && e.brain) e.brain.onHit(src, dmg);
+      if (e.hp <= 0) { this.down(e, src); res = 'k'; }
+    }
+    return res;
+  }
+  down(e, src) {
+    if (e.bot) { this.kill(e, src?.id); return; }
+    e.hp = 0; e.st = 'downed'; e.downHp = e.stats?.downed_hp || 75; e.reviveT = 0; e.hot = [];
+    this.emit({ e: 'downed', id: e.id, src: src?.id });
+  }
+  revive(e, by) {
+    e.st = 'alive'; e.hp = Math.max(25, e.maxHp * 0.3); e.reviveBy = null; e.reviveT = 0;
+    this.emit({ e: 'revived', id: e.id, by: by?.id });
+  }
+  kill(e, srcId) {
+    if (e.st === 'dead') return;
+    e.st = 'dead'; e.hp = 0;
+    const src = this.entities.get(srcId);
+    if (src && src.type === 'raider') src.kills++;
+    this.emit({ e: 'killed', id: e.id, src: srcId, name: e.name, by: src?.name || src?.def?.name || null });
+    if (e.bot) {
+      // bots drop their kit as a bag
+      const items = e.brain?.dropItems() || [];
+      this.dropLoot(e.x, e.z, items, 'raider');
+      this.later(20, () => this.entities.has(e.id) && this.remove(e));
+    }
+  }
+  killArk(e, src) {
+    if (e.st === 'dead') return;
+    e.st = 'dead';
+    if (src) src.kills = (src.kills || 0) + 1;
+    this.emit({ e: 'arkdown', id: e.id, kind: e.kind, x: e.x, z: e.z, y: e.y + (e.alt || 0), src: src?.id, xp: e.def.xp || 20, big: (e.def.hp || 100) > 600 });
+    const items = rollArkDrops(e.def.loot, this.rng, this.condEffects.lootMul || 1);
+    this.dropLoot(e.x, e.z, items, 'ark', e.kind);
+    if (e.def.explodeOnDeath || (e.def.behavior === 'pop' && !e.def.noDeathBlast && e.kind !== 'komet')) this.explode(e.x, e.y + 0.5, e.z, e.def.attack?.radius || 3.5, e.def.attack?.dmg || 40, null, 'frag');
+    if ((e.def.hp || 0) >= 300 && !e.def.flying) {
+      // big husks stay as salvageable containers
+      const c = { kind: 'arc_husk', x: e.x, z: e.z, y: e.y, rot: e.f, tier: (e.def.hp > 1500 ? 3 : 2), i: this.containers.length, contents: null, opened: false, dynamic: true, label: e.def.name + ' Husk' };
+      this.containers.push(c); this.emit({ e: 'container', c: { kind: c.kind, x: c.x, z: c.z, y: c.y, rot: c.rot, tier: c.tier, i: c.i, dynamic: true, label: c.label } });
+    }
+    this.remove(e);
+  }
+  dropLoot(x, z, items, kind = 'bag', label = null) {
+    if (!items.length) return null;
+    const l = this.add({ type: 'loot', kind, x, z, y: this.ground(x, z), items, born: this.t, label });
+    this.emit({ e: 'loot', id: l.id, x, z, y: l.y, kind, label, n: items.length });
+    return l;
+  }
+  explode(x, y, z, radius, dmg, src, kind = 'frag') {
+    this.emit({ e: 'boom', x, y, z, r: radius, k: kind });
+    this.noise(x, z, 60, src);
+    this._rehash();
+    this.near(x, z, radius + 1.5, (e) => {
+      if (e.st === 'dead') return;
+      const ey = e.y + (e.alt || 0) + 0.8, d = Math.hypot(e.x - x, e.z - z, (ey - y) * 0.5);
+      if (d > radius + e.r) return;
+      if (!this.grid.los(x, y + 0.3, z, e.x, ey, e.z)) return;
+      const f = 1 - clamp((d - e.r) / radius, 0, 1) * 0.7;
+      const r = (src?.stats?.grenade_radius || 1);
+      this.damage(e, dmg * f * (r > 1 ? 1 : 1), src, { explosive: true, armorPen: 0.6, x: e.x, z: e.z });
+    });
+  }
+
+  // ------------------------------------------------------------------ throwables
+  throwItem(owner, itemId, tx, tz, opts = {}) {
+    const d = ITEMS[itemId]?.throw; if (!d) return null;
+    const ox = owner.x + Math.sin(owner.f) * 0.4, oz = owner.z + Math.cos(owner.f) * 0.4, oy = owner.y + 1.5;
+    let dx = tx - ox, dz = tz - oz; const dist = Math.min(22, Math.hypot(dx, dz)) || 0.1;
+    const a = Math.atan2(dx, dz); dx = Math.sin(a); dz = Math.cos(a);
+    const isMine = d.kind?.startsWith('mine') || d.kind === 'barricade';
+    const T = isMine ? 0.35 : 0.55 + dist * 0.035;
+    const vh = (isMine ? Math.min(dist, 3) : dist) / T, vy = 9.8 * T / 2 + ((this.ground(tx, tz) - oy) / T);
+    const p = this.add({ type: 'proj', kind: 'throw', item: itemId, td: d, owner: owner.id, team: owner.team, x: ox, y: oy, z: oz,
+      vx: dx * vh, vy, vz: dz * vh, fuse: d.fuse ?? 2.5, armed: false, settled: false, age: 0, g: 9.8 });
+    this.emit({ e: 'throw', id: p.id, by: owner.id, item: itemId });
+    return p;
+  }
+  launch(owner, kind, x, y, z, vx, vy, vz, opts = {}) {
+    return this.add({ type: 'proj', kind, owner: owner?.id, team: opts.team ?? owner?.team, x, y, z, vx, vy, vz, age: 0, g: opts.g ?? 0,
+      dmg: opts.dmg || 40, radius: opts.radius || 3, fuse: opts.fuse ?? 6, homing: opts.homing || null, td: opts.td || null, item: opts.item || null });
+  }
+  _proj(p, dt) {
+    p.age += dt;
+    const owner = this.entities.get(p.owner);
+    if (p.homing) {
+      const t = this.entities.get(p.homing);
+      if (t && t.st !== 'dead') { const a = Math.atan2(t.x - p.x, t.z - p.z), sp = Math.hypot(p.vx, p.vz); const cur = Math.atan2(p.vx, p.vz); const na = cur + clamp(ang(a - cur), -2.5 * dt, 2.5 * dt); p.vx = Math.sin(na) * sp; p.vz = Math.cos(na) * sp; }
+    }
+    if (!p.settled) {
+      p.vy -= p.g * dt;
+      const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt, nz = p.z + p.vz * dt;
+      const top = this.grid.topAt(nx, nz);
+      if (ny <= top) {
+        const impact = p.td?.kind === 'impact' || p.td?.kind === 'sticky' || p.kind === 'rocket' || p.kind === 'mortar';
+        if (impact) { p.x = nx; p.z = nz; p.y = Math.max(top, ny); this._detonate(p, owner); return; }
+        // bounce: wall (top above current height) reflects horizontally, ground stops
+        if (top > p.y + 0.2) { p.vx *= -0.35; p.vz *= -0.35; }
+        else { p.y = top; p.vy = Math.abs(p.vy) * 0.25; p.vx *= 0.5; p.vz *= 0.5; if (Math.hypot(p.vx, p.vz) < 0.6) { p.settled = true; p.vx = p.vz = 0; } }
+        if (!p.bounced) { p.bounced = true; this.emit({ e: 'bounce', x: p.x, z: p.z }); }
+      } else { p.x = nx; p.y = ny; p.z = nz; }
+      // direct hit on ARK for rockets/impact
+      if (p.kind === 'rocket' || p.td?.kind === 'impact') {
+        let hit = null; this.near(p.x, p.z, 2, (e) => { if (e.id !== p.owner && e.st !== 'dead' && (e.team !== p.team || e.type === 'ark') && Math.hypot(e.x - p.x, e.z - p.z) < e.r + 0.3 && Math.abs(p.y - (e.y + (e.alt || 0) + 0.8)) < 1.5) hit = e; });
+        if (hit) { this._detonate(p, owner); return; }
+      }
+    }
+    const k = p.td?.kind;
+    if (k && k.startsWith('mine')) {
+      if (p.settled && !p.armed && p.age > 1.5) { p.armed = true; this.emit({ e: 'armed', id: p.id }); }
+      if (p.armed) { let trig = false; this.near(p.x, p.z, p.td.trigger || 2.5, (e) => { if (e.type === 'ark' || (e.type === 'raider' && e.team !== p.team)) trig = true; }); if (trig && !p.trigT) { p.trigT = p.td.fuse || 0.8; this.emit({ e: 'beep', x: p.x, z: p.z }); } }
+      if (p.trigT) { p.trigT -= dt; if (p.trigT <= 0) this._detonate(p, owner); }
+      return;
+    }
+    if (k === 'trigger') return; // detonated remotely
+    if (p.fuse != null && p.age >= p.fuse && (p.settled || p.kind !== 'throw' || p.age > p.fuse + 2)) this._detonate(p, owner);
+    if (p.age > 30) this.remove(p);
+  }
+  _detonate(p, owner) {
+    const d = p.td || {}, k = d.kind || p.kind;
+    const r = (d.radius || p.radius || 3) * (owner?.stats?.grenade_radius || 1), dmg = d.dmg ?? p.dmg ?? 40;
+    switch (k) {
+      case 'smoke': this.addHazard('smoke', p.x, p.z, r, d.dur || 18, owner); this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
+      case 'fire': this.addHazard('fire', p.x, p.z, r, d.dur || 8, owner, d.dmg || 12); this.explode(p.x, p.y, p.z, r * 0.5, dmg * 0.4, owner, 'fire'); break;
+      case 'gas': this.addHazard('gas', p.x, p.z, r, d.dur || 12, owner, d.dmg || 6); this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
+      case 'lure': case 'noise': this.addHazard('lure', p.x, p.z, 30, d.dur || 12, owner); this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
+      case 'stun': case 'mine_jolt': this.emit({ e: 'boom', x: p.x, y: p.y, z: p.z, r, k: 'stun' }); this.near(p.x, p.z, r, (e) => { if (e.type === 'ark') e.brain.stun(d.dur || 4); else if (e.team !== p.team) e.buffs.stunned = d.dur || 2; }); break;
+      case 'tagging': this.near(p.x, p.z, r * 2, (e) => { if (e.type === 'ark' || e.team !== p.team) e.tagged = this.t + (d.dur || 15); }); this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
+      case 'flare': this.addHazard('flare', p.x, p.z, 12, d.dur || 40, owner); break;
+      case 'barricade': this.addHazard('barricade', p.x, p.z, 1.2, d.dur || 60, owner); break;
+      case 'wolfpack': {
+        for (let i = 0; i < 5; i++) { let tgt = null, bd = 30; this.near(p.x, p.z, 30, (e) => { if (e.type === 'ark' && e.st !== 'dead') { const dd = Math.hypot(e.x - p.x, e.z - p.z); if (dd < bd) { bd = dd; tgt = e; } } });
+          const a = this.rng() * Math.PI * 2; this.launch(owner, 'rocket', p.x, p.y + 1, p.z, Math.sin(a) * 10, 6, Math.cos(a) * 10, { dmg: (d.dmg || 60) / 2, radius: 2.5, g: 4, homing: tgt?.id, team: p.team }); }
+        this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
+      }
+      default: this.explode(p.x, p.y, p.z, r, dmg, owner, k === 'rocket' || k === 'mortar' ? 'rocket' : 'frag');
+    }
+    this.remove(p);
+  }
+  addHazard(kind, x, z, r, dur, owner, dps = 0) {
+    const h = this.add({ type: 'hz', kind, x, z, y: this.ground(x, z), r, dur, age: 0, owner: owner?.id, team: owner?.team, dps });
+    if (kind === 'smoke') this.smokes.push(h);
+    if (kind === 'barricade') this.world.setTop(x - 1, z - 0.3, x + 1, z + 0.3, h.y + 1.3);
+    return h;
+  }
+  _hazard(h, dt) {
+    h.age += dt;
+    if (h.kind === 'fire' || h.kind === 'gas') {
+      this.near(h.x, h.z, h.r, (e) => { if (e.st === 'alive' || e.type === 'ark') { if (e.type === 'ark' && h.kind === 'gas') return; this.damage(e, h.dps * dt, this.entities.get(h.owner), { bypassShield: h.kind === 'gas', x: e.x, z: e.z }); if (h.kind === 'gas' && e.type === 'raider') e.buffs.gassed = 1; } });
+    }
+    if (h.kind === 'lure') this.noise(h.x, h.z, 45, { id: h.owner, team: h.team });
+    if (h.age >= h.dur) {
+      if (h.kind === 'smoke') this.smokes = this.smokes.filter(s => s !== h);
+      if (h.kind === 'barricade') this.world.setTop(h.x - 1, h.z - 0.3, h.x + 1, h.z + 0.3, h.y);
+      this.remove(h);
+    }
+  }
+
+  // ------------------------------------------------------------------ interaction
+  containerContents(c, by) {
+    if (!c.contents) {
+      const r = mulberry(this.seed * 7919 + c.i * 104729);
+      const fx = this.condEffects;
+      c.contents = rollContainer(c.kind, c.tier || 1, r, { map: this.mapId, lootMul: fx.lootMul, rareMul: fx.rareMul, extra: (by?.stats?.extra_loot_chance || 0) > r() ? 1 : 0 });
+    }
+    return c.contents;
+  }
+  openContainer(c, by) {
+    const items = this.containerContents(c, by);
+    if (!c.opened) { c.opened = true; this.emit({ e: 'opened', i: c.i, by: by?.id }); this.noise(c.x, c.z, 6, by); }
+    return items;
+  }
+  takeFrom(list, uid, qty = null) {
+    const i = list.findIndex(s => s.uid === uid); if (i < 0) return null;
+    const s = list[i];
+    if (qty == null || qty >= s.qty) { list.splice(i, 1); return s; }
+    s.qty -= qty; return { ...s, qty, uid: s.uid + 'x' + (this.t * 1000 | 0) };
+  }
+  searchTimeFor(kind, by) { return searchTime(kind) / (by?.stats?.loot_speed || 1); }
+
+  toggleDoor(d, by, hasKey = false) {
+    if (d.locked && !hasKey) { this.emit({ e: 'locked', i: d.i, by: by?.id }); return false; }
+    if (d.locked) { d.locked = null; this.emit({ e: 'unlocked', i: d.i, by: by?.id }); }
+    d.open = !d.open; this._doorBlock(d, !d.open);
+    this.emit({ e: 'door', i: d.i, open: d.open });
+    this.noise(d.x, d.z, 8, by);
+    return true;
+  }
+  _doorBlock(d, closed) {
+    const hw = d.w / 2, ht = (d.thick || 0.3) / 2 + 0.05, g = this.ground(d.x, d.z);
+    const top = closed ? g + 2.4 : g;
+    if (d.axis === 'x') this.world.setTop(d.x - hw, d.z - ht, d.x + hw, d.z + ht, top);
+    else this.world.setTop(d.x - ht, d.z - hw, d.x + ht, d.z + hw, top);
+  }
+
+  callExtract(x, by) {
+    if (x.state !== 'idle') return false;
+    if (x.kind === 'hatch') return false;
+    x.state = 'called'; x.t = x.callTime || 25;
+    this.emit({ e: 'xcall', i: x.i, by: by?.id });
+    this.noise(x.x, x.z, 70, by);
+    // the ARK hear the elevator: pull nearby machines toward it
+    this.near(x.x, x.z, 70, (e) => { if (e.type === 'ark') e.brain.investigate(x.x, x.z, true); });
+    return true;
+  }
+  _extracts(dt) {
+    for (const x of this.extracts) {
+      if (x.state === 'called') { x.t -= dt; if (x.t <= 0) { x.state = 'open'; x.t = 12; this.emit({ e: 'xopen', i: x.i }); } }
+      else if (x.state === 'open') {
+        x.t -= dt;
+        if (x.t <= 0) {
+          const who = [];
+          for (const e of this.entities.values()) if (e.type === 'raider' && e.st === 'alive' && Math.hypot(e.x - x.x, e.z - x.z) < 3.4) who.push(e);
+          for (const e of who) this.extractRaider(e, x);
+          x.state = 'gone'; x.t = 75; this.emit({ e: 'xgone', i: x.i, n: who.length });
+        }
+      } else if (x.state === 'gone') { x.t -= dt; if (x.t <= 0) { x.state = 'idle'; this.emit({ e: 'xidle', i: x.i }); } }
+    }
+  }
+  extractRaider(e, x) {
+    if (e.st !== 'alive') return;
+    e.st = 'out'; e.extractedAt = this.t;
+    this.emit({ e: 'extracted', id: e.id, x: x?.i ?? -1, name: e.name });
+    if (e.bot) this.remove(e);
+  }
+  _timer() {
+    const tl = this.timeLeft;
+    for (const [mark, msg] of [[600, '10 MINUTES REMAIN'], [300, '5 MINUTES REMAIN'], [120, 'ARK SWARM INBOUND - 2 MINUTES'], [60, '60 SECONDS']]) {
+      if (tl <= mark && !this.warned[mark]) { this.warned[mark] = true; this.emit({ e: 'warn', msg, t: mark }); }
+    }
+    if (tl <= 0 && !this.raidEnded) {
+      this.raidEnded = true;
+      for (const e of this.entities.values()) if (e.type === 'raider' && (e.st === 'alive' || e.st === 'downed')) this.kill(e, null);
+      this.emit({ e: 'raidover' });
+    }
+  }
+
+  // ------------------------------------------------------------------ population
+  populate() {
+    const fx = this.condEffects;
+    const mul = fx.arkMul || 1;
+    for (const s of this.world.arkSpawns) {
+      const n = Math.max(1, Math.round(s.count * mul));
+      for (let i = 0; i < n; i++) {
+        const [x, z] = this.nav.randomOpenNear(s.x, s.z, s.radius || 4, this.rng);
+        const def = arkDefFor(s.kind);
+        const fixed = !!def?.static || def?.speed === 0;
+        this.spawnArk(s.kind, fixed ? s.x : x, fixed ? s.z : z, { patrol: s.patrol, home: [s.x, s.z], fixed, y: s.y });
+      }
+    }
+    if (fx.spawnBoss) {
+      const p = this.world.pois[Math.floor(this.rng() * this.world.pois.length)];
+      if (p) this.spawnArk(fx.spawnBoss, p.x, p.z, { boss: true });
+    }
+  }
+  // avoid: [{x,z}] positions (player squads) bots must not spawn near
+  spawnBots(count = 4, avoid = []) {
+    let sp = this.world.spawns.length ? this.world.spawns : [{ x: this.world.w / 2, z: this.world.h / 2 }];
+    const far = sp.filter(p => avoid.every(a => Math.hypot(a.x - p.x, a.z - p.z) > Math.min(140, this.world.w * 0.35)));
+    if (far.length) sp = far;
+    for (let s = 0; s < count; s++) {
+      const p = sp[Math.floor(this.rng() * sp.length)];
+      const temper = this.rng() < 0.45 ? 'hostile' : 'neutral';
+      const n = 1 + Math.floor(this.rng() * 3), team = 100 + s;
+      const squad = { id: team, temper, members: [] };
+      this.squads.set(team, squad);
+      for (let i = 0; i < n; i++) {
+        const [x, z] = this.nav.randomOpenNear(p.x, p.z, 6, this.rng);
+        const outfit = ['bot', 'bot2', 'bot3'][Math.floor(this.rng() * 3)];
+        const e = this.addRaider({ pid: 'bot' + team + '_' + i, name: botName(this.rng), bot: true, team, x, z, outfit, temper, stats: { max_hp: 100 } });
+        e.brain = new BotBrain(this, e, squad);
+        squad.members.push(e.id);
+      }
+    }
+  }
+}
+
+function botName(rng) {
+  const a = ['Rust', 'Gale', 'Moth', 'Finch', 'Ash', 'Vex', 'Juno', 'Pike', 'Wren', 'Cobb', 'Sable', 'Quill', 'Dune', 'Flint', 'Hollis', 'Kip', 'Ludo', 'Mara', 'Nyx', 'Orrin'];
+  return a[Math.floor(rng() * a.length)] + '-' + (10 + Math.floor(rng() * 89));
+}
+export function rayCircle(ox, oz, dx, dz, cx, cz, r) {
+  const fx = ox - cx, fz = oz - cz;
+  const b = fx * dx + fz * dz, c = fx * fx + fz * fz - r * r;
+  const disc = b * b - c; if (disc < 0) return null;
+  const t = -b - Math.sqrt(disc);
+  if (t < 0) return c < 0 ? 0 : null;
+  return t;
+}
+export function zoneWorld(e, zn) {
+  const c = Math.cos(e.f), s = Math.sin(e.f), lx = zn.x || 0, lz = zn.z || 0;
+  return [e.x - c * lx + s * lz, e.z + s * lx + c * lz];
+}
+export { ang as wrapAngle };

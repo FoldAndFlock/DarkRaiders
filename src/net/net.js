@@ -1,0 +1,371 @@
+// Co-op networking over PeerJS (WebRTC data channels, star topology, host authoritative).
+// Host: invite code -> peer id `darkraiders-<CODE>`; clients connect with the code.
+// Lobby: hello / lobby / ready / chat / start.  Raid: st (client state), act (client actions),
+// snap (host snapshots @15 Hz), ev (host events), res (request replies), done/end.
+import { HostSession } from '../game/session.js';
+
+const PREFIX = 'darkraiders-';
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const NET_VERSION = 1;
+export function makeCode(n = 5) { let s = ''; for (let i = 0; i < n; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]; return s; }
+
+// ------------------------------------------------------------------ transports
+// PeerJS transport (default) or BroadcastChannel (same-browser testing: ?net=local)
+class PeerTransport {
+  constructor() { this.peer = null; this.conns = new Map(); this.handlers = {}; }
+  on(ev, fn) { this.handlers[ev] = fn; }
+  emit(ev, ...a) { this.handlers[ev]?.(...a); }
+  host(code) {
+    return new Promise((res, rej) => {
+      if (typeof Peer === 'undefined') return rej(new Error('PeerJS failed to load (are you offline?)'));
+      this.peer = new Peer(PREFIX + code, { debug: 0 });
+      this.peer.on('open', () => res());
+      this.peer.on('error', (e) => { if (!this.opened) rej(e); this.emit('error', e); });
+      this.peer.on('connection', (c) => this._wire(c));
+      this.peer.on('open', () => { this.opened = true; });
+    });
+  }
+  join(code) {
+    return new Promise((res, rej) => {
+      if (typeof Peer === 'undefined') return rej(new Error('PeerJS failed to load (are you offline?)'));
+      this.peer = new Peer(undefined, { debug: 0 });
+      this.peer.on('error', (e) => { rej(e); this.emit('error', e); });
+      this.peer.on('open', () => {
+        const c = this.peer.connect(PREFIX + code.toUpperCase(), { reliable: true, serialization: 'json' });
+        const to = setTimeout(() => rej(new Error('Could not reach that squad (code wrong or host offline)')), 15000);
+        c.on('open', () => { clearTimeout(to); this._wire(c); res(); });
+      });
+    });
+  }
+  _wire(c) {
+    const id = c.peer;
+    this.conns.set(id, c);
+    const ready = () => { this.emit('connect', id); };
+    if (c.open) ready(); else c.on('open', ready);
+    c.on('data', (d) => this.emit('message', id, d));
+    c.on('close', () => { this.conns.delete(id); this.emit('disconnect', id); });
+    c.on('error', () => { /* surfaced via close */ });
+  }
+  send(id, msg) { const c = this.conns.get(id); if (c && c.open) { try { c.send(msg); } catch (e) { /* closed */ } } }
+  broadcast(msg, except = null) { for (const [id, c] of this.conns) if (id !== except && c.open) { try { c.send(msg); } catch (e) { /* */ } } }
+  close() { try { this.peer?.destroy(); } catch (e) { /* */ } this.conns.clear(); }
+  get myId() { return this.peer?.id; }
+}
+class LocalTransport {
+  constructor() { this.handlers = {}; this.conns = new Map(); this.id = 'local-' + Math.random().toString(36).slice(2, 8); }
+  on(ev, fn) { this.handlers[ev] = fn; }
+  emit(ev, ...a) { this.handlers[ev]?.(...a); }
+  host(code) { this.code = code; this.isHost = true; this._open(); return Promise.resolve(); }
+  join(code) { this.code = code; this._open(); this.bc.postMessage({ to: 'host', from: this.id, hello: true }); this.conns.set('host', true); setTimeout(() => this.emit('connect', 'host'), 50); return Promise.resolve(); }
+  _open() {
+    this.bc = new BroadcastChannel('dr-' + this.code);
+    this.bc.onmessage = (e) => {
+      const m = e.data;
+      if (m.to !== (this.isHost ? 'host' : this.id) && m.to !== '*') return;
+      if (m.hello && this.isHost) { this.conns.set(m.from, true); this.emit('connect', m.from); return; }
+      if (m.bye) { this.conns.delete(m.from); this.emit('disconnect', m.from); return; }
+      this.emit('message', this.isHost ? m.from : 'host', m.msg);
+    };
+    addEventListener('beforeunload', () => this.bc.postMessage({ to: this.isHost ? '*' : 'host', from: this.isHost ? 'host' : this.id, bye: true }));
+  }
+  send(id, msg) { this.bc.postMessage({ to: this.isHost ? id : 'host', from: this.isHost ? 'host' : this.id, msg }); }
+  broadcast(msg, except = null) { if (!this.isHost) return this.send('host', msg); for (const id of this.conns.keys()) if (id !== except) this.send(id, msg); }
+  close() { this.bc?.close(); }
+  get myId() { return this.isHost ? 'host' : this.id; }
+}
+
+// ------------------------------------------------------------------ lobby + raid
+export class Net {
+  constructor(app, { local = false } = {}) {
+    this.app = app;
+    this.t = local ? new LocalTransport() : new PeerTransport();
+    this.isHost = false; this.code = null;
+    this.members = [];          // [{pid, name, outfit, level, ready, slot}]
+    this.handlers = {};
+    this.sessions = new Map();  // host: pid -> HostSession
+    this.pending = new Map();   // client: reqId -> resolve
+    this.reqId = 0;
+    this.t.on('message', (from, m) => this.onMessage(from, m));
+    this.t.on('connect', (id) => this.onConnect(id));
+    this.t.on('disconnect', (id) => this.onDisconnect(id));
+    this.t.on('error', (e) => this.emit('error', e));
+  }
+  on(ev, fn) { (this.handlers[ev] = this.handlers[ev] || []).push(fn); }
+  emit(ev, ...a) { for (const f of this.handlers[ev] || []) f(...a); }
+  me() { const p = this.app.profile; return { name: p.name, outfit: p.settings.outfit || 'scav', level: p.level }; }
+
+  async host() {
+    this.isHost = true;
+    for (let tries = 0; tries < 3; tries++) {
+      this.code = makeCode();
+      try { await this.t.host(this.code); break; } catch (e) { if (tries === 2 || !(String(e.type || e.message).includes('unavailable'))) throw e; }
+    }
+    this.members = [{ pid: 'host', ...this.me(), ready: false, slot: 0 }];
+    this.emit('lobby', this.lobbyState());
+    return this.code;
+  }
+  async join(code) {
+    this.isHost = false; this.code = code.toUpperCase().trim();
+    await this.t.join(this.code);
+    this.t.send('host', { k: 'hello', v: NET_VERSION, ...this.me() });
+  }
+  leave() { this.t.close(); this.members = []; this.emit('closed'); }
+  lobbyState() { return { code: this.code, members: this.members, map: this.map, host: this.isHost }; }
+  setMap(mapId) { this.map = mapId; this.broadcastLobby(); }
+  setReady(r) {
+    if (this.isHost) { this.members[0].ready = r; this.broadcastLobby(); }
+    else this.t.send('host', { k: 'ready', r });
+  }
+  chat(text) {
+    const msg = { k: 'chat', from: this.app.profile.name, text: String(text).slice(0, 120), slot: this.mySlot ?? 0 };
+    if (this.isHost) { this.t.broadcast(msg); this.emit('chat', msg); }
+    else this.t.send('host', msg);
+  }
+  broadcastLobby() { if (!this.isHost) return; const s = this.lobbyState(); this.t.broadcast({ k: 'lobby', s }); this.emit('lobby', s); }
+  startRaid(opts) {      // host
+    this.raidOpts = opts;
+    this.done = new Set();
+    this.t.broadcast({ k: 'start', opts });
+    this.emit('start', opts);
+  }
+
+  onConnect(id) { if (this.isHost) { /* wait for hello */ } else this.emit('connected'); }
+  onDisconnect(id) {
+    if (this.isHost) {
+      const m = this.members.find(x => x.pid === id);
+      this.members = this.members.filter(x => x.pid !== id);
+      const s = this.sessions.get(id);
+      if (s && this.game?.sim) { s.ent.st = 'out'; this.game.sim.remove(s.ent); }
+      this.sessions.delete(id);
+      this.done?.add(id);
+      if (m) this.emit('chat', { from: 'SYSTEM', text: `${m.name} disconnected`, slot: 0 });
+      this.broadcastLobby();
+      this.checkAllDone();
+    } else { this.emit('hostlost'); this.game?.onHostLost?.(); }
+  }
+  onMessage(from, m) {
+    if (!m || !m.k) return;
+    if (this.isHost) return this.hostMsg(from, m);
+    return this.clientMsg(m);
+  }
+
+  // ------------------------------------------------------------------ host side
+  hostMsg(from, m) {
+    switch (m.k) {
+      case 'hello': {
+        if (this.members.length >= 4) { this.t.send(from, { k: 'full' }); return; }
+        if (this.game) { this.t.send(from, { k: 'busy' }); return; }
+        const used = new Set(this.members.map(x => x.slot)); let slot = 1; while (used.has(slot)) slot++;
+        this.members.push({ pid: from, name: (m.name || 'Raider').slice(0, 16), outfit: m.outfit, level: m.level, ready: false, slot });
+        this.t.send(from, { k: 'welcome', slot });
+        this.emit('chat', { from: 'SYSTEM', text: `${m.name} joined the squad`, slot: 0 });
+        this.broadcastLobby();
+        break;
+      }
+      case 'ready': { const mm = this.members.find(x => x.pid === from); if (mm) { mm.ready = !!m.r; this.broadcastLobby(); } break; }
+      case 'chat': { const mm = this.members.find(x => x.pid === from); const msg = { k: 'chat', from: mm?.name || m.from, text: String(m.text).slice(0, 120), slot: mm?.slot ?? 1 }; this.t.broadcast(msg); this.emit('chat', msg); if (this.game) this.game.sim.emit({ e: 'chat', from: msg.from, text: msg.text, slot: msg.slot, local: true }); break; }
+      case 'st': { const s = this.sessions.get(from); if (s) s.state(m.s); break; }
+      case 'act': this.hostAct(from, m); break;
+      case 'done': this.done?.add(from); this.checkAllDone(); break;
+    }
+  }
+  async hostAct(from, m) {
+    const s = this.sessions.get(from); if (!s) return;
+    const a = m.a;
+    try {
+      switch (a.t) {
+        case 'fire': s.fire(a.s); break;
+        case 'launch': s.launch(a.s); break;
+        case 'throw': s.throwItem(a.id, a.x, a.z); break;
+        case 'open': this.t.send(from, { k: 'res', id: m.id, d: await s.open(a.kind, a.ref) }); break;
+        case 'take': this.t.send(from, { k: 'res', id: m.id, d: await s.take(a.kind, a.ref, a.uid, a.qty) }); break;
+        case 'put': s.put(a.kind, a.ref, a.stack); break;
+        case 'drop': s.dropItems(a.stacks, a.label); break;
+        case 'door': s.door(a.i, a.key); break;
+        case 'xcall': s.callExtract(a.i); break;
+        case 'hatch': s.hatch(a.i); break;
+        case 'revive': s.reviveNow(a.id); break;
+        case 'eff': s.useEffect(a.eff); break;
+        case 'shield': s.setShield(a.stack, a.charge); break;
+        case 'dodge': s.dodge(); break;
+        case 'noise': s.noise(a.r); break;
+        case 'chat': s.chat(a.text); break;
+        case 'ping': s.ping(a.x, a.z); break;
+        case 'emote': s.emote(a.text); break;
+        case 'giveup': s.giveUp(); break;
+        case 'stats': { const e = s.ent; e.stats = a.stats || {}; e.maxHp = a.stats?.max_hp || 100; e.hp = Math.min(e.hp, e.maxHp) || e.maxHp; if (a.regen) e.regen = a.regen; break; }
+      }
+    } catch (e) { console.warn('bad act', a.t, e); }
+  }
+  // called by RaidGame.start on the host: create raider entities for every remote member
+  hostAttach(game, spawn) {
+    this.game = game; const sim = game.sim;
+    const me = game.me; me.slot = 0;
+    let k = 0;
+    for (const m of this.members) {
+      if (m.pid === 'host') continue;
+      k++;
+      const a = (k / 4) * Math.PI * 2;
+      const [x, z] = sim.nav.randomOpenNear(spawn.x + Math.cos(a) * 2, spawn.z + Math.sin(a) * 2, 2, sim.rng);
+      const e = sim.addRaider({ pid: m.pid, name: m.name, team: 1, x, z, outfit: m.outfit, stats: m.stats || {} });
+      e.slot = m.slot;
+      this.sessions.set(m.pid, new HostSession(sim, e));
+      this.t.send(m.pid, { k: 'you', id: e.id, x, z });
+    }
+    this.snapT = 0;
+  }
+  hostTick(evs, dt) {
+    if (!this.t.conns.size) return;
+    const pub = evs.filter(e => !e.local);
+    if (pub.length) this.t.broadcast({ k: 'ev', e: pub });
+    this.snapT += dt;
+    if (this.snapT < 1 / 15) return;
+    this.snapT = 0;
+    const sim = this.game.sim;
+    for (const [pid, s] of this.sessions) {
+      const me = s.ent;
+      const ents = [];
+      for (const e of sim.entities.values()) {
+        const near = Math.abs(e.x - me.x) < 70 && Math.abs(e.z - me.z) < 60;
+        if (e.type === 'raider') { if (near || !e.bot) ents.push(packRaider(e)); }
+        else if (e.type === 'ark') { if (near || (e.st === 'alert' && Math.abs(e.x - me.x) < 110)) ents.push(packArk(e)); }
+        else if (near) ents.push(packOther(e));
+      }
+      this.t.send(pid, { k: 'snap', t: sim.t, tl: sim.timeLeft, ents, x: sim.extracts.map(x => [x.state, +x.t.toFixed(1)]), d: sim.doors.map(d => d.open ? 1 : 0), ended: sim.raidEnded });
+    }
+  }
+  checkAllDone() {
+    if (!this.isHost || !this.game || !this.done) return;
+    const humans = this.members.length;
+    const hostDone = !!this.game.localDone;
+    if (hostDone && this.done.size >= humans - 1) {
+      this.t.broadcast({ k: 'end' });
+      this.game.endIn = 3;
+    }
+  }
+  reportDone(outcome) {
+    if (this.isHost) this.checkAllDone();
+    else this.t.send('host', { k: 'done', outcome });
+  }
+
+  // ------------------------------------------------------------------ client side
+  clientMsg(m) {
+    switch (m.k) {
+      case 'welcome': this.mySlot = m.slot; break;
+      case 'full': this.emit('error', new Error('That squad is full (4/4)')); break;
+      case 'busy': this.emit('error', new Error('That squad is already in a raid - try again when they return')); break;
+      case 'lobby': this.members = m.s.members; this.map = m.s.map; this.emit('lobby', m.s); break;
+      case 'chat': this.emit('chat', m); if (this.game) this.game.onChat({ from: m.from, text: m.text, slot: m.slot }); break;
+      case 'start': this.raidOpts = m.opts; this.emit('start', m.opts); break;
+      case 'you': this.myEnt = m; this._youResolve?.(m); break;
+      case 'snap': this.applySnap(m); break;
+      case 'ev': for (const ev of m.e) this.game?.dispatch(ev); break;
+      case 'res': { const r = this.pending.get(m.id); if (r) { this.pending.delete(m.id); r(m.d); } break; }
+      case 'end': if (this.game) { if (!this.game.localDone) this.game.onLocalExtract(); this.game.endIn = 2.5; } break;
+    }
+  }
+  // RaidGame (client) asks for its entity
+  async clientJoinRaid(game, sp) {
+    this.game = game;
+    const you = this.myEnt || await new Promise(r => this._youResolve = r);
+    const e = { id: you.id, type: 'raider', x: you.x, z: you.z, y: game.world.groundAt(you.x, you.z), f: 0, mf: 0, team: 1, slot: this.mySlot ?? 1,
+      name: this.app.profile.name, outfit: this.app.profile.settings.outfit || 'scav', st: 'alive', hp: 100, maxHp: 100, sh: 0, shMax: 0, buffs: {}, stats: game.stats0 };
+    game.ents.set(e.id, e);
+    this.session = new ClientSession(this, e);
+    const st = game.stats0 || {};
+    this.act({ t: 'stats', stats: Object.fromEntries(Object.entries(st).filter(([k, v]) => typeof v === 'number')), regen: game.o.regen || null });
+    this.snaps = [];
+    this.sendT = 0;
+    return e;
+  }
+  applySnap(m) {
+    const g = this.game; if (!g) return;
+    g.timeLeft = m.tl; g.simTime = m.t;
+    m.x.forEach(([st], i) => { if (g.extractsData[i]) g.extractsData[i].state = st; });
+    m.d.forEach((o, i) => { if (g.doorsData[i] && g.doorsData[i].open !== !!o) { g.doorsData[i].open = !!o; g.view?.setDoor(i, !!o); } });
+    const now = performance.now();
+    const seen = new Set();
+    for (const p of m.ents) {
+      const e = unpack(p);
+      seen.add(e.id);
+      let cur = g.ents.get(e.id);
+      if (e.id === g.meId) { // own entity: only vitals from the host
+        if (cur) { cur.hp = e.hp; cur.maxHp = e.maxHp; cur.sh = e.sh; cur.shMax = e.shMax; if (cur.st !== e.st) { cur.st = e.st; } }
+        continue;
+      }
+      if (!cur) { cur = e; cur.rx = e.x; cur.rz = e.z; cur.ry = e.y; cur.hist = []; g.ents.set(e.id, cur); }
+      else { const hist = cur.hist; Object.assign(cur, e); cur.hist = hist; }
+      cur.hist.push({ t: now, x: e.x, y: e.y, z: e.z });
+      if (cur.hist.length > 6) cur.hist.shift();
+    }
+    for (const id of [...g.ents.keys()]) if (!seen.has(id) && id !== g.meId) g.ents.delete(id);
+  }
+  clientUpdate(dt) {
+    const g = this.game; if (!g) return;
+    // interpolate remote entities ~110 ms in the past
+    const rt = performance.now() - 110;
+    for (const e of g.ents.values()) {
+      if (e.id === g.meId || !e.hist?.length) continue;
+      const h = e.hist;
+      let a = h[0], b = h[h.length - 1];
+      for (let i = 0; i < h.length - 1; i++) if (h[i].t <= rt && h[i + 1].t >= rt) { a = h[i]; b = h[i + 1]; break; }
+      const k = b.t > a.t ? Math.max(0, Math.min(1, (rt - a.t) / (b.t - a.t))) : 1;
+      e.rx = a.x + (b.x - a.x) * k; e.rz = a.z + (b.z - a.z) * k; e.ry = a.y + (b.y - a.y) * k;
+    }
+    this.sendT += dt;
+    if (this.sendT >= 1 / 20) { this.sendT = 0; this.t.send('host', { k: 'st', s: this.session.lastState }); }
+  }
+  act(a) { this.t.send('host', { k: 'act', a }); }
+  request(a) { const id = ++this.reqId; return new Promise((res) => { this.pending.set(id, res); this.t.send('host', { k: 'act', id, a }); setTimeout(() => { if (this.pending.has(id)) { this.pending.delete(id); res(null); } }, 6000); }); }
+}
+
+// client-side mirror of HostSession
+export class ClientSession {
+  constructor(net, ent) { this.net = net; this.ent = ent; this.lastState = {}; }
+  state(u) { Object.assign(this.ent, u); Object.assign(this.lastState, u); }
+  fire(s) { this.net.act({ t: 'fire', s: round(s) }); this.net.game.predicted = true; }
+  launch(s) { this.net.act({ t: 'launch', s: round(s) }); }
+  throwItem(id, x, z) { this.net.act({ t: 'throw', id, x, z }); }
+  open(kind, ref) { return this.net.request({ t: 'open', kind, ref }); }
+  take(kind, ref, uid, qty = null) { return this.net.request({ t: 'take', kind, ref, uid, qty }); }
+  put(kind, ref, stack) { this.net.act({ t: 'put', kind, ref, stack }); }
+  dropItems(stacks, label) { this.net.act({ t: 'drop', stacks, label }); }
+  door(i, key) { this.net.act({ t: 'door', i, key }); }
+  callExtract(i) { this.net.act({ t: 'xcall', i }); }
+  hatch(i) { this.net.act({ t: 'hatch', i }); }
+  reviveNow(id) { this.net.act({ t: 'revive', id }); }
+  useEffect(eff) { this.net.act({ t: 'eff', eff }); }
+  setShield(stack, charge) { this.net.act({ t: 'shield', stack, charge }); }
+  dodge() { this.net.act({ t: 'dodge' }); }
+  noise(r) { this.net.act({ t: 'noise', r }); }
+  chat(text) { this.net.act({ t: 'chat', text }); }
+  ping(x, z) { this.net.act({ t: 'ping', x, z }); }
+  emote(text) { this.net.act({ t: 'emote', text }); }
+  giveUp() { this.net.act({ t: 'giveup' }); }
+}
+
+// ------------------------------------------------------------------ packing
+const ST = ['alive', 'downed', 'dead', 'out'], AST = ['idle', 'search', 'alert', 'dead'];
+const r2 = v => Math.round(v * 100) / 100;
+function round(s) { const o = {}; for (const k in s) o[k] = typeof s[k] === 'number' ? Math.round(s[k] * 1000) / 1000 : s[k]; return o; }
+function packRaider(e) {
+  const fl = (e.moving ? 1 : 0) | (e.sprint ? 2 : 0) | (e.crouch ? 4 : 0) | (e.flash ? 8 : 0) | (e.bot ? 16 : 0);
+  return ['r', e.id, r2(e.x), r2(e.y), r2(e.z), r2(e.f), r2(e.mf || 0), fl, ST.indexOf(e.st), Math.round(e.hp), e.maxHp, Math.round(e.sh), e.shMax, e.wk, e.outfit, e.name, e.team, e.slot ?? -1, e.emote || null, e.tagged || 0];
+}
+function packArk(e) { return ['a', e.id, e.kind, r2(e.x), r2(e.y), r2(e.z), r2(e.f), r2(e.alt || 0), AST.indexOf(e.st), r2(e.gaze ?? e.f), r2(e.vis || 0), r2(e.tele || 0), r2(e.hp / e.maxHp), e.dormant ? 1 : 0, e.brain?.target || 0]; }
+function packOther(e) {
+  if (e.type === 'loot') return ['l', e.id, r2(e.x), r2(e.y), r2(e.z), e.kind, e.label || null];
+  if (e.type === 'proj') return ['p', e.id, e.kind, r2(e.x), r2(e.y), r2(e.z)];
+  if (e.type === 'hz') return ['h', e.id, e.kind, r2(e.x), r2(e.y), r2(e.z), e.r, r2(e.age), e.dur];
+  return ['?', e.id];
+}
+function unpack(p) {
+  switch (p[0]) {
+    case 'r': return { type: 'raider', id: p[1], x: p[2], y: p[3], z: p[4], f: p[5], mf: p[6], moving: !!(p[7] & 1), sprint: !!(p[7] & 2), crouch: !!(p[7] & 4), flash: !!(p[7] & 8), bot: !!(p[7] & 16), st: ST[p[8]], hp: p[9], maxHp: p[10], sh: p[11], shMax: p[12], wk: p[13], outfit: p[14], name: p[15], team: p[16], slot: p[17], emote: p[18], tagged: p[19], r: 0.35, buffs: {} };
+    case 'a': return { type: 'ark', id: p[1], kind: p[2], x: p[3], y: p[4], z: p[5], f: p[6], alt: p[7], st: AST[p[8]], gaze: p[9], vis: p[10], tele: p[11], hpf: p[12], dormant: !!p[13], tgt: p[14], r: 0.6 };
+    case 'l': return { type: 'loot', id: p[1], x: p[2], y: p[3], z: p[4], kind: p[5], label: p[6] };
+    case 'p': return { type: 'proj', id: p[1], kind: p[2], x: p[3], y: p[4], z: p[5] };
+    case 'h': return { type: 'hz', id: p[1], kind: p[2], x: p[3], y: p[4], z: p[5], r: p[6], age: p[7], dur: p[8] };
+  }
+  return { type: '?', id: p[1] };
+}

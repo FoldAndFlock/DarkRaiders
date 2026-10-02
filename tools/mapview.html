@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Map viewer</title>
+<style>
+  html, body { margin: 0; background: #0c0c0e; color: #e8e0c8; font: 12px monospace; }
+  #wrap { position: relative; }
+  canvas { display: block; image-rendering: pixelated; }
+  #gl { position: absolute; left: 0; top: 0; width: 100vw; height: 100vh; }
+  #ov { position: absolute; left: 0; top: 0; pointer-events: none; }
+  #info { position: fixed; left: 4px; bottom: 4px; background: rgba(0,0,0,.7); padding: 2px 6px; z-index: 5; }
+  body.overview #gl { position: absolute; width: auto; height: auto; }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="gl"></canvas><canvas id="ov"></canvas></div>
+<div id="info">loading…</div>
+<script>if (new URLSearchParams(location.search).get('mode') !== 'view') document.body.classList.add('overview');</script>
+<script type="module" src="./mapview.js"></script>
+</body>
+</html>

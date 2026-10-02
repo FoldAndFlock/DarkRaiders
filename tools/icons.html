@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Item icons</title>
+<style>
+  html, body { margin: 0; background: #0c0c0e; color: #e8e0c8; font: 11px monospace; }
+  h2 { font-size: 13px; margin: 10px 8px 4px; color: #f0c838; letter-spacing: 1px; }
+  h3 { font-size: 11px; margin: 8px 8px 2px; color: #a8a8a0; font-weight: normal; }
+  .grid { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px; }
+  .cell { background: #18161c; border: 1px solid #2a2830; padding: 3px; display: flex; flex-direction: column; align-items: center; }
+  .cell canvas, .cell img { image-rendering: pixelated; display: block; }
+  .cell span { max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 10px; margin-top: 2px; }
+  .err { color: #e84a30; }
+  #guns { position: relative; }
+  #gl { display: block; width: 100%; height: 760px; }
+  #glo { position: absolute; left: 0; top: 0; pointer-events: none; }
+  #stat { padding: 6px 8px; }
+  .hud { background: #18161c; border: 1px solid #3a3840; display: inline-flex; gap: 2px; padding: 4px; margin: 4px 8px; }
+</style>
+</head>
+<body>
+<div id="stat">loading…</div>
+<div id="root"></div>
+<script type="module" src="./icons.js"></script>
+</body>
+</html>

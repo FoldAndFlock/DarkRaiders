@@ -1,0 +1,23 @@
+// Click through title -> hub -> lobby -> deploy (test_range) and screenshot each step.
+import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+const [,, base = 'http://localhost:8123/index.html?dev', out = '/tmp/flow'] = process.argv;
+const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
+const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
+const errs = new Map();
+p.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') { const t = m.text().slice(0, 300); errs.set(t, (errs.get(t) || 0) + 1); } });
+p.on('pageerror', e => { const t = '[pageerror] ' + e.message + ' ' + (e.stack || '').split('\n').slice(1, 3).join(' | '); errs.set(t, (errs.get(t) || 0) + 1); });
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+await p.goto(base);
+await p.waitForFunction('window.__ready', null, { timeout: 60000 }).catch(() => {});
+await wait(800); await p.screenshot({ path: out + '_title.png' });
+await p.evaluate(() => { window.__ready = false; [...document.querySelectorAll('button')].find(b => b.textContent.startsWith('CONTINUE')).click(); });
+await p.waitForFunction('window.__ready', null, { timeout: 60000 }).catch(() => {});
+await wait(1500); await p.screenshot({ path: out + '_hub.png' });
+await p.evaluate(() => { window.__ready = false; window.app.screens.lobby(); });
+await wait(800); await p.screenshot({ path: out + '_lobby.png' });
+await p.evaluate(() => { window.app.screens.lobbyMap = 'test_range'; window.app.screens.renderLobby(); [...document.querySelectorAll('button')].find(b => b.textContent.includes('DEPLOY SOLO')).click(); });
+await wait(1500); await p.screenshot({ path: out + '_loading.png' });
+await p.waitForFunction('window.app.game && window.app.game.running', null, { timeout: 120000 }).catch(e => console.log('raid did not start'));
+await wait(2500); await p.screenshot({ path: out + '_raid.png' });
+for (const [k, v] of errs) console.log(v + 'x', k);
+await b.close();
