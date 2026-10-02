@@ -87,6 +87,7 @@ export class HUD {
     this.text(`${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`, 111, 8, { color: tcol, align: 'right' });
     this.text(r.condition || '', 9, 18, { color: UI.dim });
     this.text(r.weather || '', 9, 27, { color: UI.dim });
+    if (r.where) { this.panel(4, 40, Math.max(112, textWidth(r.where) + 12), 13); this.text(r.where, 9, 43, { color: UI.yellow }); }
   }
 
   player(st) {

@@ -548,7 +548,7 @@ export class Sim {
       const C = fx.coldDamage;
       for (const p of this.players()) {
         if (p.st !== 'alive') continue;
-        const indoor = C.indoorSafe && this.grid.indoorAt(p.x, p.z) >= 0;
+        const indoor = C.indoorSafe && this.grid.insideAt(p.x, p.z, p.y, this.world.buildings) >= 0;
         p.coldT = indoor ? Math.max(0, (p.coldT || 0) - dt * 3) : (p.coldT || 0) + dt;
         p.cold = p.coldT > C.delay;
         if (p.cold && !p.buffs?.warm) this.damage(p, C.dps * dt, null, { bypassShield: true, x: p.x, z: p.z });

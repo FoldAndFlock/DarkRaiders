@@ -411,6 +411,21 @@ export class RaidGame {
   }
 
   // ------------------------------------------------------------------ HUD
+  // which level the player is on (multi-level maps): underground / upper floor / rooftop / elevated
+  whereLabel(me) {
+    if (!me) return null;
+    const w = this.world, g = w.grid, id = g.insideAt(me.x, me.z, me.y, w.buildings);
+    if (id >= 0) {
+      const b = w.buildings[id];
+      if (b.under) return 'UNDERGROUND' + (b.name ? ' - ' + b.name.toUpperCase() : '');
+      const k = Math.round((me.y - b.floorY) / (b.sh || 3.2));
+      return k > 0 ? `FLOOR ${k + 1}` + (b.name ? ' - ' + b.name.toUpperCase() : '') : null;
+    }
+    const i = g.idx(me.x, me.z);
+    for (const bid of i >= 0 ? [g.indoor[i], g.indoor2[i]] : []) if (bid >= 0 && !w.buildings[bid].under && me.y >= w.buildings[bid].roofY - 0.4) return 'ROOFTOP';
+    if (me.y > w.groundAt(me.x, me.z) + 2.5 && g.ceilAt(me.x, me.z, me.y) === Infinity) return 'ELEVATED';
+    return null;
+  }
   drawHUD(dt) {
     const me = this.me, pc = this.pc, R = this.R;
     for (const f of this.feedList) f.ttl -= dt;
@@ -423,7 +438,7 @@ export class RaidGame {
     const lo = pc.lo, ws = pc.wstats, w = pc.weapon;
     const caps = pc.caps;
     const st = {
-      raid: { map: this.o.map.name, time: Math.max(0, this.timeLeft ?? 0), condition: (this.cond?.name || '').toUpperCase(), weather: `${this.timeOfDay.toUpperCase()}  ${this.weather.toUpperCase()}` },
+      raid: { map: this.o.map.name, time: Math.max(0, this.timeLeft ?? 0), condition: (this.cond?.name || '').toUpperCase(), weather: `${this.timeOfDay.toUpperCase()}  ${this.weather.toUpperCase()}`, where: this.whereLabel(me) },
       player: { name: this.o.name, level: this.profile?.level, hp: me.st === 'downed' ? me.downHp : me.hp, hpMax: me.st === 'downed' ? 75 : me.maxHp, shield: me.sh, shieldMax: me.shMax, stamina: pc.stamina / pc.stats.max_stamina, weight: pc.weight(), weightMax: caps.weightLimit },
       weapon: w ? { name: ITEMS[w.id].name, tier: ROMAN[w.tier || 1], rarity: ITEMS[w.id].rarity, mag: w.ammo || 0, reserve: countLoadout(lo, ws.ammo), mode: pc.reloadT > 0 ? 'RELOADING' : ((w.dur ?? 1) <= 0 ? 'BROKEN' : ws.mode.toUpperCase()), alt: lo.weapons.filter((x, i) => x && i !== pc.slot).map(x => ITEMS[x.id].name).join(' / ') } : { name: 'Unarmed', tier: '', rarity: 'common', mag: 0, reserve: 0, mode: '' },
       quick: lo.quick.map((s, i) => s ? { item: s.id, icon: ITEMS[s.id]?.icon, count: s.qty, active: pc.useSlot === i && pc.useItem } : {}),

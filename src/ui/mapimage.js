@@ -22,6 +22,10 @@ export function renderMapImage(w, S = 2) {
   }
   x.putImageData(img, 0, 0);
   x.strokeStyle = '#9a9484'; x.lineWidth = Math.min(1, 1 / S);
-  for (const bd of w.buildings) { x.fillStyle = '#3a3836'; x.beginPath(); bd.poly.forEach(([px, pz], i) => i ? x.lineTo(px / S, pz / S) : x.moveTo(px / S, pz / S)); x.closePath(); x.fill(); x.stroke(); }
+  for (const bd of w.buildings) {
+    // underground halls (tunnels, metro) in a cool tint so they read as below the surface
+    x.fillStyle = bd.under ? 'rgba(52,64,86,0.75)' : '#3a3836'; x.strokeStyle = bd.under ? '#7088b0' : '#9a9484';
+    x.beginPath(); bd.poly.forEach(([px, pz], i) => i ? x.lineTo(px / S, pz / S) : x.moveTo(px / S, pz / S)); x.closePath(); x.fill(); x.stroke();
+  }
   return c;
 }
