@@ -39,7 +39,7 @@ Paint: `paint(tex,x0,z0,x1,z1)`, `paintCircle`, `paintPoly(tex, pts)`, `paintFn(
 `road(points,width,tex,{edge,edgeW,level})`, `path(points,width,tex)`.
 Terrain textures: `grass dirt sand sandDark concrete damConcrete asphalt rock tiles wood mud gravel moss forest metalPanel hazard`.
 
-Structures: `block(x0,z0,x1,z1,h,tex,{y0?,collide?,cast?,tint?,xray?})`,
+Structures: `block(x0,z0,x1,z1,h,tex,{y0?,collide?,cast?,tint?,xray?,rot?,R?})` (`rot` turns the block about its centre; for a group, pass one shared `R: rotFrame(cx, cz, angle)` imported from `engine/world.js` — also accepted by `wallLine`),
 `wallLine(ax,az,bx,bz,thick,h,tex,gaps)`, `fence(points,h,tex)`,
 `building({ x,z,w,d, storeys, wall, floor, roof, roofShape:'gable'|undefined, roofTint, tint, thick,
  doors:[{side,at,w,sill?,door?:true,locked?:roomId}], inner:[[x0,z0,x1,z1,gaps]], peek, name, roofExtras })`.

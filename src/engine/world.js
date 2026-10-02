@@ -398,7 +398,9 @@ export class World {
 
   // =============================================================== STRUCTURES
   // solid box; base defaults to the lowest ground under the footprint (sinks into slopes)
+  // opts.rot: rotate this block about its own centre; opts.R: a shared rotFrame() for groups of blocks
   block(x0, z0, x1, z1, h, texName = 'concrete', opts = {}) {
+    if (opts.rot && !opts.R) opts = { ...opts, R: rotFrame((x0 + x1) / 2, (z0 + z1) / 2, opts.rot) };
     this.solids.push({ x0, z0, x1, z1, h, texName, opts });
   }
   wallLine(ax, az, bx, bz, thick, h, texName, gaps = [], opts = {}) {
