@@ -288,21 +288,7 @@ reg('dg_watertower', () => {
   return v.build();
 }, { solid: [3.2, 3.2, 12] });
 
-// control tower cab (8x8 m glass cab with antenna + dish), sits on a shaft
-reg('dg_ctrltop', () => {
-  const v = new Vox(44, 52, 44, 0.2, [22, 0, 22]);
-  v.box(2, 0, 2, 41, 2, 41, P.concD);
-  v.box(4, 3, 4, 39, 14, 39, (x, y, z) => (y > 4 && y < 13 && ((x + z) % 6 !== 0)) ? (y > 10 ? P.glassD : P.glass) : P.concL);
-  v.box(6, 3, 6, 37, 14, 37, -1);
-  v.box(5, 6, 6, 38, 7, 37, P.gCyan);                                                           // lit console band
-  v.box(0, 15, 0, 43, 17, 43, P.concD); v.box(8, 18, 8, 35, 19, 35, P.steelD);
-  v.box(21, 18, 21, 22, 48, 22, P.steel); for (let y = 22; y < 48; y += 6) v.box(19, y, 21, 24, y, 22, P.steel);
-  v.box(21, 49, 21, 22, 50, 22, P.gRed);
-  v.sphere(10, 24, 10, 5, (x, y, z) => y > 22 ? P.white : P.steelL, 0.5); v.box(10, 19, 10, 10, 22, 10, P.steel);
-  v.glow(P.gRed); v.glow(P.gCyan);
-  return v.build();
-}, { cast: true });
-
+// red aviation beacon on a post
 reg('dg_beacon', () => {
   const v = new Vox(6, 42, 6, 0.1, [3, 0, 3]);
   v.box(2, 0, 2, 3, 36, 3, P.steelD); for (let y = 0; y < 36; y += 6) v.box(1, y, 1, 4, y, 4, P.yellow);
@@ -576,25 +562,6 @@ reg('dg_emptrap', () => {
   v.glow(0x30c0ff);
   return v.build();
 }, { solid: [1.2, 1.2, 2.6] });
-
-// cargo elevator frame (placed around an extractPad, 3.6 m square)
-reg('dg_liftframe', () => {
-  const v = new Vox(40, 64, 40, 0.1, [20, 0, 20]);
-  for (const [x, z] of [[0, 0], [38, 0], [0, 38], [38, 38]]) { v.box(x, 0, z, x + 1, 60, z + 1, P.yellow); }
-  for (const y of [20, 40, 60]) { v.box(0, y, 0, 39, y + 1, 1, P.steelD); v.box(0, y, 38, 39, y + 1, 39, P.steelD); v.box(0, y, 0, 1, y + 1, 39, P.steelD); v.box(38, y, 0, 39, y + 1, 39, P.steelD); }
-  for (let y = 0; y < 60; y += 4) { v.set(0, y, 0, P.black); v.set(38, y, 38, P.black); }
-  v.box(18, 61, 18, 21, 63, 21, P.gGreen); v.box(1, 62, 1, 2, 63, 2, P.gAmber); v.box(37, 62, 37, 38, 63, 38, P.gAmber);
-  v.glow(P.gGreen); v.glow(P.gAmber);
-  return v.build();
-}, { cast: true });
-
-reg('dg_hatchring', () => {
-  const v = new Vox(30, 8, 30, 0.1, [15, 0, 15]);
-  v.cyl(15, 15, 0, 1, 14.5, P.concD); v.cyl(15, 15, 0, 1, 7, -1);
-  for (let a = 0; a < 16; a++) { const x = 15 + Math.cos(a / 16 * 6.283) * 12, z = 15 + Math.sin(a / 16 * 6.283) * 12; v.box(x, 2, z, x, 6, z, a % 2 ? P.yellow : P.black); }
-  v.box(14, 7, 2, 15, 7, 3, P.gAmber); v.glow(P.gAmber);
-  return v.build();
-}, { cast: false });
 
 reg('dg_stairs', () => {   // 3 m long concrete stair flight rising along +z by 1.6 m (visual)
   const v = new Vox(20, 16, 30, 0.1, [10, 0, 0]);

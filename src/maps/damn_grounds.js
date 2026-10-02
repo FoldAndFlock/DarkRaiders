@@ -249,7 +249,7 @@ function makeCtx(w, rng) {
     }
     return false;
   };
-  C.reserved = SPAWNS.map(([x, z]) => [x, z, 3]);   // spawn / extract points kept clear: [x, z, radius]
+  C.reserved = SPAWNS.map(([x, z]) => [x, z, 8]);   // spawn / extract points kept clear: [x, z, radius]
   C.nearDoor = (x0, z0, x1, z1, m = 1.8) => C.doorPts.some(([dx, dz]) => dx > x0 - m && dx < x1 + m && dz > z0 - m && dz < z1 + m);
 
   // ------------------------------------------------------------------ buildings
@@ -1222,7 +1222,8 @@ function westPOIs(C) {
     inner: [[10, 0, 10, 14, []], [20, 0, 20, 14, []], [0, 7, 10, 7, [{ at: 6, w: 1.6 }]], [10, 7, 20, 7, [{ at: 2, w: 1.6 }]], [20, 7, 30, 7, [{ at: 6, w: 1.6 }]], ...flatWalls(1), ...flatWalls(2)],
     stairs: [{ x: 11.3, z: 0.8, w: 1.8, dir: 'e', from: 0, to: 1 }, { x: 13.3, z: 8.0, w: 2.2, dir: 'w', from: 1, to: 2 }], ladders: [{ side: 'n', at: 27 }] });
   for (let k = 0; k < 3; k++) for (let u = 0; u < 3; u++) {
-    C.F(paA, u === 1 ? 'kitchen' : 'bedroom', u * 10, 0, u * 10 + 10, 7, { tier: 1, storey: k, mul: k ? 0.8 : 1 });
+    if (u === 1 && k > 0) { C.Cn(paA, k === 1 ? 'suitcase' : 'cabinet', 10.9, 6.2, PI, { tier: 1, storey: k }); C.IL(paA, 15, 3.5, 0xffc890, 1.2, 8, 2.6, k); }   // stairwell landing: kept bare
+    else C.F(paA, u === 1 ? 'kitchen' : 'bedroom', u * 10, 0, u * 10 + 10, 7, { tier: 1, storey: k, mul: k ? 0.8 : 1 });
     C.F(paA, 'living', u * 10, 7, u * 10 + 10, 14, { tier: u === 2 || k === 2 ? 2 : 1, storey: k, mul: k ? 0.8 : 1 });
   }
   const paB = C.gbld(PA, { x: 232, z: 176, w: 26, d: 14, storeys: 3, wall: 'plaster', tint: 0xd0ccc0, floor: 'wood', name: 'Pale Apartments B',
