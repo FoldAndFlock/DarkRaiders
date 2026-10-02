@@ -82,6 +82,7 @@ export class Grid {
     this.spans = [];
     this.solidBase = new Uint8Array(n);      // 1 = column top raised by a solid (else smooth terrain)
     this.door = new Int16Array(n).fill(-1);  // dynamic door blockers -> doorBlocks[k] = { y0, y1, closed }
+    this.door2 = new Int16Array(n).fill(-1); // a second door in the same cell (stacked storeys)
     this.doorBlocks = [];
     this._pend = new Map();                  // build time: floating solids per cell
   }
@@ -121,18 +122,15 @@ export class Grid {
     if (this.top[i] > ya) return true;
     const r = this.spanRef[i];
     if (r >= 0) { const s = this.spans[r]; for (let k = 0; k < s.length; k += 2) if (s[k] < yb && s[k + 1] > ya) return true; }
-    const d = this.door[i];
-    if (d >= 0) { const b = this.doorBlocks[d]; if (b.closed && b.y0 < yb && b.y1 > ya) return true; }
-    return false;
+    return this._doorIn(this.door[i], ya, yb) || this._doorIn(this.door2[i], ya, yb);
   }
+  _doorIn(d, ya, yb) { if (d < 0) return false; const b = this.doorBlocks[d]; return b.closed && b.y0 < yb && b.y1 > ya; }
   // is height y inside a solid of cell i?
   solidAtI(i, y) {
     if (this.top[i] > y) return true;
     const r = this.spanRef[i];
     if (r >= 0) { const s = this.spans[r]; for (let k = 0; k < s.length; k += 2) if (y > s[k] && y < s[k + 1]) return true; }
-    const d = this.door[i];
-    if (d >= 0) { const b = this.doorBlocks[d]; if (b.closed && y > b.y0 && y < b.y1) return true; }
-    return false;
+    return this._doorIn(this.door[i], y, y) || this._doorIn(this.door2[i], y, y);
   }
   // lowest solid bottom above y in cell i (ceiling), or Infinity
   ceilI(i, y) {
@@ -191,7 +189,8 @@ export class Grid {
     this.eachCell(x0, z0, x1, z1, R, pad, (i) => { arr[i] = mode === 'max' ? Math.max(arr[i], v) : v; });
   }
   // 2.5D DDA ray from (x,y,z) heading (dx,dz) with vertical slope dy per metre.
-  // Returns distance travelled before hitting a cell whose top is above the ray.
+  // Returns distance travelled before hitting solid. Each cell is tested over the whole height range
+  // the ray covers inside it, so a steep ray can't slip through a thin slab, roof or lid.
   ray(x, z, dx, dz, max, y = 1.2, dy = 0) {
     let cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
     const sx = dx > 0 ? 1 : -1, sz = dz > 0 ? 1 : -1;
@@ -204,7 +203,8 @@ export class Grid {
       if (tx < tz) { t = tx; tx += tdx; cx += sx; } else { t = tz; tz += tdz; cz += sz; }
       if (t >= max) break;
       if (cx < 0 || cz < 0 || cx >= this.cw || cz >= this.ch) return t;
-      if (this.solidAtI(cz * this.cw + cx, y + dy * t)) return t;
+      const ya = y + dy * t, yb = y + dy * Math.min(max, tx, tz);
+      if (this.solidIn(cz * this.cw + cx, Math.min(ya, yb), Math.max(ya, yb))) return t;
     }
     return max;
   }
@@ -784,8 +784,10 @@ export class World {
         y0 = base - (s.opts.rel0 ? 0 : (s.opts.sink ?? 0.3)); y1 = base + s.h;
       }
       const t = tex(s.texName, s.opts.seed || 5);
-      const mat = litTex(t, { cutaway: !!s.opts.cutaway, xray: s.opts.xray !== false, color: s.opts.tint || 0xffffff });
-      if (!s.opts.nodraw) this.boxes.add(s.texName + (s.opts.cutaway ? 'c' : '') + (s.opts.tint || '') + (s.opts.xray === false ? 'n' : ''), mat, s.x0, y0, s.z0, s.x1, y1, s.z1, s.opts);
+      // floating pieces (decks, platforms, overpasses) and their pillars open up when you walk under them
+      const cut = s.opts.cutaway ?? (s.opts.y0 != null || s.opts.pillarTo != null);
+      const mat = litTex(t, { cutaway: !!cut, xray: s.opts.xray !== false, color: s.opts.tint || 0xffffff });
+      if (!s.opts.nodraw) this.boxes.add(s.texName + (cut ? 'c' : '') + (s.opts.tint || '') + (s.opts.xray === false ? 'n' : ''), mat, s.x0, y0, s.z0, s.x1, y1, s.z1, s.opts);
       if (s.opts.collide !== false) g.eachCell(s.x0, s.z0, s.x1, s.z1, s.opts.R, true, (i) => g.addSolid(i, y0, y1));
     }
     // 4b) roofs are solid and walkable (gables step up), underground lids are the ground above
@@ -831,7 +833,7 @@ export class World {
       const hw = d.w / 2, ht = (d.thick || 0.3) / 2 + 0.05, x = d.lx ?? d.x, z = d.lz ?? d.z;
       const k = g.doorBlocks.length, blk = { y0: d.y - 0.05, y1: d.y + 2.4, closed: false, cells: [] }; g.doorBlocks.push(blk);
       d.blk = k;
-      const mark = (i) => { g.door[i] = k; blk.cells.push(i); };
+      const mark = (i) => { if (g.door[i] < 0 || g.door[i] === k) g.door[i] = k; else g.door2[i] = k; blk.cells.push(i); };
       if (d.axis === 'x') g.eachCell(x - hw, z - ht, x + hw, z + ht, d.R, true, mark);
       else g.eachCell(x - ht, z - hw, x + ht, z + hw, d.R, true, mark);
     }
@@ -1085,6 +1087,10 @@ export class World {
         this._setAlpha(b.id, b.alpha);
       }
     }
+    // stepped out onto the roof / lid of the building we were cut into: drop the cut at once so its
+    // interior doesn't show through the surface we now stand on
+    const was = this._cutB ?? -1; this._cutB = inside;
+    if (inside < 0 && was >= 0 && py >= this.buildings[was].roofY - 0.6) { GU.uCutH.value = 999; GU.uCut.value.set(1e9, 1e9, -1e9, -1e9); }
     if (inside >= 0) {
       const b = this.buildings[inside];
       GU.uCut.value.set(b.x0 - 0.3, b.z0 - 0.3, b.x1 + 0.3, b.z1 + 0.3);
@@ -1092,6 +1098,12 @@ export class World {
       const want = Math.max(b.floorY, py) + 1.15;
       if (GU.uCutH.value > b.roofY + 1) GU.uCutH.value = b.roofY + 1;
       GU.uCutH.value = GU.uCutH.value > want ? Math.max(want, GU.uCutH.value - dt * 7) : Math.min(want, GU.uCutH.value + dt * 7);
+    } else if ([[0, 0], [1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]].filter(([dx, dz]) => g.ceilAt(px + dx, pz + dz, py + 0.5) < py + 9).length >= 4) {
+      // under a deck / overpass / overhang: cut a window around us so we stay visible underneath
+      GU.uCut.value.set(px - 7, pz - 4, px + 7, pz + 6); GU.uCutR.value.set(0, 0, 1, 0);
+      const want = py + 2.2;
+      if (GU.uCutH.value > want + 5) GU.uCutH.value = want + 5;
+      GU.uCutH.value = GU.uCutH.value > want ? Math.max(want, GU.uCutH.value - dt * 9) : want;
     } else {
       GU.uCutH.value = Math.min(999, GU.uCutH.value + dt * 9);
       if (GU.uCutH.value > py + 9) { GU.uCutH.value = 999; GU.uCut.value.set(1e9, 1e9, -1e9, -1e9); }
@@ -1102,9 +1114,12 @@ export class World {
   // is a point hidden by the current cutaway (inside the cut building's footprint and above the cut)?
   cutHides(x, z, y) {
     const c = GU.uCut.value; if (c.x > c.z) return false;
-    const R = GU.uCutR.value, dx = x - R.x, dz = z - R.y;
-    const lx = R.x + dx * R.z + dz * R.w, lz = R.y - dx * R.w + dz * R.z;
-    return lx > c.x && lx < c.z && lz > c.y && lz < c.w && y > GU.uCutH.value - 0.2;
+    const H = GU.uCutH.value; if (y <= H - 0.2) return false;
+    const R = GU.uCutR.value, inRect = (px, pz) => {
+      const dx = px - R.x, dz = pz - R.y, lx = R.x + dx * R.z + dz * R.w, lz = R.y - dx * R.w + dz * R.z;
+      return lx > c.x && lx < c.z && lz > c.y && lz < c.w;
+    };
+    return inRect(x, z) || inRect(x, z - OBLIQUE_K * (y - (H - 1.15)));
   }
 }
 const TERRAIN_NAME = Object.fromEntries(Object.entries(TID).map(([k, v]) => [v, k]));

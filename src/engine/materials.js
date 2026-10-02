@@ -94,10 +94,15 @@ const COMMON_FRAG_PARS = /* glsl */`
 `;
 const COMMON_FRAG_CLIP = /* glsl */`
   #ifdef DW_CUTAWAY
-    {
-      vec2 cd = vWPos.xz - uCutR.xy;
+    if (vWPos.y > uCutH) {
+      // cut anything above the cut height that is in the cut area OR covers it on screen: projected down
+      // the oblique view ray to our floor (uCutH - 1.15) - walls, the street in front of an underground
+      // hall, a deck overhead
+      vec2 pp = vec2(vWPos.x, vWPos.z - ${OBLIQUE_K.toFixed(3)} * (vWPos.y - (uCutH - 1.15)));
+      vec2 cd = vWPos.xz - uCutR.xy, pd = pp - uCutR.xy;
       vec2 cl = uCutR.xy + vec2(cd.x * uCutR.z + cd.y * uCutR.w, -cd.x * uCutR.w + cd.y * uCutR.z);
-      if (cl.x > uCut.x && cl.x < uCut.z && cl.y > uCut.y && cl.y < uCut.w && vWPos.y > uCutH) discard;
+      vec2 pl = uCutR.xy + vec2(pd.x * uCutR.z + pd.y * uCutR.w, -pd.x * uCutR.w + pd.y * uCutR.z);
+      if ((cl.x > uCut.x && cl.x < uCut.z && cl.y > uCut.y && cl.y < uCut.w) || (pl.x > uCut.x && pl.x < uCut.z && pl.y > uCut.y && pl.y < uCut.w)) discard;
     }
   #endif
   #ifdef DW_XRAY
@@ -181,7 +186,7 @@ export function terrainMaterial(idTexture, cellSize, origin, aoTex = null, aoSiz
   const atlas = terrainAtlas();
   const m = new THREE.MeshLambertMaterial({ color: 0xffffff });
   hook(m, {
-    xray: false, key: 'terrain',
+    xray: false, cutaway: true, key: 'terrain',
     extraUniforms: {
       tIds: { value: idTexture }, tAtlas: { value: atlas },
       uCell: { value: cellSize }, uOrigin: { value: new THREE.Vector2(origin[0], origin[1]) },

@@ -436,6 +436,8 @@ function makeCtx(w, rng) {
     return placed;
   };
   C.solidKind = (k) => SOLID.has(k);
+  // standing water deeper than ~0.8 m over the terrain (ponds, flooded craters, swamp channels)
+  C.deepAt = (x, z) => { const g0 = w.groundAt(x, z); return w.waters.some(q => x >= q.x0 && x <= q.x1 && z >= q.z0 && z <= q.z1 && q.level - g0 > 0.8 && (!q.poly || pointInPoly(x, z, q.poly))); };
   // loose containers outside
   C.loot = (cx, cz, r, list, tier = 1, o = {}) => {
     for (const kind of list) {
@@ -444,6 +446,8 @@ function makeCtx(w, rng) {
         if (C.inBuilding(x, z, 0.8) && !o.inside) continue;
         if (o.avoid && o.avoid(x, z)) continue;
         if (C.propHit(x - 0.7, z - 0.7, x + 0.7, z + 0.7) || C.nearDoor(x, z, x, z, 1.5)) continue;
+        if ([[1.6, 0], [-1.6, 0], [0, 1.6], [0, -1.6]].filter(([a, c]) => C.propHit(x + a - 0.3, z + c - 0.3, x + a + 0.3, z + c + 0.3)).length >= 3) continue;   // not boxed in
+        if (C.deepAt(x, z)) continue;                                                // not under water
         w.container(kind, x, z, rng() * 2 * PI, { tier, room: o.room || null });
         break;
       }
@@ -1322,33 +1326,37 @@ function westPOIs(C) {
   C.loot(238, 322, 36, ['arc_husk', 'arc_crate', 'ammo_box', 'arc_crate', 'weapon_case', 'crate', 'arc_husk', 'raider_cache', 'backpack'], 2);
   C.addClear(238, 322, 30);
   // ---------------- Water Treatment Control (+ surveillance key room), turned -15° with its plaza.
-  // 2 storeys (offices + a lab gallery upstairs, roof ladder); the pump hall sits on the Water Intake basement.
+  // A tall single-storey pump hall (skylight roof, roof ladder) standing on the Water Intake basement, and a
+  // 2-storey control block behind it (offices + lab upstairs, the locked surveillance room downstairs).
   const WT = G_WTC;
-  const wtc = C.B.wtc = C.gbld(WT, { x: 366, z: 414, w: 32, d: 44, storeys: 2, floorY: MID + 0.35, blend: 2, name: 'Water Treatment Control', wall: 'concrete', tint: 0xd0d4cc, floor: 'tiles', roof: 'corrugated', roofTint: 0xb8c0b8,
-    doors: [{ side: 'e', at: 26, w: 2.4, door: true }, { side: 's', at: 22, w: 2, door: true }, { side: 'n', at: 14, w: 3 }, { side: 'e', at: 8, w: 3, sill: 1.1 }, { side: 'w', at: 10, w: 3, sill: 1.1 }, { side: 'w', at: 26, w: 3, sill: 1.1 }, { side: 'e', at: 36, w: 3, sill: 1.1 }],
-    inner: [[0, 20, 32, 20, [{ at: 14, w: 2.4 }]], [0, 32, 32, 32, [{ at: 6, w: 1.8, door: true, locked: 'surveillance' }, { at: 24, w: 1.8 }]], [16, 32, 16, 44, []],
-      [0, 20, 32, 20, [{ at: 10, w: 2 }], 1], [0, 32, 32, 32, [{ at: 8, w: 1.8 }, { at: 26, w: 1.8 }], 1], [16, 32, 16, 44, [{ at: 6, w: 1.6 }], 1]],
-    stairs: [{ x: 20, z: 20.75, w: 2.4, dir: 'e', from: 0, to: 1 }], ladders: [{ side: 'e', at: 4 }] });
-  for (const lx of [5, 11, 17]) C.P(wtc, 'dg_pump', lx, 6, PI / 2, { solid: true });
-  C.P(wtc, 'dg_valve', 28, 13, 0, { solid: true }); C.P(wtc, 'dg_bigpipe', 12, 17.5, 0, { solid: true, scale: 0.6 });
-  C.Cn(wtc, 'toolbox', 4, 18, 0, { tier: 2 }); C.Cn(wtc, 'crate', 30, 2, 0, { tier: 1 }); C.Cn(wtc, 'locker', 2, 12, PI / 2, { tier: 1 });
-  C.IL(wtc, 8, 10, 0xd0e0ff, 1.0, 10); C.IL(wtc, 26, 14, 0xd0e0ff, 1.0, 10);
-  C.F(wtc, 'control', 0, 20, 32, 32, { tier: 2 });
-  C.F(wtc, 'security', 0, 32, 16, 44, { tier: 3, room: 'surveillance', extra: [['electronics', 1], ['security_locker', 1]] });
-  C.P(wtc, 'dg_server', 4, 33, 0, { solid: true });
-  C.K(wtc, 'surveillance', 0, 32, 16, 44, 'Surveillance Room');
-  C.F(wtc, 'office', 16, 32, 32, 44, { tier: 2 });
-  C.F(wtc, 'lab', 0, 0, 32, 20, { tier: 2, storey: 1 }); C.F(wtc, 'office', 0, 20, 32, 32, { tier: 1, storey: 1 });
-  C.F(wtc, 'server', 0, 32, 16, 44, { tier: 2, storey: 1 }); C.F(wtc, 'office', 16, 32, 32, 44, { tier: 2, storey: 1 });
-  // the water intake basement under the pump hall (quest: "the water intake below Water Treatment Control").
-  // Built after the WTC so the WTC's floor flatten does not fill it back in.
-  const wi = C.B.wint = C.hall(WT, { x: 367, z: 415, w: 30, d: 18, depth: 4.5, top: MID + 0.35, lid: 'tiles', wall: 'concrete', name: 'Water Intake',
-    stairs: [{ x: 21, z: 2.5, w: 1.6, dir: 'n', to: 'top' }] });
-  C.P(wi, 'dg_pump', 5, 5, PI / 2, { solid: true }); C.P(wi, 'dg_pump', 5, 12, PI / 2, { solid: true });
-  C.P(wi, 'dg_bigpipe', 11, 15.6, 0, { solid: true, scale: 0.85 }); C.P(wi, 'dg_bigpipe', 25, 15.6, 0, { solid: true, scale: 0.85 });
-  C.P(wi, 'dg_valve', 27, 4.5, 0, { solid: true }); C.P(wi, 'dg_spillgrate', 14, 1.4, 0, {});
-  for (const [k, lx, lz, r, t] of [['crate', 10, 3, 0, 1], ['crate', 26.5, 11, 0, 1], ['toolbox', 13, 8, 0, 2], ['electronics', 28.5, 8, 0, 2], ['locker', 1.8, 9, PI / 2, 1], ['raider_cache', 16.5, 10.5, 0, 2]]) C.Cn(wi, k, lx, lz, r, { tier: t });
-  C.IL(wi, 8, 9, 0xd0e8ff, 1.4, 11, 2.6); C.IL(wi, 24, 12, 0xd0e8ff, 1.4, 11, 2.6);
+  const wph = C.gbld(WT, { x: 366, z: 414, w: 32, d: 20, h: 6.4, floorY: MID + 0.35, blend: 2, name: 'WTC Pump Hall', wall: 'concrete', tint: 0xd0d4cc, floor: 'tiles', roof: 'corrugated', roofTint: 0xb8c8c8, peek: 0.35,
+    doors: [{ side: 'n', at: 14, w: 3 }, { side: 's', at: 14, w: 2.4 }, { side: 'e', at: 8, w: 3, sill: 1.1, top: 4.2 }, { side: 'w', at: 10, w: 3, sill: 1.1, top: 4.2 }], ladders: [{ side: 'e', at: 4 }],
+    roofExtras: [[4, 14, 10, 18, 0.8]] });
+  for (const lx of [5, 11, 17]) C.P(wph, 'dg_pump', lx, 6, PI / 2, { solid: true });
+  C.P(wph, 'dg_valve', 28, 13, 0, { solid: true }); C.P(wph, 'dg_bigpipe', 8, 16.5, 0, { solid: true, scale: 0.6 });
+  C.Cn(wph, 'toolbox', 4, 18, 0, { tier: 2 }); C.Cn(wph, 'crate', 30, 2, 0, { tier: 1 }); C.Cn(wph, 'locker', 2, 12, PI / 2, { tier: 1 });
+  C.IL(wph, 8, 10, 0xd0e0ff, 1.2, 11, 4.5); C.IL(wph, 26, 14, 0xd0e0ff, 1.2, 11, 4.5);
+  const wtc = C.B.wtc = C.gbld(WT, { x: 366, z: 434, w: 32, d: 24, storeys: 2, floorY: MID + 0.35, blend: 2, name: 'Water Treatment Control', wall: 'concrete', tint: 0xd0d4cc, floor: 'tiles', roof: 'corrugated', roofTint: 0xb8c0b8,
+    doors: [{ side: 'n', at: 14, w: 2.4 }, { side: 'e', at: 6, w: 2.4, door: true }, { side: 's', at: 22, w: 2, door: true }, { side: 'w', at: 6, w: 3, sill: 1.1 }, { side: 'e', at: 16, w: 3, sill: 1.1 }],
+    inner: [[0, 12, 32, 12, [{ at: 6, w: 1.8, door: true, locked: 'surveillance' }, { at: 24, w: 1.8 }]], [16, 12, 16, 24, []],
+      [0, 12, 32, 12, [{ at: 8, w: 1.8 }, { at: 26, w: 1.8 }], 1], [16, 12, 16, 24, [{ at: 6, w: 1.6 }], 1]],
+    stairs: [{ x: 20, z: 0.9, w: 2.4, dir: 'e', from: 0, to: 1 }] });
+  C.F(wtc, 'control', 0, 0, 32, 12, { tier: 2 });
+  C.F(wtc, 'security', 0, 12, 16, 24, { tier: 3, room: 'surveillance', extra: [['electronics', 1], ['security_locker', 1]] });
+  C.P(wtc, 'dg_server', 4, 13, 0, { solid: true });
+  C.K(wtc, 'surveillance', 0, 12, 16, 24, 'Surveillance Room');
+  C.F(wtc, 'office', 16, 12, 32, 24, { tier: 2 });
+  C.F(wtc, 'lab', 0, 0, 32, 12, { tier: 2, storey: 1 });
+  C.F(wtc, 'server', 0, 12, 16, 24, { tier: 2, storey: 1 }); C.F(wtc, 'office', 16, 12, 32, 24, { tier: 2, storey: 1 });
+  // the water intake basement under the east half of the pump hall (quest: "the water intake below Water
+  // Treatment Control"). Built after the WTC so its floor flatten does not fill it back in; it stays clear of
+  // the pump hall's centre, where the engine samples the hall's floor height.
+  const wi = C.B.wint = C.hall(WT, { x: 383, z: 415, w: 14, d: 11, depth: 4.5, top: MID + 0.35, lid: 'tiles', wall: 'concrete', name: 'Water Intake',
+    stairs: [{ x: 4, z: 2.0, w: 1.8, dir: 'w', to: 'top' }] });
+  C.P(wi, 'dg_pump', 7, 8, 0, { solid: true });
+  C.P(wi, 'dg_valve', 12.2, 7.4, 0, { solid: true }); C.P(wi, 'dg_spillgrate', 7, 9.4, 0, {});
+  for (const [k, lx, lz, r, t] of [['crate', 1.8, 5.4, PI / 2, 1], ['toolbox', 12.2, 5.4, 0, 2], ['electronics', 7, 5.6, 0, 2], ['locker', 1.8, 9, PI / 2, 1], ['raider_cache', 12.2, 9.4, 0, 2]]) C.Cn(wi, k, lx, lz, r, { tier: t });
+  C.IL(wi, 3.5, 6, 0xd0e8ff, 1.4, 11, 2.6); C.IL(wi, 10.5, 6, 0xd0e8ff, 1.4, 11, 2.6);
   // intake outfall north of WTC
   C.gprop(WT, 'dg_bigpipe', 381, 404, PI / 2, { solid: true }); C.gprop(WT, 'dg_spillgrate', 381, 398, 0, {}); C.gprop(WT, 'dg_pump', 392, 406, 0, { solid: true });
   C.glamp(WT, 386, 402, { y: 3, model: null, color: 0xffd090, intensity: 0.9, range: 8, flicker: 0.4 });
@@ -1742,7 +1750,7 @@ function arkSpawns(C) {
   A('sentinel', ...L(-18, -32), { radius: 0, y: 4.2 });                         // mast on the broken stub (ref 646,272)
   A('sentinel', ...L(37, 22), { radius: 0, yAbs: 5.2 });                        // fallen monolith in The Breach (ref 668,340)
   // turrets on rooftops (clear of roof plant, ladder heads and masts)
-  for (const [k, lx, lz] of [['gh', 22, 6], ['caz', 30, 8], ['ct', 8, 4], ['ta', 36, 8], ['wtc', 24, 30], ['pf', 16, 20], ['sub', 13, 5], ['pump', 16, 8]]) {
+  for (const [k, lx, lz] of [['gh', 22, 6], ['caz', 30, 8], ['ct', 8, 4], ['ta', 36, 8], ['wtc', 24, 12], ['pf', 16, 20], ['sub', 13, 5], ['pump', 16, 8]]) {
     const bb = B[k]; if (!bb) continue;
     const [x, z, o] = onRoof(bb, lx, lz); A('turret', x, z, o);
   }

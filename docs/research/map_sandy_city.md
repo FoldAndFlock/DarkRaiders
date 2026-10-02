@@ -55,32 +55,34 @@ POI `id` = snake_case of the tweaked display name; `aliases` = snake_case of the
 
 ## Extracts
 Reference positions in brackets; the metro halls are searched outward from them for a free, level
-30 × 15 m site (axis-aligned so the stairwells sit on the 2 m nav grid), so the platforms land a few metres off.
+34 × 16 m site (east–west, axis-aligned so the stairwells sit on the 2 m nav grid), so the platforms land
+10–20 m off; the station POIs (r 18) follow the built halls.
 
 | id | name | kind | built at x, z (reference) | face |
 |---|---|---|---|---|
-| northern_station | Northern Station | metro, hall floor 5 m below the street | 428, 303 (425, 303) | −π/2 (track to the west) |
-| western_station | Western Station | metro | 304, 479 (310, 477) | −π/2 |
-| eastern_station | Eastern Station | metro | 541, 630 (552, 616) | 0 (track to the south) |
-| southern_station | Southern Station | metro | 444, 732 (451, 737) | 0 |
+| northern_station | Northern Station | metro, hall floor 5 m below the street | 435, 296 (425, 303) | π (track along the north wall) |
+| western_station | Western Station | metro | 295, 468 (310, 477) | π |
+| eastern_station | Eastern Station | metro | 537, 630 (552, 616) | π |
+| southern_station | Southern Station | metro | 441, 730 (451, 737) | π |
 | collapsed_supermarket_hatch | Collapsed Supermarket Hatch | hatch (`raider_hatch_key`) | 476, 168 (475, 167) | toward the most open side |
 | train_station_hatch | Train Station Hatch | hatch | 252, 344 | " |
 | highway_overpass_hatch | Highway Overpass Hatch | hatch | 524, 516 | " |
 | old_town_hatch | Old Town Hatch | hatch | 306, 658 | " |
 
-**Metro stations are real underground halls** (World `under: 5`): a 30 × 15 m tiled hall whose lid is the
-street paving. Two 4 m stair flights (one per end) climb from the hall floor straight up to the street;
-their openings are fenced by rust railings with a gap at the street end, an `sc_metro_sign` totem (red "M"
-box + blue line plate) and a lamppost at each entrance. Inside: pillars, benches, departure sign, kiosk,
-locker/trash/backpack loot and ceiling lights (`lamp({ yAbs })`). The `extract(..., { kind: 'metro', face,
-trackZ: 3, trackLen: 28, platformLen: 18 })` stands at hall-local (15, 9); the extract set adds the raised
-platform, the 28 m track along the hall 3 m in front of the point, signals, roundel, ticket-machine
-console and the 12 m car that slides in. A 16 × 8 m block around the point is kept free of our props;
-dark tunnel mouths sit in both end walls where the track meets them. Twelve sealed secondary metro stairs
+**Metro stations are real underground halls** (World `under: 5`): a 34 × 16 m tiled hall (32 × 14 m inside)
+whose lid is the street paving. The `extract(..., { kind: 'metro', face: π, trackZ: 3, trackLen: 32,
+platformLen: 16 })` stands at hall-local (17, 8.5), so the extract set's track and 12 m car run along the
+far (north) wall — visible from the camera, doors toward it — with 7.5 m from the point to that wall; the
+set also brings the raised platform, signals, roundel and ticket-machine console. A 16 × 8 m block around
+the point is kept free of our props; dark tunnel mouths sit in both end walls where the track meets them.
+On the near (south) side a concourse with pillars, benches, departure sign, kiosk, locker/trash/backpack
+loot and ceiling lights (`lamp({ yAbs })`); two 4 m stair flights at its ends climb straight up to the
+street, their openings fenced by rust railings with a gap at the street end, an `sc_metro_sign` totem
+(red "M" box + blue line plate) and a lamppost at each entrance. Twelve sealed secondary metro stairs
 (`sc_metro_stairs`) still dot the town where the reference shows stair icons.
 
-**Raider hatches**: only the extract set's hatch (no extra props), a 3 × 3 m steel apron, an amber
-lamppost behind it and 2.4 m kept clear; `face` points to the most open of 8 directions.
+**Raider hatches**: only the extract set's hatch (no extra props or lamps; the set lights itself), a
+3 × 3 m steel apron and 2.4 m kept clear; `face` points to the most open of 8 directions.
 
 ## Key rooms (ids match the key items in `src/data/items.js`)
 Key wings are rotated buildings; `keyRoom` records carry the world bounding box plus `polys` (exact rotated

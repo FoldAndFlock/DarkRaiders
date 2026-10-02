@@ -33,13 +33,13 @@ Gate*, also reflected in the green gate leaves / pylon bands). Ids match `QUEST_
 | checkpoint | Checkpoint | checkpoint | 521, 384 | 80 | 2 | 12 two-storey blocks in two continuous wings rotated with the plaza (45°), kiosks + booms, gantry, buses/trucks, 4 turret perch towers, fences |
 | gate_control_room | Gate Control Room | gate_control_room | 683, 331 | 26 | 3 | 2-storey control block (45°) on the bench terrace above the yard, consoles facing the gate, ramp from the yard |
 | traffic_tunnel | Traffic Tunnel | traffic_tunnel | 633, 167 | 40 | 3 | underground; 32 m wide band at the reference's ~84° heading, cave-in at the north end, patrol-car key room |
-| security_wing | Security Wing | security_wing | 584, 210 | 26 | 3 | underground, 45° block off the yard: 4 cells, guard room, **Confiscation Room** key room, stair-ramp up to Reception |
+| security_wing | Security Wing | security_wing | 574, 220 | 36 | 3 | underground, 45° block off the yard: 4 cells, guard room, **Confiscation Room** key room, stair up into the guard post; west block (processing rooms, armoury, emergency stair) through the cell corridor |
 | maintenance_wing | Maintenance Wing | maintenance_wing | 721, 247 | 34 | 2 | underground, 45°: yard → 118 m Maintenance Hall (bays, trucks) → open junction pit → Data Vault; south leg → portal onto the east fields |
 | reinforced_reception | Reinforced Reception | reinforced_reception | 566, 156 | 34 | 3 | blast-walled reception hall with the security desk (quest), ramp down into the Security Wing |
-| headhouse | Headhouse | headhouse | 676, 190 | 32 | 2 | round concrete drum around the sunk ventilation hall (fans, grille roof), stair + ramp |
+| headhouse | Headhouse | headhouse | 676, 190 | 32 | 2 | round concrete drum (walkable top, stairs) around the sunk fan hall: gallery at bench level, central duct column, roof ladder, grille roof with the Sentinel hub |
 | data_vault | Data Vault | data_vault | 757, 130 | 26 | 3 | sunk server hall + strongroom; surface stair east; Bench Chapel with satellite dishes to the north |
 | warehouse_complex | Warehouse Complex | warehouse_complex | 746, 289 | 46 | 2 | 54 × 60 m sunk hangar on the reference diamond (45°) with racks, office, loading office, siren, white lookout tower (turret) |
-| pilgrims_peak | Pilgrim's Peak | pilgrims_peak | 925, 120 | 52 | 3 | 21 m plateau: complex on a 45° grid — hostel, refectory, research annex, cloister, 31 m comms tower + locked basement |
+| pilgrims_peak | Pilgrim's Peak | pilgrims_peak | 925, 120 | 52 | 3 | 21 m plateau: complex on a 45° grid — 3-storey hostel, refectory, research annex, Pilgrim Lodge, cloister; climbable 31 m comms tower + locked basement on the NE shoulder |
 | village | Village | village | 372, 88 | 100 | 2 | 34 gabled stone houses in two clusters, chapel + piazza (boom box), walled lanes, key house |
 | barren_clearing | Barren Clearing | barren_clearing | 168, 158 | 32 | 1 | scorched clearing, downed Barron husk, Bilgun's shelter |
 | raiders_refuge | Raider's Refuge | raiders_refuge | 304, 206 | 22 | 1 | hidden raider camp in the forest (shack, tents, campfire, antenna) |
@@ -56,17 +56,22 @@ Gate*, also reflected in the green gate leaves / pylon bands). Ids match `QUEST_
 | harvester_site | Harvester Clearing (label hidden) | — | 411, 286 | 0.5 | 3 | `bossPoi: ['queene']` at the reference Queen icon |
 | matriarch_arena | Gate Yard (label hidden) | — | 636, 258 | 0.5 | 3 | `bossPoi: ['matriark']` at the reference Matriarch icon (open yard behind the gate) |
 
-## Extracts (reference icon positions; vents are solid, the extract marker sits on their south apron)
-| id | name | kind | x, z | needs |
-|---|---|---|---|---|
-| cliffside_airshaft | Cliffside Airshaft | airshaft | 460, 224 | — |
-| warehouse_airshaft | Warehouse Airshaft | airshaft | 806, 289 | — |
-| forest_airshaft | Forest Airshaft | airshaft | 273, 478 | — |
-| overlook_airshaft | Overlook Airshaft | airshaft | 680, 492 | — |
-| lucky_hatch | Lucky Hatch | hatch | 500, 108 | raider_hatch key |
-| reinforced_hatch | Reinforced Hatch | hatch | 216, 306 | raider_hatch key |
-| prefab_hatch | Prefab Hatch | hatch | 955, 292 | raider_hatch key |
-| fragrant_hatch | Fragrant Hatch | hatch | 444, 527 | raider_hatch key |
+## Extracts (reference icon positions; engine structures from `engine/extracts.js`)
+Every `extract()` sits at the reference icon with `face` (0 = +z) pointing its doorway / key post toward the
+approach players arrive from. Airshafts get a levelled 13 m pad (`flatten`, concrete + gravel), a fence arc
+behind, two light masts at 7 m and a vent housing — nothing inside the 5 m clear zone; hatches get a levelled
+5 m gravel patch and nothing within 2 m. The rock outcrops are kept off all eight sites. The old placeholder
+props (`gg_airshaft`, `gg_hatchsign`) and their marker lamps are gone; the structures light themselves.
+| id | name | kind | x, z | face | site |
+|---|---|---|---|---|---|
+| warehouse_airshaft | Warehouse Airshaft | airshaft | 802, 281 | −1.53 (W, toward the yard gate) | the reference's fenced compound on the bench (9.5 m), yard levelled |
+| cliffside_airshaft | Cliffside Airshaft | airshaft | 459, 218 | −1.11 (WSW) | rock shelf under the Sentinel tower |
+| forest_airshaft | Forest Airshaft | airshaft | 273, 472 | −0.83 (SW) | clearing in the south-west woods |
+| overlook_airshaft | Overlook Airshaft | airshaft | 679, 486 | 0.19 (S) | Overlook knoll |
+| lucky_hatch | Lucky Hatch | hatch | 500, 108 | −0.79 | east end of the village street (the parked car moved off it) |
+| reinforced_hatch | Reinforced Hatch | hatch | 216, 307 | 1.63 | forest track west of Trapper's Glade |
+| prefab_hatch | Prefab Hatch | hatch | 955, 292 | −1.95 | east edge of the Housing Project |
+| fragrant_hatch | Fragrant Hatch | hatch | 444, 527 | 1.57 | flower meadow north of the Olive Grove (an outcrop used to cross it) |
 
 Player spawns: 21 reference "player spawn" icons (pulled inside the boundary cliff) + 2 extra (Pilgrim's
 Peak courtyard, Maintenance Bunker) = 23.
@@ -74,76 +79,79 @@ Peak courtyard, Maintenance Bunker) = 23.
 ## Key rooms (ids match the key items in `src/data/items.js`)
 | room id | key item | where | x0,z0 – x1,z1 | tier-3 containers |
 |---|---|---|---|---|
-| village | green_gate_village_key | Village Key House (west cluster, locked front door) | 312,80 – 325,92 | 6 |
-| communication_tower | green_gate_communication_tower_key | Comms Tower Base, east room (Pilgrim's Peak) | 956,84 – 964,98 | 5 |
+| village | green_gate_village_key | Village Key House (west cluster, locked front door), both floors | 312,80 – 325,92 | 10 |
+| communication_tower | green_gate_communication_tower_key | Comms Tower Base, east room (Pilgrim's Peak NE shoulder), rotated, `poly` set | 939,88 – 955,103 (AABB) | 5 |
 | cellar | green_gate_cellar_key | Farmhouse Cellar SW of the Olive Grove (reference "Cellar Key" icon) | 432,640 – 438,645 | 3 |
 | cellar | green_gate_cellar_key | Trapper's Cellar in the glade cabin (the reference's second "Cellar Key" icon) | 250,294 – 256,304 | 4 |
-| confiscation_room | green_gate_confiscation_room_key | north corner of the (rotated) Security Wing; `keyRoom` carries `poly` | 574,183 – 589,198 (AABB) | 6 |
+| confiscation_room | green_gate_confiscation_room_key | north corner of the (rotated) Security Wing, underground; `keyRoom` carries `poly` | 574,184 – 588,198 (AABB) | 6 |
 | patrol_car | patrol_car_key | armoured patrol car in the Traffic Tunnel (locked `car_trunk`) | 620,181 – 627,189 (AABB) | 1 |
 
-The communication tower room is also rotated now (AABB 948,122 – 964,138, `poly` set). Sealing check: the debug
-flood-fill closes every locked door exactly like `sim._doorBlock` (rotation-aware `setTop`) and confirms no
-key-room container is reachable from any spawn, while all of them are reachable with doors open.
+Sealing check (debug 3D flood over the multi-level grid, every locked door closed): no key-room container is
+reachable from any spawn; with the doors open all of them are (`leakClosed 0`, `reachOpen = n` for every room).
 
 ## Terrain approach (mountain valley)
 * **Boundary**: a traced playable polygon; outside it a terraced limestone mountain (ridged noise quantised
   into 3.4 m steps) plus a guaranteed 8 m sheer cliff band right at the edge, so the valley is sealed
   (flood-fill check: every spawn/extract/container reachable, nothing outside).
-* **Upper bench** (9.5 m, cliff edges via `raisePoly` blend 0) carries the gate complex: Reception,
-  Headhouse, Data Vault, Warehouse, Control Room. A lower **west corridor** shelf (5.6 m) and the **east
-  fields** (6.6 m) step down to the valley floor (~3–6 m). **Pilgrim's Peak** is a 21 m plateau with a road
-  ramp along its south face and a footpath ramp on its west face.
+* **Upper bench** (9.5 m, hard edges by a scanline `fillPoly` after the soft `raisePoly`) carries the gate
+  complex. A lower **west corridor** shelf (5.6 m) and the **east fields** (6.6 m) step down to the valley
+  floor (~3–6 m). **Pilgrim's Peak** is a 21 m plateau with a road ramp along its south face and a footpath
+  ramp on its west face.
 * ~220 **rock outcrops** (the pale crescents all over the reference): curved `ridge`s 2–6 m high with rock
-  paint + gravel/dirt skirts + boulders/crags, avoiding POI footprints and roads. **Ridgeline** is a 17 m
-  crest; the **Ancient Fort** sits on a 6.5 m hill; **Broken Earth** has craters.
+  paint + gravel/dirt skirts + boulders/crags, avoiding POI footprints, roads and extraction sites. Boulders
+  now reserve their footprint so loot scattered later never lands in a rock pocket. **Ridgeline** is a 17 m
+  crest; the **Ancient Fort** sits on a 6.5 m hill; **Broken Earth** has craters with ragged mud/dirt paint.
 * Water: the creek along the north edge into the NE lake, the SW gorge lake under the broken highway, a
   pond west of the Checkpoint woods.
 * Roads: the highway causeway climbs from the collapsed spans (8 m) down to the Checkpoint (3.6 m) and up
-  the gate ramp into the yard (6.5 m); concrete surfaces with prop lane markings (the terrain atlas'
-  asphalt has fixed N–S dashes that look wrong on diagonals).
+  the gate ramp into the yard; concrete surfaces with prop lane markings.
 
-## Underground tunnels (engine has one layer)
-Represented as **cut-and-cover corridors**: long `building()`s whose floor is pinned at 6.5 m (`floorY`,
-blend 0) inside the 9.5 m bench, with moss-covered roofs + vent grates that fade when you enter (peek 0.9).
-Their parapet walls rise 0.5 m above the bench, so the surface above is partitioned like the real complex:
-you get between bench sectors through the tunnels or the marked ramps/stairs.
+## Levels (pass 3: multi-level engine)
+**Underground halls.** Every tunnel space is an `under` hall (`building({ under: 4.5 })`): floor at 5.0 m, 1 m
+earth walls inside the footprint, a walkable lid flush with the 9.5 m bench. The bench above the complex is
+continuous ground again (rock, scrub and vent grates on the lids; props on a lid are cut away with it while
+you are inside). Halls, all following the underground reference:
+| hall | frame | entrances |
+|---|---|---|
+| Traffic Tunnel (32 m band, ~84°) | `hallDef` | open south mouth onto the yard; emergency stair up the west wall by the north cave-in; door gaps into the Vault Passage and the Headhouse Connector |
+| Vault Passage → Data Vault | axis-aligned | Data Vault stair up its east wall; south door onto the junction pit (footbridge over it on the bench) |
+| Security Wing + west block | gate frame | yard door; stair up into the guard post on the bench; west block's emergency stair; corridor door between the two |
+| Maintenance Wing → Maintenance Hall | gate frame | yard mouth; stair up at the Warehouse's north door; Hall stair; NE mouth onto the junction pit |
+| Maintenance Wing South | gate frame | off the Hall; south portal + ramp onto the east fields |
+| Headhouse (sunk fan hall) + Connector | axis-aligned | ramp from the south plaza, stair to the bench-level gallery, drum stairs, ladder to the roof |
+Openings onto sunk ground (tunnel mouths, junctions, the yard, the pit) are re-cut after every flatten.
 
-**v2 (rotated buildings):** the halls now follow the underground map's own geometry. Everything around the
-gate sits on a 45° "gate frame" (`gfDef(a0, a1, b0, b1)`: a = north-east into the complex, b = south-east along
-the gate): Security Wing, Maintenance Wing + Hall, Warehouse diamond, Maintenance Wing South, Control Room,
-the Checkpoint wings and the open **yard** pit behind the gate. The **Traffic Tunnel** is a 32 m band at its own
-~84° heading (`hallDef(A, B, width)`), joined to the axis-aligned Vault Passage / Headhouse connector through
-door gaps cut where the rotated east wall crosses them. A small open-sky **junction pit** links the Maintenance
-Hall's north-east mouth to the Data Vault's south door. Ramps inside rotated rectangles use `rampLocal()`.
-Connectivity: gate → yard → Traffic Tunnel north (cave-in, patrol car) → Vault Passage → Data Vault; yard NW →
-Security Wing (cells, guard room, Confiscation Room) → stair-ramp up to the Reception courtyard; yard NE →
-Maintenance Wing → Maintenance Hall → pit → Data Vault, Hall SE → Warehouse → Maintenance Wing South → portal
-onto the east fields; Headhouse connector off the band. Surface entrances: Security Wing stair, Headhouse ramp
-+ stair, yard stair to the Headhouse terrace, Data Vault stair, Warehouse NE/SW ramps, Control Room ramp, portal.
+**Upper floors and climbables.** Multi-storey houses (village, Pilgrim's Peak, the Reception wing, Gate
+Control Room, Fort Keep, Prefab Houses, Pilgrim Lodge) have real floors: stairs planned along an outer wall
+clear of doors and partitions, a landing that closes the stairwell margin at the top step, upstairs windows,
+a partition and their own furniture + loot (`storey`). Ladders: every perch tower (deck 7 m), the comms tower
+(10 m and 20 m platforms, terminal + loot on top), the Headhouse roof, the Reception / Control Room / Warehouse
+roofs, the Fort Keep roof and two fort corner towers, the hostel roof. The Headhouse drum top (12.75 m) joins
+the roof edge. Footbridge over the junction pit via `bridge()`.
+
+**Checks.** A debug flood over the grid (column tops + floating spans + ladders, `STEP_H`/`BODY_H` rules)
+from every spawn reaches every container on every level, every extract and every spawn (0 unreachable); per-
+level images (lids, hall floors, each storey) were inspected for magenta (unreached) floor.
 
 ## Perched ARK (engine `y` / `yAbs`, facing `f`)
-Every fixed Sentinel/turret has `f` (0 = +z/south, `atan2(dx, dz)`), its starting heading and sweep centre,
-aimed over its intended field.
 | perch | where | height | faces |
 |---|---|---|---|
-| gate sentry balcony (`gg_gatebalcony`) | Outer Gates, reference Sentinel icon | 8 m above the plaza | the Checkpoint plaza (SW, back to the gate); pylon tops (32 m) / wall walk (15 m) drew it 12–26 m up-screen, out of view |
-| perch tower (`gg_perchtower`, deck 7 m) | 4 Checkpoint corners (turrets) | 7 m | the plaza centre |
-| perch tower | west of the Checkpoint (Sentinel icon) | 7 m | the plaza's west woods + highway (ESE) |
-| perch tower | above the Cliffside Airshaft (Sentinel icon) | 7 m | the airshaft and its approach (S) |
-| perch tower | east of the Headhouse (Sentinel icon) | 7 m | the Warehouse yard (SW) |
-| white lookout tower (`gg_perchtower_w`) | south of the Warehouse (quest) | 7 m, turret | the east fields (S) |
-| Headhouse roof edge | south roof-edge railing, reference icon | 13.65 m abs | south over the ramp, plaza and Maintenance Hall roof |
-| Pilgrim Hostel roof edge | cloister-side parapet, reference icon | 9.85 m above the plateau | the cloister and the west ramp |
+| gate sentry balcony (`gg_gatebalcony`) | Outer Gates, reference Sentinel icon | 8 m above the plaza | the Checkpoint plaza (SW) |
+| perch tower (`gg_perchtower`, walkable deck 7 m, ladder) | 4 Checkpoint corners (turrets) | 7 m | the plaza centre |
+| perch tower | west of the Checkpoint (Sentinel icon) | 7 m | the west woods + highway |
+| perch tower | above the Cliffside Airshaft (Sentinel icon) | 7 m | the airshaft approach |
+| perch tower on the Maintenance Hall lid | east of the Headhouse, at the reference Sentinel icon (774, 193) beside a pump hut | 16.5 m abs | the Warehouse yard (SW) |
+| white lookout tower (`gg_perchtower_w`) | south of the Warehouse (quest) | 7 m, turret | the east fields |
+| Headhouse roof hub | reference icon, roof centre | 13.65 m abs | south over the plaza |
+| Comms Tower Base roof | reference icon at the base's west corner (Pilgrim's Peak) | 3.85 m above the plateau | the hostel's north yard and the west footpath |
 | Traffic Tunnel floor | Sentinel + turret near the north cave-in | 0 m | down the band toward the yard |
-| Security Wing turret | by the Confiscation Room | 0 m | down the wing toward its yard door |
+| Security Wing turret | by the Confiscation Room | 0 m | toward the yard door |
 
-**Roof perches and `sim.canSee`:** the engine hides a building's interior from observers above its roof only
-when the observer's (x, z) is *outside* that building. A Sentinel standing on the roof centre is inside the
-footprint and could still see (and laser) players in the hall below, which the raid check confirmed
-(`canSee: true`). Both roof Sentinels therefore stand on the roof edge just outside the footprint. Checked
-in a raid with `sim.canSee`: Headhouse, player inside → false, outside on the plaza → true; Hostel, player
-inside → false, in the cloister → true, inside the Research Annex → false. Right under the Headhouse's 3.35 m
-concrete collar is a natural dead zone.
+**Sight through roofs.** `sim.canSee` is a grid ray now, sampled once per 0.5 m cell, so a steep look-down can
+slip through a 0.3 m slab. Under the two perches that stand over halls (Headhouse hub, Maintenance Hall tower)
+the roof is thickened (invisible solid, ≥ 2.2 m headroom left) and a pier / duct column fills the spot right
+underneath. Raid check: players inside the Headhouse, the Maintenance Hall, the Comms Tower Base and the hostel
+are never seen from the roof perches (`canSee: false` at every tested spot).
 
 ## Conditions
 * **Harvester**: `spawnBoss: 'queene'` lands on `harvester_site` (411, 286), a scorched clearing west of the
@@ -154,8 +162,8 @@ concrete collar is a natural dead zone.
   (`escorts.pilgrims_peak` in conditions.js), and four `gg_printer` code printers with an `electronics`
   container (`note: 'security_code_printer'`) at Raider's Refuge, Pilgrim's Peak, Reinforced Reception and
   the Ancient Fort.
-Verified with `index.html?raid=green_gate&cond=harvester|matriarch|locked_gate`: the boss spawns in its
-arena, the escorts only appear under their condition, and there are no console errors.
+Verified in raids (`index.html?raid=green_gate&cond=harvester|matriarch`): the boss spawns in its arena, the
+escorts only appear under their condition, no console errors.
 
 ## Quest / condition hooks placed
 Boom box (`electronics`, `note: 'boom_box'`) on the village piazza; buses for the horn at the Checkpoint;
@@ -164,28 +172,39 @@ Reception; satellite dishes on the Bench Chapel north of the Data Vault; observa
 comms terminal by the Olive Grove; raider structure at Trapper's Glade; 6 `bee_hive` containers in the
 Olive Grove; Bilgun's shelter at Barren Clearing; transmitter at the Ancient Fort; purification tanks at
 the Maintenance Bunker; Deforestr husk (`deforestr_husk` container) at Adorned Wreckage; Barron husk at
-Barren Clearing; Pilgrim's Peak comms tower (LiDAR/terminal quests); patrol car in the Traffic Tunnel.
+Barren Clearing; Pilgrim's Peak comms tower (terminal on its 20 m platform); patrol car in the Traffic Tunnel.
 
-## Counts (v2 build)
-101 buildings · 19 326 props · 695 containers (358 t1 / 283 t2 / 54 t3) · 117 ARK spawn groups (188 units incl.
-condition-only) · 8 extracts · 23 spawns · 26 POIs (2 hidden boss arenas) · 6 key-room rects (5 ids) · 234 lamps
-· 15 zones. Build ≈ 1.5 s map code + ≈ 1.8 s engine finalize in headless Chromium (3.3–4.6 s total by load).
+## Accuracy fixes in pass 3
+* Comms tower + its locked basement moved to the reference's NE shoulder of Pilgrim's Peak (lattice tower at
+  ~953, 84; Sentinel on the base roof at the icon); a two-storey Pilgrim Lodge fills the complex's SE wing.
+* East-of-Headhouse Sentinel tower moved 26 m west onto the reference icon (on the Maintenance Hall lid), with
+  the small hut the blank map shows beside it.
+* Security Wing grown by a west block to match the reference outline (≈ 62 × 42 m in the gate frame).
+* Extraction sites rebuilt (see above); Warehouse Airshaft inside the reference compound.
+* Surface over the tunnels is walkable bench with rock and scrub like the reference instead of sealed roofs.
+* Village row houses: partition doors moved off the T-junction so every room (and the stairs) can be entered;
+  the walled lane no longer runs through houses.
+* Ridgeline boulders no longer spawn inside the prefab houses; Broken Earth's hard-edged mud polygon replaced.
+
+## Counts (v3 build)
+106 buildings (8 underground halls) · 19 736 props · 878 containers (443 t1 / 392 t2 / 43 t3) · 119 ARK spawn
+groups (191 units incl. condition-only) · 8 extracts · 23 spawns · 26 POIs (2 hidden boss arenas) · 6 key-room
+rects (5 ids) · 251 lamps · 18 ladders · 15 zones. Build ≈ 1.3 s map code + ≈ 2.4 s engine finalize in headless
+Chromium (3.8 s; up to 6 s while the machine was heavily loaded).
 
 ## Deviations (forced by the top-down engine)
-* **Tunnels** are a single-layer cut-and-cover network (above); the surface above them isn't walkable. Since
-  v2 the halls are rotated to match the reference; the Vault Passage and Data Vault stay axis-aligned (they
-  are close to it in the reference).
-* **Perches** are lowered for readability: the gate Sentinel uses an 8 m balcony, not the pylon top, and the
-  roof icons (Headhouse, Pilgrim's Peak) use a rim or tower beside the roof (see the perch table).
-* **Multi-storey** buildings (hostel, keep, reception, control room) are one walkable floor with visual
-  storeys; the gate pylons/walls are solid set pieces.
-* The Harvester set-piece structure itself (`spawnStructure: 'harvester'`) isn't placed by the engine yet;
-  the Queene and her escorts use the clearing.
-* The gate pylons are scaled down to 32 m and the valley floor is slightly flattened so the Checkpoint and
-  highway stay readable at the 40 × 22 m camera.
+* **Perches** are lowered for readability: the gate Sentinel uses an 8 m balcony, not the pylon top.
+* The Traffic Tunnel is one 32 m band; the reference's fan of lanes around the Headhouse drum is simplified
+  to the band + the Headhouse Connector. Maintenance Wing South runs diagonally to the portal where the
+  reference's leg turns south along x ≈ 780.
+* The gate pylons/walls are solid set pieces; the pylons are scaled to 32 m.
+* The Harvester set-piece structure (`spawnStructure: 'harvester'`) isn't placed by the engine yet; the Queene
+  and her escorts use the clearing.
 
-## Engine wishes (v3; the v1 wishes and v2 wishes 1–2 are done)
-1. `sim.canSee` roof rule: also apply when the observer stands *on* the same building (its eye above
-   floorY + h), so a Sentinel can sit at the centre of a roof icon without seeing into the room below.
-2. A walkable roof deck / second height layer for the ground above the tunnels.
+## Engine wishes (v4)
+1. `grid.ray` / `los`: test the height interval a ray covers inside each cell (not one sample at the cell
+   entry), so thin roofs, lids and decks block steep sight lines and shots without thickening.
+2. Leaving an underground hall onto its own lid keeps the cutaway for ~1 s (the lid shows the hall below);
+   snap `uCutH` back when the player's level changes by more than a storey.
 3. `harvester` set-piece placement at the `bossPoi` arena (`spawnStructure`).
+4. A building flatten that doesn't touch the terrain (`flatten: false`), so small huts can stand on a lid.
