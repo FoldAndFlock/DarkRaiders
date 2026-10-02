@@ -69,7 +69,11 @@ Structures: `block(x0,z0,x1,z1,h,tex,{y0?,collide?,cast?,tint?,xray?,rot?,R?})` 
   height (upstairs, in tunnels: lamps default to ~2.8 m above the heightfield, which is the tunnel floor).
   `arkSpawn(..., { surface: true })` spawns on the top surface (ground over a tunnel).
 * Bridges / overpasses / catwalks you can walk on AND under: `bridge(points, width, y, tex, { thick, railH,
-  rails, pillars: spacing })` (absolute deck height). The old `deck()` still raises the terrain instead.
+  rails, pillars: spacing })` (absolute deck height; rails are trimmed at bends, a closed polyline makes a
+  ring). Floating pieces (`block(..., { y0 })`, `pillarTo`) open up around you when you walk under them.
+  The old `deck()` still raises the terrain instead.
+* Stairs: the slab opening is a cell wider than the flight for headroom except at the top end, so no
+  landing plate is needed; turned (rotated) flights are climbable in a straight line.
 * Doors only block their own storey; lintels and window heads are real solids now (they block shots).
 * Check it in `tools/leveltest.mjs`-style scripts: `grid.floorAt(x, z, y)`, `grid.surfacesI(i)`,
   `nav.find(sx, sz, tx, tz, budget, sy, ty)`.
@@ -85,7 +89,7 @@ Windows = door gaps with `sill` (low wall you can see/shoot over but not walk th
 
 Props: `prop(kind,x,z,rot,{scale,y,solid:true|[hw,hd,h]})`, `scatter(kind,area,count,opts)`,
 `forest(area,density,kinds,opts)`. Built-in kinds: `crate lootCrate arcCrate barrel barrelBlue tree pine
-deadTree bush cactus rock car lamp sandbag pipe husk antenna extractPad hatch workbench shelf debris`.
+deadTree bush cactus rock car lamp sandbag pipe husk antenna hatch workbench shelf debris`.
 Add your own voxel props in `src/maps/props_<id>.js` via
 `registerProp(kind, () => new Vox(...)...build(), { solid: [hw, hd, h], cast })` (see `src/engine/voxel.js`
 and existing builders in `src/engine/models.js`), imported at the top of your map module.
@@ -98,8 +102,22 @@ reach the ground; the fixture's own post never shadows it.
 Gameplay markers (consumed by the game – be generous and thoughtful):
 * `poi(id, name, x, z, r, { tier, aliases })` — every named location from the reference. `id` = snake_case
   of the (lightly tweaked) display name; put the snake_case of the ORIGINAL ARC Raiders name in `aliases`.
-* `extract(id, name, x, z, { kind })` — kind: `elevator` (Cargo Elevator / lifts), `hatch` (Raider Hatch,
-  needs a hatch key), `metro` (metro station), `airshaft` (Green Gate airshafts). Use the reference positions.
+* `extract(id, name, x, z, { kind, face, callTime, needsKey, structure })` — kind: `elevator` (Cargo
+  Elevator / lifts), `hatch` (Raider Hatch, needs a hatch key), `metro` (metro station), `airshaft` (Green
+  Gate airshafts). Use the reference positions. `face` (radians) turns the rig so its doors face the
+  approach; `callTime` fixes the countdown (default 30–45 s, airshaft 30–38 s). The rig (engine/extracts.js)
+  brings its own model, collision, call point and departure lever, so don't place pads, frames or signs on
+  the spot. Footprints: elevator ~7.5 × 7.5 m plus the call post at its front-right corner, with a clear
+  approach in front and away from the map edge; airshaft ~4 × 4 m plus an outdoor console, open sky above
+  (the dropship hovers over it); hatch ~2 m clear. **Metro** must sit in an `under` hall declared before
+  it: 7.75 m deep across the track at the defaults, ≥ 7 m clear each side of the marker along the track
+  (26–36 m halls look best), `face` so the track runs along the far wall and the car doors face the camera;
+  the track auto-fits the hall (`metroFit`) and tunnel mouths sit on its end walls. Metro options:
+  `trackZ` (3), `trackLen` (26), `platformLen` (16), `platformDepth` (2.75), `trainDir`.
+  Flow in game: hold E at the call point (loud: ARK investigate) → countdown → doors open → board and hold
+  E on the lever (or it leaves by itself after 90 s) → 10 s closing → everyone inside extracts. Elevators and
+  airshafts come back after 75 s; a metro station closes for the raid once used; a hatch opens a silent
+  15 s window (one open hatch per map).
 * `spawnPoint(x, z)` — player/squad insertion points (reference "player spawn" icons).
 * `container(kind, x, z, rot, { tier: 1..3, room })` — loot. Kinds: `locker crate weapon_case ammo_box
   medical_bag toolbox electronics cabinet desk safe trash car_trunk fridge suitcase backpack arc_crate

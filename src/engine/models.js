@@ -302,7 +302,6 @@ const PROPS = {
   pipe() { const v = new Vox(40, 8, 8, 0.1, [20, 0, 4]); for (let x = 0; x < 40; x++) v.cyl(4, 4, 0, 0, 0, 0); for (let x = 0; x < 40; x++) for (let y = 0; y < 8; y++) for (let z = 0; z < 8; z++) { const dy = y - 3.5, dz = z - 3.5; if (dy * dy + dz * dz < 13) v.set(x, y, z, x % 10 === 0 ? 0x3a3a3a : (y > 5 ? 0x7a5a3a : 0x5a4a3a)); } return v.build(); },
   husk() { const v = new Vox(26, 8, 22, 0.12, [13, 0, 11]); v.box(6, 0, 4, 19, 6, 17, 0x2a2826); v.box(8, 6, 6, 17, 7, 15, 0x3a3634); v.box(0, 0, 8, 6, 2, 10, 0x2a2826); v.box(20, 0, 12, 25, 1, 14, 0x2a2826); v.box(10, 2, 18, 14, 4, 18, 0x4a2a1a); for (let i = 0; i < 20; i++) v.set(6 + (i * 5) % 13, 7, 4 + (i * 7) % 13, 0x6a4a30); return v.build(); },
   antenna() { const v = new Vox(10, 60, 10, 0.12, [5, 0, 5]); for (let y = 0; y < 58; y++) { const w = Math.max(0, Math.floor((58 - y) / 14)); v.box(5 - w, y, 5 - w, 5 + w - 1 < 5 - w ? 5 - w : 5 + w - 1, y, 5 + w - 1 < 5 - w ? 5 - w : 5 + w - 1, y % 4 === 0 ? 0x8a3a2a : 0x4a4a4a); } v.box(4, 58, 4, 5, 59, 5, 0xff3030); v.glow(0xff3030); return v.build(); },
-  extractPad() { const v = new Vox(30, 3, 30, 0.12, [15, 0, 15]); v.box(0, 0, 0, 29, 1, 29, (x, y, z) => ((x + z) >> 2) % 2 && (x < 2 || x > 27 || z < 2 || z > 27) ? 0xd8a020 : 0x3a3e40); v.box(13, 2, 13, 16, 2, 16, 0x40ff80); v.glow(0x40ff80); return v.build(); },
   hatch() { const v = new Vox(12, 3, 12, 0.1, [6, 0, 6]); v.cyl(6, 6, 0, 1, 5.5, 0x4a4e52); v.cyl(6, 6, 2, 2, 4, 0x6a6e72); v.box(5, 2, 1, 6, 2, 10, 0xd8a020); v.glow(0xd8a020); return v.build(); },
   workbench() { const v = new Vox(16, 9, 8, 0.1, [8, 0, 4]); v.box(0, 6, 0, 15, 7, 7, 0x5a4026); v.box(0, 0, 0, 1, 6, 1, 0x3a2a1a); v.box(14, 0, 0, 15, 6, 1, 0x3a2a1a); v.box(0, 0, 6, 1, 6, 7, 0x3a2a1a); v.box(14, 0, 6, 15, 6, 7, 0x3a2a1a); v.box(3, 8, 2, 6, 8, 4, 0x8a8a8a); v.box(10, 8, 3, 12, 8, 5, 0xd8a020); return v.build(); },
   shelf() { const v = new Vox(16, 20, 5, 0.1, [8, 0, 2.5]); for (let y = 0; y < 20; y += 6) v.box(0, y, 0, 15, y, 4, 0x4a4a4a); v.box(0, 0, 0, 0, 19, 4, 0x3a3a3a); v.box(15, 0, 0, 15, 19, 4, 0x3a3a3a); for (let i = 0; i < 8; i++) v.box(1 + i * 2, 1 + (i % 3) * 6, 1, 2 + i * 2, 3 + (i % 3) * 6, 3, [0x8a6a3a, 0x3a6a8a, 0xa83a2a, 0xd8d0b0][i % 4]); return v.build(); },
@@ -315,7 +314,7 @@ const PROP_INFO = {
   bush: { cast: true }, cactus: { solid: [0.25, 0.25, 2] }, rock: { solid: [1.0, 0.85, 1.0] },
   car: { solid: [1.0, 2.0, 1.3] }, lamp: { solid: [0.15, 0.15, 3] }, sandbag: { solid: [1.0, 0.3, 0.6] },
   pipe: { solid: [2.0, 0.4, 0.8] }, husk: { solid: [1.5, 1.2, 0.9] }, antenna: { solid: [0.5, 0.5, 7] },
-  extractPad: {}, hatch: {}, workbench: { solid: [0.8, 0.4, 0.9] }, shelf: { solid: [0.8, 0.25, 2] }, debris: { cast: false },
+  hatch: {}, workbench: { solid: [0.8, 0.4, 0.9] }, shelf: { solid: [0.8, 0.25, 2] }, debris: { cast: false },
 };
 export function registerProp(kind, builder, info = {}) { PROPS[kind] = builder; PROP_INFO[kind] = info; geoCache.delete('prop_' + kind); }
 export function propInfo(kind) { return PROP_INFO[kind] || {}; }
