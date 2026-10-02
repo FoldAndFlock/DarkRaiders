@@ -26,7 +26,7 @@ export class RaidUI {
     if (game.profile && !game.profile.seenIntro) this.showIntro();
   }
   showIntro() {
-    const p = el('div', 'panel col'); p.style.cssText = 'position:absolute;right:calc(var(--px)*8px);top:calc(var(--px)*40px);max-width:calc(var(--px)*190px);pointer-events:none';
+    const p = el('div', 'panel col'); p.style.cssText = 'position:absolute;left:calc(var(--px)*8px);top:calc(var(--px)*64px);max-width:calc(var(--px)*190px);pointer-events:none';
     p.innerHTML = `<h2 class="yellow">FIRST DROP</h2>
       <div>Loot what you can, then <span class="green">EXTRACT</span> at an elevator, metro or hatch before the timer runs out.</div>
       <div class="label">ARK GAZE: <span style="color:#c8dcff">WHITE</span> PATROLLING - <span class="yellow">YELLOW</span>/<span style="color:var(--orange)">ORANGE</span> SUSPICIOUS - <span class="red">RED</span> SPOTTED YOU, ATTACKING. STAY OUT OF THE LIGHT OR BREAK LINE OF SIGHT.</div>

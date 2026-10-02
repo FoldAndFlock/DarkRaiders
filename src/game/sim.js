@@ -279,7 +279,7 @@ export class Sim {
       e.hp -= dmg;
       e.brain.onHit(src, dmg);
       if (src) src.dmgDealt = (src.dmgDealt || 0) + dmg;
-      if (e.hp <= 0) { this.killArk(e, src); res = 'k'; }
+      if (e.hp <= 0) { this.killArk(e, src, o.weapon || (o.explosive ? 'grenade' : null)); res = 'k'; }
     } else if (e.type === 'raider') {
       if (e.buffs?.invuln) return 'w';
       dmg *= 1 - (e.stats?.damage_reduction || 0);
@@ -320,11 +320,11 @@ export class Sim {
       this.later(20, () => this.entities.has(e.id) && this.remove(e));
     }
   }
-  killArk(e, src) {
+  killArk(e, src, weapon = null) {
     if (e.st === 'dead') return;
     e.st = 'dead';
     if (src) src.kills = (src.kills || 0) + 1;
-    this.emit({ e: 'arkdown', id: e.id, kind: e.kind, x: e.x, z: e.z, y: e.y + (e.alt || 0), src: src?.id, xp: e.def.xp || 20, big: (e.def.hp || 100) > 600 });
+    this.emit({ e: 'arkdown', id: e.id, kind: e.kind, x: e.x, z: e.z, y: e.y + (e.alt || 0), src: src?.id, w: weapon, xp: e.def.xp || 20, big: (e.def.hp || 100) > 600 });
     const items = rollArkDrops(e.def.loot, this.rng, this.condEffects.lootMul || 1);
     this.dropLoot(e.x, e.z, items, 'ark', e.kind);
     if (e.def.explodeOnDeath || (e.def.behavior === 'pop' && !e.def.noDeathBlast && e.kind !== 'komet')) this.explode(e.x, e.y + 0.5, e.z, e.def.attack?.radius || 3.5, e.def.attack?.dmg || 40, null, 'frag');
@@ -341,7 +341,7 @@ export class Sim {
     this.emit({ e: 'loot', id: l.id, x, z, y: l.y, kind, label, n: items.length });
     return l;
   }
-  explode(x, y, z, radius, dmg, src, kind = 'frag') {
+  explode(x, y, z, radius, dmg, src, kind = 'frag', weapon = null) {
     this.emit({ e: 'boom', x, y, z, r: radius, k: kind });
     this.noise(x, z, 60, src);
     this._rehash();
@@ -352,7 +352,7 @@ export class Sim {
       if (!this.grid.los(x, y + 0.3, z, e.x, ey, e.z)) return;
       const f = 1 - clamp((d - e.r) / radius, 0, 1) * 0.7;
       const r = (src?.stats?.grenade_radius || 1);
-      this.damage(e, dmg * f * (r > 1 ? 1 : 1), src, { explosive: true, armorPen: 0.6, x: e.x, z: e.z });
+      this.damage(e, dmg * f * (r > 1 ? 1 : 1), src, { explosive: true, armorPen: 0.6, x: e.x, z: e.z, weapon });
     });
   }
 
@@ -415,8 +415,8 @@ export class Sim {
     const r = (d.radius || p.radius || 3) * (owner?.stats?.grenade_radius || 1), dmg = d.dmg ?? p.dmg ?? 40;
     switch (k) {
       case 'smoke': this.addHazard('smoke', p.x, p.z, r, d.dur || 18, owner); this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
-      case 'fire': this.addHazard('fire', p.x, p.z, r, d.dur || 8, owner, d.dmg || 12); this.explode(p.x, p.y, p.z, r * 0.5, dmg * 0.4, owner, 'fire'); break;
-      case 'gas': this.addHazard('gas', p.x, p.z, r, d.dur || 12, owner, d.dmg || 6); this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
+      case 'fire': this.addHazard('fire', p.x, p.z, r, d.dur || 8, owner, d.dmg || 12).item = p.item; this.explode(p.x, p.y, p.z, r * 0.5, dmg * 0.4, owner, 'fire', p.item); break;
+      case 'gas': this.addHazard('gas', p.x, p.z, r, d.dur || 12, owner, d.dmg || 6).item = p.item; this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
       case 'lure': case 'noise': this.addHazard('lure', p.x, p.z, 30, d.dur || 12, owner); this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
       case 'stun': case 'mine_jolt': this.emit({ e: 'boom', x: p.x, y: p.y, z: p.z, r, k: 'stun' }); this.near(p.x, p.z, r, (e) => { if (e.type === 'ark') e.brain.stun(d.dur || 4); else if (e.team !== p.team) e.buffs.stunned = d.dur || 2; }); break;
       case 'tagging': this.near(p.x, p.z, r * 2, (e) => { if (e.type === 'ark' || e.team !== p.team) e.tagged = this.t + (d.dur || 15); }); this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
@@ -427,7 +427,7 @@ export class Sim {
           const a = this.rng() * Math.PI * 2; this.launch(owner, 'rocket', p.x, p.y + 1, p.z, Math.sin(a) * 10, 6, Math.cos(a) * 10, { dmg: (d.dmg || 60) / 2, radius: 2.5, g: 4, homing: tgt?.id, team: p.team }); }
         this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
       }
-      default: this.explode(p.x, p.y, p.z, r, dmg, owner, k === 'rocket' || k === 'mortar' ? 'rocket' : 'frag');
+      default: this.explode(p.x, p.y, p.z, r, dmg, owner, k === 'rocket' || k === 'mortar' ? 'rocket' : 'frag', p.item);
     }
     this.remove(p);
   }
@@ -440,7 +440,7 @@ export class Sim {
   _hazard(h, dt) {
     h.age += dt;
     if (h.kind === 'fire' || h.kind === 'gas') {
-      this.near(h.x, h.z, h.r, (e) => { if (e.st === 'alive' || e.type === 'ark') { if (e.type === 'ark' && h.kind === 'gas') return; this.damage(e, h.dps * dt, this.entities.get(h.owner), { bypassShield: h.kind === 'gas', x: e.x, z: e.z }); if (h.kind === 'gas' && e.type === 'raider') e.buffs.gassed = 1; } });
+      this.near(h.x, h.z, h.r, (e) => { if (e.st === 'alive' || e.type === 'ark') { if (e.type === 'ark' && h.kind === 'gas') return; this.damage(e, h.dps * dt, this.entities.get(h.owner), { bypassShield: h.kind === 'gas', x: e.x, z: e.z, weapon: h.item || null }); if (h.kind === 'gas' && e.type === 'raider') e.buffs.gassed = 1; } });
     }
     if (h.kind === 'lure') this.noise(h.x, h.z, 45, { id: h.owner, team: h.team });
     if (h.age >= h.dur) {

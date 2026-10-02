@@ -3,7 +3,7 @@ import { el, cell, Tooltip } from './itemui.js';
 import { MAP_LIST } from '../maps/index.js';
 import { MAP_CONDITIONS, CONDITIONS } from '../data/conditions.js';
 import { startRaid, playerStats } from '../main.js';
-import { newProfile, save, stashAdd, addXP, xpForLevel } from '../game/profile.js';
+import { newProfile, save, stashPut, addXP, xpForLevel } from '../game/profile.js';
 import { ITEMS, stackValue } from '../game/items.js';
 import { allStacks, emptyLoadout, capacities, fitLoadout } from '../game/inventory.js';
 import { Net } from '../net/net.js';
@@ -272,10 +272,21 @@ export class Screens {
     p.stats.raids++;
     save(p);
     let quests = null; try { quests = await import('../game/quests.js'); } catch (e) { quests = null; }
+    const shownBlocked = new Set();
     const res = await startRaid({
       mapId: opts.mapId, seed: opts.seed, condition: opts.condition, time: opts.time, weather: opts.weather, net: opts.net || null,
       objectives: quests ? () => quests.activeObjectives?.(p, opts.mapId) : null,
-      onQuestEvent: quests ? (k, d) => { try { const n = quests.questEvent?.(p, k, d); if (n?.length) for (const x of n) app.game?.feed?.(`QUEST: ${x.text || x.quest?.name || 'progress'}`, '#f0c030'); } catch (e) { console.warn(e); } } : null,
+      onQuestEvent: quests ? (k, d) => {
+        try {
+          const n = quests.questEvent?.(p, k, d);
+          for (const x of n || []) {
+            // "need parts" hints repeat while standing in a POI: show each once per raid
+            if (x.blocked) { const key = x.quest + ':' + x.step; if (shownBlocked.has(key)) continue; shownBlocked.add(key); }
+            app.game?.feed?.(`QUEST: ${x.text || x.name || 'progress'}`, x.blocked ? '#c8b070' : '#f0c030');
+            if (x.done && !x.blocked) app.audioSafe?.jingle?.('quest');
+          }
+        } catch (e) { console.warn(e); }
+      } : null,
     });
     this.inRaid = false;
     this.results(res);
@@ -291,7 +302,7 @@ export class Screens {
       const safe = (res.loadout?.safe || []).filter(Boolean);
       p.loadout = emptyLoadout();
       fitLoadout(p.loadout, capacities(p.loadout, playerStats(p)));
-      for (const s of safe) stashAdd(p, s);
+      for (const s of safe) stashPut(p, s);
     }
     p.stats.arkKills += Object.values(res.stats?.arkKills || {}).reduce((a, b) => a + b, 0) || 0;
     p.stats.raiderKills += res.stats?.kills || 0;

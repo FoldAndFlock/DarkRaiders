@@ -178,18 +178,20 @@ export class View {
     const bob = def.flying ? Math.sin(t * 3 + e.id) * 0.08 : 0;
     v.obj.position.set(v.px, v.py + alt + bob - (def.flying ? 0 : 0), v.pz);
     v.obj.rotation.y = e.f;
-    // telegraph: flashing glow + charging light
     const tele = e.tele || 0;
     // ARK rig: speed from the smoothed position, broken parts, stun / fire / leap flags (host has e.brain)
     const mdx = v.px - (v.lpx ?? v.px), mdz = v.pz - (v.lpz ?? v.pz); v.lpx = v.px; v.lpz = v.pz;
     v.spd = (v.spd ?? 0) + ((dt > 0 ? Math.hypot(mdx, mdz) / dt : 0) - (v.spd ?? 0)) * Math.min(1, dt * 8);
     if (e.parts) for (const pk in e.parts) if (e.parts[pk] <= 0 && !v.broken.has(pk)) { v.broken.add(pk); v.ark.setBroken(pk); }
-    const br = e.brain;
+    const br = e.brain, cool = br?.cool ?? 0;
+    if (cool > (v.lcool ?? cool) + 0.3) v.fireT = 0.3;           // cooldown just reset = a single-shot attack went off
+    v.lcool = cool; v.fireT = Math.max(0, (v.fireT || 0) - dt);
     v.ark.update(dt, {
       moving: v.spd > 0.15, speed: v.spd, alert: e.st === 'alert' ? 1 : e.st === 'search' ? 0.5 : 0, tele,
-      gaze: (e.gaze ?? e.f) - e.f, stunned: (br?.stunT || 0) > 0, firing: (br?.burst || 0) > 0 || tele >= 1,
+      gaze: (e.gaze ?? e.f) - e.f, stunned: (br?.stunT || 0) > 0, firing: (br?.burst || 0) > 0 || tele >= 1 || v.fireT > 0,
       leaping: !!br?.leap || (!def.flying && alt > 0.05),
     });
+    // telegraph: flashing glow + charging light
     if (tele > 0) {
       const col = e.st === 'alert' ? 0xff3010 : 0xffa020;
       this.L.light(v.px + Math.sin(e.f) * 0.6, v.py + alt + 0.6, v.pz + Math.cos(e.f) * 0.6, col, 0.6 + tele * 2.2, 3 + tele * 4, 2.4);
@@ -285,7 +287,7 @@ export class View {
         fx.explosion(ev.x, ev.y, ev.z, ev.big ? 3 : 1.5); fx.sparks(ev.x, ev.y + 0.5, ev.z, 40, 0xffc060, 9);
         this.flash(ev.x, ev.y + 1, ev.z, 0xffb060, 4, 10, 0.4, 3.5);
         A?.play(ev.big ? 'ark_death_big' : 'ark_death_small', { x: ev.x, z: ev.z });
-        if (ev.src === g.meId) { g.onXP?.(ev.xp, (ARK[ev.kind]?.name || 'ARK') + ' destroyed'); g.questEvent?.('kill', { target: ev.kind }); g.stats.arkKills[ev.kind] = (g.stats.arkKills[ev.kind] || 0) + 1; }
+        if (ev.src === g.meId) { g.onXP?.(ev.xp, (ARK[ev.kind]?.name || 'ARK') + ' destroyed'); g.questEvent?.('kill', { target: ev.kind, with: ev.w || undefined }); g.stats.arkKills[ev.kind] = (g.stats.arkKills[ev.kind] || 0) + 1; }
         break;
       }
       case 'crash': fx.smoke(ev.x, 2, ev.z, 8, true, 0.6); fx.sparks(ev.x, 2, ev.z, 20, 0xffa040, 5); break;

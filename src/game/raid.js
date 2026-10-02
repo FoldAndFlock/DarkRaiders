@@ -175,12 +175,21 @@ export class RaidGame {
     this.poiT -= dt;
     if (this.poiT <= 0 && me && me.st === 'alive') {
       this.poiT = 0.5;
+      // current POI = the tightest one we're inside (search/loot quest steps can require a POI)
+      let cur = null;
       for (const p of this.world.pois) {
-        if (this.visited.has(p.id) || Math.hypot(p.x - me.x, p.z - me.z) > (p.r || 20)) continue;
+        const d = Math.hypot(p.x - me.x, p.z - me.z), r = p.r || 20;
+        if (d > r) continue;
+        if (!cur || r < (cur.r || 20)) cur = p;
+        if (this.visited.has(p.id)) continue;
         this.visited.add(p.id); this.stats.discovered++;
         this.feed('DISCOVERED  ' + p.name.toUpperCase(), '#e8e0c8'); this.addXP(40);
-        this.questEvent('visit', { poi: p.id, aliases: p.aliases || [] });
+        this.questEvent('visit', { poi: p.id, aliases: p.aliases || [], loadout: this.pc?.lo });
       }
+      this.curPoi = cur;
+      // re-fire 'visit' while inside so "repair X at POI" steps complete once the parts are carried in
+      this.visitT = (this.visitT || 0) - 0.5;
+      if (cur && this.visitT <= 0) { this.visitT = 3; this.questEvent('visit', { poi: cur.id, aliases: cur.aliases || [], loadout: this.pc?.lo }); }
       if (me.cold && !this.coldWarned) { this.coldWarned = true; this.banner('FREEZING', '#58c8f0', 'Get indoors to warm up', 3); }
       if (!me.cold) this.coldWarned = false;
     }
@@ -330,7 +339,10 @@ export class RaidGame {
   onChat(ev) { this.chatLines.push({ from: ev.from, text: ev.text, ttl: 10, color: SQUAD_COLORS[(ev.slot ?? 0) % 4] }); if (this.chatLines.length > 30) this.chatLines.shift(); this.audio?.play('chat_msg'); }
   onPing(ev) { this.pings.set(ev.by, { x: ev.x, z: ev.z, t: 8, slot: ev.slot }); }
   squadAlive() { for (const e of this.ents.values()) if (e.type === 'raider' && !e.bot && e.team === this.myTeam && e.id !== this.meId && e.st === 'alive') return true; return false; }
-  questEvent(kind, data) { this.o.onQuestEvent?.(kind, { ...data, map: this.mapId }); }
+  questEvent(kind, data) {
+    const at = this.curPoi && (kind === 'search' || kind === 'loot') ? { poi: this.curPoi.id, aliases: this.curPoi.aliases || [] } : {};
+    this.o.onQuestEvent?.(kind, { ...at, ...data, map: this.mapId });
+  }
 
   onLocalDeath() {
     if (this.localDone) return; this.localDone = 'dead';

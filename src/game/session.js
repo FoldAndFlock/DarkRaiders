@@ -17,7 +17,7 @@ export class HostSession {
     const w = weaponStats({ id: s.wid, tier: s.tier || 1, mods: s.mods || {} }); if (!w) return;
     const sp = w.projSpeed || 40;
     this.sim.launch(this.ent, 'rocket', s.x, s.y, s.z, Math.sin(s.a) * sp, s.dy * sp, Math.cos(s.a) * sp,
-      { dmg: (w.dmg || 60) * (s.dmgMul || 1), radius: w.radius || 3.2, team: this.ent.team, g: 3, fuse: 5 });
+      { dmg: (w.dmg || 60) * (s.dmgMul || 1), radius: w.radius || 3.2, team: this.ent.team, g: 3, fuse: 5, item: s.wid });
     this.sim.emit({ e: 'shot', s: this.ent.id, o: [s.x, s.y, s.z], hits: [], k: 'launcher', snd: s.snd });
   }
   throwItem(id, tx, tz) { this.sim.throwItem(this.ent, id, tx, tz); }
