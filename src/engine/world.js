@@ -590,8 +590,9 @@ export class World {
   // builds the same door. The leaf hangs on a jamb and opens DOOR_OPEN (~100 deg) to one side of the wall; doorways
   // >= 1.95 m get two leaves, one per jamb. Preferred side: into the building for doors in its outer walls, else a
   // position hash; then whichever hinge / side leaves the open leaf (and its sweep) clear of walls, props and
-  // containers. Frame: u = along the wall (local +x of the door), v = (-u.z, u.x) (local +z); returns
-  // { u, v, sz (swing side along v), hinges (jambs along u: -1 / +1), L (leaf width), T (thickness), inset, vt, open }.
+  // containers. Frame: u = along the wall (local +x of the door), v = (-u.z, u.x) (local +z); returns { u, v,
+  // hinges (jamb of each leaf along u: -1 / +1), sides (swing side of each leaf along v), sz (first leaf's side),
+  // L (leaf width), T (thickness), inset, vt, open, cost (obstructed samples of the chosen swing, 0 = clear) }.
   doorSwing(d) {
     const c = d.R ? d.R.c : 1, s = d.R ? d.R.s : 0, u = d.axis === 'x' ? [c, s] : [-s, c], v = [-u[1], u[0]];
     const g = this.grid, y = d.y ?? this.groundAt(d.x, d.z), w = d.w, th = d.thick || 0.3, vt = d.vthick ?? wallVisThick(th);
@@ -628,13 +629,15 @@ export class World {
       }
       return n;
     };
-    const cands = dbl ? [[sPref, 0], [-sPref, 0]] : [[sPref, hPref], [sPref, -hPref], [-sPref, hPref], [-sPref, -hPref]];
+    // candidates: [[side, jamb], ...] per leaf; a double door keeps both leaves on one side unless only a split fits
+    const cands = dbl ? [[[sPref, -1], [sPref, 1]], [[-sPref, -1], [-sPref, 1]], [[sPref, -1], [-sPref, 1]], [[-sPref, -1], [sPref, 1]]]
+      : [[[sPref, hPref]], [[sPref, -hPref]], [[-sPref, hPref]], [[-sPref, -hPref]]];
     let best = null, bc = Infinity;
-    for (const [sz, hs] of cands) {
-      const k = hs ? cost(sz, hs) : cost(sz, -1) + cost(sz, 1);
-      if (k < bc) { bc = k; best = [sz, hs]; if (!k) break; }
+    for (const c of cands) {
+      const k = c.reduce((n, [sz, hs]) => n + cost(sz, hs), 0);
+      if (k < bc) { bc = k; best = c; if (!k) break; }
     }
-    return { u, v, sz: best[0], hinges: dbl ? [-1, 1] : [best[1]], L, T, inset, vt, open, cost: bc };
+    return { u, v, sz: best[0][0], hinges: best.map(l => l[1]), sides: best.map(l => l[0]), L, T, inset, vt, open, cost: bc };
   }
   /*
    building({ x, z, w, d, storeys=1, storeyH=3.2, h?, wall, floor, roof, roofTint, tint, thick, rot,

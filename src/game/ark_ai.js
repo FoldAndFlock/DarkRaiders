@@ -290,15 +290,19 @@ export class ArkBrain {
     const H = e.y + e.alt, sp = this.speed() * mul, d = Math.hypot(x - e.x, z - e.z);
     const covered = g.ceilAt(e.x, e.z, H) < Infinity;
     // a small flyer following its target in: to the outside of an open doorway, then the nav path through it
-    if (o?.enter && this.canEnter && ty != null && d < 34 && g.ceilAt(x, z, ty + 0.3) < Infinity) {
-      if (!covered) {
-        const ent = this.entrance(x, z, ty);
-        if (ent) {
-          const de = Math.hypot(ent.ox - e.x, ent.oz - e.z);
-          if (de > 1.6 && !(de < 4 && H < ent.y + this.lowAlt + 1.2)) { this.skyStep(ent.ox, ent.oz, dt, sp, { h: ent.y + this.lowAlt, near: 9, face: o.face }); return false; }
-          return this.lowStep(x, z, ty, dt, sp, o);
-        }
-      } else return this.lowStep(x, z, ty, dt, sp, o);
+    if (o?.enter && this.canEnter && this.small && ty != null && d < 34 && g.ceilAt(x, z, ty + 0.3) < Infinity) {
+      if (covered) return this.lowStep(x, z, ty, dt, sp, o);
+      const ent = this.entrance(x, z, ty);
+      if (!ent) return this.lowStep(x, z, ty, dt, sp, o);          // under a deck / porch: the nav way in
+      if (ent.op) {   // down to the open-sky spot in front of the doorway first, then in along the nav path (and
+        // stay on it while it leads round the outside at door height)
+        const de = Math.hypot(ent.ox - e.x, ent.oz - e.z), low = H < ent.y + this.lowAlt + 1.0;
+        this.entT = (this.entT || 0) - dt;
+        if (low && (de < 2.5 || this.entT > 0)) { this.entT = 3; return this.lowStep(x, z, ty, dt, sp, o); }
+        this.skyStep(ent.ox, ent.oz, dt, sp, { h: ent.y + this.lowAlt, near: 9, face: o.face });
+        return false;
+      }
+      // a building with no open doorway we fit through: stay outside
     }
     if (covered) return this.small ? this.lowStep(x, z, ty, dt, sp, o) : this.escape(dt, sp);
     return this.skyStep(x, z, dt, sp, o);
@@ -515,15 +519,22 @@ export class ArkBrain {
     }
     return true;
   }
-  // outside point of the open doorway into the building around (x, y, z) that this flyer fits through
+  // outside point of the open doorway into the building around (x, y, z) that this flyer fits through; null when
+  // (x, y, z) is not in a building, { none: true } when there is no way in for us
   entrance(x, z, y) {
     const sim = this.sim, bid = sim.grid.insideAt(x, z, y, sim.world.buildings);
     if (bid < 0) return null;
-    const e = this.e; let best = null, bd = 1e9;
+    const e = this.e; let best = { none: true }, bd = 1e9;
     for (const op of sim.openings(bid)) {
       if (!op.walk || (op.door >= 0 && !sim.doors[op.door].open)) continue;
       if (op.w < this.fr * 2 + 0.15 || op.y1 - op.y0 < this.fh * 2 + 0.4) continue;
-      const ox = op.x + op.nx * 2.2, oz = op.z + op.nz * 2.2;
+      // the outside point: the first spot out along the doorway's normal with open sky over it (past a porch)
+      let ox = null, oz = null;
+      for (let k = 1.8; k <= 14; k += 0.6) {
+        const px = op.x + op.nx * k, pz = op.z + op.nz * k;
+        if (sim.grid.ceilAt(px, pz, op.y0 + 0.3) === Infinity && this.topUnder(px, pz) < op.y0 + this.lowAlt - this.fh - 0.2 && this.free(px, pz, op.y0 + this.lowAlt)) { ox = px; oz = pz; break; }
+      }
+      if (ox == null) continue;                                    // opens under a canopy / into a yard we can't drop into
       const dd = Math.hypot(ox - e.x, oz - e.z) + Math.hypot(op.x - x, op.z - z) * 1.5;
       if (dd < bd) { bd = dd; best = { ox, oz, y: op.y0, op }; }
     }
@@ -673,20 +684,29 @@ export class ArkBrain {
         for (const dh of [0.15, 0.9, 2.0]) {                   // low (through doorways / windows) first, then higher
           const h = ty + dh;
           if (!this.free(c.x, c.z, h)) continue;
+          // under a roof / deck: only small flyers that can get in there (via an open doorway)
+          const cov = g.ceilAt(c.x, c.z, h) < Infinity, fl = g.floorAt(c.x, c.z, h - this.fh);
+          if (cov && !(this.canEnter && this.small)) continue;
           rays++;
-          if (g.los(c.x, h, c.z, t.x, ty, t.z)) { const s = base - dh * 1.5; if (s > bs) { bs = s; best = { x: c.x, z: c.z, h, y: g.floorAt(c.x, c.z, h - this.fh), tx: t.x, tz: t.z }; } break; }
+          if (g.los(c.x, h, c.z, t.x, ty, t.z)) {
+            let sc = base - dh * 1.5;
+            if (cov) { const ent = this.entrance(c.x, c.z, fl); if (ent?.none) break; sc -= ent ? Math.hypot(ent.op.x - c.x, ent.op.z - c.z) * 0.5 + 4 : 4; }
+            if (sc > bs) { bs = sc; best = { x: c.x, z: c.z, h, y: fl, enter: cov, tx: t.x, tz: t.z }; }
+            break;
+          }
         }
       } else {
         const n = sim.nav.node(c.x, c.z, e.y); if (n < 0 || !sim.nav.cost[n]) continue;
         const fy = sim.nav.hgt[n], ey = fy + Math.min(def.height || 1, 2.2) * 0.8;
+        if (!this.canEnter && g.insideAt(c.x, c.z, fy + 0.5, sim.world.buildings) >= 0) continue;   // big walkers stay out
         rays++;
         if (g.los(c.x, ey, c.z, t.x, ty, t.z)) { bs = base; best = { x: c.x, z: c.z, y: fy, tx: t.x, tz: t.z }; }
       }
     }
     // small ARK: through an open doorway after it rather than a long way round for an angle
-    if (this.canEnter && bid >= 0 && bs < 70) {
+    if (this.canEnter && (!fly || this.small) && bid >= 0 && bs < 70) {
       const ent = fly ? this.entrance(t.x, t.z, t.y) : true;
-      if (ent) {
+      if (ent && !ent.none) {
         const trv = fly ? Math.hypot(ent.ox - e.x, ent.oz - e.z) + Math.hypot(ent.op.x - t.x, ent.op.z - t.z) : Math.hypot(t.x - e.x, t.z - e.z) * 1.6;
         const s = 100 - trv * (fly ? 1 : 1.4) - 6;
         if (!best || s > bs) best = { x: t.x, z: t.z, y: t.y, enter: true, tx: t.x, tz: t.z };

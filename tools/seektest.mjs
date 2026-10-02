@@ -29,8 +29,9 @@ for (const map of mapsArg.split(',')) {
     cands.sort(() => rnd() - 0.5);
     const out = [];
     for (const { B, op } of cands.slice(0, n)) {
-      // the raider: 2.5 m inside the doorway, 1.2 m to the side (not on the door's centre line)
-      const tx = op.x - op.nx * 2.5 + op.nz * 1.2, tz = op.z - op.nz * 2.5 - op.nx * 1.2;
+      // the raider: just inside the doorway, off its centre line - or deeper in, round the corner from it
+      for (const [din, dside] of [[2.5, 1.2], [5.5, 3.2]]) {
+      const tx = op.x - op.nx * din + op.nz * dside, tz = op.z - op.nz * din - op.nx * dside;
       if (grid.insideAt(tx, tz, op.y0 + 0.5, W.buildings) !== B.id || grid.blockedAt(tx, tz, 0.35, op.y0)) continue;
       for (const kind of ['wasp', 'hornet', 'bastion', 'rocketeer']) {
         clear();
@@ -56,7 +57,9 @@ for (const map of mapsArg.split(',')) {
           if (shot && first == null) { first = t; firstPos = [e.x, e.y + (e.alt || 0), e.z]; viaInside = entered; break; }
           if (e.st === 'dead' || !sim.entities.has(e.id)) break;
         }
-        out.push({ b: B.name || B.id, kind, losAtStart: los0, first: first == null ? null : +first.toFixed(2), entered, viaInside, d: firstPos ? +Math.hypot(firstPos[0] - me.x, firstPos[2] - me.z).toFixed(1) : null, h: firstPos ? +(firstPos[1] - me.y).toFixed(1) : null });
+        const endS = first == null ? `${e.st} @${e.x.toFixed(1)},${(e.y + (e.alt || 0)).toFixed(1)},${e.z.toFixed(1)} seek ${JSON.stringify(br.seekP && { x: +br.seekP.x.toFixed(1), z: +br.seekP.z.toFixed(1), enter: !!br.seekP.enter })} hold ${!!br.holdP} me ${me.x.toFixed(1)},${me.y.toFixed(1)},${me.z.toFixed(1)}` : undefined;
+        out.push({ end: endS, b: B.name || B.id, deep: din > 3, kind, losAtStart: los0, first: first == null ? null : +first.toFixed(2), entered, viaInside, d: firstPos ? +Math.hypot(firstPos[0] - me.x, firstPos[2] - me.z).toFixed(1) : null, h: firstPos ? +(firstPos[1] - me.y).toFixed(1) : null });
+      }
       }
     }
     clear();

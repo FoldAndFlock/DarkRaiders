@@ -130,16 +130,16 @@ export class View {
       const grp = new THREE.Group(), leaves = [];
       grp.position.set(d.x, y, d.z);
       grp.rotation.y = Math.atan2(-sw.u[1], sw.u[0]);
-      for (const hs of sw.hinges) {
-        const geo = doorLeafGeo(style, sw.L), m = new THREE.Mesh(geo, mat);
+      sw.hinges.forEach((hs, k) => {
+        const geo = doorLeafGeo(style, sw.L), m = new THREE.Mesh(geo, mat), sz = sw.sides[k];
         // pivot on the jamb, leaf flush with the swing-side face of the (drawn) wall
-        m.position.set(hs * (d.w / 2 - sw.inset), 0, sw.sz * (sw.vt / 2 - sw.T / 2));
+        m.position.set(hs * (d.w / 2 - sw.inset), 0, sz * (sw.vt / 2 - sw.T / 2));
         m.scale.set(sw.L / (geo.userData.n * 0.1), 1.02, sw.T / 0.2);
-        const c0 = hs < 0 ? 0 : Math.PI, a1 = Math.atan2(-sw.sz * Math.sin(sw.open), -hs * Math.cos(sw.open));
+        const c0 = hs < 0 ? 0 : Math.PI, a1 = Math.atan2(-sz * Math.sin(sw.open), -hs * Math.cos(sw.open));
         m.userData = { c0, da: Math.atan2(Math.sin(a1 - c0), Math.cos(a1 - c0)) };
         m.castShadow = true; m.receiveShadow = true;
         grp.add(m); leaves.push(m);
-      }
+      });
       grp.userData = { open: d.open, cur: d.open ? 1 : 0, leaves, style, L: sw.L, bid: d.bid, sy: 1.02 };
       poseDoor(grp);
       this.R.scene.add(grp); this.doorMeshes[d.i] = grp;
