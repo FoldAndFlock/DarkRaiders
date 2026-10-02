@@ -111,17 +111,11 @@ export default {
   ambient: { music: 'damn_grounds', birds: true, frogs: true, insects: true },
   conditions: ['night_raid', 'em_storm', 'lush_blooms', 'uncovered_caches', 'husk_graveyard', 'prospecting_probes', 'harvester', 'matriarch', 'cold_snap', 'hurricane', 'close_scrutiny'],
   build(w, rng) {
-    const C = makeCtx(w, rng);
-    terrain(C);
-    damDetails(C);
-    northPOIs(C);
-    westPOIs(C);
-    southPOIs(C);
-    eastPOIs(C);
-    roadsideAndOutskirts(C);
-    vegetation(C);
-    arkSpawns(C);
-    markers(C);
+    const C = makeCtx(w, rng), T = { t: performance.now() };
+    const step = (name, fn) => { fn(C); const t = performance.now(); T[name] = Math.round(t - T.t); T.t = t; };
+    step('terrain', terrain); step('dam', damDetails); step('north', northPOIs); step('west', westPOIs); step('south', southPOIs);
+    step('east', eastPOIs); step('outskirts', roadsideAndOutskirts); step('vegetation', vegetation); step('ark', arkSpawns); step('markers', markers);
+    delete T.t; w.buildTimings = T; T.TT = C.TT;
   },
 };
 
@@ -276,11 +270,13 @@ function makeCtx(w, rng) {
       if (x < 2 || z < 2 || x > W - 2 || z > H - 2) continue;
       if (C.inBuilding(x, z, o.pad ?? 1.2)) continue;
       if (o.avoid && o.avoid(x, z)) continue;
-      const k = kinds[Math.floor(rng() * kinds.length)], rot = o.rot ?? rng() * 2 * PI, sc = (o.scale || 1) * (1 + (rng() - 0.5) * (o.scaleVar ?? 0.2));
+      const k = kinds[Math.floor(rng() * kinds.length)], sc = (o.scale || 1) * (1 + (rng() - 0.5) * (o.scaleVar ?? 0.2));
+      const rot = o.rot ?? (BOXY.has(k) ? Math.floor(rng() * 4) * PI / 2 + (rng() - 0.5) * 0.12 : rng() * 2 * PI);
       const solid = SOLID.has(k);
       if (solid) {
         const sol = propInfo(k).solid || [0.5, 0.5]; let hw = sol[0] * sc, hd = sol[1] * sc; if (Math.abs(Math.sin(rot)) > 0.7) [hw, hd] = [hd, hw];
         if (C.propHit(x - hw - 0.3, z - hd - 0.3, x + hw + 0.3, z + hd + 0.3)) continue;
+        if (w.buildings.some(bb => bb.x0 - 1 < x + hw && bb.x1 + 1 > x - hw && bb.z0 - 1 < z + hd && bb.z1 + 1 > z - hd)) continue;
         if (o.noDoor !== false && C.nearDoor(x - hw, z - hd, x + hw, z + hd, 2.2)) continue;
         if (C.reserved.some(([a, b]) => Math.hypot(a - x, b - z) < 3 + Math.max(hw, hd))) continue;
       } else if (o.noDoor !== false && C.nearDoor(x, z, x, z, 1.2)) continue;
@@ -290,6 +286,7 @@ function makeCtx(w, rng) {
     return placed;
   };
   C.solidKind = (k) => SOLID.has(k);
+  const BOXY = new Set(['dg_container', 'dg_containerB', 'dg_containerG', 'dg_truck', 'dg_scaffold', 'dg_transformer', 'dg_ventbox', 'dg_tent', 'car', 'dg_bigpipe', 'pipe', 'sandbag', 'dg_barrier']);
   // loose containers outside
   C.loot = (cx, cz, r, list, tier = 1, o = {}) => {
     for (const kind of list) {
@@ -342,7 +339,7 @@ function makeCtx(w, rng) {
       }
     }
   };
-  C.fenceRect = (x0, z0, x1, z1, gaps = []) => C.fenceLine([[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]], gaps);
+  C.fenceRect = (x0, z0, x1, z1, gaps = []) => { C.addClearRect(x0 - 1, z0 - 1, x1 + 1, z1 + 1); C.fenceLine([[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]], gaps); };
   C.sandbags = (pts) => {
     for (let k = 0; k < pts.length - 1; k++) {
       const [ax, az] = pts[k], [bx, bz] = pts[k + 1], L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(L / 2)), rot = Math.atan2(bx - ax, bz - az) + PI / 2;
@@ -402,6 +399,7 @@ function makeCtx(w, rng) {
 function terrain(C) {
   const { w, areaFn, slope } = C;
   const VW = w.tw + 1, VH = w.th + 1;
+  const TT = {}; let tt = performance.now(); const mark = (n) => { const t = performance.now(); TT[n] = Math.round(t - tt); tt = t; }; C.TT = TT;
   // rasterised masks (vertex resolution) — much faster than per-vertex pointInPoly
   const polyMask = (pts) => {
     const m = new Float32Array(VW * VH);
@@ -433,11 +431,13 @@ function terrain(C) {
     }
     return out;
   };
+  mark('masks0');
   const swampBin = polyMask(SWAMP), basinBin = polyMask(BASIN);
   C.swampAt = (x, z) => swampBin[clamp(Math.round(z), 0, VH - 1) * VW + clamp(Math.round(x), 0, VW - 1)] > 0.5;
   C.basinAt = (x, z) => basinBin[clamp(Math.round(z), 0, VH - 1) * VW + clamp(Math.round(x), 0, VW - 1)] > 0.5;
   const neS = blur(polyMask(NE_HIGHLAND), 9);
   const swampS = blur(swampBin, 7), basinS = blur(basinBin, 13), coreS = blur(rectMask(540, 70, 940, 620), 16), southS = blur(rectMask(430, 580, 900, 770), 16);
+  mark('blur');
   const n1 = makeNoise(11), n2 = makeNoise(23);
   C.noise = n1; C.noise2 = n2;
   const fbm = (n, x, z) => (n(x, z) * 0.6 + n(x * 2.3, z * 2.3) * 0.28 + n(x * 5.1, z * 5.1) * 0.12 - 0.5) * 2;
@@ -460,9 +460,10 @@ function terrain(C) {
     h = lerp(h, LOW, bt);
     const amp = Math.min(1 - swampS[i] * 0.78, 1 - coreS[i] * 0.65, 1 - southS[i] * 0.5);
     h += fbm(n1, x / 90, z / 90) * 2.2 * amp;
-    h += fbm(n2, x / 24, z / 24) * 0.75 * (0.3 + 0.7 * swampS[i]);
+    h += (n2(x / 24, z / 24) * 0.7 + n2(x / 10.5, z / 10.5) * 0.3 - 0.5) * 1.5 * (0.3 + 0.7 * swampS[i]);
     w.hv[i] = h;
   }
+  mark('height');
   w.raiseCircle(566, 46, 46, -4.6, 0.6, 'add');                       // where the West Broken Bridge span fell
   w.ridge([[925, 110], [938, 200], [944, 262], [960, 320]], 22, 1.5, 16, 'min');   // East Broken Bridge ravine
   w.raiseCircle(232, 318, 15, 2.8, 0.7, 'add');                       // Victory Rise (Old Battleground)
@@ -474,6 +475,7 @@ function terrain(C) {
     if (hh == null) { let s = 0, n = 0; areaFn(x0, z0, x1, z1, (x, z, cur) => { s += cur; n++; return null; }); hh = s / n; }
     w.raiseRect(x0, z0, x1, z1, hh, b, 'set');
   }
+  mark('circles+flats');
   // ---------------- dam
   for (const [x0, z0, x1, z1] of DAM_RECTS) w.raiseRect(x0, z0, x1, z1, HIGH, 0, 'set');
   w.raisePoly(PG_POLY, HIGH, 0, 'set');
@@ -508,6 +510,7 @@ function terrain(C) {
   w.deck(EBB, 9, HIGH + 0.25, 'asphalt', { rails: false, pillars: true, side: 'concrete' });
   for (const b of BOARDWALKS) w.deck(b, 2.4, MID + 0.32, 'wood', { rails: false, pillars: false });
 
+  mark('dam');
   // ---------------- water
   C.redMat = waterMaterial({ deep: 0x5a1e18, shallow: 0x8e3c28, opacity: 0.9 });
   C.darkMat = waterMaterial({ deep: 0x14262a, shallow: 0x23403e, opacity: 0.92 });
@@ -523,12 +526,14 @@ function terrain(C) {
   w.river([[700, 360], [740, 392], [770, 420], [790, 456], [826, 486], [870, 500], [910, 540], [940, 600], [980, 660], [1010, 720]], 5, { level: LOW - 0.25, depth: 0.7, bank: 3 });
   w.river([[452, 600], [490, 608], [530, 603], [570, 613], [610, 633], [640, 660], [668, 676], [700, 688], [745, 690], [790, 682], [830, 692], [880, 704]], 4, { level: MID - 0.45, depth: 0.75, bank: 3 });
 
+  mark('water');
   // ---------------- roads
   for (const r of ROADS) w.road(r, 7, 'asphalt', { edge: 'gravel', edgeW: 1.2 });
   for (const r of TRACKS) w.road(r, 4, 'dirt', { edge: 'gravel', edgeW: 0.6 });
   w.path([[548, 452], [578, 420], [596, 392], [612, 360], [626, 330]], 5, 'concrete');           // crest service road
   w.path([[680, 288], [690, 262], [700, 236], [722, 200], [742, 176], [728, 150], [706, 140]], 5, 'concrete');
 
+  mark('roads');
   // ---------------- terrain paint
   {
     const T = TID, tw = w.tw;
@@ -546,25 +551,28 @@ function terrain(C) {
       if (t != null) w.tids[ci] = t;
     }
   }
+  mark('paint');
   // worn, rubble-strewn ground around the dam and the central facilities (the bright zone of the reference)
   {
     const T = TID, tw = w.tw;
-    const zones = [
+    const zoneList = [
       polyMask([[330, 470], [400, 400], [470, 404], [552, 420], [600, 300], [640, 230], [628, 150], [600, 100], [640, 60], [720, 60], [900, 170], [910, 240], [790, 280], [700, 300], [664, 330], [650, 470], [640, 560], [560, 590], [470, 640], [420, 660], [330, 620]]),
       polyMask([[440, 20], [520, -2], [640, -2], [700, 20], [620, 120], [560, 130], [470, 110]]),
       polyMask([[200, 520], [330, 520], [360, 600], [330, 690], [250, 690], [200, 620]]),
       polyMask([[600, 690], [740, 680], [760, 740], [640, 760]]),
     ];
-    for (let z = 0; z < w.th; z++) for (let x = 0; x < tw; x++) {
+    const zones = zoneList[0]; for (const m of zoneList.slice(1)) for (let i = 0; i < m.length; i++) if (m[i] > 0.5) zones[i] = 1;
+    for (let z = 0; z < Math.min(w.th, 760); z++) for (let x = 160; x < Math.min(tw, 920); x++) {
       const ci = z * tw + x, cur = w.tids[ci];
       if (cur !== T.grass && cur !== T.moss && cur !== T.forest) continue;
-      const vi = z * VW + x; if (!zones.some(m => m[vi] > 0.5)) continue;
+      const vi = z * VW + x; if (zones[vi] < 0.5) continue;
       if (swampBin[vi] > 0.5) continue;
       const a = n1(x / 13 + 7, z / 13 + 3), b = n2(x / 5, z / 5), c = n1(x / 31, z / 31 + 40);
       const t = a > 0.58 ? (b > 0.5 ? T.gravel : T.dirt) : c > 0.6 ? T.rock : b > 0.82 ? T.concrete : a < 0.3 ? null : (b > 0.45 ? T.gravel : null);
       if (t != null) w.tids[ci] = t;
     }
   }
+  mark('worn');
   for (const [x0, z0, x1, z1] of DAM_RECTS) w.paint('damConcrete', x0, z0, x1, z1);
   w.paintPoly('damConcrete', PG_POLY);
   w.paintPoly('damConcrete', C.strip(BALCONY, 12.5));
@@ -577,8 +585,10 @@ function terrain(C) {
   w.path(HIGHWAY, 8, 'asphalt');
   w.paint('hazard', 704, 190, 722, 192); w.paint('hazard', 730, 210, 754, 212);
   // concrete facades on every sheer drop of the dam / plateau / decks (stepped where diagonal)
+  mark('paint2');
   facades(C, 440, 50, 935, 615, 'damConcrete');
   facades(C, 496, 0, 572, 34, 'concrete');
+  mark('facades');
 }
 
 // Turn every vertical terrain step (> 2.2 m between neighbouring vertices) into concrete slabs:
@@ -692,18 +702,6 @@ function damDetails(C) {
   w.block(712, 528.6, 722, 530.4, 3.2, 'metalPanel', {});
   w.prop('dg_signred', 717, 527.5, PI, { solid: true });
   w.lamp(717, 526, { y: 3.2, model: null, color: 0xffb040, intensity: 1.55, range: 8, flicker: 0.3 });
-  // general clutter over every dam / plateau surface (kept off buildings, doors, roads, chutes)
-  {
-    const crest = (x, z) => C.inDam(x, z, -2.5) && !C.inBuilding(x, z, 2.5) && !C.nearRoad(x, z, 0.5) &&
-      C.distLine(x, z, [[548, 452], [578, 420], [596, 392], [612, 360], [626, 330]]) > 4 && C.distLine(x, z, [[680, 288], [690, 262], [700, 236], [722, 200], [742, 176], [728, 150], [706, 140]]) > 4 &&
-      !CHUTES.some(([xf, zc]) => Math.abs(z - zc) < 6 && x > xf - 12) && C.distLine(x, z, HIGHWAY) > 6;
-    const kinds = ['dg_container', 'dg_containerB', 'dg_containerG', 'dg_barrier', 'dg_barrier', 'crate', 'crate', 'barrel', 'barrelBlue', 'dg_ventbox', 'dg_transformer', 'pipe', 'dg_bigpipe', 'sandbag', 'car', 'dg_truck', 'dg_rubble', 'dg_scaffold', 'dg_tankS'];
-    for (const [cx, cz, r, n] of [[600, 520, 34, 26], [596, 476, 22, 10], [508, 480, 30, 14], [620, 380, 40, 18], [680, 230, 34, 12], [740, 230, 30, 10], [700, 150, 40, 14], [800, 200, 40, 14], [760, 560, 50, 10], [860, 210, 24, 8]]) {
-      C.clutter(cx, cz, r, n, kinds, { avoid: (x, z) => !crest(x, z) });
-      C.clutter(cx, cz, r, Math.round(n * 0.8), ['debris', 'debris', 'dg_grass'], { avoid: (x, z) => !crest(x, z) });
-      C.loot(cx, cz, r, ['crate', 'trash', 'toolbox', 'ammo_box', 'crate', 'locker'].slice(0, 2 + (n > 12 ? 4 : 2)), 1, { avoid: (x, z) => !crest(x, z) });
-    }
-  }
   // big pipes down the dam face into the basin (penstocks)
   for (const [x, z, r] of [[782, 276, 0.6], [796, 286, 0.6], [810, 296, 0.6], [664, 266, 0], [672, 266, 0]]) w.prop('dg_bigpipe', x, z, r, { solid: true });
 }
@@ -933,7 +931,7 @@ function westPOIs(C) {
   dome(497, 206, 1, 'archive');
   dome(535, 200, 1, 'garden');
   dome(470, 290, 0.65, 'garden');
-  dome(355, 285, 0.55, 'garden');
+  dome(446, 234, 0.55, 'garden');
   // greenhouse tunnels (arched film houses)
   const tunnel = (a, b) => {
     const L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.round(L / 4), rot = Math.atan2(b[0] - a[0], b[1] - a[1]);
@@ -978,7 +976,7 @@ function westPOIs(C) {
   C.furnish('security', 194, 322, 204, 330, { tier: 2 });
   C.bld({ x: 258, z: 292, w: 9, d: 7, wall: 'concrete', roof: 'concrete', floor: 'concrete', name: 'Pillbox', tint: 0xa8a498, doors: [{ side: 's', at: 3, w: 1.8 }, { side: 'w', at: 2, w: 3, sill: 1.3 }] });
   C.furnish('storage', 258, 292, 267, 299, { tier: 2, extra: [['ammo_box', 1]] });
-  w.prop('dg_bigwreck', 256, 330, 0.7, { solid: true });                                     // Baron husk
+  w.prop('dg_bigwreck', 256, 330, 0.7, { solid: true });                                     // Baron husk (reference ◎)
   w.container('arc_husk', 251, 324, 0, { tier: 3 });
   for (const [x, z, r] of [[214, 306, 0.2], [244, 344, 1.4], [270, 320, 2.3], [206, 340, 3.0]]) w.prop('dg_huskbig', x, z, r, { solid: true });
   C.clutter(238, 322, 40, 30, ['dg_hedgehog', 'dg_hedgehog', 'husk', 'deadTree', 'debris', 'dg_rubble', 'dg_stump'], { sz: 0.8 });
@@ -1086,6 +1084,10 @@ function westPOIs(C) {
   C.clutter(218, 470, 22, 12, ['barrel', 'crate', 'dg_toxic', 'debris', 'dg_reeds'], {});
   for (const [x, z] of [[204, 470], [230, 462], [236, 482]]) w.lamp(x, z, { y: 3.4, color: 0xffa860, intensity: 1.55, range: 10, flicker: 0.3 });
   C.addClearRect(194, 444, 248, 496);
+  // Baron husk in the southern swamp (reference ◎ between the outpost and Water Treatment)
+  w.raiseRect(316, 466, 334, 482, MID + 0.4, 3, 'set');
+  w.prop('dg_bigwreck', 325, 474, 2.3, { solid: true }); w.container('arc_husk', 318, 468, 0, { tier: 2 }); w.container('arc_crate', 332, 480, 0, { tier: 2 });
+  C.addClear(325, 474, 12);
   // ---------------- swamp field depot + scattered swamp caches
   w.raiseRect(283, 409, 293, 419, MID + 0.45, 1.5, 'set');
   C.fieldDepot(288, 414);
@@ -1114,7 +1116,7 @@ function southPOIs(C) {
   C.bld({ x: 380, z: 554, w: 8, d: 7, wall: 'brick', roof: 'corrugated', name: 'Switch Hut', floor: 'concrete', floorY: MID + 0.2, blend: 1.5, doors: [{ side: 's', at: 3, w: 1.6, door: true }] });
   C.furnish('storage', 380, 554, 388, 561, { tier: 1 });
   C.clutter(390, 560, 16, 8, ['barrel', 'crate', 'dg_barrier', 'debris'], { avoid: (x, z) => x > 350 && x < 396 && z > 570 });
-  C.fieldDepot(338, 612);
+  w.prop('dg_truck', 340, 612, 1.75, { solid: true }); w.container('car_trunk', 336.2, 611.4, 1.75, { tier: 1 }); w.container('toolbox', 344, 616, 0, { tier: 1 });
   // ---------------- Water Towers + football pitch
   for (const [x, z] of [[283, 626], [301, 624], [320, 645], [284, 656]]) { w.prop('dg_watertower', x, z, R(0, 6.28), { solid: true }); C.addClear(x, z, 5); }
   C.bld({ x: 298, z: 638, w: 8, d: 8, wall: 'brick', roof: 'corrugated', floor: 'concrete', name: 'Water Tower Pump Hut', doors: [{ side: 's', at: 3, w: 1.6, door: true }] });
@@ -1268,6 +1270,18 @@ function eastPOIs(C) {
 // ==================================================================================== ROADSIDE + OUTSKIRTS
 function roadsideAndOutskirts(C) {
   const { w, R, rng } = C;
+  // general clutter over every dam / plateau surface (kept off buildings, doors, roads, chutes)
+  {
+    const crest = (x, z) => C.inDam(x, z, -2.5) && !C.inBuilding(x, z, 2.5) && !C.nearRoad(x, z, 0.5) &&
+      C.distLine(x, z, [[548, 452], [578, 420], [596, 392], [612, 360], [626, 330]]) > 4 && C.distLine(x, z, [[680, 288], [690, 262], [700, 236], [722, 200], [742, 176], [728, 150], [706, 140]]) > 4 &&
+      !CHUTES.some(([xf, zc]) => Math.abs(z - zc) < 6 && x > xf - 12) && C.distLine(x, z, HIGHWAY) > 6;
+    const kinds = ['dg_container', 'dg_containerB', 'dg_containerG', 'dg_barrier', 'dg_barrier', 'crate', 'crate', 'barrel', 'barrelBlue', 'dg_ventbox', 'dg_transformer', 'pipe', 'dg_bigpipe', 'sandbag', 'car', 'dg_truck', 'dg_rubble', 'dg_scaffold', 'dg_tankS'];
+    for (const [cx, cz, r, n] of [[600, 520, 34, 26], [596, 476, 22, 10], [508, 480, 30, 14], [620, 380, 40, 18], [680, 230, 34, 12], [740, 230, 30, 10], [700, 150, 40, 14], [800, 200, 40, 14], [760, 560, 50, 10], [860, 210, 24, 8]]) {
+      C.clutter(cx, cz, r, n, kinds, { avoid: (x, z) => !crest(x, z) });
+      C.clutter(cx, cz, r, Math.round(n * 0.8), ['debris', 'debris', 'dg_grass'], { avoid: (x, z) => !crest(x, z) });
+      C.loot(cx, cz, r, ['crate', 'trash', 'toolbox', 'ammo_box', 'crate', 'locker'].slice(0, 2 + (n > 12 ? 4 : 2)), 1, { avoid: (x, z) => !crest(x, z) });
+    }
+  }
   // street lamps along the asphalt roads
   for (const r of ROADS) C.street(r, 34, 5.2, { notDam: true });
   C.street(TRACKS[0], 40, 3.5, { color: 0xffb070, i: 1.0 });
@@ -1352,7 +1366,7 @@ function arkSpawns(C) {
   const { w } = C;
   const A = (k, x, z, o = {}) => w.arkSpawn(k, x, z, o);
   // Sentinels (reference positions) — fixed long-range lasers on the dam
-  for (const [x, z] of [[728, 158], [652, 272], [608, 345], [667, 339], [570, 396], [592, 543]]) A('sentinel', x, z, { radius: 0 });
+  for (const [x, z, roof] of [[731, 162, true], [646, 272, false], [607, 345, true], [668, 340, false], [568, 397, false], [592, 542, false]]) A('sentinel', x, z, { radius: 0, roof });
   // turrets on rooftops / towers
   for (const [x, z] of [[668, 116], [668, 214], [600, 462], [730, 612], [380, 418], [580, 500], [504, 434], [373, 588], [726, 240], [612, 340]]) A('turret', x, z, { radius: 0, roof: true });
   // Wasps on patrol loops
@@ -1393,7 +1407,7 @@ function arkSpawns(C) {
 function markers(C) {
   const { w } = C;
   const P = (id, name, x, z, r, tier, aliases = []) => w.poi(id, name, x, z, r, { tier, aliases: aliases.length ? aliases : [id] });
-  P('west_broken_bridge', 'West Broken Bridge', 548, 26, 35, 1);
+  P('west_broken_bridge', 'West Broken Bridge', 540, 17, 35, 1);
   P('pattern_house', 'Pattern House', 688, 54, 30, 2);
   P('rubie_residence', 'Rubie Residence', 368, 84, 45, 2, ['ruby_residence']);
   P('pale_apartments', 'Pale Apartments', 258, 170, 38, 2);

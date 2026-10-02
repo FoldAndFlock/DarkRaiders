@@ -776,7 +776,8 @@ MODELS.pop = (R, def) => {
         if (Math.abs(ax - 0.2) < 0.022) return K.g1;                                 // latitude seam
         if (ax > 0.28) return (i + j + k) % 3 === 0 ? K.st : K.g4;                   // pole hub + bolts
         if (komet) return q % 2 ? K.g3 : (ax > 0.2 ? K.r2 : K.g2);
-        return q % 2 ? K.g3 : (ax > 0.2 ? K.y0 : K.y1);
+        if (ax < 0.2) return q % 2 ? K.y1 : K.y0;
+        return q % 2 ? K.g3 : K.g4;
       });
     if (komet) v.paint((X, Y, Z, i, j, k, c) => (Math.abs(Math.abs(X) - 0.12) < 0.02 && Math.hypot(Y, Z) > 0.3 ? K.g1 : undefined));
     return v.weather({ seed: komet ? 62 : 61, rust: komet ? 0.22 : 0.06, edge: 0.18 });
@@ -1498,7 +1499,7 @@ MODELS.queen = (R, def) => {
     v.paint((X, Y, Z, i, j, k, c) => (c === K.g5 && i % 6 === 3 && k % 5 === 2 ? K.st : undefined));
     // reactor well on top: the core sits inside, ringed by hazard + cooling fins
     v.cylY(0, 0, 0.6, 2.25, 1.05, -1); v.cylY(0, 0, 0.45, 0.6, 1.05, K.g0);
-    v.cylY(0, 0, 1.2, 1.8, 1.3, (X, Y, Z, i, j, k) => haz(2)(X, Y, Z, i, j, k), 1.05);
+    v.cylY(0, 0, 1.2, 1.8, 1.3, (X, Y, Z) => (Math.abs(Math.sin(Math.atan2(X, Z) * 8)) < 0.35 ? K.bk : K.y1), 1.05);
     for (let n = 0; n < 8; n++) { const a = n * Math.PI / 4 + 0.39; v.box(Math.sin(a) * 1.12 - 0.08, 0.6, Math.cos(a) * 1.12 - 0.08, Math.sin(a) * 1.12 + 0.08, 1.5, Math.cos(a) * 1.12 + 0.08, K.g2); }
     // under-plate machinery (visible once plates are shot off)
     for (const [x, z] of [[0, 2.5], [0, -2.5], [2.3, 0], [-2.3, 0]]) { v.box(x - 0.6, -0.75, z - 0.6, x + 0.6, 0.3, z + 0.6, K.g1); v.box(x - 0.3, -0.45, z - 0.3, x + 0.3, 0.0, z + 0.3, K.EXH); }
@@ -1604,6 +1605,8 @@ export function createArkModel(modelKey, def = {}) {
   R.k = r / baseR;
   R.top.scale.setScalar(R.k);
   R.root.userData.ark = R;
+  // free the per-rig material clones when the game removes the ARK from the scene (shared programs stay cached)
+  R.root.addEventListener('removed', () => { R.eyeMat.dispose(); R.hotMat.dispose(); R.teleMat.dispose(); });
   return { root: R.root, update: (dt, s) => R.update(dt, s), setBroken: (z) => R.setBroken(z), rig: R };
 }
 export const ARK_MODEL_KEYS = Object.keys(MODELS);

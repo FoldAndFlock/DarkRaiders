@@ -17,11 +17,12 @@
 <!--
   ARK model gallery. URL params:
     ids=tikk,popp|wazp,hornett   rows separated by '|' (ARK ids from src/data/arc.js; default = all)
-    zoom=1|4|fit                 1 = game scale (16 px/m), 4 = 4x detail, fit = fit everything
+    zoom=fit|1|4                 fit = fit everything (default), 1 = game scale (16 px/m), 4 = 4x detail
     state=idle|move|alert|tele|fire|stun|leap|broken|demo|mix
     face=20                      facing in degrees (0 = towards camera); rear=1 adds a rear-view copy
     time=noon|dusk|night|dawn  weather=clear|fog|rain...   alt=low|real (flyer altitude)
-    frames=60                    frames simulated before window.__ready
+    frames=60                    frames simulated before window.__ready; live=0 stops animating after that
+    raider=0                     hide the scale raider at the start of each row
 -->
 <script type="module" src="./arkgallery.js"></script>
 </body>

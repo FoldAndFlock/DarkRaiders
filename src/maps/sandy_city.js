@@ -134,7 +134,7 @@ const B = [
   [509, 99, 42, 28, 65, 3, 'a', { sunk: 1.5, tint: 'ochre' }],
   [391, 111, 20, 14, -35, 2, 'h', { sunk: 1 }],
   [404, 135, 30, 18, -30, 2, 'h'],
-  [298, 129, 37, 33, -33, 2, 'i', { name: 'Su Durante Warehouse', poi: 'su_durante_warehouses' }],
+  [298, 129, 37, 33, -33, 2, 'i', { name: 'Su Duranti Warehouse', poi: 'su_durante_warehouses' }],
   [331, 104, 22, 15, -33, 2, 'i', { poi: 'su_durante_warehouses', sunk: 1 }],
   [318, 161, 30, 15, -33, 1, 'i', { poi: 'su_durante_warehouses' }],
   [489, 184, 35, 29, 57, 1, 's', { name: 'Collapsed Supermarket', ruin: 0.5, poi: 'collapsed_supermarket' }],
@@ -164,7 +164,7 @@ const B = [
   [330, 242, 20, 12, -30, 1, 'h', { sunk: 1 }],
   [356, 140, 22, 10, -50, 1, 'r', { sunk: 1 }],
   // ---- Marano Station / Warehouse / Maintenance Depot (west)
-  [226, 300, 88, 18, 90, 2, 'c', { name: 'Marano Station', poi: 'marano_station', wall: 'brick', tint: 'cream' }],
+  [226, 300, 88, 18, 90, 2, 'c', { name: 'Marino Station', poi: 'marano_station', wall: 'brick', tint: 'cream' }],
   [94, 369, 50, 46, 0, 2, 'i', { name: 'Warehouse', poi: 'warehouse' }],
   [132, 361, 34, 28, 90, 2, 'i', { poi: 'warehouse' }],
   [149, 386, 22, 22, 0, 1, 'i', { poi: 'warehouse' }],
@@ -172,11 +172,11 @@ const B = [
   [94, 637, 32, 12, 80, 1, 'i', { name: 'Maintenance Depot', poi: 'maintenance_depot' }],
   [136, 658, 22, 15, 0, 1, 'i', { poi: 'maintenance_depot' }],
   // ---- Library / Parking Garage / Galleria / Research / Space Travel
-  [375, 318, 80, 34, -22, 3, 'c', { name: 'Library', poi: 'library', kindLoot: 'old' }],
+  [375, 318, 80, 34, -22, 3, 'c', { name: 'Library', poi: 'library', kindLoot: 'old', rich: true }],
   [352, 285, 46, 26, -22, 3, 'c', { poi: 'library', kindLoot: 'old' }],
   [487, 333, 64, 56, -14, 3, 'p', { name: 'Parking Garage', poi: 'parking_garage' }],
   [568, 316, 112, 40, 61, 3, 's', { name: 'Galleria', poi: 'galleria', wall: 'concrete', tint: 'cream', flat: true }],
-  [501, 396, 64, 30, 62, 3, 't', { name: 'Research', poi: 'research' }],
+  [501, 396, 64, 30, 62, 3, 't', { name: 'Research', poi: 'research', rich: true }],
   [533, 377, 64, 28, 59, 3, 't', { name: 'Space Travel', poi: 'space_travel', key: 'space_travel', keySeg: -1 }],
   // ---- Marano Park ring and Piazza Roma
   [326, 401, 70, 17, 50, 3, 'h', { tint: 'ochre' }],
@@ -195,7 +195,7 @@ const B = [
   [477, 520, 92, 28, -26, 3, 'c', { name: 'Town Hall', poi: 'town_hall', key: 'town_hall', keySeg: 'mid', tint: 'cream', kindLoot: 'old' }],
   [532, 489, 38, 24, -26, 3, 'c', { poi: 'town_hall', tint: 'ochre' }],
   // ---- south of the Corso: Santa Maria Houses and Main Street
-  [480, 602, 64, 17, 66, 3, 'a', { name: 'Santa Maria Houses', poi: 'santa_maria_houses', tint: 'pink' }],
+  [480, 602, 64, 17, 66, 3, 'a', { name: 'Santa Marta Houses', poi: 'santa_maria_houses', tint: 'pink' }],
   [510, 598, 72, 18, -60, 3, 'a', { poi: 'santa_maria_houses', tint: 'ochre' }],
   [[411, 637], [452, 607], [461, 621], 3, 'h', { poi: 'santa_maria_houses', tint: 'cream' }],
   [391, 632, 50, 32, 60, 3, 'a', { tint: 'terracotta' }],
@@ -225,7 +225,7 @@ const B = [
   [548, 652, 30, 20, -20, 2, 'h', { tint: 'cream' }],
   [603, 650, 28, 19, 0, 2, 'h', { tint: 'ochre' }],
   // ---- Grandioso Apartments / west lanes / Old Town
-  [228, 598, 40, 37, 15, 5, 'a', { name: 'Grandioso Apartments', poi: 'grandioso_apartments', key: 'residential', keySeg: 0, keyName: 'Residential (Grandiosa)', tint: 'cream' }],
+  [228, 598, 40, 37, 15, 5, 'a', { name: 'Grandiosa Apartments', poi: 'grandioso_apartments', key: 'residential', keySeg: 0, keyName: 'Residential (Grandiosa)', tint: 'cream' }],
   [217, 648, 40, 38, 15, 5, 'a', { poi: 'grandioso_apartments', tint: 'cream' }],
   [249, 539, 49, 37, 69, 3, 'a', { tint: 'ochre', flat: true }],
   [243, 510, 26, 20, -25, 2, 'h'],
@@ -253,7 +253,7 @@ const B = [
   [749, 380, 28, 27, 0, 1, 'h', { sunk: 2.5, poi: 'buried_properties' }],
   [590, 418, 64, 24, -30, 2, 'h', { tint: 'pink' }],
   [613, 473, 44, 28, -30, 2, 'h', { poi: 'buried_properties' }],
-  [734, 469, 74, 38, -25, 2, 'a', { sunk: 2, name: 'Buried Properties', poi: 'buried_properties', tint: 'cream' }],
+  [734, 469, 74, 38, -25, 2, 'a', { sunk: 2, name: 'Sandy Properties', poi: 'buried_properties', tint: 'cream' }],
   // ---- church ruins and the south-east lanes
   [714, 774, 38, 34, -30, 2, 'o', { name: 'Church Ruins', poi: 'church_ruins', ruin: 1 }],
   [733, 743, 48, 19, 60, 2, 'o', { poi: 'church_ruins', ruin: 1 }],
@@ -872,7 +872,7 @@ function furnish(ctx) {
         i++;
         const ck = keyLoot ? keyLoot[Math.floor(rng() * keyLoot.length)] : e[1];
         if (!ck) continue;
-        if (!keyLoot && rng() < (C.o.poi ? ctx.lootSkip - 0.12 : ctx.lootSkip + 0.03)) continue;
+        if (!keyLoot && rng() < (C.o.rich ? ctx.lootSkip - 0.3 : C.o.poi ? ctx.lootSkip - 0.12 : ctx.lootSkip + 0.03)) continue;
         const capKey = r.key === 'residential' ? 'res' + C.bi : r.key === 'space_travel' ? 'st' + r.seg.id : r.key, cap = { residential: 8, space_travel: 5 }[r.key] || 10;
         if (keyLoot && ((ctx.keyLoot[capKey] || 0) >= cap || conts.length >= 2)) continue;
         // container beside the furniture (or in its place), clear of walls, furniture and doorways
@@ -884,7 +884,7 @@ function furnish(ctx) {
         if (cx < r.x0 + 0.8 || cx > r.x1 - 0.8 || cz < r.z0 + 0.8 || cz > r.z1 - 0.8) continue;
         if (!clearOf(cx, cz, 0.45) || conts.some(([px, pz]) => Math.hypot(px - cx, pz - cz) < 1)) continue;
         if (r.gaps.some(([gx, gz, door]) => Math.hypot(gx - cx, gz - cz) < (door ? 1.4 : 0.8))) continue;
-        const tier = r.key ? 3 : C.o.poi ? (rng() < 0.07 ? 3 : 2) : (rng() < 0.15 ? 2 : 1);
+        const tier = r.key ? 3 : C.o.rich ? (rng() < 0.35 ? 3 : 2) : C.o.poi ? (rng() < 0.07 ? 3 : 2) : (rng() < 0.15 ? 2 : 1);
         w.container(ck, cx, cz, rot, { tier, room: r.key || null });
         conts.push([cx, cz]);
         if (keyLoot) ctx.keyLoot[capKey] = (ctx.keyLoot[capKey] || 0) + 1;
@@ -1106,7 +1106,7 @@ function setPieces(ctx, HW, RL) {
   for (let i = 0; i < 6; i++) w.prop(i % 2 ? 'sc_laundry' : 'sc_laundry2', ...freeSpot(ctx, 214 + rng() * 30, 616 + rng() * 10, 1), Math.PI * 0.08, {});
   for (let i = 0; i < 4; i++) { const [x, z] = freeSpot(ctx, 252 + i * 3, 600 + i * 9, 1.6); w.prop(['sc_fiat', 'sc_fiat2', 'sc_fiat3', 'sc_fiat4'][i], x, z, 0.3, { solid: true }); w.container('car_trunk', x, z + 2.1, 0, { tier: 1 }); }
   // ---------------- Marano Station: platform canopy, wagons, benches, sign
-  canopy(ctx, 237, 252, 15, 92, 4.2, { name: 'Marano Station Platform', roof: 'corrugated', wall: 'rust', peek: 0.75 });
+  canopy(ctx, 237, 252, 15, 92, 4.2, { name: 'Marino Station Platform', roof: 'corrugated', wall: 'rust', peek: 0.75 });
   w.paint('concrete', 237, 252, 241, 344);
   for (let i = 0; i < 5; i++) w.prop('sc_bench', 238.6, 262 + i * 16, Math.PI / 2, { solid: true });
   w.prop('sc_wagon', 246, 300, 0, { solid: true }); w.prop('sc_wagon', 246, 323, 0.02, { solid: true });
@@ -1189,15 +1189,15 @@ function vegetation(ctx) {
     const area = Math.abs(a / 2), n = Math.round(area / 100 * g.d);
     const ks = kinds[g.k];
     let tot = 0; for (const k of ks) tot += k[1];
+    // wild plants / herbs worth picking in the groves (nature loot); trees keep clear of them
+    for (let i = 0, k = 0, [bx0, bz0, bx1, bz1] = bounds(g.pts); i < 20 && k < (g.k === 'park' ? 4 : 1 + (area > 6000 ? 1 : 0)); i++) {
+      const px = lerp(bx0, bx1, rng()), pz = lerp(bz0, bz1, rng());
+      if (!inPoly(px, pz, g.pts) || avoid(px, pz)) continue;
+      w.container('plant', px, pz, rng() * 6, { tier: rng() < 0.2 ? 2 : 1 }); ctx.keepClear.push([px, pz, 1]); k++;
+    }
     for (const [k, wgt] of ks) w.scatter(k, g.pts, Math.round(n * wgt / tot), { solid: true, seed: 1000 + gi * 17 + k.length, avoid, scale: k.startsWith('sc_olive') ? 1.45 : k === 'sc_cypress' ? 1.1 : 1.25, scaleVar: 0.4 });
     w.scatter(gi % 3 ? 'sc_shrub' : 'bush', g.pts, Math.round(n * 0.5), { seed: 2000 + gi, avoid, scaleVar: 0.5 });
     w.scatter('sc_agave', g.pts, Math.round(n * 0.12), { seed: 3000 + gi, avoid });
-    // wild plants / herbs worth picking in the groves (nature loot)
-    for (let i = 0, k = 0; i < 20 && k < (g.k === 'park' ? 4 : 1 + (area > 6000 ? 1 : 0)); i++) {
-      const px = lerp(...[bounds(g.pts)[0], bounds(g.pts)[2]], rng()), pz = lerp(...[bounds(g.pts)[1], bounds(g.pts)[3]], rng());
-      if (!inPoly(px, pz, g.pts) || avoid(px, pz)) continue;
-      w.container('plant', px, pz, rng() * 6, { tier: rng() < 0.2 ? 2 : 1 }); k++;
-    }
     // dappled earth under the trees
     const [x0, z0, x1, z1] = bounds(g.pts);
     for (let i = 0; i < Math.round(area / 900); i++) { const px = lerp(x0, x1, rng()), pz = lerp(z0, z1, rng()); if (inPoly(px, pz, g.pts) && !avoid(px, pz)) w.paintCircle(g.k === 'park' ? 'grass' : rng() < 0.5 ? 'dirt' : 'sandDark', px, pz, 3 + rng() * 5, 0.6, i); }
@@ -1321,9 +1321,9 @@ function streetClutter(ctx) {
   // buried houses: roofs and attic windows poking from the sand
   for (const [cx, cz, W, D, ax, show] of BURIED) {
     if (!ctx.occ.free(cx - W / 2, cz - D / 2, cx + W / 2, cz + D / 2)) continue;
-    const g = Math.min(w.groundAt(cx - W / 2, cz - D / 2), w.groundAt(cx + W / 2, cz + D / 2), w.groundAt(cx - W / 2, cz + D / 2), w.groundAt(cx + W / 2, cz - D / 2));
-    const top = g + show, tint = TINT[TINT_CYCLE[Math.floor(rng() * TINT_CYCLE.length)]];
-    w.block(cx - W / 2, cz - D / 2, cx + W / 2, cz + D / 2, show + 2.5, 'plaster', { y0: g - 2.5, tint });
+    const gs = [w.groundAt(cx - W / 2, cz - D / 2), w.groundAt(cx + W / 2, cz + D / 2), w.groundAt(cx - W / 2, cz + D / 2), w.groundAt(cx + W / 2, cz - D / 2), w.groundAt(cx, cz)];
+    const g = Math.min(...gs), top = Math.max(...gs) + show, tint = TINT[TINT_CYCLE[Math.floor(rng() * TINT_CYCLE.length)]];
+    w.block(cx - W / 2, cz - D / 2, cx + W / 2, cz + D / 2, top - g + 2.5, 'plaster', { y0: g - 2.5, tint });
     const steps = Math.floor((ax === 'x' ? D : W) / 1.8);
     for (let k = 0; k < steps; k++) {
       const ins = k * 0.9;
@@ -1398,10 +1398,7 @@ function markers(ctx) {
   hatch(ctx, 'train_station_hatch', 'Train Station Hatch', 252, 344);
   hatch(ctx, 'highway_overpass_hatch', 'Highway Overpass Hatch', 524, 516);
   hatch(ctx, 'old_town_hatch', 'Old Town Hatch', 306, 658);
-  for (const [x, z] of SPAWNS) {
-    if (x > 840) { const [d, sArc] = polyDist(x, z, HIGHWAY); const pt = pointAt(HIGHWAY, sArc); w.spawnPoint(pt[0], pt[1]); continue; }   // east end: on the Corso deck
-    const [px, pz] = freeSpot(ctx, x, z, 1.5, 12); w.spawnPoint(px, pz);
-  }
+  for (const [x, z] of ctx.spawnPts) w.spawnPoint(x, z);
 
   // ---------------------------------------------------------------- ARK
   const roofY = name => { const C = ctx.cxs.find(c => c.o.name === name); return C ? { y: C.floorY + C.storeys * 3.2 + 0.3, roof: true } : {}; };
@@ -1409,8 +1406,9 @@ function markers(ctx) {
   // sentinels on rooftops / towers (reference icons at Town Hall + the overpass, plus towers)
   w.arkSpawn('sentinel', 478, 497, { ...roofY('Town Hall') });
   w.arkSpawn('sentinel', 546, 546, { y: ctx.HW.yAt(polyDist(546, 546, HIGHWAY)[1]) + 0.2 });
-  for (const n of ['Red Tower', 'Bell Tower', 'Hospital', 'Galleria', 'Grandioso Apartments', 'Library', "Dune's End Block"]) { const r = roofOf(n); if (r) w.arkSpawn('sentinel', r[0], r[1], r[2]); }
-  for (const n of ['Research', 'Space Travel', 'Warehouse', 'Marano Station']) { const r = roofOf(n, 0.3, 0.6); if (r) w.arkSpawn('turret', r[0], r[1], r[2]); }
+  for (const n of ['Red Tower', 'Bell Tower', 'Hospital']) { const r = roofOf(n); if (r) w.arkSpawn('sentinel', r[0], r[1], r[2]); }
+  for (const n of ['Galleria', 'Grandiosa Apartments', 'Library']) { const r = roofOf(n, 0.6, 0.4); if (r) w.arkSpawn('turret', r[0], r[1], r[2]); }
+  for (const n of ['Research', 'Space Travel', 'Warehouse', 'Marino Station']) { const r = roofOf(n, 0.3, 0.6); if (r) w.arkSpawn('turret', r[0], r[1], r[2]); }
   { const [x, z] = pointAt(HIGHWAY, 735); w.arkSpawn('turret', x, z, { y: ctx.HW.yAt(735) }); }
   // drones patrolling the plazas and streets
   const loops = [
@@ -1455,11 +1453,16 @@ function markers(ctx) {
   // ---------------------------------------------------------------- loot zones
   w.zone('Dunes', [[0, 0], [MW, 0], [MW, MH], [0, MH]], { tier: 1 });
   w.zone('Old Town', TOWN, { tier: 2 });
-  w.zone('Hospital', [[404, 186], [446, 176], [500, 286], [462, 300]], { tier: 3 });
-  w.zone('Town Hall', [[426, 528], [548, 468], [560, 500], [438, 554]], { tier: 3 });
-  w.zone('Research Campus', [[468, 340], [530, 330], [566, 400], [532, 436], [480, 430]], { tier: 3 });
+  // high-value areas outlined on the reference (red = locked key areas, yellow = rich loot buildings)
+  w.zone('Hospital', [[409, 196], [433, 184], [494, 276], [470, 290]], { tier: 3 });
+  w.zone('Space Travel', [[502, 356], [528, 341], [564, 398], [536, 413]], { tier: 3 });
+  w.zone('Town Hall', [[428, 529], [531, 466], [554, 501], [518, 507], [445, 549]], { tier: 3 });
+  w.zone('Library', [[317, 295], [368, 265], [382, 289], [407, 289], [420, 311], [350, 352]], { tier: 3 });
+  w.zone('Research', [[470, 372], [498, 359], [531, 415], [502, 434]], { tier: 3 });
+  w.zone('Grandiosa Apartments', [[216, 575], [255, 584], [232, 675], [200, 667]], { tier: 3 });
+  w.zone('Plaza Rossa', [[411, 685], [508, 708], [499, 749], [463, 768], [401, 731]], { tier: 3 });
   w.zone('Galleria', [[520, 256], [566, 248], [622, 364], [584, 384]], { tier: 2 });
-  w.zone('Plaza Rossa', PLAZAS[0].pts, { tier: 2 });
+  w.zone('Abandoned Highway Camp', [[210, 680], [262, 690], [246, 740], [200, 730]], { tier: 2 });
 }
 
 // =====================================================================================================
@@ -1474,7 +1477,8 @@ export default {
     ctx.decks = [];
     ctx.onDeck = (x, z) => ctx.decks.some(D => { const i = Math.round(z) * (MW + 1) + Math.round(x); return i >= 0 && i < D.arr.length && !Number.isNaN(D.arr[i]); });
     ctx.nearDoor = (x, z, r) => ctx.doorsOut.some(([dx, dz]) => Math.abs(dx - x) < r && Math.abs(dz - z) < r);
-    ctx.blocked = (x, z, r) => !ctx.occ.free(x - r - 0.5, z - r - 0.5, x + r + 0.5, z + r + 0.5) || ctx.onDeck(x, z) || ctx.onDeck(x + r + 1, z) || ctx.onDeck(x - r - 1, z) || ctx.onDeck(x, z + r + 1) || ctx.onDeck(x, z - r - 1) || ctx.nearDoor(x, z, r + 1.6);
+    ctx.keepClear = [];
+    ctx.blocked = (x, z, r) => ctx.keepClear.some(([kx, kz, kr]) => Math.abs(kx - x) < kr + r && Math.abs(kz - z) < kr + r) || !ctx.occ.free(x - r - 0.5, z - r - 0.5, x + r + 0.5, z + r + 0.5) || ctx.onDeck(x, z) || ctx.onDeck(x + r + 1, z) || ctx.onDeck(x - r - 1, z) || ctx.onDeck(x, z + r + 1) || ctx.onDeck(x, z - r - 1) || ctx.nearDoor(x, z, r + 1.6);
 
     const T = [performance.now()], mark = n => { T.push(performance.now()); ctx.times = ctx.times || []; ctx.times.push(n + ' ' + (T[T.length - 1] - T[T.length - 2]).toFixed(0)); };
     shapeTerrain(ctx); mark('terrain');
@@ -1494,6 +1498,11 @@ export default {
     furnish(ctx); mark('furnish');
     dressDeck(ctx, ctx.HW);
     dressDeck(ctx, ctx.RL, { wallTex: 'brick', pil: 'damConcrete', rail: 'rust', step: 2 });
+    ctx.spawnPts = SPAWNS.map(([x, z]) => {
+      if (x > 840) { const pt = pointAt(HIGHWAY, polyDist(x, z, HIGHWAY)[1]); return [pt[0], pt[1]]; }   // east end: on the Corso deck
+      return freeSpot(ctx, x, z, 1.5, 12);
+    });
+    for (const [x, z] of ctx.spawnPts) ctx.keepClear.push([x, z, 2.5]);
     setPieces(ctx, ctx.HW, ctx.RL); mark('decks+setpieces');
     vegetation(ctx); mark('veg');
     streetClutter(ctx); mark('clutter');

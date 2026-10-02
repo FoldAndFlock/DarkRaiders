@@ -75,7 +75,7 @@ const R_FORT = [[690, 668], [668, 700], [640, 716]];
 export default {
   id: 'green_gate', name: 'Green Gate', size: [W, H], seed: 4127,
   base: 'grass', cliff: 'rock',
-  conditions: ['night_raid', 'em_storm', 'lush_blooms', 'uncovered_caches', 'husk_graveyard', 'prospecting_probes', 'harvester', 'matriarch', 'cold_snap', 'locked_gate', 'hurricane', 'close_scrutiny'],
+  conditions: ['normal', 'lush_blooms', 'uncovered_caches', 'harvester', 'husk_graveyard', 'matriarch', 'prospecting_probes', 'em_storm', 'night_raid', 'cold_snap', 'locked_gate', 'hurricane', 'close_scrutiny'],
   ambient: { music: 'green_gate', birds: true, wind: 0.6 },
   build(w, rng) {
     const R = (a, b) => a + rng() * (b - a);
@@ -712,6 +712,7 @@ export default {
         if (o2.locked) {
           bldg(o); w.keyRoom(o2.locked, x, z, x + ww, z + dd, null, { name: o.name, poi: 'village' });
           furnish(o, 'home', { tier: 3, room: o2.locked, poi: 'village', cont0: 6, cont: 'office' });
+          for (const [dx, dz, k] of [[1.2, dd - 1.2, 'safe'], [ww - 1.2, dd - 1.2, 'weapon_case'], [ww * 0.3, dd * 0.5, 'suitcase']]) w.container(k, x + dx, z + dz, 0, { tier: 3, room: o2.locked, poi: 'village' });
         } else house(o, 'home', { tier: i % 6 === 0 ? 2 : 1, poi: 'village' });
         // doorstep clutter
         const [fx, fz] = front === 's' ? [x + ww * 0.3, z + dd + 1.4] : front === 'n' ? [x + ww * 0.7, z - 1.4] : front === 'w' ? [x - 1.4, z + dd * 0.3] : [x + ww + 1.4, z + dd * 0.7];

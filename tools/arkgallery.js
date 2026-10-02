@@ -7,6 +7,7 @@ import { World } from '../src/engine/world.js';
 import { GU } from '../src/engine/materials.js';
 import { ARK } from '../src/data/arc.js';
 import { createArkModel } from '../src/engine/arkmodels.js';
+import { RaiderModel, OUTFITS } from '../src/engine/models.js';
 import { drawText } from '../src/ui/pixelfont.js';
 
 const q = new URLSearchParams(location.search);
@@ -30,7 +31,8 @@ world.finalize();
 const items = [];
 let zc = 0, maxW = 0;
 const GAP = 1.0;
-const zq = q.get('zoom') || '1', wide = zq === 'fit' || +zq <= 1.5;
+const zq = q.get('zoom') || 'fit', wide = zq === 'fit' || +zq <= 1.5;
+const withRaider = q.get('raider') !== '0';
 for (const row of rows) {
   const ents = [];
   for (const id of row) for (let r = 0; r < (rear ? 2 : 1); r++) ents.push({ id, rearView: r === 1 });
@@ -55,7 +57,7 @@ const cx = W / 2, cz = H / 2 - layoutH / 2;
 for (const it of items) { it.x += cx - it.rowW / 2; it.z += cz; }
 
 // ------------------------------------------------------------------ projection (zoomable)
-let zoom = q.get('zoom') || '1';
+let zoom = zq;
 const fitZoom = Math.min(R.lw / 16 / (maxW + 2), R.lh / 16 / (layoutH + 1));
 zoom = zoom === 'fit' ? fitZoom : +zoom;
 const ppm = 16 * zoom;
@@ -104,6 +106,11 @@ for (const [n, it] of items.entries()) {
   let tris = 0; m.root.traverse(o => { if (o.isMesh) tris += o.geometry.index.count / 3; });
   it.tris = tris;
 }
+// a raider at the start of each row for scale
+if (withRaider) for (const it of items) if (!items.some(o => o.z === it.z && o.x < it.x)) {
+  const m = new RaiderModel(OUTFITS.teal, 'rifle'); m.root.position.set(it.x - Math.max(1.2, it.rad * 1.15) - 0.9, 0, it.z); m.update(0.1, false, 0.3);
+  R.scene.add(m.root); markEntity(R, m.root, 0x0c0c10, false);
+}
 window.__stats = Object.fromEntries(items.filter(i => !i.rearView).map(i => [i.id, i.tris]));
 
 function stateFor(it, t) {
@@ -146,6 +153,8 @@ async function main() {
   drawLabels();
   info.textContent = `zoom ${zoom.toFixed(2)}  ppm ${ppm.toFixed(1)}  items ${items.length}  state ${state}\n` + items.filter(i => !i.rearView).map(i => `${i.id}:${(i.tris / 1000).toFixed(1)}k`).join(' ');
   window.__ready = true;
-  if (q.get('live') === '1') { const loop = () => { step(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+  // keep animating in a real browser; headless screenshot runs (navigator.webdriver) stop after `frames`
+  const live = q.has('live') ? q.get('live') !== '0' : !navigator.webdriver;
+  if (live) { const loop = () => { step(); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
 }
 main().catch(e => { info.textContent = 'ERROR ' + e.message + '\n' + e.stack; console.error(e); window.__ready = true; });
