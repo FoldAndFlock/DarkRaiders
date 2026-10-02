@@ -128,8 +128,8 @@ export class Screens {
     const right = el('div', 'panel col'); right.style.flex = '1';
     w.append(left, right); this.root.appendChild(w);
     this.lobbyMap = this.lobbyMap || 'damn_grounds';
-    const net = this.net;
     const render = () => {
+      const net = this.net;
       left.innerHTML = '';
       left.appendChild(el('div', 'row', `<h2>DEPLOYMENT</h2><span class="label" style="margin-left:auto">${net ? (net.isHost ? 'SQUAD HOST' : 'SQUAD MEMBER') : 'SOLO'}</span>`));
       // map cards

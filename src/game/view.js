@@ -148,6 +148,8 @@ export class View {
       const fy = v.py + 1.4;
       this.L.spot(v.px + Math.sin(e.f) * 0.3, fy, v.pz + Math.cos(e.f) * 0.3, e.f, 0.42, 0xfff2d8, this.L.isNight ? 3.0 : 1.4, 17, e.id === this.g.meId ? 3 : 1.6);
     }
+    // faint personal light so your own raider always reads in the dark
+    if (e.id === this.g.meId && this.L.isNight && e.st !== 'dead') this.L.light(v.px, v.py + 1.6, v.pz, 0xc8d8ff, 0.55, 4.5, 2.8);
     // tagged enemies glow red outline
     if (v.mask && e.tagged > (this.g.simTime || 0)) v.mask.set(0.9, 0.1, 0.05, 1);
   }
@@ -253,7 +255,7 @@ export class View {
         fx.explosion(ev.x, ev.y, ev.z, ev.big ? 3 : 1.5); fx.sparks(ev.x, ev.y + 0.5, ev.z, 40, 0xffc060, 9);
         this.flash(ev.x, ev.y + 1, ev.z, 0xffb060, 4, 10, 0.4, 3.5);
         A?.play(ev.big ? 'ark_death_big' : 'ark_death_small', { x: ev.x, z: ev.z });
-        if (ev.src === g.meId) g.onXP?.(ev.xp, (ARK[ev.kind]?.name || 'ARK') + ' destroyed');
+        if (ev.src === g.meId) { g.onXP?.(ev.xp, (ARK[ev.kind]?.name || 'ARK') + ' destroyed'); g.questEvent?.('kill', { target: ev.kind }); g.stats.arkKills[ev.kind] = (g.stats.arkKills[ev.kind] || 0) + 1; }
         break;
       }
       case 'crash': fx.smoke(ev.x, 2, ev.z, 8, true, 0.6); fx.sparks(ev.x, 2, ev.z, 20, 0xffa040, 5); break;
@@ -292,6 +294,18 @@ export class View {
       case 'alarm': A?.play('snytch_alarm', { x: ev.x, z: ev.z }); g.feed('SNYTCH RAISED THE ALARM - REINFORCEMENTS INBOUND', '#e84a30'); break;
       case 'flame': if (Math.random() < 0.5) { const v = this.vis.get(ev.id); if (v) for (let i = 0; i < 4; i++) { const a = v.e.f + (Math.random() - .5) * 0.8, s = 6 + Math.random() * 4; fx.glow.emit({ x: v.px, y: v.py + 0.5, z: v.pz, vx: Math.sin(a) * s, vy: 0.5, vz: Math.cos(a) * s, life: 0.45, size: 6, size1: 12, color: 0xffd060, color1: 0xc02000, shape: 1, drag: 2 }); } } break;
       case 'reload': A?.play('reload_start', this.posOf(ev.id)); break;
+      case 'strikeWarn': { const gy = this.world.groundAt(ev.x, ev.z); fx.rings.add(ev.x, gy, ev.z, ev.r, 0x80c8ff, ev.t, 1); this.flash(ev.x, gy + 8, ev.z, 0x80b0ff, 0.6, ev.r * 2, ev.t, 2); break; }
+      case 'strike': {
+        const gy = this.world.groundAt(ev.x, ev.z);
+        for (let k = 0, y = gy + 30, x = ev.x, z = ev.z; k < 10; k++) { const ny = y - 3, nx = ev.x + (Math.random() - .5) * 2 * (k < 9 ? 1 : 0), nz = ev.z + (Math.random() - .5) * 1.5 * (k < 9 ? 1 : 0); fx.tracers.add(x, y, z, nx, Math.max(gy, ny), nz, 0xd0e8ff, 0.35); x = nx; y = ny; z = nz; }
+        fx.sparks(ev.x, gy + 0.3, ev.z, 50, 0xa0d0ff, 10); fx.smoke(ev.x, gy, ev.z, 8, true, 1.5);
+        this.flash(ev.x, gy + 3, ev.z, 0xc0e0ff, 7, ev.r * 4, 0.5, 4.5);
+        this.L.flashBoost = Math.max(this.L.flashBoost, 0.6);
+        this.shake = Math.max(this.shake, 0.4);
+        g.audio?.thunder?.(); A?.play('explosion_big', { x: ev.x, z: ev.z });
+        break;
+      }
+      case 'melee': { const v = this.vis.get(ev.id); if (v?.model && ev.id !== g.meId) v.model.kick(1.2); if (ev.hit) A?.play('hit_metal', this.posOf(ev.id)); break; }
       case 'chat': g.onChat?.(ev); break;
       case 'ping': fx.rings.add(ev.x, this.world.groundAt(ev.x, ev.z), ev.z, 1.2, ev.col || 0xf0c030, 6, 0, 'ping' + ev.by); g.onPing?.(ev); A?.play('ui_quest', { x: ev.x, z: ev.z }); break;
     }
@@ -334,6 +348,7 @@ export class View {
     for (const xv of this.extractVis) {
       if (!xv) continue;
       const st = this.g.extractState?.(xv.x.i);
+      if (st === 'offline') continue;
       const col = st === 'called' ? 0xffc030 : st === 'open' ? 0x40ff80 : st === 'gone' ? 0x803020 : xv.x.kind === 'hatch' ? 0xffd040 : 0x40ff80;
       const pulse = st === 'called' ? 0.6 + 0.4 * Math.sin(performance.now() / 150) : 1;
       this.L.light(xv.x.x, xv.y + 1.2, xv.x.z, col, 1.4 * pulse, 8, 1.2);
@@ -387,7 +402,8 @@ export class View {
       const dd = Math.hypot(x.x - me.x, x.z - me.z);
       if (dd < 2.6) {
         const st = g.extractState?.(x.i);
-        if (x.kind === 'hatch') consider({ kind: 'hatch', ref: x.i, x: x.x, z: x.z, time: 2.5, label: 'USE RAIDER HATCH (KEY)' }, dd);
+        if (st === 'offline') consider({ kind: 'offline', ref: x.i, x: x.x, z: x.z, time: 999, label: (x.kind === 'hatch' ? 'HATCH' : 'EXTRACT') + ' OFFLINE (MAP CONDITION)' }, dd);
+        else if (x.kind === 'hatch') consider({ kind: 'hatch', ref: x.i, x: x.x, z: x.z, time: 2.5, label: 'USE RAIDER HATCH (KEY)' }, dd);
         else if (st === 'idle') consider({ kind: 'extract', ref: x.i, x: x.x, z: x.z, time: 1.2, label: 'CALL ' + (x.kind === 'metro' ? 'METRO' : 'ELEVATOR') + ' - ' + x.name }, dd);
       }
     }

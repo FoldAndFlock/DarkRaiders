@@ -21,6 +21,7 @@ export class HostSession {
     this.sim.emit({ e: 'shot', s: this.ent.id, o: [s.x, s.y, s.z], hits: [], k: 'launcher', snd: s.snd });
   }
   throwItem(id, tx, tz) { this.sim.throwItem(this.ent, id, tx, tz); }
+  melee(a, mul = 1, oneHitDrones = false) { this.sim.melee(this.ent, a, mul, oneHitDrones); }
   // containers: kind 'container' (ref = index) or 'loot' (ref = entity id)
   open(kind, ref) {
     const list = this._list(kind, ref, true);

@@ -4,6 +4,7 @@ import { ITEMS, weaponStats, gunModelFor, gunSoundFor, makeStack } from './items
 import { capacities, countLoadout, takeFrom, loadoutWeight, QUICK_TYPES } from './inventory.js';
 import { OBLIQUE_K } from '../engine/renderer.js';
 import { wrapAngle } from './sim.js';
+import { SKILL_TREE } from '../data/skills.js';
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 
@@ -16,13 +17,31 @@ export class PlayerController {
     this.fireT = 0; this.reloadT = 0; this.reloadFor = null; this.burst = 0; this.burstT = 0; this.bloom = 0; this.charge = 0;
     this.useT = 0; this.useItem = null; this.useSlot = -1;
     this.dodgeT = 0; this.dodgeDir = [0, 0]; this.dodgeCD = 0;
-    this.crouch = false; this.ads = false; this.flash = false;
+    this.crouch = false; this.ads = false; this.flash = !!game.L?.isNight;
     this.interact = null; this.holdT = 0; this.holdFor = null;
     this.aim = { x: ent.x, z: ent.z + 5, y: 1.2, a: 0, entity: null };
     this.semiLatch = false; this.gadgetCD = {};
     this.footT = 0; this.vx = 0; this.vz = 0;
-    this.lastFireAt = -9;
+    this.lastFireAt = -9; this.meleeCD = 0; this.lastDodgeAt = -9;
+    // conditional skill bonuses: [{stat, per, when}] scaled by rank
+    this.conds = [];
+    for (const [id, rank] of Object.entries(game.profile?.skills || {})) {
+      const n = SKILL_TREE.nodes[id]; if (!n || !rank) continue;
+      for (const c of n.conditional || []) this.conds.push({ ...c, per: c.per * rank });
+    }
     this.applyWeaponVisual();
+  }
+  // live conditional modifier for a stat
+  cond(stat) {
+    if (!this.conds.length) return 0;
+    const e = this.e, g = this.g;
+    const on = {
+      hurt: e.hp < e.maxHp * 0.5, critical: e.hp < e.maxHp * 0.25, walking: e.moving && !e.sprint, crouched: this.crouch,
+      exhausted: this.exhausted, healing: !!this.useItem, overweight: this.weight() > this.caps.weightLimit,
+      after_dodge: g.time - this.lastDodgeAt < 2.5, shield_broken: e.shMax > 0 && e.sh <= 0, downed: e.st === 'downed', looting: !!this.holdFor,
+    };
+    let m = 0; for (const c of this.conds) if (c.stat === stat && on[c.when]) m += c.per;
+    return m;
   }
   get weapon() { return this.lo.weapons[this.slot] || null; }
   get wstats() { const w = this.weapon; return w ? weaponStats(w) : null; }
@@ -61,18 +80,20 @@ export class PlayerController {
     if (e.buffs?.slowed || e.latchedBy) speed *= 0.55;
     if (e.buffs?.adrenaline) speed *= 1.12;
     if (e.buffs?.cloak) speed *= 0.75;
+    speed *= 1 + this.cond('move_speed');
     if (downed) speed = 0.9 * st.downed_crawl_speed;
     const depth = g.world.grid.waterDepth(e.x, e.z);
     if (depth > 0.3) speed *= 0.72;
     // stamina
-    if (wantSprint) { this.stamina -= st.sprint_cost * dt; if (this.stamina <= 0) { this.stamina = 0; this.exhausted = true; g.audio?.play('stamina_out'); } }
-    else this.stamina = Math.min(st.max_stamina, this.stamina + st.stamina_regen * (e.buffs?.adrenaline ? 2 : 1) * (moving ? 0.7 : 1) * dt);
+    if (wantSprint) { this.stamina -= st.sprint_cost * Math.max(0, 1 + this.cond('sprint_cost')) * dt; if (this.stamina <= 0) { this.stamina = 0; this.exhausted = true; g.audio?.play('stamina_out'); } }
+    else this.stamina = Math.min(st.max_stamina, this.stamina + st.stamina_regen * (1 + this.cond('stamina_regen')) * (e.buffs?.adrenaline ? 2 : 1) * (moving ? 0.7 : 1) * dt);
     if (this.exhausted && this.stamina > st.max_stamina * 0.35) this.exhausted = false;
     // dodge roll
     this.dodgeCD -= dt;
-    if (input.hit('dodge') && !downed && this.dodgeT <= 0 && this.dodgeCD <= 0 && this.stamina >= st.dodge_cost * 0.5) {
+    const dcost = st.dodge_cost * Math.max(0, 1 + this.cond('dodge_cost'));
+    if (input.hit('dodge') && !downed && this.dodgeT <= 0 && this.dodgeCD <= 0 && this.stamina >= dcost * 0.5) {
       const dir = moving ? [mv.x, mv.z] : [Math.sin(this.aim.a), Math.cos(this.aim.a)];
-      this.dodgeT = 0.34; this.dodgeDir = dir; this.dodgeCD = 0.7; this.stamina = Math.max(0, this.stamina - st.dodge_cost);
+      this.dodgeT = 0.34; this.dodgeDir = dir; this.dodgeCD = 0.7; this.stamina = Math.max(0, this.stamina - dcost); this.lastDodgeAt = g.time;
       this.crouch = false; this.cancelUse();
       g.session.dodge(); g.audio?.play('dodge_roll', { x: e.x, z: e.z });
     }
@@ -95,12 +116,28 @@ export class PlayerController {
       if (this.footT <= 0) { this.footT = 0.38; g.view.footstep(e, depth); }
     }
     g.session.state({ x: e.x, y: e.y, z: e.z, f: e.f, mf: e.mf, moving: e.moving, sprint: e.sprint, crouch: e.crouch, flash: e.flash });
-    if (downed) { this.cancelUse(); return; }
+    if (downed) {
+      this.cancelUse();
+      this.selfRevives = this.selfRevives ?? Math.floor(this.stats.self_revive || 0);
+      if (this.selfRevives > 0) {
+        this.interact = { kind: 'selfrevive', ref: e.id, x: e.x, z: e.z, time: 3, label: `SELF-REVIVE (${this.selfRevives} LEFT)` };
+        if (input.is('interact')) { this.holdFor = 'self'; this.holdT += dt; if (this.holdT >= 3) { this.holdT = 0; this.holdFor = null; this.selfRevives--; g.session.reviveNow(e.id); g.feed('BACK ON YER FEET', '#68e088'); } }
+        else { this.holdT = 0; this.holdFor = null; }
+      } else this.interact = null;
+      return;
+    }
     // --- weapons
     if (input.hit('swap') || input.mouse.wheel) this.swapWeapon(input.mouse.wheel < 0 ? -1 : 1);
     if (input.hit('weapon1')) this.selectWeapon(0);
     if (input.hit('weapon3')) this.selectWeapon(2);
     if (input.hit('reload')) this.startReload();
+    this.meleeCD -= dt;
+    if (input.hit('melee') && this.meleeCD <= 0 && !this.useItem) {
+      this.meleeCD = 0.75; this.fireT = Math.max(this.fireT, 0.4);
+      g.session.melee(this.aim.a, this.stats.melee_damage, !!g.stats0?.unlocks?.has?.('one_hit_drones'));
+      g.view.vis.get(e.id)?.model?.kick(1.2);
+      g.audio?.play('dodge_roll', { x: e.x, z: e.z, pitch: 1.6 });
+    }
     this.updateWeapon(dt, input);
     // --- quick use
     for (let i = 0; i < 6; i++) if (input.hit('quick' + (i + 1))) this.startUse(i);

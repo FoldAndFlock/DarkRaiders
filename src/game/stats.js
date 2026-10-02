@@ -18,10 +18,11 @@ const KIND = {
 };
 
 export function computeStats(skillRanks = {}, tree = null, extraMods = {}) {
-  const mod = {};
+  const mod = {}, unlocks = new Set();
   if (tree?.nodes) for (const [id, rank] of Object.entries(skillRanks)) {
     const n = tree.nodes[id]; if (!n || !rank) continue;
     for (const e of n.effects || []) mod[e.stat] = (mod[e.stat] || 0) + e.per * rank;
+    for (const u of n.unlocks || []) unlocks.add(u);
   }
   for (const [k, v] of Object.entries(extraMods)) mod[k] = (mod[k] || 0) + v;
   const s = {};
@@ -33,7 +34,7 @@ export function computeStats(skillRanks = {}, tree = null, extraMods = {}) {
     else if (kind === 'mulAbs') s[k] = base * (1 + m);
     else s[k] = base * (1 + m);
   }
-  s.mods = mod;
+  s.mods = mod; s.unlocks = unlocks;
   return s;
 }
 

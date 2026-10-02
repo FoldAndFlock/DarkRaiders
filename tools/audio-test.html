@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DarkRaiders Audio Test</title>
+<style>
+  :root {
+    --bg: #0d0f14; --panel: #161a23; --line: #2a3140; --text: #d8dee9; --dim: #7f8aa0;
+    --accent: #f2a03d; --accent2: #5ec4c9; --bad: #e0605a; --good: #7cc27a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 ui-monospace, Menlo, Consolas, monospace; }
+  header { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  h1 { font-size: 16px; margin: 0; color: var(--accent); letter-spacing: 1px; }
+  h2 { font-size: 12px; margin: 0 0 8px; color: var(--accent2); text-transform: uppercase; letter-spacing: 1px; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 12px; padding: 12px 16px; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px; margin-bottom: 12px; }
+  button { background: #222937; color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px;
+    font: inherit; cursor: pointer; margin: 2px; }
+  button:hover { border-color: var(--accent); }
+  button.on { background: #3b2a12; border-color: var(--accent); color: var(--accent); }
+  button.big { padding: 8px 14px; font-weight: bold; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+  label { color: var(--dim); }
+  input[type=range] { width: 120px; vertical-align: middle; }
+  select { background: #222937; color: var(--text); border: 1px solid var(--line); font: inherit; padding: 3px; }
+  canvas { background: #0a0c10; border: 1px solid var(--line); border-radius: 4px; width: 100%; max-width: 360px; aspect-ratio: 1; cursor: crosshair; display: block; }
+  #stats { white-space: pre; color: var(--dim); font-size: 12px; }
+  #log { white-space: pre-wrap; max-height: 220px; overflow: auto; font-size: 12px; }
+  .ok { color: var(--good); } .err { color: var(--bad); }
+  .group { margin-bottom: 8px; } .group b { color: var(--dim); font-weight: normal; display: block; margin: 4px 2px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>DARKRAIDERS // AUDIO LAB</h1>
+  <button id="init" class="big">Init audio</button>
+  <button id="selftest">Run self-test</button>
+  <button id="stopall">Stop all</button>
+  <span id="status" class="err">not initialised</span>
+</header>
+<main>
+  <div>
+    <section>
+      <h2>Music</h2>
+      <div class="row">
+        <label>map <select id="map"><option>damn_grounds</option><option>green_gate</option><option>sandy_city</option></select></label>
+        <label>intensity <input id="intensity" type="range" min="0" max="1" step="0.01" value="0"></label>
+        <button id="muffle">muffle</button>
+        <button id="duck">duck 1s</button>
+        <button id="musicoff">music off</button>
+      </div>
+      <div class="row" id="states"></div>
+      <div class="row" id="jingles"></div>
+    </section>
+    <section>
+      <h2>Sound effects <span style="color:var(--dim)">(loops toggle on/off)</span></h2>
+      <div id="sfx"></div>
+    </section>
+  </div>
+  <div>
+    <section>
+      <h2>Volumes</h2>
+      <div class="row" id="vols"></div>
+    </section>
+    <section>
+      <h2>Positional test</h2>
+      <div class="row" style="margin-bottom:6px">
+        <label>sound <select id="possound"></select></label>
+        <label><input type="checkbox" id="occl"> occluded</label>
+        <label><input type="checkbox" id="orbit"> orbiting wazp</label>
+      </div>
+      <canvas id="pos" width="360" height="360"></canvas>
+      <div style="color:var(--dim);margin-top:4px">Click to play at that spot. Listener in the centre, ring = 45 m default range.</div>
+    </section>
+    <section>
+      <h2>Weather</h2>
+      <div class="row">
+        <label>rain <input id="rain" type="range" min="0" max="1" step="0.01" value="0"></label>
+        <label>wind <input id="wind" type="range" min="0" max="1" step="0.01" value="0"></label>
+        <label><input type="checkbox" id="storm"> storm</label>
+        <button id="thunder">thunder</button>
+      </div>
+    </section>
+    <section><h2>Stats</h2><div id="stats"></div></section>
+    <section><h2>Log</h2><div id="log"></div></section>
+  </div>
+</main>
+<script type="module">
+import { audio } from '../src/audio/audio.js';
+window.audio = audio;
+const $ = (id) => document.getElementById(id);
+const log = (msg, cls = '') => { const d = document.createElement('div'); d.className = cls; d.textContent = msg; $('log').prepend(d); };
+const names = audio.debugNames();
+
+$('init').onclick = () => {
+  const ok = audio.init();
+  $('status').textContent = ok ? 'running' : 'init failed'; $('status').className = ok ? 'ok' : 'err';
+};
+document.addEventListener('pointerdown', () => { if (!audio.ready) $('init').click(); }, { once: true });
+
+// ---------------------------------------------------------------- music
+let curBtn = null;
+for (const s of names.music) {
+  const b = document.createElement('button'); b.textContent = s;
+  b.onclick = () => { audio.music(s, { map: $('map').value }); curBtn?.classList.remove('on'); b.classList.add('on'); curBtn = b; };
+  $('states').append(b);
+}
+for (const j of names.jingles) {
+  const b = document.createElement('button'); b.textContent = 'jingle: ' + j; b.onclick = () => audio.jingle(j); $('jingles').append(b);
+}
+$('map').onchange = () => { const s = audio.stats().musicState; if (s) audio.music(s, { map: $('map').value }); };
+$('intensity').oninput = (e) => audio.setIntensity(+e.target.value);
+let muffled = false;
+$('muffle').onclick = (e) => { muffled = !muffled; audio.muffle(muffled); e.target.classList.toggle('on', muffled); };
+$('duck').onclick = () => audio.duck(0.7, 1);
+$('musicoff').onclick = () => { audio.music('off'); curBtn?.classList.remove('on'); };
+
+// ---------------------------------------------------------------- sfx
+const GROUPS = [
+  ['Weapons', /^(gun_|reload_|dry_fire|weapon_switch|bolt_cycle|pump_cycle|charge_up)/],
+  ['Impacts', /^(hit_|shield_break|ark_part_break|ricochet|bullet_whiz)/],
+  ['Explosives & fire', /^(explosion_|grenade_|fire_loop|gas_hiss|smoke_pop|flashbang|mine_)/],
+  ['Player', /^(step_|dodge_roll|jump_land|crouch|hurt|downed|revive|death|heal_|shield_recharge|stamina_out|breath_heavy)/],
+  ['Loot & interaction', /^(search_|loot_|door_|hatch_open|container_open|zipper|key_use)/],
+  ['ARK', /^(wazp|hornit|ark_|tikk|popp|fyreball|snytch|surveyr|sentinal|turret|rocket|leapr|bastian|bombadier|queen)/],
+  ['Extraction & raid', /^(extract_|elevator_|raid_|hatch_extract)/],
+  ['UI', /^(ui_|chat_msg)/],
+  ['Ambient', /./],
+];
+const loops = {};
+const placed = new Set();
+for (const [title, re] of GROUPS) {
+  const div = document.createElement('div'); div.className = 'group';
+  const h = document.createElement('b'); h.textContent = title; div.append(h);
+  for (const n of names.sfx) {
+    if (placed.has(n) || !re.test(n)) continue;
+    placed.add(n);
+    const b = document.createElement('button'); b.textContent = n;
+    if (names.loops.includes(n)) {
+      b.textContent = '⟳ ' + n;
+      b.onclick = () => {
+        if (loops[n]) { loops[n].stop(); delete loops[n]; b.classList.remove('on'); }
+        else { loops[n] = audio.loop(n); b.classList.add('on'); }
+      };
+    } else b.onclick = () => audio.play(n);
+    div.append(b);
+  }
+  $('sfx').append(div);
+}
+for (const n of names.sfx) { const o = document.createElement('option'); o.textContent = n; $('possound').append(o); }
+$('possound').value = 'gun_rifle';
+
+// ---------------------------------------------------------------- volumes
+for (const k of ['master', 'music', 'sfx', 'ui']) {
+  const l = document.createElement('label'); l.textContent = k + ' ';
+  const r = document.createElement('input'); r.type = 'range'; r.min = 0; r.max = 1; r.step = 0.01; r.value = audio.vol[k];
+  r.oninput = () => audio.setVolumes({ [k]: +r.value });
+  l.append(r); $('vols').append(l);
+}
+
+// ---------------------------------------------------------------- weather
+const wx = () => audio.weather({ rain: +$('rain').value, wind: +$('wind').value, storm: $('storm').checked });
+$('rain').oninput = wx; $('wind').oninput = wx; $('storm').onchange = wx;
+$('thunder').onclick = () => audio.thunder();
+$('stopall').onclick = () => { audio.stopAll(); for (const k in loops) delete loops[k]; document.querySelectorAll('button.on').forEach((b) => b.classList.remove('on')); };
+
+// ---------------------------------------------------------------- positional canvas
+const cv = $('pos'), g = cv.getContext('2d'), SPAN = 110;     // metres across the canvas
+const LX = 50, LZ = 50; audio.setListener(LX, LZ);
+const marks = [];
+let orbit = null, orbitPos = null;
+cv.onclick = (e) => {
+  const r = cv.getBoundingClientRect();
+  const x = LX + ((e.clientX - r.left) / r.width - 0.5) * SPAN, z = LZ + ((e.clientY - r.top) / r.height - 0.5) * SPAN;
+  audio.play($('possound').value, { x, z, occluded: $('occl').checked });
+  marks.push({ x, z, t: performance.now() });
+};
+$('orbit').onchange = (e) => {
+  if (e.target.checked) orbit = audio.loop('wazp_loop', { x: LX + 15, z: LZ });
+  else { orbit?.stop(); orbit = null; orbitPos = null; }
+};
+const toPx = (x, z) => [((x - LX) / SPAN + 0.5) * cv.width, ((z - LZ) / SPAN + 0.5) * cv.height];
+function draw(now) {
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.strokeStyle = '#2a3140';
+  for (const m of [15, 30, 45]) { g.beginPath(); g.arc(cv.width / 2, cv.height / 2, (m / SPAN) * cv.width, 0, Math.PI * 2); g.stroke(); }
+  g.fillStyle = '#5ec4c9'; g.fillRect(cv.width / 2 - 4, cv.height / 2 - 4, 8, 8);
+  if (orbit) {
+    const a = now / 1000 * 0.8, x = LX + Math.cos(a) * 18, z = LZ + Math.sin(a) * 18;
+    orbit.setPos(x, z); orbit.setOccluded($('occl').checked); orbitPos = [x, z];
+  }
+  if (orbitPos) { const [px, pz] = toPx(...orbitPos); g.fillStyle = '#e0605a'; g.beginPath(); g.arc(px, pz, 5, 0, 7); g.fill(); }
+  for (let i = marks.length - 1; i >= 0; i--) {
+    const m = marks[i], age = (now - m.t) / 1000;
+    if (age > 1.5) { marks.splice(i, 1); continue; }
+    const [px, pz] = toPx(m.x, m.z);
+    g.strokeStyle = `rgba(242,160,61,${1 - age / 1.5})`; g.beginPath(); g.arc(px, pz, 4 + age * 20, 0, 7); g.stroke();
+  }
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+// ---------------------------------------------------------------- stats
+setInterval(() => { $('stats').textContent = JSON.stringify(audio.stats(), null, 1).replace(/[{}"]/g, ''); }, 250);
+
+// ---------------------------------------------------------------- self-test (also driven by Playwright)
+window.selfTest = async function selfTest() {
+  const res = { sfxOk: 0, loopsOk: 0, musicOk: 0, thrown: [], errors: [] };
+  const before = audio.errors.length;
+  for (const n of names.sfx) {
+    try {
+      const h = audio.play(n, { x: LX + (Math.random() - 0.5) * 30, z: LZ + (Math.random() - 0.5) * 30 });
+      audio.play(n, { vol: 0.5 });
+      h.stop(); res.sfxOk++;
+    } catch (e) { res.thrown.push(n + ': ' + e.message); }
+  }
+  for (const n of names.loops) {
+    try { const h = audio.loop(n, { x: LX + 5, z: LZ }); h.setPos(LX - 5, LZ + 3); h.setVol(0.5); h.setPitch(1.1); h.setOccluded(true); h.stop(); res.loopsOk++; }
+    catch (e) { res.thrown.push('loop ' + n + ': ' + e.message); }
+  }
+  for (const map of names.maps) for (const s of names.music) {
+    try { audio.music(s, { map }); audio.setIntensity(Math.random()); res.musicOk++; await new Promise((r) => setTimeout(r, 30)); }
+    catch (e) { res.thrown.push('music ' + s + '/' + map + ': ' + e.message); }
+  }
+  for (const j of names.jingles) try { audio.jingle(j); } catch (e) { res.thrown.push('jingle ' + j + ': ' + e.message); }
+  try { audio.weather({ rain: 0.8, wind: 0.5, storm: true }); audio.thunder(); audio.duck(0.5, 0.5); audio.weather({ rain: 0, wind: 0, storm: false }); }
+  catch (e) { res.thrown.push('weather: ' + e.message); }
+  audio.music('off');
+  res.errors = audio.errors.slice(before);
+  log(`self-test: sfx ${res.sfxOk}/${names.sfx.length}, loops ${res.loopsOk}/${names.loops.length}, music ${res.musicOk}, thrown ${res.thrown.length}, errors ${res.errors.length}`,
+    res.thrown.length || res.errors.length ? 'err' : 'ok');
+  return res;
+};
+$('selftest').onclick = () => { if (!audio.ready) $('init').click(); window.selfTest(); };
+log('module loaded: ' + names.sfx.length + ' sounds, ' + names.music.length + ' music states', 'ok');
+</script>
+</body>
+</html>

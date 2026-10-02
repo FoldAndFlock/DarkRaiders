@@ -2,7 +2,7 @@
 //   tools/icons.html                      everything (gun models, all icons at 2x with names, all icons at 4x)
 //   ?sec=icons|guns|big|legacy            one section only
 //   ?f=gun_rifle,arc_part / ?f=type:key   filter by icon family, type:, or id substring (~text)
-//   ?zoom=3  ?frame=1 (rarity frames)  ?names=0
+//   ?zoom=3  ?frame=1 (rarity frames)  ?names=0  ?flat=1 (no family headers)
 import { ITEMS } from '../src/data/items.js';
 import { drawItemIcon, itemIconDataURL, itemIconPixels, drawIcon, ICON_FAMILIES } from '../src/ui/icons.js';
 
@@ -31,8 +31,9 @@ for (const id of Object.keys(ITEMS)) {
 
 function iconGrid(zoom, withNames, title) {
   const h = document.createElement('h2'); h.textContent = title; root.appendChild(h);
-  for (const [fam, list] of fams) {
-    const h3 = document.createElement('h3'); h3.textContent = `${fam} (${list.length})`; root.appendChild(h3);
+  const groups = q.get('flat') === '1' ? [['', ids]] : [...fams];
+  for (const [fam, list] of groups) {
+    if (fam) { const h3 = document.createElement('h3'); h3.textContent = `${fam} (${list.length})`; root.appendChild(h3); }
     const grid = document.createElement('div'); grid.className = 'grid'; root.appendChild(grid);
     for (const id of list) {
       const it = ITEMS[id];

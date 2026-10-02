@@ -50,12 +50,14 @@ export class RaidGame {
     this.R = new Renderer(this.canvas);
     this.L = new Lighting(this.R.scene, this.R);
     this.L.set(this.timeOfDay, this.weather);
+    this.L.setQuality(o.settings?.quality || 'medium');
     this.L.onThunder = () => this.audio?.thunder?.();
     this.fx = new FX(this.R.scene);
     await tick();
     onProgress(0.15, 'Building ' + map.name);
     this.world = new World(this.R.scene, map.size[0], map.size[1], { seed: map.seed || 1, base: map.base, cliff: map.cliff });
     map.build(this.world, this.world.rng);
+    applyConditionToWorld(this.world, this.cond, o.seed || 1);
     await tick();
     onProgress(0.45, 'Meshing terrain');
     this.world.finalize();
@@ -65,7 +67,7 @@ export class RaidGame {
     onProgress(0.7, 'Waking the ARK');
     // gameplay state
     if (this.isHost) {
-      this.sim = new Sim(this.world, map, { seed: o.seed, condition: this.cond, raidLen: o.raidLen || 1800 });
+      this.sim = new Sim(this.world, map, { seed: o.seed, condition: this.cond, raidLen: Math.round((o.raidLen || 1800) * (this.cond?.effects?.durationMul || 1)) });
       this.sim.night = this.timeOfDay === 'night';
       this.sim.populate();
       this.spawnAt = o.spawn || this.pickSpawn();
@@ -169,6 +171,20 @@ export class RaidGame {
     this.R.render(dt);
     this.audio?.setListener?.(this.camX, this.camZ);
     this.drawHUD(dt);
+    if (input.pressed.has('F3')) this.showFps = !this.showFps;
+    this.poiT -= dt;
+    if (this.poiT <= 0 && me && me.st === 'alive') {
+      this.poiT = 0.5;
+      for (const p of this.world.pois) {
+        if (this.visited.has(p.id) || Math.hypot(p.x - me.x, p.z - me.z) > (p.r || 20)) continue;
+        this.visited.add(p.id); this.stats.discovered++;
+        this.feed('DISCOVERED  ' + p.name.toUpperCase(), '#e8e0c8'); this.addXP(40);
+        this.questEvent('visit', { poi: p.id, aliases: p.aliases || [] });
+      }
+      if (me.cold && !this.coldWarned) { this.coldWarned = true; this.banner('FREEZING', '#58c8f0', 'Get indoors to warm up', 3); }
+      if (!me.cold) this.coldWarned = false;
+    }
+    if (this.showFps) { this.fpsAcc = (this.fpsAcc || 0) * 0.95 + dt * 0.05; const c = this.hud.x; c.fillStyle = '#000'; c.fillRect(this.hud.W - 60, 2, 58, 10); c.fillStyle = '#68e088'; c.font = '8px monospace'; c.fillText(`${(1 / this.fpsAcc).toFixed(0)} FPS ${this.R.lw}x${this.R.lh}`, this.hud.W - 58, 10); }
     this.checkEnd(dt);
     input.endFrame();
     requestAnimationFrame((t) => this.frame(t));
@@ -300,7 +316,7 @@ export class RaidGame {
   }
   onKilled(ev) {
     const e = this.ents.get(ev.id);
-    if (ev.src === this.meId && e?.type === 'raider') { this.stats.kills++; this.addXP(e.bot ? 300 : 500, 'Raider eliminated'); }
+    if (ev.src === this.meId && e?.type === 'raider') { this.stats.kills++; this.addXP(e.bot ? 300 : 500, 'Raider eliminated'); this.questEvent('kill', { target: 'raider' }); }
     if (e?.type === 'raider' && ev.id !== this.meId) this.feed(`${ev.name} was eliminated${ev.by ? ' by ' + ev.by : ''}`, '#9a9484');
     if (ev.id === this.meId) this.onLocalDeath();
   }
@@ -390,7 +406,7 @@ export class RaidGame {
     for (const e of this.ents.values()) if (e.type === 'raider' && !e.bot && e.team === this.myTeam && e.id !== this.meId) team.push({ name: e.name, color: SQUAD_COLORS[(e.slot ?? ++slot) % 4], hp: e.st === 'downed' ? 0 : e.hp / e.maxHp, downed: e.st === 'downed' });
     if (team.length) { st.team = team; st.chat.teamCount = team.length; }
     // interaction prompt
-    if (pc.interact && me.st === 'alive') st.prompt = { text: pc.interact.label, key: 'E', progress: pc.holdFor ? Math.min(1, pc.holdT / pc.interact.time) : null };
+    if (pc.interact && (me.st === 'alive' || pc.interact.kind === 'selfrevive')) st.prompt = { text: pc.interact.label, key: 'E', progress: pc.holdFor ? Math.min(1, pc.holdT / pc.interact.time) : null };
     else if (pc.useItem) st.prompt = { text: 'USING ' + ITEMS[pc.useItem].name.toUpperCase(), key: '-', progress: 1 - pc.useT / pc.useTotal };
     else if (pc.reloadT > 0) st.prompt = null;
     // quests
@@ -398,7 +414,7 @@ export class RaidGame {
     // compass + off-screen ARK
     st.heading = 0;
     const marks = [];
-    for (const x of this.extractsData) marks.push({ bearing: Math.atan2(x.x - me.x, -(x.z - me.z)), color: x.state === 'called' || x.state === 'open' ? '#f0c030' : x.kind === 'hatch' ? '#c8a020' : '#68e088' });
+    for (const x of this.extractsData) if (x.state !== 'offline') marks.push({ bearing: Math.atan2(x.x - me.x, -(x.z - me.z)), color: x.state === 'called' || x.state === 'open' ? '#f0c030' : x.kind === 'hatch' ? '#c8a020' : '#68e088' });
     for (const p of this.pings.values()) marks.push({ bearing: Math.atan2(p.x - me.x, -(p.z - me.z)), color: SQUAD_COLORS[(p.slot ?? 0) % 4] });
     st.compassMarks = marks;
     const off = [], markers = [];
@@ -415,7 +431,7 @@ export class RaidGame {
     for (const x of this.extractsData) {
       const d = Math.hypot(x.x - me.x, x.z - me.z); if (d > 90) continue;
       const s = R.worldToScreen(x.x, this.world.groundAt(x.x, x.z) + 2.5, x.z);
-      const sub = x.state === 'called' ? 'INBOUND' : x.state === 'open' ? 'BOARD NOW' : x.state === 'gone' ? 'DEPARTED' : `${Math.round(d)}M`;
+      const sub = x.state === 'called' ? 'INBOUND' : x.state === 'open' ? 'BOARD NOW' : x.state === 'gone' ? 'DEPARTED' : x.state === 'offline' ? 'OFFLINE' : `${Math.round(d)}M`;
       markers.push({ sx: s.x, sy: s.y, label: x.name.toUpperCase(), sub, color: x.kind === 'hatch' ? '#f0c030' : '#68e088' });
     }
     for (const p of this.pings.values()) { const s = R.worldToScreen(p.x, this.world.groundAt(p.x, p.z) + 1, p.z); markers.push({ sx: s.x, sy: s.y, label: 'PING', sub: `${Math.round(Math.hypot(p.x - me.x, p.z - me.z))}M`, color: SQUAD_COLORS[(p.slot ?? 0) % 4] }); }
@@ -428,4 +444,26 @@ export class RaidGame {
 }
 
 function tick() { return new Promise(r => setTimeout(r, 0)); }
+
+// Condition-driven world additions, deterministic from the raid seed so every peer agrees.
+function applyConditionToWorld(w, cond, seed) {
+  const fx = cond?.effects; if (!fx) return;
+  const r = mulberry(seed * 977 + 31);
+  const pois = w.pois.length ? w.pois : [{ x: w.w / 2, z: w.h / 2, r: 40 }];
+  const spot = (rad = 25) => {
+    for (let k = 0; k < 30; k++) {
+      const p = pois[Math.floor(r() * pois.length)], a = r() * Math.PI * 2, d = (p.r || 20) * 0.4 + r() * rad;
+      const x = p.x + Math.cos(a) * d, z = p.z + Math.sin(a) * d;
+      if (x > 5 && z > 5 && x < w.w - 5 && z < w.h - 5) return [x, z];
+    }
+    return [w.w / 2, w.h / 2];
+  };
+  const add = (kind, n, tier = 2, label = null) => { for (let i = 0; i < n; i++) { const [x, z] = spot(); w.container(kind, x, z, r() * 6, { tier, label }); } };
+  if (fx.cacheMul) add('raider_cache', Math.round(6 * fx.cacheMul), 3, 'Uncovered Cache');
+  if (fx.huskMul) add('arc_husk', Math.round(10 * fx.huskMul), 2, 'ARK Husk');
+  if (fx.probeMul) add('arc_crate', Math.round(4 * fx.probeMul), 3, 'Prospecting Probe');
+  if (fx.natureLootMul) add('plant', Math.round(20 * fx.natureLootMul), 1);
+  if (fx.firstWaveCaches) add('raider_cache', fx.firstWaveCaches, 3, 'First Wave Cache');
+  for (const [kind, mn, mx] of fx.spawnGroups || []) { const n = mn + Math.floor(r() * (mx - mn + 1)); for (let i = 0; i < n; i++) { const [x, z] = spot(40); w.arkSpawn(kind, x, z, { count: 1 }); } }
+}
 function rarityHex(r) { return UI.rarity[r] || UI.cream; }

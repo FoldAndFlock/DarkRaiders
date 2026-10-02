@@ -151,7 +151,7 @@ P('gg_watchtower', () => {  // 4 x 4 m, 10 m tall guard tower (Sentinel perch)
   v.box(0, 26, 0, 15, 27, 15, C.woodD);
   v.box(0, 28, 0, 15, 33, 15, C.wood); v.box(1, 30, 0, 14, 32, 15, -1); v.box(0, 30, 1, 15, 32, 14, -1);
   v.box(1, 28, 1, 14, 29, 14, C.woodD);
-  v.box(0, 34, 0, 15, 35, 15, C.corrugated || C.steel);
+  v.box(0, 34, 0, 15, 35, 15, C.steel);
   v.box(-1, 36, -1, 16, 36, 16, C.greenD);
   v.box(7, 37, 7, 8, 40, 8, C.steelD); v.set(7, 40, 7, C.gR); v.glow(C.gR);
   return v.build();
@@ -536,5 +536,5 @@ P('gg_server', () => { const v = new Vox(7, 21, 9, 0.1, [3.5, 0, 4.5]); v.box(0,
 P('gg_lockers', () => { const v = new Vox(16, 19, 5, 0.1, [8, 0, 2.5]); v.box(0, 0, 0, 15, 18, 4, (x) => (x % 4 === 0 ? C.steelD : 0x5a6a62)); for (let x = 2; x < 16; x += 4) { v.box(x, 13, 4, x + 1, 13, 4, C.black); v.set(x + 1, 9, 4, C.steelL); } return v.build(); }, { solid: [0.8, 0.25, 1.9] });
 P('gg_cabinet', () => { const v = new Vox(9, 12, 6, 0.1, [4.5, 0, 3]); v.box(0, 0, 0, 8, 11, 5, 0x6a6e66); for (const y of [2, 6, 10]) v.box(1, y, 5, 7, y, 5, C.steelD); return v.build(); }, { solid: [0.45, 0.3, 1.2] });
 P('gg_fridge', () => { const v = new Vox(7, 18, 7, 0.1, [3.5, 0, 3.5]); v.box(0, 0, 0, 6, 17, 6, 0xd8d8d0); v.box(5, 8, 6, 5, 12, 6, C.steelD); v.box(0, 13, 6, 6, 13, 6, C.steelL); return v.build(); }, { solid: [0.35, 0.35, 1.8] });
-P('gg_altar', () => { const v = new Vox(22, 11, 9, 0.1, [11, 0, 4.5]); v.box(0, 0, 0, 21, 9, 8, 0xc8bca0); v.box(1, 10, 1, 20, 10, 7, C.white); for (const x of [3, 18]) { v.box(x, 11 - 1, 4, x, 10, 4, C.gold || C.haz); } return v.build(); }, { solid: [1.1, 0.45, 1] });
+P('gg_altar', () => { const v = new Vox(22, 11, 9, 0.1, [11, 0, 4.5]); v.box(0, 0, 0, 21, 9, 8, 0xc8bca0); v.box(1, 10, 1, 20, 10, 7, C.white); for (const x of [3, 18]) { v.box(x, 11 - 1, 4, x, 10, 4, C.haz); } return v.build(); }, { solid: [1.1, 0.45, 1] });
 P('gg_pew', () => { const v = new Vox(30, 9, 6, 0.1, [15, 0, 3]); v.box(0, 4, 1, 29, 4, 5, C.wood); v.box(0, 5, 5, 29, 8, 5, C.wood); for (const x of [0, 29]) v.box(x, 0, 1, x, 8, 5, C.woodD); return v.build(); }, { solid: [1.5, 0.3, 0.8] });

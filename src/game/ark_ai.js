@@ -77,7 +77,7 @@ export class ArkBrain {
     const e = this.e, v = this.def.vision || { range: 20, fov: 90, hearing: 15, alertTime: 1, lose: 6 };
     const night = this.sim.night ? 0.65 : 1;
     let best = null, bestScore = 0;
-    const range = v.range * (this.blind ? 0.3 : 1);
+    const range = v.range * (this.blind ? 0.3 : 1) * (this.sim.condEffects.visionMul || 1);
     this.sim.near(e.x, e.z, range * 1.2, (t) => {
       if (t.type !== 'raider' || (t.st !== 'alive' && t.st !== 'downed')) return;
       if (t.buffs?.cloak) return;

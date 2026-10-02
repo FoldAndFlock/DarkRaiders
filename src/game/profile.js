@@ -129,3 +129,50 @@ function readCookies() {
 function clearCookies() {
   for (const c of document.cookie.split('; ')) { const k = c.split('=')[0]; if (k.startsWith(CK + '_')) document.cookie = `${k}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`; }
 }
+
+// ---------------------------------------------------------------- stash / material helpers (hub, crafting, quests)
+// Like stashAdd, but never merges free-loadout stacks (stack.free) with normal ones. Returns leftover qty.
+export function stashPut(p, stack) {
+  const ms = maxStack(stack.id), free = !!stack.free;
+  let left = stack.qty, first = true;
+  if (ms > 1) for (const s of p.stash) {
+    if (!s || s.id !== stack.id || !!s.free !== free || s.qty >= ms) continue;
+    const t = Math.min(ms - s.qty, left); s.qty += t; left -= t; first = false;
+    if (!left) return 0;
+  }
+  compactStash(p);
+  while (left > 0 && p.stash.length < p.stashSize) {
+    const t = Math.min(ms, left);
+    p.stash.push({ ...stack, qty: t, uid: first ? (stack.uid || makeStack(stack.id).uid) : makeStack(stack.id).uid });
+    first = false; left -= t;
+  }
+  return left;
+}
+// Would all these stacks ([{ id, qty, free? }]) fit into the stash right now?
+export function stashFits(p, stacks) {
+  const sim = { stash: p.stash.filter(Boolean).map(s => ({ id: s.id, qty: s.qty, free: s.free })), stashSize: p.stashSize };
+  for (const s of stacks) if (s && s.qty > 0 && stashPut(sim, { id: s.id, qty: s.qty, free: s.free, uid: 'sim' }) > 0) return false;
+  return true;
+}
+export function stashFreeSlots(p) { return Math.max(0, p.stashSize - p.stash.filter(Boolean).length); }
+// Materials usable by the workshop / quest turn-ins: stash + backpack + safe pocket + quick use
+// (never the equipped augment, shield or weapons).
+export function materialCount(p, id) {
+  let n = stashCount(p, id);
+  for (const a of [p.loadout.backpack, p.loadout.safe, p.loadout.quick]) for (const s of a || []) if (s && s.id === id) n += s.qty;
+  return n;
+}
+// Consume from the stash first, then backpack, safe pocket, quick use. Returns the amount removed.
+export function materialTake(p, id, qty) {
+  let got = stashTake(p, id, qty);
+  for (const a of [p.loadout.backpack, p.loadout.safe, p.loadout.quick]) {
+    if (!a) continue;
+    for (let i = a.length - 1; i >= 0 && got < qty; i--) {
+      const s = a[i]; if (!s || s.id !== id) continue;
+      const t = Math.min(s.qty, qty - got); s.qty -= t; got += t; if (s.qty <= 0) a[i] = null;
+    }
+  }
+  return got;
+}
+export function hasMaterials(p, cost, times = 1) { for (const [id, n] of Object.entries(cost || {})) if (materialCount(p, id) < n * times) return false; return true; }
+export function takeMaterials(p, cost, times = 1) { for (const [id, n] of Object.entries(cost || {})) materialTake(p, id, n * times); }

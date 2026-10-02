@@ -1,0 +1,1627 @@
+// ARK machine models: detailed, part-based voxel rigs with procedural animation.
+//
+//   createArkModel(modelKey, def) -> { root: THREE.Group, update(dt, s), setBroken(zoneKey), rig }
+//
+// Frames & origins
+//   * +z is forward (the ARK's facing), +y is up. The game rotates `root` about y by the facing.
+//   * data/arc.js hitzones use x = the machine's RIGHT. Facing +z, the machine's right-hand side
+//     lies on three.js local -x, so zone (x, z) is drawn at local (-x, z). Mirrored zone keys follow
+//     sim.js: name_0..name_3 in the order (+x,+z) (+x,-z) (-x,+z) (-x,-z) (sim frame).
+//   * Walkers, rollers and static emplacements: origin = ground point under the machine's centre.
+//   * Flyers (def.flying): origin = HULL CENTRE (the game places it at the hover altitude).
+//   * Hover units (def.hover, e.g. Shreddr): origin = ground point; the hull floats above it.
+//   * Size: every model key is authored at the size of its base def (wazp, leapr, ...) and the
+//     whole rig is scaled uniformly by def.radius / base radius, so variants (Komet, Spottr,
+//     Vaporiser, Matriark ...) match their defs. Shreddr and ARK Turbyne get dedicated rigs.
+//
+// Update state s (all optional):
+//   { moving, speed (m/s), alert 0..1, tele 0..1 (attack telegraph / charge), gaze (radians,
+//     relative to body facing), pitch (radians, + = aim down; optional), stunned, firing, leaping }
+//
+// Materials: everything uses litVox() (game lighting + shadows). Each rig owns three clones of it
+// whose colour multiplier animates: eyeMat (sensor eyes: amber idle -> red alert, flare on
+// telegraph, flicker when stunned), hotMat (weak points: slow "breathing" glow) and teleMat
+// (laser/telegraph emitters). Voxels are routed to those meshes by colour (AK.EYE*, AK.HOT*, AK.YEL).
+import * as THREE from '../../vendor/three.module.js';
+import { Vox } from './voxel.js';
+import { litVox } from './materials.js';
+
+// ----------------------------------------------------------------------------- palette
+export const AK = {
+  g0: 0x131518, g1: 0x1e2126, g2: 0x2b2f35, g3: 0x3a3f46, g4: 0x4d535b, g5: 0x676d75,
+  st: 0x878c92, st2: 0xaeb2b4, cab: 0x18191c,
+  r0: 0x40261a, r1: 0x6a3920, r2: 0x8f5126,
+  y0: 0xe6a21c, y1: 0xd06c18, y2: 0x8e5a1a, bk: 0x15161a,
+  cer: 0xb6b2a5, cer2: 0x9a968b, cer3: 0xcdc9bc, cu: 0xad6a30,
+  // glowing (emissive) colours
+  EYE: 0xff7424, EYE2: 0xffd2a8,          // pulsing sensor eyes        -> eyeMat
+  HOT: 0xffa018, HOT2: 0xffe486,          // pulsing weak points        -> hotMat
+  YEL: 0xffd436,                          // telegraph laser emitters   -> teleMat
+  RED: 0xff2a14, BLUE: 0x48b8ff, BLUE2: 0xbaf0ff, EXH: 0xff9226, FLM: 0xffe27a, FLM2: 0xff7a1c, // static
+};
+const K = AK;
+const GLOWS = [K.EYE, K.EYE2, K.HOT, K.HOT2, K.YEL, K.RED, K.BLUE, K.BLUE2, K.EXH, K.FLM, K.FLM2];
+const EYEC = new Set([K.EYE, K.EYE2]), HOTC = new Set([K.HOT, K.HOT2]), TELC = new Set([K.YEL]);
+const HAZ = new Set([K.y0, K.y1]);
+
+// ----------------------------------------------------------------------------- small helpers
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const wrapA = (a) => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
+const damp = (cur, tgt, k, dt) => cur + (tgt - cur) * Math.min(1, k * dt);
+const rnd = (a = 1) => (Math.random() - 0.5) * 2 * a;
+function hash3(i, j, k, s = 0) {
+  let h = Math.imul(i | 0, 374761393) + Math.imul(j | 0, 668265263) + Math.imul(k | 0, 1440662683) + Math.imul(s | 0, 1274126177);
+  h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function vnoise(x, y, z, s = 0) {
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  let xf = x - xi, yf = y - yi, zf = z - zi;
+  xf = xf * xf * (3 - 2 * xf); yf = yf * yf * (3 - 2 * yf); zf = zf * zf * (3 - 2 * zf);
+  const L = (a, b, t) => a + (b - a) * t;
+  const c = (a, b, d) => hash3(xi + a, yi + b, zi + d, s);
+  return L(L(L(c(0, 0, 0), c(1, 0, 0), xf), L(c(0, 1, 0), c(1, 1, 0), xf), yf), L(L(c(0, 0, 1), c(1, 0, 1), xf), L(c(0, 1, 1), c(1, 1, 1), xf), yf), zf);
+}
+function shade(c, f) {
+  const r = Math.min(255, Math.round(((c >> 16) & 255) * f)), g = Math.min(255, Math.round(((c >> 8) & 255) * f)), b = Math.min(255, Math.round((c & 255) * f));
+  return (r << 16) | (g << 8) | b;
+}
+function mixc(a, b, t) {
+  const r = ((a >> 16) & 255) * (1 - t) + ((b >> 16) & 255) * t, g = ((a >> 8) & 255) * (1 - t) + ((b >> 8) & 255) * t, bl = (a & 255) * (1 - t) + (b & 255) * t;
+  return (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(bl);
+}
+// diagonal hazard stripes colour function
+const haz = (w = 2, a = K.y0, b = K.bk) => (X, Y, Z, i, j, k) => ((Math.floor((i + j + k) / w) & 1) ? b : a);
+// every n-th voxel line along an axis -> seam colour (panel lines)
+const seam = (n, axis, col, off = 0) => (X, Y, Z, i, j, k) => (((axis === 'x' ? i : axis === 'y' ? j : k) + off) % n === 0 ? col : undefined);
+
+// ----------------------------------------------------------------------------- voxel builder (metres)
+// Shapes take metre coordinates relative to the part pivot; a voxel is filled when its centre lies
+// inside the shape. Colours may be ints, -1 (carve) or fn(X,Y,Z,i,j,k,cur) -> colour.
+class VB extends Vox {
+  constructor(s, x0, y0, z0, x1, y1, z1) {
+    const sx = Math.max(1, Math.round((x1 - x0) / s)), sy = Math.max(1, Math.round((y1 - y0) / s)), sz = Math.max(1, Math.round((z1 - z0) / s));
+    super(sx, sy, sz, s, [-x0 / s, -y0 / s, -z0 / s]);
+    for (const g of GLOWS) this.emissive.add(g);
+  }
+  X(i) { return (i + 0.5 - this.o[0]) * this.s; }
+  Y(j) { return (j + 0.5 - this.o[1]) * this.s; }
+  Z(k) { return (k + 0.5 - this.o[2]) * this.s; }
+  fillIf(x0, y0, z0, x1, y1, z1, test, c) {
+    const s = this.s, [ox, oy, oz] = this.o;
+    const lo = (a, o) => Math.floor(a / s + o - 0.5), hi = (b, o) => Math.ceil(b / s + o - 0.5);
+    const i0 = Math.max(0, lo(Math.min(x0, x1), ox)), i1 = Math.min(this.sx - 1, hi(Math.max(x0, x1), ox));
+    const j0 = Math.max(0, lo(Math.min(y0, y1), oy)), j1 = Math.min(this.sy - 1, hi(Math.max(y0, y1), oy));
+    const k0 = Math.max(0, lo(Math.min(z0, z1), oz)), k1 = Math.min(this.sz - 1, hi(Math.max(z0, z1), oz));
+    const fn = typeof c === 'function';
+    for (let j = j0; j <= j1; j++) {
+      const Y = (j + 0.5 - oy) * s;
+      for (let k = k0; k <= k1; k++) {
+        const Z = (k + 0.5 - oz) * s;
+        for (let i = i0; i <= i1; i++) {
+          const X = (i + 0.5 - ox) * s;
+          if (!test(X, Y, Z)) continue;
+          const idx = this.i(i, j, k);
+          const v = fn ? c(X, Y, Z, i, j, k, this.d[idx]) : c;
+          if (v !== undefined && v !== null) this.d[idx] = v;
+        }
+      }
+    }
+    return this;
+  }
+  // axis-aligned box [x0,x1)x[y0,y1)x[z0,z1); ch: chamfer vertical edges (voxels), cht/chb: bevel top/bottom edges
+  box(x0, y0, z0, x1, y1, z1, c, o = null) {
+    const s = this.s, ch = o?.ch || 0, cht = o?.cht || 0, chb = o?.chb || 0;
+    return this.fillIf(x0, y0, z0, x1, y1, z1, (X, Y, Z) => {
+      if (X < x0 || X >= x1 || Y < y0 || Y >= y1 || Z < z0 || Z >= z1) return false;
+      if (!ch && !cht && !chb) return true;
+      const dx = Math.floor(Math.min(X - x0, x1 - X) / s), dz = Math.floor(Math.min(Z - z0, z1 - Z) / s);
+      if (ch && dx + dz < ch) return false;
+      if (cht) { const dy = Math.floor((y1 - Y) / s); if (dx + dy < cht || dz + dy < cht) return false; }
+      if (chb) { const dy = Math.floor((Y - y0) / s); if (dx + dy < chb || dz + dy < chb) return false; }
+      return true;
+    }, c);
+  }
+  ell(cx, cy, cz, rx, ry, rz, c) {
+    return this.fillIf(cx - rx, cy - ry, cz - rz, cx + rx, cy + ry, cz + rz, (X, Y, Z) => ((X - cx) / rx) ** 2 + ((Y - cy) / ry) ** 2 + ((Z - cz) / rz) ** 2 <= 1, c);
+  }
+  // cylinders / cones / tubes along an axis; r -> r1 linear taper; rIn: hollow
+  cylY(cx, cz, y0, y1, r, c, rIn = 0, r1 = r) {
+    const R = Math.max(r, r1);
+    return this.fillIf(cx - R, y0, cz - R, cx + R, y1, cz + R, (X, Y, Z) => {
+      if (Y < y0 || Y >= y1) return false;
+      const rr = r + (r1 - r) * (Y - y0) / ((y1 - y0) || 1), d = Math.hypot(X - cx, Z - cz);
+      return d <= rr && d >= rIn;
+    }, c);
+  }
+  cylX(cy, cz, x0, x1, r, c, rIn = 0, r1 = r) {
+    const R = Math.max(r, r1);
+    return this.fillIf(x0, cy - R, cz - R, x1, cy + R, cz + R, (X, Y, Z) => {
+      if (X < x0 || X >= x1) return false;
+      const rr = r + (r1 - r) * (X - x0) / ((x1 - x0) || 1), d = Math.hypot(Y - cy, Z - cz);
+      return d <= rr && d >= rIn;
+    }, c);
+  }
+  cylZ(cx, cy, z0, z1, r, c, rIn = 0, r1 = r) {
+    const R = Math.max(r, r1);
+    return this.fillIf(cx - R, cy - R, z0, cx + R, cy + R, z1, (X, Y, Z) => {
+      if (Z < z0 || Z >= z1) return false;
+      const rr = r + (r1 - r) * (Z - z0) / ((z1 - z0) || 1), d = Math.hypot(X - cx, Y - cy);
+      return d <= rr && d >= rIn;
+    }, c);
+  }
+  // capsule between two points, radius r -> r1
+  seg(ax, ay, az, bx, by, bz, r, c, r1 = r) {
+    const R = Math.max(r, r1), dx = bx - ax, dy = by - ay, dz = bz - az, l2 = dx * dx + dy * dy + dz * dz || 1e-9;
+    return this.fillIf(Math.min(ax, bx) - R, Math.min(ay, by) - R, Math.min(az, bz) - R, Math.max(ax, bx) + R, Math.max(ay, by) + R, Math.max(az, bz) + R, (X, Y, Z) => {
+      const t = clamp(((X - ax) * dx + (Y - ay) * dy + (Z - az) * dz) / l2, 0, 1);
+      return Math.hypot(X - ax - dx * t, Y - ay - dy * t, Z - az - dz * t) <= r + (r1 - r) * t;
+    }, c);
+  }
+  // recolour existing voxels inside a box
+  paintBox(x0, y0, z0, x1, y1, z1, fn) {
+    return this.fillIf(x0, y0, z0, x1, y1, z1, (X, Y, Z) => X >= x0 && X < x1 && Y >= y0 && Y < y1 && Z >= z0 && Z < z1,
+      (X, Y, Z, i, j, k, cur) => (cur === -1 ? undefined : (typeof fn === 'function' ? fn(X, Y, Z, i, j, k, cur) : fn)));
+  }
+  paint(fn) {
+    const { sx, sy, sz, d } = this;
+    for (let j = 0; j < sy; j++) for (let k = 0; k < sz; k++) for (let i = 0; i < sx; i++) {
+      const idx = (j * sz + k) * sx + i, c = d[idx]; if (c === -1) continue;
+      const n = fn(this.X(i), this.Y(j), this.Z(k), i, j, k, c); if (n !== undefined && n !== null) d[idx] = n;
+    }
+    return this;
+  }
+  // exposure bitmask: 1 +x, 2 -x, 4 +y, 8 -y, 16 +z, 32 -z
+  ex(i, j, k) {
+    return (this.get(i + 1, j, k) === -1 ? 1 : 0) | (this.get(i - 1, j, k) === -1 ? 2 : 0) | (this.get(i, j + 1, k) === -1 ? 4 : 0)
+      | (this.get(i, j - 1, k) === -1 ? 8 : 0) | (this.get(i, j, k + 1) === -1 ? 16 : 0) | (this.get(i, j, k - 1) === -1 ? 32 : 0);
+  }
+  // surface wear: value noise, lit worn top edges, darker undersides, chipped hazard paint, rust patches
+  weather({ noise = 0.07, edge = 0.16, under = 0.16, chip = 0.3, rust = 0, rustScale = 5, seed = 1 } = {}) {
+    return this.paint((X, Y, Z, i, j, k, c) => {
+      if (this.emissive.has(c)) return;
+      const e = this.ex(i, j, k); if (!e) return;
+      const h = hash3(i, j, k, seed);
+      let f = 1 + (h - 0.5) * 2 * noise;
+      const side = e & 51, top = e & 4, bot = e & 8;
+      if (top && side) f *= 1 + edge; else if (bot && !top) f *= 1 - under;
+      let n = shade(c, f);
+      if (HAZ.has(c) && top && side && hash3(i, j, k, seed + 7) < chip) n = shade(K.g5, f);
+      if (rust > 0 && !HAZ.has(c)) {
+        const rn = vnoise(X * rustScale, Y * rustScale * 1.6, Z * rustScale, seed + 3) + (top ? -0.1 : 0.06);
+        if (rn > 1 - rust) n = mixc(n, h < 0.5 ? K.r1 : K.r2, 0.62);
+      }
+      return n;
+    });
+  }
+  // move voxels whose colour is in `set` into a new builder (same grid) -> null when none
+  extract(set) {
+    let out = null;
+    for (let n = 0; n < this.d.length; n++) {
+      if (!set.has(this.d[n])) continue;
+      if (!out) { out = new VB(this.s, 0, 0, 0, this.s, this.s, this.s); out.sx = this.sx; out.sy = this.sy; out.sz = this.sz; out.o = this.o; out.d = new Int32Array(this.d.length).fill(-1); }
+      out.d[n] = this.d[n]; this.d[n] = -1;
+    }
+    return out;
+  }
+  count() { let n = 0; for (const c of this.d) if (c !== -1) n++; return n; }
+}
+
+// ----------------------------------------------------------------------------- geometry cache
+const GEO = new Map();
+// returns { base, eye, hot, tele } geometries (null when a channel is empty), split by colour
+function gset(key, fn) {
+  let g = GEO.get(key); if (g) return g;
+  const v = fn();
+  const eye = v.extract(EYEC), hot = v.extract(HOTC), tele = v.extract(TELC);
+  g = { base: v.count() ? v.build() : null, eye: eye ? eye.build() : null, hot: hot ? hot.build() : null, tele: tele ? tele.build() : null };
+  GEO.set(key, g); return g;
+}
+export function arkGeoStats() {
+  const out = {};
+  for (const [k, g] of GEO) out[k] = ['base', 'eye', 'hot', 'tele'].reduce((n, c) => n + (g[c] ? g[c].index.count / 3 : 0), 0);
+  return out;
+}
+
+// ----------------------------------------------------------------------------- materials
+let _base = null, _broken = null;
+const baseMat = () => _base || (_base = litVox());
+function cloneMat(r = 1, g = 1, b = 1) {
+  const src = baseMat(), m = src.clone();
+  m.onBeforeCompile = src.onBeforeCompile; m.customProgramCacheKey = src.customProgramCacheKey;
+  m.defines = { ...(src.defines || {}) }; m.vertexColors = true;
+  m.color.setRGB(r, g, b);
+  return m;
+}
+const brokenMat = () => _broken || (_broken = cloneMat(0.3, 0.27, 0.25));
+
+// ----------------------------------------------------------------------------- zones (same expansion as sim.js)
+function expandZones(def) {
+  const out = [];
+  for (const z0 of def?.hitzones || []) {
+    const mx = z0.mirrorX ? [1, -1] : [1], mz = z0.mirrorZ ? [1, -1] : [1];
+    let k = 0;
+    for (const sx of mx) for (const sz of mz) out.push({ name: z0.name, key: z0.name + (mx.length * mz.length > 1 ? '_' + (k++) : ''), x: -(z0.x || 0) * sx, z: (z0.z || 0) * sz });
+  }
+  return out;
+}
+
+// ----------------------------------------------------------------------------- rig
+const _v = new THREE.Vector3(), _m4 = new THREE.Matrix4();
+class Rig {
+  constructor(key, def) {
+    this.key = key; this.def = def || {};
+    this.root = new THREE.Group(); this.root.name = 'ark:' + key;
+    this.top = this.g(this.root);           // uniform size scale lives here
+    this.jit = this.top;                     // stunned twitch target (models may override)
+    this.eyeMat = cloneMat(); this.hotMat = cloneMat(); this.teleMat = cloneMat();
+    this.zones = []; this.zmap = null; this.broken = new Set(); this.nBroken = 0;
+    this.flashes = [];
+    this.t = Math.random() * 50; this.al = 0; this.mv = 0; this.fireK = 0; this.k = 1; this.refSpeed = 3;
+    this.blink = null;                       // optional fn(t, s) -> eye intensity override
+  }
+  g(parent, x = 0, y = 0, z = 0) { const o = new THREE.Group(); o.position.set(x, y, z); parent.add(o); return o; }
+  m(geo, parent, mat = 'base', x = 0, y = 0, z = 0) {
+    const me = new THREE.Mesh(geo, mat === 'eye' ? this.eyeMat : mat === 'hot' ? this.hotMat : mat === 'tele' ? this.teleMat : baseMat());
+    me.castShadow = true; me.receiveShadow = true; me.position.set(x, y, z); parent.add(me);
+    return me;
+  }
+  // part from a gset: group + one mesh per material channel
+  pm(gs, parent, x = 0, y = 0, z = 0) {
+    const g = this.g(parent, x, y, z), o = { g };
+    if (gs.base) o.base = this.m(gs.base, g, 'base');
+    if (gs.eye) o.eye = this.m(gs.eye, g, 'eye');
+    if (gs.hot) o.hot = this.m(gs.hot, g, 'hot');
+    if (gs.tele) o.tele = this.m(gs.tele, g, 'tele');
+    return o;
+  }
+  flash(gs, parent, x, y, z) { const f = this.pm(gs, parent, x, y, z).g; f.visible = false; this.flashes.push(f); return f; }
+  // breakable part registration; x/z in local (three) base-model metres
+  zone(names, x, z, fx = {}) { const zn = { names: [].concat(names), x, z, hide: [], dark: [], show: [], ...fx, broken: false }; for (const o of zn.show) o.visible = false; this.zones.push(zn); return zn; }
+  setBroken(key) {
+    if (this.broken.has(key)) return;
+    this.broken.add(key);
+    if (!this.zmap) this._mapZones();
+    let zs = this.zmap.get(key);
+    if (!zs) { // key not in def: match by name + index
+      const m = /^(.*?)(?:_(\d+))?$/.exec(key), name = m[1], idx = +(m[2] || 0);
+      const c = this.zones.filter(z => z.names.includes(name));
+      zs = c.length ? [c[Math.min(idx, c.length - 1)]] : [];
+    }
+    for (const z of zs) this._break(z);
+  }
+  _break(z) {
+    if (z.broken) return; z.broken = true; this.nBroken++;
+    for (const o of z.hide) o.visible = false;
+    for (const o of z.show) o.visible = true;
+    for (const d of z.dark) d.traverse(o => { if (o.isMesh) o.material = brokenMat(); });
+    z.fn && z.fn(this, z);
+  }
+  _mapZones() {
+    this.zmap = new Map();
+    for (const zn of expandZones(this.def)) {
+      let best = null, bd = 1e9;
+      for (const z of this.zones) {
+        if (!z.names.includes(zn.name)) continue;
+        const d = Math.hypot(z.x * this.k - zn.x, z.z * this.k - zn.z);
+        if (d < bd) { bd = d; best = z; }
+      }
+      if (best) this.zmap.set(zn.key, [best]);
+    }
+  }
+  isBroken(name) { return this.zones.some(z => z.broken && z.names.includes(name)); }
+  update(dt, s = {}) {
+    dt = clamp(dt || 0, 0, 0.1);
+    this.t += dt;
+    this.al = damp(this.al, clamp(s.alert || 0, 0, 1), 3, dt);
+    this.mv = damp(this.mv, s.moving ? Math.min(1, (s.speed ?? this.refSpeed) / this.refSpeed) : 0, 4, dt);
+    this.fireK = s.firing ? Math.min(1, this.fireK + dt * 8) : Math.max(0, this.fireK - dt * 3);
+    this._mats(s);
+    this.anim && this.anim(dt, s, this.t);
+    for (const f of this.flashes) {
+      const on = !!s.firing && Math.random() < 0.6; f.visible = on;
+      if (on) { f.rotation.z = Math.random() * 6.3; f.scale.setScalar(0.6 + Math.random() * 0.7); }
+    }
+    const j = this.jit;
+    if (s.stunned) { if (Math.random() < 0.4) j.rotation.set(rnd(0.07), rnd(0.07), rnd(0.07)); }
+    else if (j.rotation.x || j.rotation.y || j.rotation.z) j.rotation.set(j.rotation.x * 0.7, j.rotation.y * 0.7, j.rotation.z * 0.7);
+  }
+  _mats(s) {
+    const a = this.al, te = clamp(s.tele || 0, 0, 1.5), t = this.t;
+    let I = 0.8 + 0.3 * a;
+    if (te > 0) I += te * 0.8 + Math.sin(t * (10 + te * 26)) * 0.3 * te;
+    if (this.blink) I = this.blink(t, s, I);
+    if (s.stunned) I = Math.random() < 0.35 ? 0.12 : 0.5 + Math.random() * 0.6;
+    this.eyeMat.color.setRGB(I, I * clamp(1.15 - 0.72 * a + te * 0.25, 0.3, 1.6), I * clamp(1.1 - 0.6 * a + te * 0.15, 0.3, 1.6));
+    const h = 0.92 + 0.16 * Math.sin(t * 3.1) + this.fireK * 0.2;
+    this.hotMat.color.setRGB(h, h, h);
+    const tl = s.stunned ? 0.2 : 0.55 + 0.35 * a + te * (1.2 + 0.3 * Math.sin(t * 40));
+    this.teleMat.color.setRGB(tl, tl, tl);
+  }
+  // procedural gait: legs[i].phase in [0,1); o = { A: half stride (m), H: lift (m), duty, maxHz, minHz }
+  gait(dt, s, legs, o) {
+    const sp = (s.moving ? (s.speed ?? 2) : 0) / this.k;
+    this.gmv = damp(this.gmv || 0, s.moving ? 1 : 0, 5, dt);
+    const hz = clamp(sp * o.duty / (2 * o.A), o.minHz ?? 0.5, o.maxHz ?? 3);
+    if (s.moving) this.cyc = ((this.cyc || 0) + dt * hz) % 1000;
+    const c = this.cyc || 0;
+    for (const L of legs) {
+      const ph = (c + L.phase) % 1;
+      let dz, ly = 0;
+      if (ph < o.duty) dz = o.A * (1 - 2 * ph / o.duty);
+      else { const u = (ph - o.duty) / (1 - o.duty), e = u * u * (3 - 2 * u); dz = o.A * (-1 + 2 * e); ly = o.H * Math.sin(Math.PI * u); }
+      const lim = L.limp ? 0.35 : 1;
+      L.tgt.set(L.rest.x, L.rest.y + ly * this.gmv * lim, L.rest.z + dz * this.gmv * lim);
+    }
+    return c;
+  }
+}
+
+// two-bone IK leg. hierarchy: body -> hip(pos) -> yaw -> up(pitch, upper mesh along +z) -> knee(z=L1, pitch, lower mesh along +z) [-> foot(z=L2, kept level)]
+class Leg {
+  constructor(R, body, hip, foot, L1, L2, parts = {}, o = {}) {
+    this.R = R; this.body = body; this.L1 = L1; this.L2 = L2;
+    this.hip = R.g(body, hip[0], hip[1], hip[2]);
+    this.yaw = R.g(this.hip); this.up = R.g(this.yaw); this.knee = R.g(this.up, 0, 0, L1);
+    this.pU = parts.upper ? R.pm(parts.upper, this.up) : null;
+    this.pL = parts.lower ? R.pm(parts.lower, this.knee) : null;
+    this.pJ = parts.joint ? R.pm(parts.joint, this.knee) : null;
+    if (parts.foot) { this.footG = R.g(this.knee, 0, 0, L2); this.pF = R.pm(parts.foot, this.footG); }
+    this.rest = new THREE.Vector3(foot[0], foot[1], foot[2]);
+    this.tgt = this.rest.clone();
+    this.phase = o.phase || 0; this.limp = false; this.kneeUp = o.kneeUp ?? 1;
+  }
+  solve() {
+    const p = _v.copy(this.tgt);
+    this.body.updateMatrix();
+    p.applyMatrix4(_m4.copy(this.body.matrix).invert()).sub(this.hip.position);
+    const L1 = this.L1, L2 = this.L2, d = Math.hypot(p.x, p.z);
+    const D = clamp(Math.hypot(d, p.y), Math.abs(L1 - L2) + 1e-3, L1 + L2 - 1e-3);
+    const at = Math.atan2(-p.y, d);
+    const al = Math.acos(clamp((L1 * L1 + D * D - L2 * L2) / (2 * L1 * D), -1, 1));
+    const be = Math.acos(clamp((L1 * L1 + L2 * L2 - D * D) / (2 * L1 * L2), -1, 1));
+    this.yaw.rotation.y = Math.atan2(p.x, p.z);
+    this.up.rotation.x = at - al * this.kneeUp;
+    this.knee.rotation.x = (Math.PI - be) * this.kneeUp;
+    if (this.footG) this.footG.rotation.x = -(this.up.rotation.x + this.knee.rotation.x);
+  }
+  // world-ish (top space) knee position at rest, for zone registration
+  kneeRest() {
+    const hp = this.hip.position, b = this.body.position;
+    const dx = this.rest.x - hp.x - b.x, dz = this.rest.z - hp.z - b.z, yaw = Math.atan2(dx, dz);
+    const L1 = this.L1, L2 = this.L2, d = Math.hypot(dx, dz), h = this.rest.y - hp.y - b.y, D = clamp(Math.hypot(d, h), 1e-3, L1 + L2);
+    const at = Math.atan2(-h, d), al = Math.acos(clamp((L1 * L1 + D * D - L2 * L2) / (2 * L1 * D), -1, 1)), p1 = at - al;
+    const r = Math.cos(p1) * L1;
+    return [hp.x + b.x + Math.sin(yaw) * r, hp.y + b.y - Math.sin(p1) * L1, hp.z + b.z + Math.cos(yaw) * r];
+  }
+}
+
+// ----------------------------------------------------------------------------- shared part kits
+// rotor blades (spin about y); n blades of radius r
+function bladesGS(key, s, r, n = 2, col = K.g1, tip = K.y0) {
+  return gset(key, () => {
+    const v = new VB(s, -r - s, -s, -r - s, r + s, s * 2, r + s);
+    for (let b = 0; b < n; b++) {
+      const a = b * Math.PI * 2 / n + 0.3, ca = Math.cos(a), sa = Math.sin(a);
+      v.seg(ca * s, s * 0.5, sa * s, ca * r, s * 0.5, sa * r, s * 0.62, (X, Y, Z) => (Math.hypot(X, Z) > r * 0.74 ? tip : col));
+    }
+    v.cylY(0, 0, 0, s * 2, s * 1.3, K.g4);
+    v.cylY(0, 0, s, s * 2, s * 0.6, K.st2);
+    return v;
+  });
+}
+// open guard ring around a rotor, with three spokes to the hub
+function guardGS(key, s, r, col = K.g3, acc = K.y1, spokes = 3, thick = 1) {
+  return gset(key, () => {
+    const v = new VB(s, -r - s * 2, -s * 2, -r - s * 2, r + s * 2, s * 2, r + s * 2);
+    v.cylY(0, 0, 0, s * thick, r, (X, Y, Z) => { const a = Math.atan2(X, Z); return Math.cos(a * 4) > 0.85 ? acc : col; }, r - s * 1.45);
+    for (let n = 0; n < spokes; n++) { const a = n * Math.PI * 2 / spokes + Math.PI / 6; v.seg(Math.sin(a) * s * 1.5, s * 0.5, Math.cos(a) * s * 1.5, Math.sin(a) * (r - s), s * 0.5, Math.cos(a) * (r - s), s * 0.55, col); }
+    return v.weather({ seed: 5 });
+  });
+}
+// charred stump left where a part was shot off
+function stubGS(key, s, r) {
+  return gset(`stub.${s}.${r}`, () => {
+    const v = new VB(s, -r, -r, -r, r, r, r);
+    for (let n = 0; n < 7; n++) { const a = n * 2.4, l = r * (0.4 + hash3(n, 1, 2) * 0.6); v.seg(0, 0, 0, Math.sin(a) * l, (hash3(n, 3, 1) - 0.5) * r, Math.cos(a) * l, s * 0.6, n % 3 ? K.g0 : K.r0); }
+    v.box(-s * 0.5, 0, -s * 0.5, s * 0.5, s, s * 0.5, K.EXH);
+    return v;
+  });
+}
+// muzzle flash star (shown at random while firing); points along +z
+function flashGS(key, s, r, a = K.FLM, b = K.FLM2) {
+  return gset(`flash.${s}.${r}.${a}`, () => {
+    const v = new VB(s, -r, -r, -s, r, r, r * 1.6);
+    v.seg(0, 0, 0, 0, 0, r * 1.5, s * 0.8, a);
+    v.seg(-r, 0, s, r, 0, s, s * 0.55, b); v.seg(0, -r, s, 0, r, s, s * 0.55, b);
+    return v;
+  });
+}
+// gatling: n barrels around +z axis, length L, ring radius rr
+function gatlingGS(key, s, L, rr, n = 6, br = null) {
+  return gset(key, () => {
+    br = br || s * 0.7;
+    const R = rr + br + s;
+    const v = new VB(s, -R, -R, -s, R, R, L + s);
+    for (let i = 0; i < n; i++) { const a = i * Math.PI * 2 / n; v.cylZ(Math.cos(a) * rr, Math.sin(a) * rr, 0, L, br, K.st, br * 0.0); }
+    v.cylZ(0, 0, 0, L * 0.92, rr * 0.55, K.g1);
+    v.cylZ(0, 0, L * 0.12, L * 0.22, R - s * 0.5, K.g3); v.cylZ(0, 0, L * 0.72, L * 0.8, R - s * 0.5, K.g3);
+    for (let i = 0; i < n; i++) { const a = i * Math.PI * 2 / n; v.cylZ(Math.cos(a) * rr, Math.sin(a) * rr, L - s, L, br * 0.6, K.g0); }
+    return v.weather({ seed: 9, noise: 0.05 });
+  });
+}
+// generic armoured limb along +z (0..L): tapered core, plating bands, hydraulic piston on top, cable
+function limbGS(key, s, L, w0, h0, w1, h1, o = {}) {
+  return gset(key, () => {
+    const W = Math.max(w0, w1) + s * 3, H = Math.max(h0, h1) + s * 4;
+    const v = new VB(s, -W, -H, -s * 2, W, H, L + s * 3);
+    const col = o.col || K.g3, col2 = o.col2 || K.g2;
+    v.fillIf(-W, -H, 0, W, H, L, (X, Y, Z) => {
+      const u = Z / L, w = w0 + (w1 - w0) * u, h = h0 + (h1 - h0) * u;
+      return Math.abs(X) <= w && Math.abs(Y) <= h && (Math.abs(X) / w + Math.abs(Y) / h) <= 1.55;
+    }, (X, Y, Z, i, j, k) => {
+      const band = Math.floor(Z / (o.band || L / 4));
+      if ((k % Math.max(2, Math.round((o.band || L / 4) / s))) === 0) return K.g1;   // plate seams
+      return band % 2 ? col : col2;
+    });
+    if (o.piston !== false) {
+      const ph = Math.max(h0, h1) * 0.7, pr = Math.max(s * 0.6, Math.min(w0, w1) * 0.35);
+      v.cylZ(0, h0 + pr * 0.6, L * 0.08, L * 0.5, pr * 1.25, K.g1);
+      v.cylZ(0, (h0 + h1) / 2 + pr * 0.4, L * 0.5, L * 0.86, pr * 0.8, K.st2);
+      void ph;
+    }
+    if (o.cable !== false) v.seg(-w0 * 0.9 - s * 0.4, 0, L * 0.05, -w1 * 0.9 - s * 0.4, 0, L * 0.95, s * 0.55, K.cab);
+    if (o.haz) v.paintBox(-W, -H, L * o.haz[0], W, H, L * o.haz[1], haz(1));
+    if (o.tip) o.tip(v, L);
+    return v.weather({ seed: o.seed || 3, rust: o.rust ?? 0.12 });
+  });
+}
+// knee / hip actuator: cylinder along x with hazard caps and a glowing (weak point) band
+function jointGS(key, s, r, w, glow = true) {
+  return gset(key, () => {
+    const v = new VB(s, -w - s * 2, -r - s * 2, -r - s * 2, w + s * 2, r + s * 2, r + s * 2);
+    v.cylX(0, 0, -w, w, r, K.g2);
+    v.cylX(0, 0, -w - s, -w * 0.45, r * 0.92, K.y0); v.cylX(0, 0, w * 0.45, w + s, r * 0.92, K.y0);
+    v.cylX(0, 0, -w - s * 2, -w - s, r * 0.45, K.st); v.cylX(0, 0, w + s, w + s * 2, r * 0.45, K.st);
+    if (glow) v.cylX(0, 0, -w * 0.3, w * 0.3, r + s * 0.6, K.HOT, r - s * 0.6);
+    return v.weather({ seed: 11, chip: 0.4 });
+  });
+}
+
+// ============================================================================= MODELS
+const MODELS = {};
+const BASE_R = {};
+
+// ----------------------------------------------------------------------------- WAZP (wasp): quad-rotor gun drone
+BASE_R.wasp = 0.6;
+MODELS.wasp = (R) => {
+  const s = 0.05;
+  R.refSpeed = 5.5;
+  const body = gset('wasp.body', () => {
+    const v = new VB(s, -0.65, -0.25, -0.65, 0.65, 0.25, 0.65);
+    for (const sz of [1, -1]) {
+      v.seg(-0.12, 0, 0.1 * sz, -0.47, 0.02, 0.47 * sz, 0.045, K.g3);                // arm
+      v.seg(-0.13, 0.05, 0.07 * sz, -0.43, 0.065, 0.43 * sz, 0.024, K.cab);         // cable
+      v.seg(-0.33, 0.0, 0.33 * sz, -0.39, 0.012, 0.39 * sz, 0.058, K.y0);            // hazard collar
+      v.cylY(-0.5, 0.5 * sz, -0.1, 0.06, 0.075, K.g1);                               // motor can
+      v.cylY(-0.5, 0.5 * sz, -0.05, 0.0, 0.088, K.y1);                               // band
+      v.cylY(-0.5, 0.5 * sz, 0.06, 0.1, 0.055, K.g4);                                // cap
+      v.cylY(-0.5, 0.5 * sz, -0.16, -0.1, 0.035, K.st);
+      v.seg(-0.13, -0.08, 0.16 * sz, -0.2, -0.17, 0.2 * sz, 0.025, K.g2);           // landing claws
+    }
+    v.mirrorX();
+    v.box(-0.15, -0.1, -0.25, 0.15, 0.1, 0.2, K.g2, { ch: 1, cht: 1, chb: 1 });     // fuselage
+    v.box(-0.1, 0.1, -0.2, 0.1, 0.15, 0.15, K.g4, { ch: 1 });                         // top armour
+    v.paintBox(-0.1, 0.1, -0.2, 0.1, 0.15, 0.15, seam(3, 'z', K.g3));
+    v.box(-0.05, 0.15, -0.15, 0.05, 0.2, 0.1, K.g3);                                 // spine
+    v.paintBox(-0.1, 0.1, 0.1, 0.1, 0.21, 0.16, haz(1));
+    v.box(-0.15, -0.05, -0.15, -0.1, 0.05, 0.1, K.g3); v.box(0.1, -0.05, -0.15, 0.15, 0.05, 0.1, K.g3);  // side plates
+    v.paintBox(-0.16, -0.05, -0.15, 0.16, 0.05, 0.1, seam(2, 'z', K.g1));
+    // sensor head
+    v.box(-0.1, -0.1, 0.2, 0.1, 0.1, 0.35, K.g3, { ch: 1, cht: 1 });
+    v.box(-0.1, -0.05, 0.3, 0.1, 0.05, 0.35, K.g0);
+    v.box(-0.05, -0.05, 0.3, 0.05, 0.05, 0.36, K.EYE); v.box(0, 0, 0.32, 0.05, 0.05, 0.37, K.EYE2);
+    v.box(-0.1, 0.0, 0.32, -0.05, 0.05, 0.36, K.EYE); v.box(0.05, 0.0, 0.32, 0.1, 0.05, 0.36, K.EYE);
+    v.box(-0.05, 0.1, 0.25, 0.05, 0.15, 0.3, K.g4);                                  // brow
+    v.seg(0.05, 0.12, -0.1, 0.12, 0.3, -0.18, 0.02, K.st); v.box(0.1, 0.27, -0.2, 0.15, 0.32, -0.15, K.RED);   // antenna
+    // tail: vents + tail light
+    v.box(-0.1, -0.06, -0.37, 0.1, 0.07, -0.25, K.g2, { ch: 1 });
+    v.paintBox(-0.1, -0.06, -0.38, 0.1, 0.07, -0.33, seam(2, 'y', K.g0));
+    v.box(-0.05, 0.07, -0.35, 0.05, 0.1, -0.25, K.y1);
+    v.box(-0.025, 0.0, -0.4, 0.025, 0.05, -0.37, K.RED);
+    v.box(-0.08, -0.15, -0.12, 0.08, -0.1, 0.12, K.g1);                               // battery belly
+    v.paintBox(-0.08, -0.15, -0.12, 0.08, -0.1, 0.12, seam(2, 'x', K.g0));
+    return v.weather({ seed: 21, rust: 0.12 });
+  });
+  const gun = gset('wasp.gun', () => {
+    const v = new VB(s, -0.1, -0.1, -0.1, 0.1, 0.1, 0.35);
+    v.box(-0.05, -0.05, -0.05, 0.05, 0.05, 0.1, K.g1, { ch: 1 });
+    v.cylZ(-0.025, 0, 0.05, 0.3, 0.03, K.st); v.cylZ(0.025, 0, 0.05, 0.3, 0.03, K.st);
+    v.box(-0.05, -0.05, 0.25, 0.05, 0.05, 0.3, K.g0);
+    v.seg(0.05, 0, 0, 0.08, -0.05, -0.08, 0.02, K.cab);
+    return v.weather({ seed: 2 });
+  });
+  const guard = guardGS('wasp.guard', s, 0.24);
+  const blades = bladesGS('wasp.blades', s, 0.21, 2);
+  const stub = stubGS('stub.s', s, 0.1);
+  const hull = R.g(R.top); R.jit = hull;
+  R.pm(body, hull);
+  const gunP = R.pm(gun, hull, 0, -0.12, 0.18);
+  R.flash(flashGS('flash.s', s, 0.12), gunP.g, 0, 0, 0.33);
+  const rotors = [];
+  for (const [x, z] of [[-0.5, 0.5], [-0.5, -0.5], [0.5, 0.5], [0.5, -0.5]]) {
+    const g = R.g(hull, x, 0.1, z);
+    const gd = R.pm(guard, g, 0, -0.02, 0), bl = R.pm(blades, g, 0, 0.02, 0), st = R.pm(stub, g, 0, -0.05, 0);
+    bl.g.rotation.y = Math.random() * 6;
+    const r = { x, z, bl: bl.g, dir: x * z > 0 ? 1 : -1, broken: false };
+    R.zone('rotor', x, z, { hide: [gd.g, bl.g], show: [st.g], fn: () => { r.broken = true; } });
+    rotors.push(r);
+  }
+  R.anim = (dt, s, t) => {
+    let bx = 0, bz = 0;
+    for (const r of rotors) { if (r.broken) { bx += r.x; bz += r.z; continue; } r.bl.rotation.y += (s.stunned ? 9 : 30 + 10 * R.al + 8 * R.mv) * dt * r.dir; }
+    const steady = 1 - clamp(s.tele || 0, 0, 1) * 0.8;
+    hull.rotation.x = damp(hull.rotation.x, 0.24 * R.mv + bz * 0.5 + Math.sin(t * 1.7) * 0.03 * steady, 4, dt);
+    hull.rotation.z = damp(hull.rotation.z, -bx * 0.5 + Math.sin(t * 2.1) * 0.05 * steady, 4, dt);
+    gunP.g.position.z = 0.18 - (s.firing ? Math.random() * 0.04 : 0);
+    gunP.g.rotation.x = damp(gunP.g.rotation.x, (s.tele || s.firing) ? 0.25 : 0.05, 5, dt);
+  };
+};
+
+// ----------------------------------------------------------------------------- HORNETT (hornet): armoured stun drone (+ Fyrefly flamer variant)
+BASE_R.hornet = 0.75;
+MODELS.hornet = (R, def) => {
+  const s = 0.05, flamer = def.variant === 'flamer';
+  R.refSpeed = 4.5;
+  const vk = flamer ? 'hornet.f.' : 'hornet.';
+  const body = gset(vk + 'body', () => {
+    const v = new VB(s, -0.85, -0.3, -0.9, 0.85, 0.3, 0.9);
+    for (const sz of [1, -1]) {
+      v.seg(-0.15, 0, 0.12 * sz, -0.53, 0.0, 0.48 * sz, 0.055, K.g3);
+      v.seg(-0.16, 0.06, 0.1 * sz, -0.48, 0.05, 0.42 * sz, 0.026, K.cab);
+      v.cylY(-0.55, 0.5 * sz, -0.11, 0.07, 0.085, K.g1);
+      v.cylY(-0.55, 0.5 * sz, -0.05, 0.0, 0.1, sz > 0 ? K.g4 : K.y1);
+      if (sz < 0 && !flamer) v.cylY(-0.55, -0.5, 0.0, 0.06, 0.07, K.HOT, 0.03);       // bare rear motor coils (weak)
+      v.cylY(-0.55, 0.5 * sz, 0.07, 0.11, 0.05, K.g4);
+    }
+    v.mirrorX();
+    v.box(-0.2, -0.13, -0.38, 0.2, 0.14, 0.32, K.g2, { ch: 2, cht: 1, chb: 1 });       // fuselage
+    v.box(-0.15, 0.14, -0.32, 0.15, 0.2, 0.26, K.g4, { ch: 1, cht: 1 });               // top armour
+    v.paintBox(-0.15, 0.14, -0.32, 0.15, 0.2, 0.26, seam(4, 'z', K.g3, 1));
+    v.paintBox(-0.15, 0.14, -0.32, 0.15, 0.2, 0.26, (X, Y, Z, i, j, k) => ((i % 5 === 1 && k % 4 === 3) ? K.st : undefined));
+    v.box(-0.05, 0.2, -0.28, 0.05, 0.24, 0.16, K.g3);                                    // spine
+    v.box(-0.2, -0.08, -0.48, 0.2, 0.1, -0.36, K.g1, { ch: 1 });                          // exhaust block
+    v.paintBox(-0.2, -0.08, -0.5, 0.2, 0.1, -0.44, seam(2, 'x', K.g0));
+    v.box(-0.15, -0.05, -0.5, -0.1, 0.0, -0.46, K.EXH); v.box(0.1, -0.05, -0.5, 0.15, 0.0, -0.46, K.EXH);
+    v.box(-0.025, 0.1, -0.46, 0.025, 0.15, -0.42, K.RED);
+    // armoured front slab: curved, hazard chevrons on the edges, sensor slit
+    v.fillIf(-0.52, -0.18, 0.4, 0.52, 0.22, 0.72, (X, Y, Z) => {
+      const zf = 0.66 - 0.13 * (X / 0.52) ** 2 - 0.05 * Math.max(0, Y - 0.1) / 0.12;
+      return Math.abs(X) < 0.52 && Y >= -0.18 && Y < 0.22 && Z < zf && Z >= zf - 0.1 && !(Math.abs(X) > 0.42 && Y > 0.12);
+    }, (X, Y, Z, i, j, k) => (Math.abs(X) > 0.36 ? haz(1, K.y0, K.bk)(X, Y, Z, i, j, k) : (Math.abs(X) < 0.025 || Y < -0.13) ? K.g3 : K.g4));
+    v.box(-0.14, 0.0, 0.4, 0.14, 0.06, 0.72, -1);                                        // slit
+    v.box(-0.14, 0.0, 0.5, 0.14, 0.06, 0.56, K.g0);
+    v.box(-0.1, 0.0, 0.55, 0.1, 0.05, 0.6, K.EYE); v.box(-0.05, 0.0, 0.57, 0.0, 0.05, 0.61, K.EYE2);
+    v.seg(-0.18, 0.05, 0.3, -0.25, 0.05, 0.5, 0.04, K.g2); v.seg(0.18, 0.05, 0.3, 0.25, 0.05, 0.5, 0.04, K.g2);   // plate brackets
+    // armoured cowls over the front rotors
+    for (const sx of [-1, 1]) v.fillIf(sx * 0.8, 0.12, 0.25, sx * 0.3, 0.16, 0.78, (X, Y, Z) => Math.hypot(X - sx * 0.55, Z - 0.5) < 0.27 && Z > 0.5 - 0.02, K.g4);
+    if (flamer) {   // fuel tank cradle on the back
+      v.box(-0.15, 0.2, -0.55, 0.15, 0.25, -0.3, K.g1);
+    }
+    return v.weather({ seed: 31, rust: 0.14 });
+  });
+  const gun = gset(vk + 'gun', () => {
+    const v = new VB(s, -0.12, -0.12, -0.15, 0.12, 0.12, 0.45);
+    v.box(-0.08, -0.08, -0.12, 0.08, 0.06, 0.1, K.g1, { ch: 1 });
+    if (flamer) {
+      v.cylZ(0, 0, 0.05, 0.38, 0.05, K.g3); v.cylZ(0, 0, 0.32, 0.4, 0.07, K.g1, 0.03);
+      v.cylZ(0, 0, 0.36, 0.4, 0.03, K.FLM2); v.seg(0.06, 0.04, -0.1, 0.06, 0.06, 0.3, 0.02, K.cu);
+    } else {
+      v.cylZ(0, 0, 0.05, 0.4, 0.04, K.st);
+      for (let z = 0.12; z < 0.34; z += 0.1) v.cylZ(0, 0, z, z + 0.05, 0.075, K.cu);
+      v.cylZ(0, 0, 0.38, 0.42, 0.04, K.BLUE);
+    }
+    return v.weather({ seed: 4 });
+  });
+  const guardF = guardGS('hornet.guardF', s, 0.26, K.g4, K.g3, 4, 2);
+  const guardR = guardGS('hornet.guardR', s, 0.26, K.g3, K.y1, 3);
+  const blades = bladesGS('hornet.blades', s, 0.23, 3, K.g1, K.y1);
+  const stub = stubGS('stub.s', s, 0.1);
+  const hull = R.g(R.top); R.jit = hull;
+  R.pm(body, hull);
+  const gunP = R.pm(gun, hull, 0, -0.16, 0.22);
+  R.flash(flashGS(flamer ? 'flash.flame' : 'flash.s', s, flamer ? 0.2 : 0.12), gunP.g, 0, 0, 0.42);
+  const rotors = [];
+  for (const [x, z] of [[-0.55, 0.5], [0.55, 0.5], [-0.55, -0.5], [0.55, -0.5]]) {
+    const front = z > 0, g = R.g(hull, x, 0.12, z);
+    const gd = R.pm(front ? guardF : guardR, g, 0, -0.02, 0), bl = R.pm(blades, g, 0, 0.0, 0), st = R.pm(stub, g, 0, -0.05, 0);
+    bl.g.rotation.y = Math.random() * 6;
+    const r = { x, z, bl: bl.g, dir: x * z > 0 ? 1 : -1, broken: false };
+    R.zone([front ? 'front_rotor' : 'rear_rotor', 'thruster', 'rotor'], x, z, { hide: [gd.g, bl.g], show: [st.g], fn: () => { r.broken = true; } });
+    rotors.push(r);
+  }
+  let tank = null, tankOpen = 0;
+  if (flamer) {
+    const tg = gset('hornet.tank', () => {
+      const v = new VB(s, -0.2, -0.15, -0.25, 0.2, 0.15, 0.25);
+      v.cylZ(0, 0, -0.2, 0.2, 0.11, K.y0); v.cylZ(0, 0, -0.12, 0.12, 0.115, K.HOT, 0.0);
+      v.cylZ(0, 0, -0.22, -0.2, 0.07, K.g1); v.cylZ(0, 0, 0.2, 0.22, 0.07, K.g1);
+      for (let z = -0.15; z < 0.2; z += 0.15) v.cylZ(0, 0, z, z + 0.04, 0.125, K.g2);
+      return v.weather({ seed: 6, chip: 0.2 });
+    });
+    const cover = gset('hornet.tankcover', () => {
+      const v = new VB(s, -0.2, 0, -0.3, 0.2, 0.1, 0.3);
+      v.box(-0.18, 0, -0.28, 0.18, 0.05, 0.28, K.g4, { ch: 1 }); v.paintBox(-0.18, 0, -0.28, 0.18, 0.05, 0.28, seam(3, 'z', K.g3));
+      return v.weather({ seed: 8 });
+    });
+    tank = R.pm(tg, hull, 0, 0.3, -0.42);
+    const cv = R.g(hull, 0, 0.3, -0.15); const cvp = R.pm(cover, cv, 0, 0.1, -0.27);
+    tank.cover = cv;
+    R.zone('fuel_tank', 0, -0.45, { hide: [tank.g, cvp.g], show: [R.pm(stubGS('stub.m', s, 0.16), hull, 0, 0.28, -0.42).g] });
+  }
+  R.anim = (dt, s, t) => {
+    let bx = 0, bz = 0;
+    for (const r of rotors) { if (r.broken) { bx += r.x; bz += r.z; continue; } r.bl.rotation.y += (s.stunned ? 8 : 26 + 8 * R.al + 6 * R.mv) * dt * r.dir; }
+    const steady = 1 - clamp(s.tele || 0, 0, 1) * 0.7;
+    hull.rotation.x = damp(hull.rotation.x, 0.18 * R.mv + bz * 0.45 + Math.sin(t * 1.4) * 0.025 * steady, 3, dt);
+    hull.rotation.z = damp(hull.rotation.z, -bx * 0.45 + Math.sin(t * 1.9) * 0.04 * steady, 3, dt);
+    gunP.g.position.z = 0.22 - (s.firing && !flamer ? Math.random() * 0.05 : 0);
+    if (tank) { tankOpen = damp(tankOpen, (s.tele > 0 || s.firing) ? 1 : 0, 5, dt); tank.cover.rotation.x = -tankOpen * 1.9; }
+  };
+};
+
+// ----------------------------------------------------------------------------- SNYTCH (snitch): scout drone with searchlight (+ Spottr)
+BASE_R.snitch = 0.5;
+MODELS.snitch = (R, def) => {
+  const s = 0.05, spot = def.behavior === 'spotter';
+  R.refSpeed = 4.5;
+  const body = gset('snitch.body', () => {
+    const v = new VB(s, -0.6, -0.3, -0.6, 0.6, 0.45, 0.6);
+    for (const sz of [1, -1]) {
+      v.seg(-0.1, 0.02, 0.1 * sz, -0.4, 0.04, 0.4 * sz, 0.035, K.g3);
+      v.seg(-0.28, 0.03, 0.28 * sz, -0.33, 0.04, 0.33 * sz, 0.05, K.y0);
+      v.cylY(-0.42, 0.42 * sz, -0.06, 0.06, 0.06, K.g1);
+      v.cylY(-0.42, 0.42 * sz, 0.06, 0.09, 0.045, K.g4);
+    }
+    v.mirrorX();
+    v.ell(0, 0.0, 0, 0.2, 0.14, 0.22, K.g2);
+    v.ell(0, 0.06, -0.02, 0.17, 0.11, 0.19, K.g4);
+    v.paintBox(-0.2, 0.0, -0.25, 0.2, 0.3, 0.25, seam(3, 'x', K.g3, 1));
+    v.box(-0.2, -0.02, -0.05, 0.2, 0.02, 0.05, K.y1);                                  // equator band
+    v.box(-0.05, -0.2, -0.05, 0.05, -0.1, 0.05, K.g1); v.box(-0.025, -0.25, -0.025, 0.025, -0.2, 0.025, K.RED);  // belly beacon
+    v.box(-0.1, 0.0, -0.3, 0.1, 0.1, -0.2, K.g1); v.paintBox(-0.1, 0.0, -0.31, 0.1, 0.1, -0.27, seam(2, 'y', K.g0));
+    v.seg(-0.08, 0.14, -0.1, -0.12, 0.4, -0.16, 0.022, K.st); v.box(-0.15, 0.4, -0.2, -0.1, 0.45, -0.15, K.RED);    // antennae
+    v.seg(0.08, 0.14, -0.12, 0.1, 0.3, -0.2, 0.022, K.st);
+    if (spot) { v.box(-0.05, -0.15, 0.1, 0.05, -0.08, 0.3, K.g1); v.box(-0.025, -0.125, 0.3, 0.025, -0.075, 0.33, K.RED); }
+    return v.weather({ seed: 41, rust: 0.1 });
+  });
+  const lamp = gset('snitch.lamp', () => {
+    const v = new VB(s, -0.15, -0.15, -0.05, 0.15, 0.15, 0.25);
+    v.cylZ(0, 0, 0, 0.15, 0.12, K.g1); v.cylZ(0, 0, 0.12, 0.2, 0.13, K.g4, 0.09);
+    v.cylZ(0, 0, 0.12, 0.17, 0.095, K.EYE); v.cylZ(0, 0, 0.15, 0.18, 0.045, K.EYE2);
+    v.box(-0.15, 0.1, 0.0, 0.15, 0.15, 0.15, K.g3);
+    return v.weather({ seed: 2 });
+  });
+  const siren = gset('snitch.siren', () => {
+    const v = new VB(s, -0.1, 0, -0.1, 0.1, 0.15, 0.1);
+    v.cylY(0, 0, 0, 0.05, 0.08, K.g1); v.cylY(0, 0, 0.05, 0.12, 0.06, K.EYE); v.cylY(0, 0, 0.12, 0.15, 0.03, K.g3);
+    return v;
+  });
+  const guard = guardGS('snitch.guard', s, 0.19, K.g3, K.y1, 3);
+  const blades = bladesGS('snitch.blades', s, 0.16, 2);
+  const stub = stubGS('stub.s', s, 0.08);
+  const hull = R.g(R.top); R.jit = hull;
+  R.pm(body, hull);
+  const lampG = R.g(hull, 0, -0.02, 0.15); R.pm(lamp, lampG);
+  const sir = R.pm(siren, hull, 0, 0.15, 0.02);
+  const rotors = [];
+  for (const [x, z] of [[-0.42, 0.42], [0.42, 0.42], [-0.42, -0.42], [0.42, -0.42]]) {
+    const g = R.g(hull, x, 0.1, z), gd = R.pm(guard, g, 0, -0.02, 0), bl = R.pm(blades, g, 0, 0.0, 0), st = R.pm(stub, g, 0, -0.05, 0);
+    const r = { x, z, bl: bl.g, dir: x * z > 0 ? 1 : -1, broken: false };
+    R.zone('rotor', x, z, { hide: [gd.g, bl.g], show: [st.g], fn: () => { r.broken = true; } });
+    rotors.push(r);
+  }
+  R.anim = (dt, s, t) => {
+    let bx = 0, bz = 0;
+    for (const r of rotors) { if (r.broken) { bx += r.x; bz += r.z; continue; } r.bl.rotation.y += (s.stunned ? 8 : 32 + 6 * R.al) * dt * r.dir; }
+    hull.rotation.x = damp(hull.rotation.x, 0.2 * R.mv + bz * 0.5 + Math.sin(t * 1.5) * 0.04, 3, dt);
+    hull.rotation.z = damp(hull.rotation.z, -bx * 0.5 + Math.sin(t * 2.3) * 0.05, 3, dt);
+    const gz = clamp(wrapA(s.gaze || 0), -1.2, 1.2);
+    lampG.rotation.y = damp(lampG.rotation.y, gz, 6, dt);
+    lampG.rotation.x = damp(lampG.rotation.x, 0.35 + Math.sin(t * 0.9) * 0.08, 4, dt);
+    sir.g.rotation.y += dt * (2 + (s.tele || 0) * 14);
+    sir.g.scale.y = 1 + (s.tele > 0 ? 0.3 * Math.abs(Math.sin(t * 9)) : 0);
+  };
+};
+
+// ----------------------------------------------------------------------------- TIKK (tick): six-legged latcher
+BASE_R.tick = 0.3;
+MODELS.tick = (R) => {
+  const s = 0.04;
+  R.refSpeed = 6.5;
+  const body = gset('tick.body', () => {
+    const v = new VB(s, -0.2, -0.16, -0.28, 0.2, 0.2, 0.28);
+    v.ell(0, 0.0, -0.02, 0.12, 0.08, 0.15, K.g1);
+    v.ell(0, 0.04, -0.04, 0.135, 0.09, 0.17, (X, Y, Z, i, j, k) => (k % 3 === 0 ? K.g2 : Math.abs(X) < 0.03 ? K.g4 : K.g3));
+    v.paintBox(-0.2, -0.02, -0.25, 0.2, 0.02, 0.25, haz(1, K.y1, K.bk));
+    v.ell(0, 0.02, 0.12, 0.08, 0.065, 0.07, K.g2);
+    v.box(-0.04, 0.0, 0.16, 0.04, 0.08, 0.2, K.EYE); v.box(0.0, 0.04, 0.17, 0.04, 0.08, 0.21, K.EYE2);
+    v.box(-0.08, 0.04, 0.14, -0.04, 0.08, 0.18, K.EYE); v.box(0.04, 0.04, 0.14, 0.08, 0.08, 0.18, K.EYE);
+    v.seg(-0.03, -0.02, 0.16, -0.02, -0.08, 0.23, 0.022, K.st); v.seg(0.03, -0.02, 0.16, 0.02, -0.08, 0.23, 0.022, K.st);
+    v.cylZ(0, 0.11, -0.18, -0.04, 0.045, K.HOT); v.cylZ(0, 0.11, -0.2, -0.18, 0.05, K.g1); v.cylZ(0, 0.11, -0.04, -0.02, 0.05, K.g1);   // tikk pod
+    v.box(-0.06, 0.08, -0.12, -0.02, 0.12, -0.08, K.g1); v.box(0.02, 0.08, -0.12, 0.06, 0.12, -0.08, K.g1);
+    return v.weather({ seed: 51, rust: 0.1, edge: 0.2 });
+  });
+  const upper = limbGS('tick.up', s, 0.16, 0.022, 0.022, 0.02, 0.02, { piston: false, cable: false, col: K.g2, col2: K.g3, band: 0.08, rust: 0 });
+  const lower = limbGS('tick.lo', s, 0.25, 0.02, 0.02, 0.01, 0.01, { piston: false, cable: false, col: K.g3, col2: K.g2, band: 0.1, rust: 0, tip: (v, L) => v.box(-0.02, -0.02, L - 0.04, 0.02, 0.02, L + 0.02, K.st) });
+  const joint = gset('tick.knee', () => { const v = new VB(s, -0.04, -0.04, -0.04, 0.04, 0.04, 0.04); v.box(-0.04, -0.04, -0.04, 0.04, 0.04, 0.04, K.g4); v.box(0, 0, 0, 0.04, 0.04, 0.04, K.y1); return v; });
+  const bodyG = R.g(R.top, 0, 0.19, 0);
+  const hullG = R.g(bodyG); R.jit = hullG;
+  R.pm(body, hullG);
+  const legs = [];
+  const zs = [0.07, 0.0, -0.07], fz = [0.2, 0.01, -0.19];
+  for (const sx of [-1, 1]) for (let n = 0; n < 3; n++) {
+    const L = new Leg(R, bodyG, [sx * 0.08, -0.02, zs[n]], [sx * 0.27, 0, fz[n]], 0.16, 0.25, { upper, lower, joint }, { phase: ((n + (sx > 0 ? 1 : 0)) % 2) * 0.5 });
+    legs.push(L);
+  }
+  R.blink = (t, s, I) => (s.tele > 0 ? ((t * (3 + s.tele * 12)) % 1 < 0.5 ? 2.2 : 0.35) : I);
+  R.anim = (dt, s, t) => {
+    const c = R.gait(dt, s, legs, { A: 0.06, H: 0.07, duty: 0.5, maxHz: 7, minHz: 1.5 });
+    bodyG.position.y = 0.19 + Math.abs(Math.sin(c * Math.PI * 4)) * 0.012 * R.gmv;
+    const lp = s.leaping ? 1 : 0;
+    R.lp = damp(R.lp || 0, lp, 10, dt);
+    bodyG.rotation.x = -R.lp * 0.5 + (s.tele || 0) * 0.08;
+    if (R.lp > 0.01) for (const L of legs) L.tgt.set(L.rest.x * (1 - R.lp * 0.2), L.rest.y + R.lp * 0.16, L.rest.z + R.lp * 0.12);
+    for (const L of legs) L.solve();
+  };
+};
+
+// ----------------------------------------------------------------------------- POPP (pop): rolling proximity bomb (+ Komet)
+BASE_R.pop = 0.35;
+MODELS.pop = (R, def) => {
+  const s = 0.04, komet = def.variant === 'komet', Rb = 0.34, vk = komet ? 'pop.k.' : 'pop.';
+  R.refSpeed = 7.5;
+  const half = (side) => gset(vk + 'shell' + side, () => {
+    const v = new VB(s, -0.36, -0.36, -0.36, 0.36, 0.36, 0.36);
+    v.fillIf(-0.36, -0.36, -0.36, 0.36, 0.36, 0.36, (X, Y, Z) => { const r = Math.hypot(X, Y, Z); return r <= Rb && r >= 0.22 && X * side >= 0.04; },
+      (X, Y, Z, i, j, k) => {
+        const th = Math.atan2(Y, Z), ax = Math.abs(X), q = Math.floor(((th + Math.PI) / (Math.PI * 2)) * 6) % 6;
+        if (Math.abs(Math.sin(th * 3)) < 0.14) return K.g1;                         // meridian seams
+        if (Math.abs(ax - 0.2) < 0.022) return K.g1;                                 // latitude seam
+        if (ax > 0.29) return (i + j + k) % 3 === 0 ? K.st : K.g4;                   // pole hub
+        if (komet) return q % 2 ? (ax > 0.2 ? K.r2 : K.r1) : (ax > 0.2 ? K.g3 : K.y1);
+        return q % 2 ? (ax > 0.2 ? K.g3 : K.g2) : (ax > 0.2 ? haz(2)(X, Y, Z, i, j, k) : K.y0);
+      });
+    v.paint((X, Y, Z, i, j, k, c) => (c === K.g1 && (i + k) % 4 === 0 && Math.hypot(X, Y, Z) > Rb - 0.03 ? K.st : undefined));   // rivets on seams
+    if (komet) v.paint((X, Y, Z, i, j, k, c) => (Math.abs(Math.abs(X) - 0.12) < 0.02 && Math.hypot(Y, Z) > 0.3 && (j + k) % 2 ? K.g1 : undefined));
+    return v.weather({ seed: komet ? 62 : 61, rust: komet ? 0.3 : 0.12, edge: 0.18 });
+  });
+  const core = gset('pop.core', () => {
+    const v = new VB(s, -0.24, -0.24, -0.24, 0.24, 0.24, 0.24);
+    v.ell(0, 0, 0, 0.2, 0.2, 0.2, (X, Y, Z) => (Math.abs(X) < 0.04 && Math.hypot(Y, Z) > 0.15 ? K.EYE : K.g1));
+    v.box(-0.04, -0.04, 0.16, 0.04, 0.04, 0.22, K.EYE2);
+    v.box(-0.08, -0.04, 0.17, -0.04, 0.04, 0.2, K.EYE); v.box(0.04, -0.04, 0.17, 0.08, 0.04, 0.2, K.EYE);
+    return v;
+  });
+  const roll = R.g(R.top, 0, 0.35, 0); R.jit = roll;
+  const halves = [R.pm(half(-1), roll), R.pm(half(1), roll)];
+  R.pm(core, R.top, 0, 0.35, 0);
+  R.blink = (t, s, I) => (s.tele > 0 ? ((t * (2 + s.tele * 10)) % 1 < 0.45 ? 2.4 : 0.25) : 0.7 + 0.3 * Math.sin(t * 4));
+  R.anim = (dt, s, t) => {
+    const sp = s.moving ? (s.speed ?? 3) / R.k : 0;
+    if (!s.stunned) roll.rotation.x += sp * dt / Rb;
+    const te = clamp(s.tele || 0, 0, 1), split = komet ? te * 0.09 : te * 0.02;
+    halves[0].g.position.x = -split; halves[1].g.position.x = split;
+    roll.position.y = 0.35 + (te > 0 ? rnd(0.006 * te) : 0);
+  };
+};
+
+// ----------------------------------------------------------------------------- FYREBALL (fireball): armoured roller that opens to flame
+BASE_R.fireball = 0.45;
+MODELS.fireball = (R, def) => {
+  if (def.behavior === 'shredder' || def.hover) return MODELS.shredder(R, def);
+  const s = 0.05, Rb = 0.44;
+  R.refSpeed = 5;
+  const shell = (top) => gset('fireball.shell' + (top ? 'T' : 'B'), () => {
+    const v = new VB(s, -0.45, -0.45, -0.45, 0.45, 0.45, 0.45);
+    v.fillIf(-0.45, -0.45, -0.45, 0.45, 0.45, 0.45, (X, Y, Z) => { const r = Math.hypot(X, Y, Z); return r <= Rb && r >= 0.31 && (top ? Y >= 0 : Y < 0); },
+      (X, Y, Z, i, j, k) => {
+        const lon = Math.atan2(X, Z), lat = Math.abs(Y) / Rb;
+        const sl = Math.abs(Math.sin(lon * 3));
+        if (lat < 0.12) return (i + k) % 2 ? K.y1 : K.g1;                         // rim band
+        if (sl < 0.12) return K.g0;                                                 // plate seams
+        if (top && lat > 0.35 && lat < 0.6 && sl > 0.45 && sl < 0.7) return K.EXH;  // heat vents
+        if (lat > 0.88) return K.g4;
+        return Math.cos(lon * 3) > 0 ? K.g3 : K.g2;
+      });
+    // carve seam grooves, bolt heads at plate corners
+    v.paint((X, Y, Z, i, j, k, c) => (c === K.g0 && Math.hypot(X, Y, Z) > Rb - 0.035 ? -1 : undefined));
+    v.paint((X, Y, Z, i, j, k, c) => { const lon = Math.atan2(X, Z), lat = Math.abs(Y) / Rb; return (Math.abs(Math.sin(lon * 3)) < 0.3 && Math.abs(lat - 0.62) < 0.07 && c !== -1 && (c === K.g2 || c === K.g3)) ? K.st : undefined; });
+    return v.weather({ seed: top ? 71 : 72, rust: 0.28, rustScale: 7, edge: 0.2 });
+  });
+  const core = gset('fireball.core', () => {
+    const v = new VB(s, -0.32, -0.32, -0.32, 0.32, 0.32, 0.42);
+    v.ell(0, 0, 0, 0.27, 0.27, 0.27, (X, Y, Z) => (Math.abs(Y) < 0.06 || Math.abs(X) < 0.05 ? K.g2 : Math.hypot(X, Y, Z) > 0.24 ? K.HOT : K.HOT2));
+    v.cylZ(0, 0, 0.18, 0.38, 0.11, K.g1, 0.055); v.cylZ(0, 0, 0.3, 0.37, 0.055, K.HOT2);
+    v.box(-0.1, 0.2, 0.05, -0.05, 0.25, 0.2, K.EYE); v.box(0.05, 0.2, 0.05, 0.1, 0.25, 0.2, K.EYE);
+    return v;
+  });
+  const flame = gset('fireball.flame', () => {
+    const v = new VB(s, -0.3, -0.3, 0, 0.3, 0.3, 1.2);
+    v.fillIf(-0.3, -0.3, 0, 0.3, 0.3, 1.2, (X, Y, Z) => Math.hypot(X, Y) < 0.05 + Z * 0.22 && hash3(Math.round(X * 20), Math.round(Y * 20), Math.round(Z * 20)) < 0.55 - Z * 0.3, (X, Y, Z) => (Z < 0.45 ? K.FLM : K.FLM2));
+    return v;
+  });
+  const roll = R.g(R.top, 0, 0.45, 0); R.jit = roll;
+  const hinge = R.g(roll, 0, 0, -0.38);
+  R.pm(shell(true), hinge, 0, 0, 0.38);
+  R.pm(shell(false), roll);
+  const cp = R.pm(core, R.top, 0, 0.45, 0);
+  const fl = R.pm(flame, cp.g, 0, 0, 0.36); fl.g.visible = false;
+  let open = 0;
+  R.anim = (dt, s, t) => {
+    const atk = (s.tele > 0 || s.firing) && !s.stunned;
+    const sp = s.moving ? (s.speed ?? 3) / R.k : 0;
+    if (atk) { const tgt = Math.round(roll.rotation.x / (Math.PI * 2)) * Math.PI * 2; roll.rotation.x = damp(roll.rotation.x, tgt, 8, dt); }
+    else if (!s.stunned) roll.rotation.x += sp * dt / Rb;
+    const settled = Math.abs(wrapA(roll.rotation.x)) < 0.15;
+    open = damp(open, atk && settled ? 1 : 0, 6, dt);
+    hinge.rotation.x = -open * 1.2;
+    fl.g.visible = !!s.firing && open > 0.8;
+    if (fl.g.visible) { fl.g.scale.set(0.8 + Math.random() * 0.4, 0.8 + Math.random() * 0.4, 0.7 + Math.random() * 0.6); }
+  };
+};
+
+// ----------------------------------------------------------------------------- SHREDDR: hovering shrapnel orb with blue rear thrusters
+BASE_R.shredder = 0.9;
+MODELS.shredder = (R) => {
+  const s = 0.07;
+  R.refSpeed = 4.2;
+  R.k = 1; R.ownSize = true;
+  const body = gset('shred.body', () => {
+    const v = new VB(s, -1.05, -0.85, -1.05, 1.05, 0.85, 1.05);
+    v.ell(0, 0, 0, 0.72, 0.62, 0.72, (X, Y, Z, i, j, k) => {
+      const lon = Math.atan2(X, Z);
+      if (Math.abs(Y) < 0.07) return K.g1;
+      if (Math.abs(Math.sin(lon * 4)) < 0.1) return K.g1;
+      return Y > 0.42 ? K.g4 : Math.cos(lon * 4) > 0 ? K.g3 : K.g2;
+    });
+    // shrapnel ring: radial barrel ports around the equator
+    v.cylY(0, 0, -0.1, 0.1, 0.82, K.g2, 0.6);
+    for (let n = 0; n < 16; n++) { const a = n * Math.PI * 2 / 16; v.cylY(Math.sin(a) * 0.8, Math.cos(a) * 0.8, -0.06, 0.06, 0.06, K.g0); }
+    v.paintBox(-1, -0.12, -1, 1, 0.12, 1, (X, Y, Z, i, j, k, c) => (c === K.g2 && Y > 0.05 ? haz(2)(X, Y, Z, i, j, k) : undefined));
+    // armoured head (front)
+    v.box(-0.32, -0.15, 0.55, 0.32, 0.3, 0.9, K.g3, { ch: 2, cht: 2 });
+    v.box(-0.25, 0.0, 0.84, 0.25, 0.14, 0.92, K.g0);
+    v.box(-0.18, 0.04, 0.86, 0.18, 0.11, 0.93, K.EYE); v.box(-0.04, 0.04, 0.88, 0.04, 0.11, 0.95, K.EYE2);
+    v.box(-0.32, 0.25, 0.6, 0.32, 0.32, 0.88, K.g4, { ch: 1 });
+    v.paintBox(-0.32, 0.25, 0.6, 0.32, 0.33, 0.88, haz(2));
+    // side jets (rings)
+    for (const sx of [-1, 1]) { v.cylX(0, 0, sx > 0 ? 0.7 : -0.95, sx > 0 ? 0.95 : -0.7, 0.2, K.g2, 0.11); v.cylX(0, 0, sx > 0 ? 0.88 : -0.95, sx > 0 ? 0.95 : -0.88, 0.11, K.BLUE); }
+    // rear thruster housings
+    for (const sx of [-1, 1]) { v.cylZ(sx * 0.45, -0.1, -0.95, -0.55, 0.22, K.g3, 0.12); v.cylZ(sx * 0.45, -0.1, -0.95, -0.85, 0.13, K.HOT); }
+    // top vents + spine
+    v.box(-0.08, 0.55, -0.5, 0.08, 0.68, 0.4, K.g2);
+    v.paintBox(-0.4, 0.5, -0.4, 0.4, 0.7, 0.2, seam(2, 'z', K.g1));
+    return v.weather({ seed: 81, rust: 0.15 });
+  });
+  const ring = gset('shred.glow', () => { const v = new VB(s, -0.6, -0.1, -0.6, 0.6, 0.1, 0.6); v.cylY(0, 0, -0.07, 0.0, 0.5, K.BLUE, 0.3); v.cylY(0, 0, -0.07, 0.0, 0.25, K.BLUE2); return v; });
+  const hullY = 1.2;
+  const hull = R.g(R.top, 0, hullY, 0); R.jit = hull;
+  R.pm(body, hull);
+  R.pm(ring, hull, 0, -0.62, 0);
+  // thrusters are HOT (pulsing) but tinted blue via their own material
+  R.hotMat.userData.blue = true;
+  const thr = [];
+  for (const sx of [-1, 1]) { const st = R.pm(stubGS('stub.m', s, 0.2), hull, sx * 0.45, -0.1, -0.8); thr.push(st); R.zone('thruster', sx * 0.45, -0.65, { show: [st.g] }); }
+  for (const sx of [-1, 1]) R.zone('side_jet', sx * 0.85, 0, {});
+  const fl = R.flash(flashGS('flash.m', s, 0.3), hull, 0, 0, 0.95);
+  void fl; void thr;
+  R.anim = (dt, s, t) => {
+    hull.position.y = hullY + Math.sin(t * 2.2) * 0.06;
+    hull.rotation.x = damp(hull.rotation.x, 0.15 * R.mv + (s.tele || 0) * -0.12, 3, dt);
+    hull.rotation.y = s.firing ? hull.rotation.y + dt * 9 : damp(hull.rotation.y, 0, 4, dt);
+    // blue tint for hot channel
+    const h = 0.8 + 0.25 * Math.sin(t * 6) + R.fireK * 0.3;
+    R.hotMat.color.setRGB(h * 0.35, h * 0.75, h * 1.6);
+  };
+};
+
+// ----------------------------------------------------------------------------- TURRETT (turret): wall/floor gun emplacement
+BASE_R.turret = 0.5;
+MODELS.turret = (R) => {
+  const s = 0.05;
+  const base = gset('turret.base', () => {
+    const v = new VB(s, -0.5, 0, -0.5, 0.5, 0.65, 0.5);
+    v.fillIf(-0.45, 0, -0.45, 0.45, 0.1, 0.45, (X, Y, Z) => Math.abs(X) + Math.abs(Z) < 0.6 && Math.abs(X) < 0.44 && Math.abs(Z) < 0.44, (X, Y, Z, i, j, k) => (Y > 0.05 && (Math.abs(X) > 0.36 || Math.abs(Z) > 0.36 || Math.abs(X) + Math.abs(Z) > 0.52) ? haz(2)(X, Y, Z, i, j, k) : K.g2));
+    for (const [x, z] of [[-0.3, -0.15], [0.3, -0.15], [-0.3, 0.15], [0.3, 0.15], [-0.15, 0.3], [0.15, 0.3], [-0.15, -0.3], [0.15, -0.3]]) v.box(x - 0.025, 0.1, z - 0.025, x + 0.025, 0.15, z + 0.025, K.st);
+    v.cylY(0, 0, 0.1, 0.55, 0.14, (X, Y, Z, i, j, k) => (j % 3 === 0 ? K.g2 : K.g3));
+    v.cylY(0, 0, 0.5, 0.6, 0.22, K.g4); v.cylY(0, 0, 0.55, 0.6, 0.2, K.g1);
+    v.seg(0.12, 0.12, -0.1, 0.12, 0.5, -0.12, 0.03, K.cab); v.seg(-0.12, 0.12, -0.08, -0.13, 0.5, -0.1, 0.03, K.cab);
+    return v.weather({ seed: 91, rust: 0.2 });
+  });
+  const head = gset('turret.head', () => {
+    const v = new VB(s, -0.35, 0, -0.5, 0.35, 0.5, 0.45);
+    v.box(-0.25, 0.0, -0.3, 0.25, 0.35, 0.25, K.g2, { ch: 2, cht: 1 });
+    v.box(-0.2, 0.35, -0.25, 0.2, 0.4, 0.2, K.g4, { ch: 1 }); v.paintBox(-0.2, 0.35, -0.25, 0.2, 0.4, 0.2, seam(3, 'z', K.g3));
+    v.box(-0.3, 0.05, -0.15, -0.25, 0.3, 0.15, K.g3); v.box(0.25, 0.05, -0.15, 0.3, 0.3, 0.15, K.g3);  // side cheeks
+    // gun shield: sloped slab with hazard edges + barrel ports
+    v.fillIf(-0.3, 0.0, 0.2, 0.3, 0.42, 0.45, (X, Y, Z) => Z < 0.4 - Y * 0.3 && Z >= 0.31 - Y * 0.3 && Math.abs(X) < 0.3 - (Y > 0.35 ? 0.05 : 0),
+      (X, Y, Z, i, j, k) => (Math.abs(X) > 0.22 ? haz(1)(X, Y, Z, i, j, k) : K.g4));
+    v.box(-0.15, 0.1, 0.2, -0.05, 0.2, 0.45, -1); v.box(0.05, 0.1, 0.2, 0.15, 0.2, 0.45, -1);
+    // scanner eye cluster on the brow
+    v.box(-0.15, 0.3, 0.15, 0.15, 0.45, 0.3, K.g1, { ch: 1 });
+    v.box(-0.1, 0.35, 0.26, 0.1, 0.4, 0.31, K.EYE); v.box(-0.05, 0.35, 0.28, 0.0, 0.4, 0.32, K.EYE2);
+    v.box(0.1, 0.4, 0.22, 0.15, 0.45, 0.28, K.YEL);
+    // rear housing frame (the glowing pack is a separate part)
+    v.box(-0.22, 0.0, -0.33, 0.22, 0.05, -0.3, K.g1);
+    return v.weather({ seed: 92, rust: 0.18 });
+  });
+  const rear = gset('turret.rear', () => {
+    const v = new VB(s, -0.25, 0, -0.2, 0.25, 0.4, 0.05);
+    v.box(-0.2, 0.05, -0.15, 0.2, 0.3, 0.0, K.g1);
+    for (let x = -0.18; x < 0.18; x += 0.1) v.box(x, 0.05, -0.16, x + 0.05, 0.3, -0.05, K.HOT);
+    v.box(-0.2, 0.3, -0.15, 0.2, 0.35, 0.0, K.y0); v.paintBox(-0.2, 0.3, -0.15, 0.2, 0.35, 0.0, haz(1));
+    return v.weather({ seed: 3 });
+  });
+  const barrel = gset('turret.barrel', () => {
+    const v = new VB(s, -0.06, -0.06, -0.15, 0.06, 0.06, 0.55);
+    v.cylZ(0, 0, -0.1, 0.5, 0.032, K.st); v.cylZ(0, 0, -0.1, 0.12, 0.05, K.g1); v.cylZ(0, 0, 0.42, 0.5, 0.05, K.g2); v.cylZ(0, 0, 0.45, 0.5, 0.02, K.g0);
+    return v.weather({ seed: 5 });
+  });
+  R.pm(base, R.top);
+  const yaw = R.g(R.top, 0, 0.6, 0); R.jit = yaw;
+  const hd = R.pm(head, yaw);
+  const rp = R.pm(rear, yaw, 0, 0, -0.3);
+  const st = R.pm(stubGS('stub.s', s, 0.12), yaw, 0, 0.15, -0.35);
+  R.zone(['rear_housing'], 0, -0.35, { hide: [rp.g], show: [st.g] });
+  const pitch = R.g(yaw, 0, 0.15, 0.1);
+  const bars = [R.pm(barrel, pitch, -0.1, 0, 0), R.pm(barrel, pitch, 0.1, 0, 0)];
+  R.flash(flashGS('flash.s', s, 0.14), bars[0].g, 0, 0, 0.52); R.flash(flashGS('flash.s', s, 0.14), bars[1].g, 0, 0, 0.52);
+  void hd;
+  R.anim = (dt, s, t) => {
+    const gz = wrapA(s.gaze || 0);
+    yaw.rotation.y += clamp(wrapA(gz - yaw.rotation.y), -4 * dt, 4 * dt);
+    pitch.rotation.x = damp(pitch.rotation.x, s.pitch ?? (0.05 + Math.sin(t * 0.7) * 0.04 + R.al * 0.08), 5, dt);
+    const ph = (t * 14) % 1;
+    bars[0].g.position.z = s.firing ? (ph < 0.5 ? -0.07 * (1 - ph * 2) : 0) : damp(bars[0].g.position.z, 0, 8, dt);
+    bars[1].g.position.z = s.firing ? (ph >= 0.5 ? -0.07 * (1 - (ph - 0.5) * 2) : 0) : damp(bars[1].g.position.z, 0, 8, dt);
+  };
+};
+
+// ----------------------------------------------------------------------------- SENTINAL (sentinel): rooftop sniper mast
+BASE_R.sentinel = 0.6;
+MODELS.sentinel = (R) => {
+  const s = 0.05;
+  const mastH = 3.0;
+  const base = gset('sent.base', () => {
+    const v = new VB(0.06, -0.66, 0, -0.66, 0.66, mastH + 0.12, 0.66);
+    v.box(-0.24, 0, -0.24, 0.24, 0.24, 0.24, K.g2, { ch: 2, cht: 1 });
+    v.paintBox(-0.25, 0.12, -0.25, 0.25, 0.24, 0.25, haz(1));
+    for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      v.seg(x * 0.15, 0.12, z * 0.15, x * 0.52, 0.04, z * 0.52, 0.05, K.g3);
+      v.box(x * 0.52 - 0.09, 0, z * 0.52 - 0.09, x * 0.52 + 0.09, 0.06, z * 0.52 + 0.09, K.g1);
+      v.box(x * 0.52 - 0.03, 0.06, z * 0.52 - 0.03, x * 0.52 + 0.03, 0.12, z * 0.52 + 0.03, K.st);
+    }
+    // lattice mast
+    const c = 0.11;
+    for (const [x, z] of [[-c, -c], [c, -c], [-c, c], [c, c]]) v.seg(x, 0.2, z, x * 0.7, mastH, z * 0.7, 0.035, K.g3);
+    for (let y = 0.3, n = 0; y < mastH - 0.2; y += 0.36, n++) {
+      const w0 = c * (1 - 0.3 * y / mastH), w1 = c * (1 - 0.3 * (y + 0.36) / mastH), a = n % 2 ? 1 : -1;
+      v.seg(-w0, y, a * w0, w1, y + 0.36, a * w1, 0.025, K.g2); v.seg(a * w0, y, -w0, a * w1, y + 0.36, w1, 0.025, K.g2);
+      v.box(-w0, y, -w0, w0, y + 0.06, w0, -1); v.fillIf(-w0 - 0.03, y, -w0 - 0.03, w0 + 0.03, y + 0.06, w0 + 0.03, (X, Y, Z) => Math.max(Math.abs(X), Math.abs(Z)) > w0 - 0.04, K.g3);
+    }
+    v.cylY(0, 0, 0.2, mastH, 0.045, K.st);                                  // hydraulic core
+    v.seg(0.05, 0.25, 0.02, 0.04, mastH - 0.1, 0.03, 0.025, K.cab);
+    // canister bracket (canister hangs off the back of the mast)
+    v.seg(0, 2.5, -0.05, -0.25, 2.5, -0.42, 0.04, K.g3); v.seg(0, 2.1, -0.05, -0.25, 2.25, -0.42, 0.03, K.g2);
+    v.cylY(0, 0, mastH - 0.12, mastH + 0.12, 0.17, K.g4); v.cylY(0, 0, mastH - 0.06, mastH + 0.06, 0.2, K.y1);
+    return v.weather({ seed: 101, rust: 0.2 });
+  });
+  const canister = gset('sent.can', () => {
+    const v = new VB(s, -0.2, -0.3, -0.2, 0.2, 0.3, 0.2);
+    v.cylY(0, 0, -0.22, 0.22, 0.13, K.HOT); v.cylY(0, 0, -0.17, 0.17, 0.135, K.HOT2, 0.1);
+    for (const y of [-0.27, 0.22]) v.cylY(0, 0, y, y + 0.05, 0.11, K.g1);
+    for (const y of [-0.12, 0.03]) v.cylY(0, 0, y, y + 0.05, 0.14, K.y0);
+    for (let n = 0; n < 4; n++) { const a = n * Math.PI / 2 + 0.4; v.seg(Math.sin(a) * 0.15, -0.25, Math.cos(a) * 0.15, Math.sin(a) * 0.15, 0.25, Math.cos(a) * 0.15, 0.022, K.g2); }
+    return v.weather({ seed: 7, chip: 0.2 });
+  });
+  const head = gset('sent.head', () => {
+    const v = new VB(s, -0.3, -0.3, -0.5, 0.3, 0.4, 1.15);
+    v.box(-0.18, -0.15, -0.4, 0.18, 0.2, 0.45, K.g2, { ch: 2, cht: 1, chb: 1 });
+    v.box(-0.15, 0.2, -0.35, 0.15, 0.27, 0.35, K.g4, { ch: 1 }); v.paintBox(-0.15, 0.2, -0.35, 0.15, 0.28, 0.35, seam(3, 'z', K.g3));
+    v.paintBox(-0.16, 0.2, 0.25, 0.16, 0.28, 0.35, haz(1));
+    v.box(-0.22, -0.1, -0.2, -0.18, 0.15, 0.2, K.g3); v.box(0.18, -0.1, -0.2, 0.22, 0.15, 0.2, K.g3);
+    // sniper barrel with shroud + muzzle brake
+    v.cylZ(0, 0, 0.4, 1.05, 0.04, K.st); v.cylZ(0, 0, 0.4, 0.62, 0.075, K.g1); v.cylZ(0, 0, 0.95, 1.1, 0.07, K.g2); v.box(-0.07, -0.015, 1.0, 0.07, 0.015, 1.05, -1);
+    // eye cluster + 4 converging laser emitters
+    v.box(-0.12, 0.0, 0.42, 0.12, 0.16, 0.5, K.g0);
+    v.box(-0.05, 0.05, 0.45, 0.05, 0.15, 0.52, K.EYE); v.box(0, 0.1, 0.48, 0.05, 0.15, 0.53, K.EYE2);
+    for (const [x, y] of [[-0.1, 0.1], [0.1, 0.1], [-0.1, -0.1], [0.1, -0.1]]) v.box(x - 0.025, y - 0.025, 0.44, x + 0.025, y + 0.025, 0.54, K.YEL);
+    // rear counterweight + antenna
+    v.box(-0.14, -0.12, -0.5, 0.14, 0.12, -0.38, K.g1);
+    v.seg(0.1, 0.2, -0.3, 0.12, 0.65, -0.35, 0.02, K.st); v.box(0.1, 0.62, -0.38, 0.15, 0.67, -0.33, K.RED);
+    return v.weather({ seed: 102, rust: 0.12 });
+  });
+  R.pm(base, R.top);
+  const cp = R.pm(canister, R.top, -0.25, 2.25, -0.45);
+  const cst = R.pm(stubGS('stub.s', s, 0.12), R.top, -0.25, 2.45, -0.42);
+  R.zone('canister', -0.25, -0.45, { hide: [cp.g], show: [cst.g] });
+  const yaw = R.g(R.top, 0, mastH + 0.15, 0); R.jit = yaw;
+  const pitch = R.g(yaw, 0, 0.05, 0);
+  const hp = R.pm(head, pitch);
+  R.flash(flashGS('flash.m', s, 0.2), pitch, 0, 0, 1.1);
+  let kick = 0;
+  R.anim = (dt, s, t) => {
+    const gz = wrapA(s.gaze || 0);
+    yaw.rotation.y += clamp(wrapA(gz - yaw.rotation.y), -1.6 * dt, 1.6 * dt);
+    pitch.rotation.x = damp(pitch.rotation.x, s.pitch ?? (0.12 + 0.14 * R.al + Math.sin(t * 0.6) * 0.03), 3, dt);
+    if (s.firing) kick = 1; kick = Math.max(0, kick - dt * 3);
+    hp.g.position.z = -kick * 0.12; pitch.rotation.x -= kick * 0.06;
+  };
+};
+
+// ----------------------------------------------------------------------------- SURVEYR (surveyor): armoured rolling scanner
+BASE_R.surveyor = 0.9;
+MODELS.surveyor = (R) => {
+  const s = 0.06, Rb = 0.86, cy = 0.9;
+  R.refSpeed = 6;
+  const sector = (X, Y, Z) => (Math.abs(X) > 0.6 ? 'side' : Math.abs(Y) > Math.abs(Z) ? (Y > 0 ? 'top' : 'bottom') : (Z > 0 ? 'front' : 'rear'));
+  const plate = (which) => gset('surv.' + which, () => {
+    const v = new VB(s, -0.9, -0.9, -0.9, 0.9, 0.9, 0.9);
+    v.fillIf(-0.9, -0.9, -0.9, 0.9, 0.9, 0.9, (X, Y, Z) => {
+      const r = Math.hypot(X, Y, Z); if (r > Rb || r < 0.7) return false;
+      const sc = sector(X, Y, Z); if (which === 'side' ? sc !== 'side' : sc !== which) return false;
+      if (sc !== 'side' && (Math.abs(Math.abs(Y) - Math.abs(Z)) < 0.07 || Math.abs(X) > 0.55)) return false;   // seams
+      return true;
+    }, (X, Y, Z, i, j, k) => {
+      if (which === 'side') return Math.hypot(Y, Z) < 0.22 ? (Math.hypot(Y, Z) < 0.1 ? K.st : K.g2) : (Math.abs(Math.hypot(Y, Z) - 0.38) < 0.04 ? K.BLUE : K.g3);
+      const a = Math.abs(X);
+      if (a > 0.45) return haz(2, K.y1, K.bk)(X, Y, Z, i, j, k);
+      if ((which === 'top' || which === 'bottom') && Math.abs(Z) < 0.06) return K.g5;
+      if ((which === 'front' || which === 'rear') && Math.abs(Y) < 0.06) return K.g5;
+      return (a < 0.06 ? K.cer2 : K.cer);
+    });
+    if (which !== 'side') v.paint((X, Y, Z, i, j, k, c) => (c === K.cer && (i + j + k) % 7 === 0 && Math.abs(X) > 0.3 ? K.st : undefined));
+    return v.weather({ seed: 111 + which.length, rust: 0.1, noise: 0.05 });
+  });
+  const frame = gset('surv.frame', () => {
+    const v = new VB(s, -0.9, -0.9, -0.9, 0.9, 0.9, 0.9);
+    v.ell(0, 0, 0, 0.72, 0.72, 0.72, (X, Y, Z, i, j, k) => ((i + j * 2 + k) % 5 === 0 ? K.g3 : K.g1));
+    v.ell(0, 0, 0, 0.6, 0.6, 0.6, -1);
+    v.cylX(0, 0, -0.8, 0.8, 0.1, K.st);
+    return v;
+  });
+  const core = gset('surv.core', () => {
+    const v = new VB(s, -0.4, -0.5, -0.4, 0.4, 1.4, 0.4);
+    v.ell(0, 0, 0, 0.26, 0.26, 0.26, (X, Y, Z) => (Math.abs(Y) < 0.05 ? K.g1 : K.BLUE));
+    v.ell(0, 0, 0, 0.15, 0.15, 0.15, K.BLUE2);
+    v.cylY(0, 0, -0.45, -0.2, 0.2, K.g2);
+    for (let n = 0; n < 4; n++) { const a = n * Math.PI / 2 + 0.78; v.seg(Math.sin(a) * 0.3, -0.35, Math.cos(a) * 0.3, Math.sin(a) * 0.2, 0.3, Math.cos(a) * 0.2, 0.035, K.g4); }
+    v.cylY(0, 0, 0.25, 1.2, 0.04, K.st); v.cylY(0, 0, 0.25, 0.5, 0.07, K.g2);
+    v.cylY(0, 0, 1.1, 1.18, 0.16, K.g3); v.cylY(0, 0, 1.18, 1.26, 0.1, K.BLUE2);
+    v.box(-0.04, 0.0, 0.2, 0.04, 0.08, 0.3, K.EYE);
+    return v.weather({ seed: 3, noise: 0.04 });
+  });
+  const roll = R.g(R.top, 0, cy, 0); R.jit = roll;
+  R.pm(frame, roll);
+  const parts = {};
+  for (const w of ['front', 'rear', 'bottom']) parts[w] = R.pm(plate(w), roll);
+  const hinge = R.g(roll, 0, 0.6, -0.55); parts.top = R.pm(plate('top'), hinge, 0, -0.6, 0.55);
+  const sides = R.pm(plate('side'), roll);
+  const coreG = R.g(R.top, 0, cy, 0); R.pm(core, coreG);
+  R.zone('plate_front', 0, 0.75, { hide: [parts.front.g] });
+  R.zone('plate_rear', 0, -0.75, { hide: [parts.rear.g] });
+  R.zone('plate_side', -0.75, 0, { dark: [] }); R.zone('plate_side', 0.75, 0, { dark: [] });
+  void sides;
+  let scan = 0;
+  R.anim = (dt, s, t) => {
+    const sp = s.moving ? (s.speed ?? 3) / R.k : 0;
+    const want = !s.moving && !s.stunned ? 1 : 0;
+    if (s.moving && !s.stunned) roll.rotation.x += sp * dt / Rb;
+    else roll.rotation.x = damp(roll.rotation.x, Math.round(roll.rotation.x / (Math.PI * 2)) * Math.PI * 2, 3, dt);
+    const settled = Math.abs(wrapA(roll.rotation.x)) < 0.1;
+    scan = damp(scan, want && settled ? 1 : 0, 2.5, dt);
+    hinge.rotation.x = -scan * 1.6;
+    coreG.position.y = cy + scan * 0.5;
+    coreG.rotation.y += dt * (0.5 + scan * 2);
+    coreG.scale.y = 0.4 + 0.6 * scan;
+  };
+};
+
+// ----------------------------------------------------------------------------- ROCKETIER (rocketeer): heavy rocket gunship (+ Vaporiser, Turbyne)
+BASE_R.rocketeer = 1.6;
+MODELS.rocketeer = (R, def) => {
+  if (def.variant === 'turbine') return MODELS.turbine(R, def);
+  const s = 0.08, laser = def.variant === 'laser', vk = laser ? 'rkt.l.' : 'rkt.';
+  R.refSpeed = 3.2;
+  const hullG = gset(vk + 'hull', () => {
+    const v = new VB(s, -1.0, -0.64, -1.36, 1.0, 0.8, 1.2);
+    v.box(-0.72, -0.4, -0.96, 0.72, 0.4, 0.8, K.g2, { ch: 3, cht: 2, chb: 2 });
+    v.box(-0.56, 0.4, -0.8, 0.56, 0.56, 0.64, K.g4, { ch: 2, cht: 1 });
+    v.paintBox(-0.56, 0.4, -0.8, 0.56, 0.6, 0.64, seam(4, 'z', K.g3, 2));
+    v.paintBox(-0.56, 0.4, -0.8, 0.56, 0.6, 0.64, seam(5, 'x', K.g3, 2));
+    v.paintBox(-0.56, 0.4, -0.8, 0.56, 0.6, 0.64, (X, Y, Z, i, j, k) => (i % 5 === 1 && k % 4 === 1 ? K.st : undefined));
+    v.box(-0.16, 0.56, -0.72, 0.16, 0.64, 0.24, K.g3);                          // spine vent
+    v.paintBox(-0.16, 0.56, -0.72, 0.16, 0.65, 0.24, seam(2, 'z', K.g1));
+    v.paintBox(-0.73, -0.1, 0.48, 0.73, 0.4, 0.82, haz(2));
+    // side ribs + skirts
+    for (const sx of [-1, 1]) { v.box(sx > 0 ? 0.72 : -0.8, -0.32, -0.72, sx > 0 ? 0.8 : -0.72, 0.24, 0.56, K.g3); v.paintBox(-0.81, -0.32, -0.72, 0.81, 0.24, 0.56, seam(3, 'z', K.g1)); }
+    // scanner housing (under the brow)
+    v.box(-0.48, -0.24, 0.8, 0.48, 0.16, 0.96, K.g1, { ch: 1 });
+    v.box(-0.16, -0.08, 0.92, 0.16, 0.08, 1.0, K.EYE); v.box(-0.08, -0.08, 0.96, 0.0, 0.0, 1.04, K.EYE2);
+    for (const x of [-0.4, -0.26, 0.18, 0.32]) v.box(x, -0.08, 0.92, x + 0.08, 0.0, 1.0, K.YEL);
+    // rear: back canister cradle
+    v.box(-0.48, -0.24, -1.12, 0.48, 0.24, -0.96, K.g1);
+    // strut roots to thrusters
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) v.seg(sx * 0.6, 0.0, sz * 0.6, sx * 0.95, 0.0, sz * 0.84, 0.09, K.g3);
+    if (laser) { v.box(-0.32, 0.56, -0.32, 0.32, 0.64, 0.24, K.g1); }
+    return v.weather({ seed: 121, rust: 0.16 });
+  });
+  const brow = gset('rkt.brow', () => {
+    const v = new VB(s, -0.64, -0.08, -0.24, 0.64, 0.4, 0.4);
+    v.fillIf(-0.64, 0, -0.24, 0.64, 0.4, 0.4, (X, Y, Z) => Math.abs(X) < 0.6 - Y * 0.3 && Z < 0.32 - Y * 0.4 && Z > -0.2, (X, Y, Z, i, j, k) => (Math.abs(X) > 0.4 ? haz(1)(X, Y, Z, i, j, k) : (k % 3 === 0 ? K.g3 : K.g4)));
+    return v.weather({ seed: 9, chip: 0.35 });
+  });
+  const pod = gset(vk + 'pod', () => {
+    const v = new VB(s, -0.32, -0.32, -0.56, 0.32, 0.32, 0.72);
+    if (laser) {
+      v.box(-0.2, -0.2, -0.48, 0.2, 0.2, 0.24, K.g2, { ch: 1 });
+      v.cylZ(0, 0, 0.2, 0.68, 0.08, K.st); for (let z = 0.24; z < 0.56; z += 0.16) v.cylZ(0, 0, z, z + 0.08, 0.14, K.cu);
+      v.cylZ(0, 0, 0.6, 0.72, 0.1, K.g1, 0.05); v.cylZ(0, 0, 0.64, 0.72, 0.05, K.RED);
+    } else {
+      v.box(-0.24, -0.24, -0.48, 0.24, 0.24, 0.64, K.g3, { ch: 1 });
+      v.paintBox(-0.25, 0.16, -0.48, 0.25, 0.25, 0.64, haz(2));
+      for (const x of [-0.12, 0.04]) for (const y of [-0.12, 0.04]) { v.box(x, y, 0.4, x + 0.08, y + 0.08, 0.64, K.g0); v.box(x, y, 0.48, x + 0.08, y + 0.08, 0.56, K.HOT); }
+      v.paintBox(-0.25, -0.25, -0.48, 0.25, 0.25, 0.4, seam(3, 'z', K.g2));
+    }
+    return v.weather({ seed: 13, rust: 0.2 });
+  });
+  const canister = gset('rkt.can', () => {
+    const v = new VB(s, -0.48, -0.24, -0.24, 0.48, 0.24, 0.24);
+    v.cylX(0, 0, -0.4, 0.4, 0.17, K.HOT); v.cylX(0, 0, -0.3, 0.3, 0.18, K.HOT2, 0.12);
+    for (const x of [-0.48, 0.32]) v.cylX(0, 0, x, x + 0.16, 0.14, K.g1);
+    for (const x of [-0.16, 0.08]) v.cylX(0, 0, x, x + 0.08, 0.2, K.y0);
+    return v.weather({ seed: 6 });
+  });
+  const duct = gset('rkt.duct', () => {
+    const v = new VB(s, -0.5, -0.24, -0.5, 0.5, 0.24, 0.5);
+    v.cylY(0, 0, -0.16, 0.16, 0.44, (X, Y, Z, i, j, k) => (Y > 0.08 ? ((Math.floor(Math.atan2(X, Z) * 4) & 1) ? K.y1 : K.bk) : K.g3), 0.33);
+    v.cylY(0, 0, -0.08, 0.0, 0.33, K.g1, 0.26);
+    v.cylY(0, 0, -0.2, -0.12, 0.12, K.g1); v.cylY(0, 0, -0.24, -0.2, 0.08, K.EXH);
+    for (let n = 0; n < 3; n++) { const a = n * Math.PI * 2 / 3; v.seg(0, -0.16, 0, Math.sin(a) * 0.36, -0.12, Math.cos(a) * 0.36, 0.04, K.g2); }
+    return v.weather({ seed: 15, rust: 0.12 });
+  });
+  const fan = bladesGS('rkt.fan', s, 0.32, 5, K.g4, K.g5);
+  const stubM = stubGS('stub.l', s, 0.3);
+  const hull = R.g(R.top); R.jit = hull;
+  R.pm(hullG, hull);
+  const browP = R.pm(brow, hull, 0, 0.32, 0.76);
+  R.zone('eyebrow', 0, 0.9, { hide: [browP.g] });
+  const cp = R.pm(canister, hull, 0, 0.08, -1.12);
+  void cp;
+  const pods = [];
+  for (const sx of [-1, 1]) {
+    const pg = R.g(hull, sx * 1.04, -0.04, 0.0);
+    const p = R.pm(pod, pg); const st = R.pm(stubM, hull, sx * 0.9, 0, 0.0);
+    R.zone('rocket_pod', sx * 1.0, 0.1, { hide: [pg], show: [st.g], fn: () => { pg.dead = true; } });
+    v_strut(R, hull, sx);
+    pods.push(pg);
+    R.flash(flashGS('flash.m', s, 0.28), pg, 0, 0, 0.7);
+    void p;
+  }
+  const thr = [];
+  for (const [x, z] of [[-1.15, 0.95], [1.15, 0.95], [-1.15, -0.95], [1.15, -0.95]]) {
+    const g = R.g(hull, x, 0.0, z);
+    const d = R.pm(duct, g), f = R.pm(fan, g, 0, -0.04, 0), st = R.pm(stubM, g, 0, 0, 0);
+    const o = { g, f: f.g, dir: x * z > 0 ? 1 : -1, broken: false };
+    R.zone(['thruster', 'gear_gap'], x, z, { hide: [f.g], dark: [d.g], show: [st.g], fn: () => { o.broken = true; } });
+    thr.push(o);
+  }
+  if (laser) {
+    const panel = gset('rkt.panel', () => { const v = new VB(s, -0.4, 0, -0.4, 0.4, 0.16, 0.4); v.box(-0.32, 0, -0.32, 0.32, 0.08, 0.32, K.g4, { ch: 1 }); v.paintBox(-0.32, 0, -0.32, 0.32, 0.09, 0.32, haz(2)); v.box(-0.08, 0.08, -0.08, 0.08, 0.12, 0.08, K.g1); return v.weather({ seed: 4 }); });
+    const lcore = gset('rkt.lcore', () => { const v = new VB(s, -0.3, -0.3, -0.3, 0.3, 0.3, 0.3); v.ell(0, 0, 0, 0.26, 0.2, 0.26, K.HOT); v.ell(0, 0, 0, 0.16, 0.14, 0.16, K.HOT2); return v; });
+    const pp = R.pm(panel, hull, 0, 0.64, -0.04);
+    const lc = R.pm(lcore, hull, 0, 0.56, -0.04);
+    R.zone('belly_panel', 0, 0, { hide: [pp.g], show: [] });
+    void lc;
+  }
+  R.anim = (dt, s, t) => {
+    let bx = 0, bz = 0;
+    for (const o of thr) { if (o.broken) { bx += Math.sign(o.g.position.x); bz += Math.sign(o.g.position.z); continue; } o.f.rotation.y += (s.stunned ? 5 : 18 + 6 * R.al) * dt * o.dir; }
+    hull.rotation.x = damp(hull.rotation.x, 0.1 * R.mv + bz * 0.12 + Math.sin(t * 0.9) * 0.02, 2, dt);
+    hull.rotation.z = damp(hull.rotation.z, -bx * 0.12 + Math.sin(t * 1.1) * 0.025, 2, dt);
+    const te = clamp(s.tele || 0, 0, 1);
+    for (const p of pods) { p.rotation.x = damp(p.rotation.x, -te * 0.25, 4, dt); p.position.z = s.firing ? -Math.random() * 0.06 : damp(p.position.z, 0, 6, dt); }
+  };
+};
+function v_strut(R, hull, sx) {
+  const g = gset('rkt.strut', () => { const v = new VB(0.08, -0.3, -0.16, -0.24, 0.3, 0.16, 0.24); v.box(-0.24, -0.08, -0.16, 0.24, 0.08, 0.16, K.g1); v.box(-0.24, 0.08, -0.08, 0.24, 0.16, 0.08, K.st); return v; });
+  R.pm(g, hull, sx * 0.8, -0.04, 0.0);
+}
+
+// ----------------------------------------------------------------------------- ARK TURBYNE: armoured sky-engine (rocketeer 'turbine' variant)
+BASE_R.turbine = 2.8;
+MODELS.turbine = (R) => {
+  const s = 0.12;
+  R.refSpeed = 2; R.ownSize = true;
+  const shellG = gset('turb.shell', () => {
+    const v = new VB(s, -2.6, -1.2, -2.6, 2.6, 1.32, 2.6);
+    v.fillIf(-2.6, -1.0, -2.6, 2.6, 1.0, 2.6, (X, Y, Z) => { const r = Math.hypot(X, Z); return r < 2.3 - Math.max(0, Y - 0.2) * 0.9 && r > 1.15 && Y > -0.9; },
+      (X, Y, Z, i, j, k) => {
+        const a = Math.atan2(X, Z), sec = Math.abs(Math.sin(a * 6));
+        if (sec < 0.1) return K.g1;
+        if (Y > 0.6) return Math.hypot(X, Z) > 1.5 ? K.g4 : K.g3;
+        if (Math.abs(Y + 0.2) < 0.1) return haz(2)(X, Y, Z, i, j, k);
+        return Math.cos(a * 6) > 0 ? K.g3 : K.g2;
+      });
+    v.cylY(0, 0, -0.6, -0.2, 1.2, K.g1);
+    for (let n = 0; n < 4; n++) { const a = n * Math.PI / 2 + Math.PI / 4; v.cylY(Math.sin(a) * 1.7, Math.cos(a) * 1.7, -1.2, 0.4, 0.5, K.g0); }   // gear bays
+    for (let n = 0; n < 8; n++) { const a = n * Math.PI / 4; v.box(Math.sin(a) * 2.0 - 0.12, 0.2, Math.cos(a) * 2.0 - 0.12, Math.sin(a) * 2.0 + 0.12, 0.5, Math.cos(a) * 2.0 + 0.12, K.st); }
+    v.box(-0.36, -0.24, 2.0, 0.36, 0.12, 2.3, K.g1); v.box(-0.24, -0.12, 2.24, 0.24, 0.0, 2.36, K.EYE);
+    return v.weather({ seed: 141, rust: 0.2 });
+  });
+  const fan = bladesGS('turb.fan', s, 1.1, 7, K.g4, K.y1);
+  const tank = gset('turb.tank', () => { const v = new VB(s, -0.5, -0.8, -0.5, 0.5, 0.8, 0.5); v.cylY(0, 0, -0.6, 0.6, 0.36, (X, Y, Z, i, j, k) => (j % 3 === 0 ? K.bk : K.y0)); v.cylY(0, 0, -0.3, 0.3, 0.38, K.HOT, 0.25); return v.weather({ seed: 5 }); });
+  const hull = R.g(R.top); R.jit = hull;
+  R.pm(shellG, hull);
+  const f = R.pm(fan, hull, 0, 0.3, 0);
+  const tanks = [];
+  for (let n = 0; n < 4; n++) { const a = n * Math.PI / 2 + Math.PI / 4, x = Math.sin(a) * 1.7, z = Math.cos(a) * 1.7; const tp = R.pm(tank, hull, x, -0.5, z); tanks.push(tp.g); R.zone('gear_gap', x, z, { hide: [tp.g] }); }
+  R.anim = (dt, s, t) => {
+    f.g.rotation.y += dt * (s.stunned ? 1 : 4 + R.al * 2);
+    for (const tg of tanks) tg.rotation.y += dt * 3;
+    hull.rotation.x = damp(hull.rotation.x, Math.sin(t * 0.5) * 0.03 + R.mv * 0.05, 2, dt);
+    hull.rotation.z = damp(hull.rotation.z, Math.sin(t * 0.4) * 0.03, 2, dt);
+  };
+};
+
+// ----------------------------------------------------------------------------- LEAPR (leaper): four-legged leaping brute
+BASE_R.leaper = 1.8;
+MODELS.leaper = (R) => {
+  const s = 0.08;
+  R.refSpeed = 3.4;
+  const bodyY = 1.45;
+  const hull = gset('leap.hull', () => {
+    const v = new VB(s, -0.8, -0.56, -1.36, 0.8, 0.64, 1.6);
+    v.box(-0.56, -0.32, -0.72, 0.56, 0.32, 0.72, K.g2, { ch: 3, cht: 2, chb: 2 });
+    v.ell(0, 0.16, 0, 0.62, 0.34, 0.82, (X, Y, Z, i, j, k) => (k % 4 === 0 ? K.g2 : Math.abs(X) < 0.08 ? K.g3 : K.g4));
+    v.paintBox(-0.7, 0.16, -0.9, 0.7, 0.7, 0.9, (X, Y, Z, i, j, k) => (Math.abs(X) > 0.5 ? haz(1)(X, Y, Z, i, j, k) : undefined));
+    // core well on top (core itself is a separate part)
+    v.cylY(0, 0, 0.24, 0.64, 0.36, -1); v.cylY(0, 0, 0.2, 0.28, 0.38, K.g0); v.cylY(0, 0, 0.28, 0.48, 0.42, K.g1, 0.34);
+    // rear abdomen with vents
+    v.ell(0, 0.0, -0.92, 0.46, 0.34, 0.44, K.g2);
+    v.paintBox(-0.5, -0.3, -1.4, 0.5, 0.3, -0.8, seam(2, 'y', K.g0));
+    v.box(-0.16, 0.16, -1.36, 0.16, 0.24, -1.2, K.RED);
+    // head
+    v.box(-0.36, -0.28, 0.64, 0.36, 0.24, 1.28, K.g3, { ch: 2, cht: 2, chb: 1 });
+    v.box(-0.28, -0.2, 1.2, 0.28, 0.16, 1.36, K.g1);
+    v.cylZ(0, -0.02, 1.24, 1.42, 0.17, K.EYE); v.cylZ(0, -0.02, 1.3, 1.46, 0.08, K.EYE2);
+    v.box(-0.32, -0.08, 1.2, -0.24, 0.0, 1.32, K.EYE); v.box(0.24, -0.08, 1.2, 0.32, 0.0, 1.32, K.EYE);
+    for (const sx of [-1, 1]) v.seg(sx * 0.16, -0.24, 1.16, sx * 0.12, -0.5, 1.4, 0.05, K.st);   // pulse prongs
+    v.paintBox(-0.37, 0.16, 0.64, 0.37, 0.25, 1.0, seam(2, 'z', K.g2));
+    // hip housings
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) v.cylY(sx * 0.5, sz * 0.5, -0.24, 0.2, 0.2, K.g3);
+    return v.weather({ seed: 151, rust: 0.18 });
+  });
+  const plate = gset('leap.eyeplate', () => {
+    const v = new VB(s, -0.4, -0.08, -0.16, 0.4, 0.32, 0.32);
+    v.fillIf(-0.4, 0, -0.16, 0.4, 0.32, 0.32, (X, Y, Z) => Math.abs(X) < 0.34 - Y * 0.2 && Z < 0.24 - Y * 0.5 && Z > -0.12, (X, Y, Z, i, j, k) => (Math.abs(X) > 0.2 ? haz(1)(X, Y, Z, i, j, k) : K.g4));
+    return v.weather({ seed: 8, chip: 0.4 });
+  });
+  const core = gset('leap.core', () => { const v = new VB(s, -0.4, -0.2, -0.4, 0.4, 0.2, 0.4); v.cylY(0, 0, -0.16, 0.08, 0.34, K.HOT); v.cylY(0, 0, -0.16, 0.12, 0.2, K.HOT2); v.cylY(0, 0, 0.08, 0.16, 0.08, K.g1); return v; });
+  const petal = gset('leap.petal', () => {
+    const v = new VB(s, -0.08, -0.08, -0.08, 0.48, 0.16, 0.48);
+    v.fillIf(0, 0, 0, 0.44, 0.08, 0.44, (X, Y, Z) => Math.hypot(X, Z) < 0.4 && X >= 0 && Z >= 0, (X, Y, Z, i, j, k) => (Math.hypot(X, Z) > 0.32 ? K.y1 : (i + k) % 3 === 0 ? K.g3 : K.g4));
+    return v.weather({ seed: 2 });
+  });
+  const upper = limbGS('leap.up', s, 1.56, 0.17, 0.16, 0.13, 0.12, { haz: [0.72, 0.84], band: 0.4, seed: 4 });
+  const lower = limbGS('leap.lo', s, 2.5, 0.13, 0.12, 0.05, 0.05, { band: 0.5, seed: 5, piston: false, col: K.g2, col2: K.g3, tip: (v, L) => { v.seg(0, 0, L - 0.2, 0, -0.08, L + 0.08, 0.06, K.st); v.seg(0, 0, L - 0.3, 0.12, -0.1, L - 0.05, 0.035, K.st); v.seg(0, 0, L - 0.3, -0.12, -0.1, L - 0.05, 0.035, K.st); } });
+  const joint = jointGS('leap.knee', s, 0.17, 0.2);
+  const body = R.g(R.top, 0, bodyY, 0);
+  const hullG = R.g(body); R.jit = hullG;
+  R.pm(hull, hullG);
+  const ep = R.pm(plate, hullG, 0, 0.12, 1.2);
+  R.zone('eye_plate', 0, 1.45, { hide: [ep.g] });
+  const cg = R.pm(core, hullG, 0, 0.32, 0);
+  const petals = [];
+  for (let n = 0; n < 4; n++) { const g = R.g(hullG, 0, 0.5, 0); g.rotation.y = n * Math.PI / 2; const h = R.g(g, 0, 0, 0); R.pm(petal, h, 0.02, 0, 0.02); petals.push(h); }
+  const legs = [];
+  for (const [sx, sz, ph] of [[-1, 1, 0], [1, -1, 0], [1, 1, 0.5], [-1, -1, 0.5]]) {
+    const L = new Leg(R, body, [sx * 0.5, 0, sz * 0.5], [sx * 1.75, 0, sz * 1.75], 1.56, 2.5, { upper, lower, joint }, { phase: ph });
+    const kn = L.kneeRest();
+    R.zone('leg', kn[0], kn[2], { dark: [L.pJ.g], fn: () => { L.limp = true; } });
+    legs.push(L);
+  }
+  void cg;
+  let open = 0, crouch = 0;
+  R.anim = (dt, s, t) => {
+    const c = R.gait(dt, s, legs, { A: 0.32, H: 0.35, duty: 0.6, maxHz: 1.6, minHz: 0.6 });
+    const te = clamp(s.tele || 0, 0, 1);
+    crouch = damp(crouch, s.leaping ? -0.2 : te * 0.55 + (s.stunned ? 0.35 : 0), 6, dt);
+    body.position.y = bodyY - crouch + Math.abs(Math.sin(c * Math.PI * 2)) * 0.05 * R.gmv;
+    body.rotation.x = damp(body.rotation.x, s.leaping ? -0.3 : -te * 0.12, 4, dt);
+    if (s.leaping) for (const L of legs) L.tgt.set(L.rest.x * 0.85, L.rest.y + 0.9, L.rest.z * 0.85 - 0.3);
+    for (const L of legs) L.solve();
+    open = damp(open, s.stunned ? 1 : 0.08, 3, dt);
+    for (const h of petals) h.rotation.x = 0; for (let n = 0; n < 4; n++) petals[n].children[0].rotation.z = open * 1.1;
+  };
+};
+
+// ----------------------------------------------------------------------------- BASTIAN (bastion): armoured gatling fortress
+BASE_R.bastion = 2.2;
+MODELS.bastion = (R) => {
+  const s = 0.1;
+  R.refSpeed = 1.8;
+  const bodyY = 2.5;
+  const hull = gset('bast.hull', () => {
+    const v = new VB(s, -1.3, -1.0, -1.6, 1.3, 1.4, 1.8);
+    v.box(-1.0, -0.7, -1.2, 1.0, 0.8, 1.1, K.g2, { ch: 3, cht: 2, chb: 2 });
+    v.box(-0.8, 0.8, -1.0, 0.8, 1.0, 0.9, K.g4, { ch: 2, cht: 1 });
+    v.paintBox(-0.8, 0.8, -1.0, 0.8, 1.05, 0.9, seam(4, 'z', K.g3, 1)); v.paintBox(-0.8, 0.8, -1.0, 0.8, 1.05, 0.9, seam(4, 'x', K.g3, 2));
+    v.paintBox(-0.8, 0.8, -1.0, 0.8, 1.05, 0.9, (X, Y, Z, i, j, k) => (i % 4 === 0 && k % 4 === 3 ? K.st : undefined));
+    v.box(-0.3, 1.0, -0.8, 0.3, 1.1, 0.3, K.g3); v.paintBox(-0.3, 1.0, -0.8, 0.3, 1.15, 0.3, seam(2, 'z', K.g1));   // top vent
+    v.seg(0.5, 1.0, -0.6, 0.55, 1.4, -0.7, 0.04, K.st); v.box(0.5, 1.3, -0.75, 0.6, 1.4, -0.65, K.RED);
+    // side skirts with hazard trims
+    for (const sx of [-1, 1]) { v.box(sx > 0 ? 1.0 : -1.1, -0.6, -1.0, sx > 0 ? 1.1 : -1.0, 0.5, 0.9, K.g3); }
+    v.paintBox(-1.11, 0.3, -1.0, 1.11, 0.5, 0.9, haz(2));
+    v.paintBox(-1.11, -0.6, -1.0, 1.11, 0.3, 0.9, seam(4, 'z', K.g1));
+    // massive sloped front armour
+    v.fillIf(-1.25, -0.95, 0.9, 1.25, 1.05, 1.75, (X, Y, Z) => { const zf = 1.62 - 0.22 * (X / 1.25) ** 2 - Math.max(0, Y - 0.2) * 0.35; return Z < zf && Z >= zf - 0.32 && Math.abs(X) < 1.25 - Math.max(0, Y - 0.7) * 0.8; },
+      (X, Y, Z, i, j, k) => (Math.abs(X) > 1.0 || Y < -0.8 ? haz(2)(X, Y, Z, i, j, k) : (j % 5 === 0 ? K.g3 : K.g4)));
+    v.box(-0.6, 0.25, 0.9, 0.6, 0.45, 1.8, -1);                                     // sensor slit
+    v.box(-0.6, 0.25, 1.05, 0.6, 0.45, 1.25, K.g0);
+    for (let x = -0.5; x < 0.5; x += 0.2) v.box(x, 0.3, 1.2, x + 0.1, 0.4, 1.32, K.EYE);
+    v.box(-0.1, 0.3, 1.25, 0.0, 0.4, 1.36, K.EYE2);
+    v.paintBox(-1.3, -1, 0.9, 1.3, 1.1, 1.8, (X, Y, Z, i, j, k, c) => (c === K.g4 && (i % 6 === 2) && (j % 5 === 2) ? K.st : undefined));
+    // rear: core recess + canister cradle
+    v.box(-0.5, -0.4, -1.25, 0.5, 0.4, -1.1, K.g0);
+    v.box(-0.6, -0.5, -1.4, -0.5, 0.6, -1.2, K.g3); v.box(0.5, -0.5, -1.4, 0.6, 0.6, -1.2, K.g3);
+    // hip housings
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) v.box(sx * 0.7 - 0.25, -0.9, sz * 0.6 - 0.25, sx * 0.7 + 0.25, -0.5, sz * 0.6 + 0.25, K.g3, { ch: 1 });
+    return v.weather({ seed: 161, rust: 0.2 });
+  });
+  const canister = gset('bast.can', () => {
+    const v = new VB(s, -0.5, -0.6, -0.5, 0.5, 0.7, 0.5);
+    v.cylY(0, 0, -0.5, 0.6, 0.33, K.HOT); v.cylY(0, 0, -0.3, 0.4, 0.34, K.HOT2, 0.28);
+    for (const y of [-0.6, 0.5]) v.cylY(0, 0, y, y + 0.1, 0.28, K.g1);
+    for (const y of [-0.2, 0.2]) v.cylY(0, 0, y, y + 0.1, 0.37, K.y0);
+    for (let n = 0; n < 6; n++) { const a = n * Math.PI / 3; v.seg(Math.sin(a) * 0.38, -0.5, Math.cos(a) * 0.38, Math.sin(a) * 0.38, 0.6, Math.cos(a) * 0.38, 0.05, K.g2); }
+    return v.weather({ seed: 7, chip: 0.25 });
+  });
+  const rcore = gset('bast.core', () => { const v = new VB(s, -0.5, -0.4, -0.3, 0.5, 0.4, 0.2); v.ell(0, 0, 0, 0.42, 0.35, 0.2, K.HOT); v.ell(0, 0, 0.05, 0.25, 0.2, 0.15, K.HOT2); return v; });
+  const mount = gset('bast.mount', () => {
+    const v = new VB(s, -0.4, -0.4, -0.6, 0.4, 0.4, 0.6);
+    v.box(-0.3, -0.3, -0.5, 0.3, 0.3, 0.3, K.g3, { ch: 1, cht: 1 });
+    v.cylX(0, -0.1, -0.4, 0.4, 0.28, K.g2); v.paintBox(-0.31, 0.2, -0.5, 0.31, 0.31, 0.3, haz(1));
+    v.cylX(0.0, -0.3, -0.3, 0.3, 0.18, K.y2);   // ammo drum
+    return v.weather({ seed: 9, rust: 0.2 });
+  });
+  const gat = gatlingGS('bast.gat', s, 1.1, 0.14, 6, 0.06);
+  const upper = limbGS('bast.up', s, 1.0, 0.24, 0.24, 0.2, 0.2, { band: 0.3, seed: 6 });
+  const lower = limbGS('bast.lo', s, 2.3, 0.22, 0.24, 0.16, 0.16, { band: 0.5, seed: 7, col: K.g2, col2: K.g3, haz: [0.08, 0.16] });
+  const joint = jointGS('bast.knee', s, 0.26, 0.26);
+  const foot = gset('bast.foot', () => { const v = new VB(s, -0.4, -0.3, -0.4, 0.4, 0.2, 0.4); v.box(-0.32, -0.25, -0.32, 0.32, -0.05, 0.32, K.g2, { ch: 2, cht: 1 }); v.box(-0.15, -0.05, -0.15, 0.15, 0.1, 0.15, K.g3); v.paintBox(-0.33, -0.25, -0.33, 0.33, -0.15, 0.33, haz(1)); return v.weather({ seed: 3 }); });
+  const body = R.g(R.top, 0, bodyY, 0);
+  const hullG = R.g(body); R.jit = hullG;
+  R.pm(hull, hullG);
+  const cp = R.pm(canister, hullG, 0, 0.1, -1.4);
+  const core = R.pm(rcore, hullG, 0, 0, -1.15);
+  R.zone('rear_canister', 0, -1.35, { hide: [cp.g], show: [core.g] });
+  const guns = [];
+  for (const sx of [-1, 1]) {
+    const yawG = R.g(hullG, sx * 1.4, 0.05, 0.5);
+    const mt = R.pm(mount, yawG);
+    const spin = R.g(yawG, 0, -0.1, 0.25); const gp = R.pm(gat, spin);
+    const st = R.pm(stubGS('stub.l', s, 0.3), yawG, 0, 0, 0.3);
+    R.flash(flashGS('flash.l', s, 0.35), yawG, 0, -0.1, 1.4);
+    R.zone('chaingun', sx * 1.45, 0.5, { hide: [spin], dark: [mt.g], show: [st.g] });
+    guns.push({ yawG, spin }); void gp;
+  }
+  const legs = [];
+  for (const [sx, sz, ph] of [[-1, 1, 0], [1, -1, 0], [1, 1, 0.5], [-1, -1, 0.5]]) {
+    const L = new Leg(R, body, [sx * 0.7, -0.6, sz * 0.6], [sx * 1.55, 0, sz * 1.45], 1.0, 2.3, { upper, lower, joint, foot }, { phase: ph });
+    const kn = L.kneeRest();
+    R.zone('leg_joint', kn[0], kn[2], { dark: [L.pJ.g], fn: () => { L.limp = true; } });
+    legs.push(L);
+  }
+  R.anim = (dt, s, t) => {
+    const c = R.gait(dt, s, legs, { A: 0.35, H: 0.3, duty: 0.62, maxHz: 1.1, minHz: 0.4 });
+    body.position.y = bodyY + Math.abs(Math.sin(c * Math.PI * 2)) * 0.06 * R.gmv - (s.tele || 0) * 0.1;
+    body.rotation.z = Math.sin(c * Math.PI * 2) * 0.02 * R.gmv;
+    for (const L of legs) L.solve();
+    const gz = clamp(wrapA(s.gaze || 0), -0.5, 0.5);
+    for (const g of guns) { g.yawG.rotation.y = damp(g.yawG.rotation.y, gz, 3, dt); if (s.firing || s.tele > 0) g.spin.rotation.z += dt * (s.firing ? 30 : 8 * s.tele); }
+  };
+};
+
+// ----------------------------------------------------------------------------- BOMBARDEER (bombardier): artillery walker
+BASE_R.bombardier = 2.2;
+MODELS.bombardier = (R) => {
+  const s = 0.1;
+  R.refSpeed = 1.6;
+  const bodyY = 2.0;
+  const hull = gset('bomb.hull', () => {
+    const v = new VB(s, -1.3, -0.9, -1.6, 1.3, 1.0, 1.5);
+    v.box(-1.0, -0.6, -1.1, 1.0, 0.5, 1.0, K.g2, { ch: 4, cht: 2, chb: 2 });
+    v.box(-0.9, 0.5, -0.9, 0.9, 0.6, 0.8, K.g4, { ch: 3 });
+    v.paintBox(-0.9, 0.5, -0.9, 0.9, 0.65, 0.8, seam(4, 'x', K.g3, 1));
+    v.paintBox(-0.9, 0.5, -0.9, 0.9, 0.65, 0.8, (X, Y, Z, i, j, k) => (Math.hypot(X, Z - 0.1) > 0.75 && Math.hypot(X, Z - 0.1) < 0.85 ? K.y1 : undefined));
+    v.cylY(0, 0.1, 0.5, 0.7, 0.62, K.g3); v.cylY(0, 0.1, 0.6, 0.7, 0.5, K.g1);                      // turret ring
+    // shell magazine (left) & spotter uplink dish (right)
+    for (let n = 0; n < 5; n++) { v.cylY(0.75, -0.6 + n * 0.25, 0.5, 0.85, 0.09, K.r2); v.cylY(0.75, -0.6 + n * 0.25, 0.85, 0.95, 0.06, K.y0); }
+    v.box(0.6, 0.5, -0.75, 0.9, 0.55, 0.5, K.g1);
+    v.cylY(-0.7, -0.6, 0.5, 0.8, 0.06, K.st); v.cylY(-0.7, -0.6, 0.8, 0.9, 0.28, K.g4, 0.18); v.box(-0.75, 0.9, -0.65, -0.65, 1.0, -0.55, K.RED);
+    // front sensor face
+    v.box(-0.6, -0.3, 0.95, 0.6, 0.3, 1.15, K.g3, { ch: 2 });
+    v.box(-0.45, -0.1, 1.1, 0.45, 0.15, 1.2, K.g0);
+    v.box(-0.3, -0.05, 1.12, -0.1, 0.1, 1.24, K.EYE); v.box(0.1, -0.05, 1.12, 0.3, 0.1, 1.24, K.EYE); v.box(-0.05, -0.05, 1.15, 0.05, 0.05, 1.25, K.EYE2);
+    v.paintBox(-0.61, 0.15, 0.95, 0.61, 0.31, 1.16, haz(2));
+    // rear cradle
+    v.box(-0.6, -0.5, -1.3, -0.5, 0.4, -1.1, K.g3); v.box(0.5, -0.5, -1.3, 0.6, 0.4, -1.1, K.g3);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) v.box(sx * 0.75 - 0.25, -0.8, sz * 0.75 - 0.25, sx * 0.75 + 0.25, -0.4, sz * 0.75 + 0.25, K.g3, { ch: 1 });
+    v.paintBox(-1.01, -0.6, -1.1, 1.01, -0.3, 1.0, haz(2));
+    return v.weather({ seed: 171, rust: 0.24 });
+  });
+  const mortar = gset('bomb.mortar', () => {
+    const v = new VB(s, -0.5, -0.4, -0.5, 0.5, 2.4, 0.5);
+    v.box(-0.45, -0.3, -0.4, 0.45, 0.2, 0.4, K.g3, { ch: 2, cht: 1 });
+    v.cylX(0, 0, -0.5, 0.5, 0.2, K.g1);
+    v.cylY(0, 0, 0.0, 2.2, 0.32, (X, Y, Z, i, j, k) => (j % 6 === 0 ? K.g2 : Y > 1.9 ? K.g4 : K.g3), 0.19);
+    v.cylY(0, 0, 0.3, 0.9, 0.36, K.g2, 0.3); v.cylY(0, 0, 1.95, 2.2, 0.38, K.g2, 0.19);
+    v.paintBox(-0.4, 1.2, -0.4, 0.4, 1.5, 0.4, haz(2));
+    v.cylY(0, 0, 0.6, 0.7, 0.18, K.HOT);
+    return v.weather({ seed: 13, rust: 0.2 });
+  });
+  const canister = gset('bomb.can', () => {
+    const v = new VB(s, -0.6, -0.4, -0.4, 0.6, 0.4, 0.4);
+    v.cylX(0, 0, -0.5, 0.5, 0.3, K.HOT); v.cylX(0, 0, -0.35, 0.35, 0.31, K.HOT2, 0.25);
+    for (const x of [-0.6, 0.45]) v.cylX(0, 0, x, x + 0.15, 0.25, K.g1);
+    for (const x of [-0.15, 0.1]) v.cylX(0, 0, x, x + 0.08, 0.33, K.y0);
+    return v.weather({ seed: 3 });
+  });
+  const upper = limbGS('bomb.up', s, 1.3, 0.2, 0.2, 0.17, 0.17, { band: 0.35, seed: 8, haz: [0.75, 0.9] });
+  const lower = limbGS('bomb.lo', s, 2.4, 0.18, 0.18, 0.1, 0.1, { band: 0.5, seed: 9, col: K.g2, col2: K.g3, piston: false, tip: (v, L) => v.box(-0.15, -0.15, L - 0.1, 0.15, 0.1, L + 0.1, K.g1) });
+  const joint = jointGS('bomb.knee', s, 0.22, 0.22);
+  const body = R.g(R.top, 0, bodyY, 0);
+  const hullG = R.g(body); R.jit = hullG;
+  R.pm(hull, hullG);
+  const turret = R.g(hullG, 0, 0.7, 0.1);
+  const pitch = R.g(turret, 0, 0.1, 0); pitch.rotation.x = 0.4;
+  const mp = R.pm(mortar, pitch);
+  const mst = R.pm(stubGS('stub.l', s, 0.4), turret, 0, 0.2, 0);
+  R.zone('mortar', 0, 0.2, { hide: [mp.g], show: [mst.g] });
+  R.flash(flashGS('flash.l', s, 0.5), pitch, 0, 2.3, 0).rotation.x = -Math.PI / 2;
+  const cp = R.pm(canister, hullG, 0, 0.0, -1.35);
+  const cst = R.pm(stubGS('stub.l', s, 0.35), hullG, 0, 0, -1.25);
+  R.zone('rear_canister', 0, -1.4, { hide: [cp.g], show: [cst.g] });
+  const legs = [];
+  for (const [sx, sz, ph] of [[-1, 1, 0], [1, -1, 0], [1, 1, 0.5], [-1, -1, 0.5]]) {
+    const L = new Leg(R, body, [sx * 0.75, -0.6, sz * 0.75], [sx * 1.8, 0, sz * 1.8], 1.3, 2.4, { upper, lower, joint }, { phase: ph });
+    const kn = L.kneeRest();
+    R.zone('leg_joint', kn[0], kn[2], { dark: [L.pJ.g], fn: () => { L.limp = true; } });
+    legs.push(L);
+  }
+  let kick = 0;
+  R.anim = (dt, s, t) => {
+    const c = R.gait(dt, s, legs, { A: 0.3, H: 0.32, duty: 0.62, maxHz: 1.0, minHz: 0.4 });
+    if (s.firing) kick = 1; kick = Math.max(0, kick - dt * 2);
+    body.position.y = bodyY + Math.abs(Math.sin(c * Math.PI * 2)) * 0.05 * R.gmv - kick * 0.15;
+    for (const L of legs) L.solve();
+    turret.rotation.y = damp(turret.rotation.y, clamp(wrapA(s.gaze || 0), -0.6, 0.6), 2, dt);
+    pitch.rotation.x = damp(pitch.rotation.x, 0.35 + (s.tele || 0) * 0.2, 2, dt);
+    mp.g.position.y = -kick * 0.35;
+  };
+};
+
+// ----------------------------------------------------------------------------- QUEENE (queen): colossal walker boss (+ Matriark)
+BASE_R.queen = 4.5;
+MODELS.queen = (R, def) => {
+  const s = 0.15, matri = def.behavior === 'matriarch' || /matri/i.test(def.name || '');
+  R.refSpeed = 1.4;
+  const bodyY = 6.0;
+  const vk = matri ? 'queen.m.' : 'queen.';
+  const hull = gset(vk + 'hull', () => {
+    const v = new VB(s, -3.0, -1.8, -3.3, 3.0, 2.1, 3.6);
+    v.ell(0, 0, 0, 2.5, 1.3, 2.7, (X, Y, Z, i, j, k) => (Math.abs(Math.sin(Math.atan2(X, Z) * 4)) < 0.08 ? K.g1 : Y > 0.6 ? K.g4 : K.g3));
+    v.box(-1.9, -1.4, -2.0, 1.9, 0.4, 2.0, K.g2, { ch: 4 });
+    v.ell(0, 0.9, 0, 1.9, 0.75, 2.0, (X, Y, Z, i, j, k) => (k % 5 === 0 || i % 6 === 0 ? K.g3 : K.g4));
+    v.paintBox(-3, 0.5, -3, 3, 2, 3, (X, Y, Z, i, j, k, c) => (c === K.g4 && i % 6 === 3 && k % 5 === 2 ? K.st : undefined));
+    // reactor well on top: core sits inside, ringed by hazard + vents
+    v.cylY(0, 0, 0.6, 2.2, 1.0, -1); v.cylY(0, 0, 0.5, 0.7, 1.0, K.g0);
+    v.cylY(0, 0, 1.2, 1.75, 1.25, (X, Y, Z, i, j, k) => haz(2)(X, Y, Z, i, j, k), 1.0);
+    for (let n = 0; n < 8; n++) { const a = n * Math.PI / 4 + 0.39; v.box(Math.sin(a) * 1.1 - 0.08, 0.7, Math.cos(a) * 1.1 - 0.08, Math.sin(a) * 1.1 + 0.08, 1.5, Math.cos(a) * 1.1 + 0.08, K.g2); }
+    // under-plate machinery (visible once plates are shot off)
+    for (const [x, z] of [[0, 2.5], [0, -2.5], [2.3, 0], [-2.3, 0]]) { v.box(x - 0.6, -0.7, z - 0.6, x + 0.6, 0.3, z + 0.6, K.g1); v.box(x - 0.3, -0.4, z - 0.3, x + 0.3, 0.0, z + 0.3, K.EXH); }
+    // mortar racks (back)
+    for (const sx of [-1, 1]) {
+      v.box(sx * 1.2 - 0.6, 1.0, -2.2, sx * 1.2 + 0.6, 1.8, -1.2, K.g3, { ch: 1 });
+      for (let a = 0; a < 3; a++) for (let b = 0; b < 2; b++) v.cylY(sx * 1.2 - 0.38 + a * 0.38, -1.95 + b * 0.45, 1.6, 1.95, 0.15, K.g0);
+      for (let a = 0; a < 3; a++) for (let b = 0; b < 2; b++) v.cylY(sx * 1.2 - 0.38 + a * 0.38, -1.95 + b * 0.45, 1.6, 1.75, 0.09, K.EXH);
+      v.paintBox(sx * 1.2 - 0.61, 1.0, -2.21, sx * 1.2 + 0.61, 1.3, -1.19, haz(2));
+    }
+    if (matri) for (const sx of [-1, 1]) {
+      v.box(sx * 1.6 - 0.55, 0.6, -3.2, sx * 1.6 + 0.55, 1.5, -2.2, K.g2, { ch: 1 });
+      for (let a = 0; a < 3; a++) for (let b = 0; b < 2; b++) { v.box(sx * 1.6 - 0.45 + a * 0.32, 0.75 + b * 0.35, -3.25, sx * 1.6 - 0.25 + a * 0.32, 0.95 + b * 0.35, -3.0, K.g0); v.box(sx * 1.6 - 0.4 + a * 0.32, 0.8 + b * 0.35, -3.2, sx * 1.6 - 0.3 + a * 0.32, 0.9 + b * 0.35, -3.1, K.RED); }
+    }
+    // spine antennae
+    v.seg(0.4, 1.6, -1.0, 0.6, 2.05, -1.5, 0.06, K.st); v.box(0.5, 1.95, -1.6, 0.7, 2.1, -1.45, K.RED);
+    // hip housings
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) { v.ell(sx * 1.9, -0.2, sz * 1.9, 0.65, 0.6, 0.65, K.g2); v.ell(sx * 1.9, 0.15, sz * 1.9, 0.5, 0.45, 0.5, K.g3); }
+    return v.weather({ seed: matri ? 182 : 181, rust: 0.22, rustScale: 2.5 });
+  });
+  const plateGS = (w, h) => gset(vk + 'plate' + w, () => {
+    const v = new VB(s, -w / 2 - 0.15, -h / 2 - 0.15, -0.3, w / 2 + 0.15, h / 2 + 0.15, 0.5);
+    v.fillIf(-w / 2, -h / 2, -0.3, w / 2, h / 2, 0.5, (X, Y, Z) => { const zf = 0.32 - 0.25 * (X / (w / 2)) ** 2; return Z < zf && Z >= zf - 0.3 && Math.abs(X) < w / 2 - Math.max(0, Y - h * 0.3) * 0.4; },
+      (X, Y, Z, i, j, k) => (Math.abs(X) > w / 2 - 0.35 || Y > h / 2 - 0.3 ? haz(2)(X, Y, Z, i, j, k) : (j % 4 === 0 ? K.g3 : matri ? K.g3 : K.g4)));
+    v.paint((X, Y, Z, i, j, k, c) => ((c === K.g4 || c === K.g3) && i % 4 === 1 && j % 4 === 2 ? K.st : undefined));
+    return v.weather({ seed: 19, rust: 0.18, chip: 0.4 });
+  });
+  const core = gset('queen.core', () => { const v = new VB(s, -1.0, -0.5, -1.0, 1.0, 0.8, 1.0); v.ell(0, 0, 0, 0.9, 0.7, 0.9, K.HOT); v.ell(0, 0.2, 0, 0.55, 0.5, 0.55, K.HOT2); for (let n = 0; n < 6; n++) { const a = n * Math.PI / 3; v.seg(0, 0.7, 0, Math.sin(a) * 0.9, 0.2, Math.cos(a) * 0.9, 0.08, K.g1); } return v; });
+  const head = gset(vk + 'head', () => {
+    const v = new VB(s, -1.0, -0.9, -0.6, 1.0, 0.9, 1.8);
+    v.box(-0.75, -0.6, -0.4, 0.75, 0.55, 1.2, K.g2, { ch: 2, cht: 2, chb: 1 });
+    v.box(-0.6, 0.55, -0.3, 0.6, 0.75, 1.0, K.g4, { ch: 1 }); v.paintBox(-0.6, 0.55, -0.3, 0.6, 0.8, 1.0, seam(3, 'z', K.g3));
+    v.paintBox(-0.61, 0.55, 0.7, 0.61, 0.8, 1.0, haz(1));
+    v.box(-0.55, -0.35, 1.1, 0.55, 0.3, 1.3, K.g0);
+    v.cylZ(0, 0.0, 1.1, 1.4, 0.3, K.EYE); v.cylZ(0, 0.0, 1.25, 1.45, 0.15, K.EYE2);
+    for (const sx of [-1, 1]) { v.box(sx * 0.45 - 0.08, 0.05, 1.15, sx * 0.45 + 0.08, 0.2, 1.35, K.EYE); }
+    v.cylZ(0, -0.45, 1.0, 1.75, 0.12, K.st); v.cylZ(0, -0.45, 1.6, 1.75, 0.16, K.g1); v.cylZ(0, -0.45, 1.7, 1.8, 0.07, K.YEL);   // sweep laser
+    for (const sx of [-1, 1]) v.seg(sx * 0.6, -0.5, 1.0, sx * 0.4, -0.85, 1.6, 0.1, K.g3);   // mandibles
+    return v.weather({ seed: 183, rust: 0.15 });
+  });
+  const upper = limbGS(vk + 'up', s, 3.4, 0.42, 0.42, 0.36, 0.36, { band: 0.8, seed: 10, rust: 0.18 });
+  const lower = limbGS(vk + 'lo', s, 8.4, 0.38, 0.4, 0.16, 0.16, { band: 1.2, seed: 11, col: K.g2, col2: K.g3, haz: [0.04, 0.1], tip: (v, L) => { v.seg(0, 0, L - 0.6, 0, -0.1, L + 0.15, 0.16, K.st); } });
+  const joint = jointGS('queen.knee', s, 0.5, 0.5);
+  const body = R.g(R.top, 0, bodyY, 0);
+  const hullG = R.g(body); R.jit = hullG;
+  R.pm(hull, hullG);
+  const cg = R.pm(core, hullG, 0, 0.8, 0);
+  const plates = [];
+  const pdefs = [['plate_front', 0, 2.75, 0, 3.0, 1.9], ['plate_rear', 0, -2.75, Math.PI, 3.0, 1.9], ['plate_side', -2.5, 0, -Math.PI / 2, 3.4, 1.9], ['plate_side', 2.5, 0, Math.PI / 2, 3.4, 1.9]];
+  for (const [name, x, z, ry, w, h] of pdefs) {
+    const g = R.g(hullG, x, -0.35, z); g.rotation.y = ry;
+    const p = R.pm(plateGS(w, h), g);
+    plates.push(p);
+    R.zone(name, x, z * 1.13, { hide: [g] });
+  }
+  const headYaw = R.g(hullG, 0, -0.3, 2.85);
+  const hp = R.pm(head, headYaw);
+  void hp;
+  const legs = [];
+  for (const [sx, sz, ph] of [[-1, 1, 0], [1, -1, 0], [1, 1, 0.5], [-1, -1, 0.5]]) {
+    const L = new Leg(R, body, [sx * 1.9, 0, sz * 1.9], [sx * 3.9, 0, sz * 3.9], 3.4, 8.4, { upper, lower, joint }, { phase: ph });
+    const kn = L.kneeRest();
+    R.zone('leg_joint', kn[0], kn[2], { dark: [L.pJ.g], fn: () => { L.limp = true; } });
+    legs.push(L);
+  }
+  R.anim = (dt, s, t) => {
+    const c = R.gait(dt, s, legs, { A: 0.8, H: 0.9, duty: 0.65, maxHz: 0.6, minHz: 0.25 });
+    body.position.y = bodyY + Math.abs(Math.sin(c * Math.PI * 2)) * 0.12 * R.gmv - (s.tele || 0) * 0.2;
+    body.rotation.z = Math.sin(c * Math.PI * 2) * 0.015 * R.gmv;
+    for (const L of legs) L.solve();
+    headYaw.rotation.y += clamp(wrapA(clamp(wrapA(s.gaze || 0), -0.9, 0.9) - headYaw.rotation.y), -1.2 * dt, 1.2 * dt);
+    headYaw.rotation.x = damp(headYaw.rotation.x, s.pitch ?? (0.12 + R.al * 0.1), 2, dt);
+    const nb = plates.filter((p, i) => R.zones[i]?.broken).length;
+    cg.g.scale.setScalar(1 + nb * 0.05 + Math.sin(t * 3) * 0.02);
+  };
+};
+
+// ============================================================================= factory
+const FALLBACK = (def) => (def?.flying ? 'wasp' : (def?.height || 1) > 2.5 ? 'bastion' : (def?.radius || 0.5) > 1 ? 'leaper' : 'tick');
+export function createArkModel(modelKey, def = {}) {
+  def = def || {};
+  let key = MODELS[modelKey] ? modelKey : FALLBACK(def);
+  const R = new Rig(key, def);
+  // dedicated rigs for variants that share a model key with a different silhouette
+  let built = key;
+  if (key === 'fireball' && (def.behavior === 'shredder' || def.hover)) built = 'shredder';
+  if (key === 'rocketeer' && def.variant === 'turbine') built = 'turbine';
+  MODELS[built](R, def);
+  const baseR = BASE_R[built] || BASE_R[key] || 1;
+  const r = def.size?.radius ?? def.radius ?? baseR;
+  R.k = r / baseR;
+  R.top.scale.setScalar(R.k);
+  R.root.userData.ark = R;
+  return { root: R.root, update: (dt, s) => R.update(dt, s), setBroken: (z) => R.setBroken(z), rig: R };
+}
+export const ARK_MODEL_KEYS = Object.keys(MODELS);

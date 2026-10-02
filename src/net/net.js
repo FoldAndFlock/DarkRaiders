@@ -177,6 +177,7 @@ export class Net {
         case 'fire': s.fire(a.s); break;
         case 'launch': s.launch(a.s); break;
         case 'throw': s.throwItem(a.id, a.x, a.z); break;
+        case 'melee': s.melee(a.a, a.m, a.o); break;
         case 'open': this.t.send(from, { k: 'res', id: m.id, d: await s.open(a.kind, a.ref) }); break;
         case 'take': this.t.send(from, { k: 'res', id: m.id, d: await s.take(a.kind, a.ref, a.uid, a.qty) }); break;
         case 'put': s.put(a.kind, a.ref, a.stack); break;
@@ -326,6 +327,7 @@ export class ClientSession {
   fire(s) { this.net.act({ t: 'fire', s: round(s) }); this.net.game.predicted = true; }
   launch(s) { this.net.act({ t: 'launch', s: round(s) }); }
   throwItem(id, x, z) { this.net.act({ t: 'throw', id, x, z }); }
+  melee(a, m, o) { this.net.act({ t: 'melee', a, m, o }); }
   open(kind, ref) { return this.net.request({ t: 'open', kind, ref }); }
   take(kind, ref, uid, qty = null) { return this.net.request({ t: 'take', kind, ref, uid, qty }); }
   put(kind, ref, stack) { this.net.act({ t: 'put', kind, ref, stack }); }

@@ -36,6 +36,15 @@ export class Sim {
     this.timers = [];
     this.mapId = map.id;
     for (const d of this.doors) if (!d.open) this._doorBlock(d, true);
+    // condition: fewer extraction points, hatches offline
+    const fx = this.condEffects;
+    if (fx.extractsMul && fx.extractsMul < 1) {
+      const els = this.extracts.filter(x => x.kind !== 'hatch');
+      const off = Math.floor(els.length * (1 - fx.extractsMul));
+      for (let i = 0; i < off; i++) { const x = els.splice(Math.floor(this.rng() * els.length), 1)[0]; if (x) x.state = 'offline'; }
+    }
+    if (fx.hatchesDisabled) for (const x of this.extracts) if (x.kind === 'hatch') x.state = 'offline';
+    this.nextStrike = 8;
   }
 
   // ------------------------------------------------------------------ entities
@@ -121,6 +130,7 @@ export class Sim {
     }
     this._extracts(dt);
     this._timer();
+    this._condition(dt);
     if (this.timers.length) { const due = this.timers.filter(t => t.at <= this.t); this.timers = this.timers.filter(t => t.at > this.t); for (const t of due) t.fn(); }
     this.noises = this.noises.filter(n => this.t - n.t < 0.25);
   }
@@ -230,6 +240,25 @@ export class Sim {
     this.emit(ev);
     this.noise(o.x, o.z, (w.noise || 35) * (owner?.stats?.noise_mul || 1), owner);
     return hits;
+  }
+
+  melee(e, a, mul = 1, oneHitDrones = false) {
+    let best = null, bd = 2.4;
+    this.near(e.x, e.z, 2.6, (t) => {
+      if (t === e || t.st === 'dead' || t.st === 'out' || (t.type === 'raider' && t.team === e.team)) return;
+      const d = Math.hypot(t.x - e.x, t.z - e.z) - (t.r || 0.35);
+      if (d > bd) return;
+      if (Math.abs(ang(Math.atan2(t.x - e.x, t.z - e.z) - a)) > 1.1) return;
+      bd = d; best = t;
+    });
+    this.noise(e.x, e.z, 7, e);
+    this.emit({ e: 'melee', id: e.id, hit: !!best });
+    if (!best) return;
+    const small = best.type === 'ark' && (best.def.hp || 0) <= 200 && (best.def.flying || ['tick', 'pop', 'turret', 'snitch', 'spotter'].includes(best.def.behavior));
+    if (small && oneHitDrones) { this.damage(best, 99999, e, { x: best.x, z: best.z }); return; }
+    if (best.type === 'ark' && best.brain) best.brain.stun(0.4);
+    if (best.latchedBy) { const tk = this.entities.get(best.latchedBy); tk?.brain?.unlatch(); }
+    this.damage(best, 28 * mul * (small ? 1.5 : 1), e, { x: best.x, z: best.z, armorPen: 0.3 });
   }
 
   // returns result code for the hit marker: 'a' ark, 'aw' weak point, 'aa' armour, 'p' raider, 's' shield, 'k' kill
@@ -480,6 +509,39 @@ export class Sim {
           x.state = 'gone'; x.t = 75; this.emit({ e: 'xgone', i: x.i, n: who.length });
         }
       } else if (x.state === 'gone') { x.t -= dt; if (x.t <= 0) { x.state = 'idle'; this.emit({ e: 'xidle', i: x.i }); } }
+    }
+  }
+  _condition(dt) {
+    const fx = this.condEffects;
+    if (fx.lightning) {
+      this.nextStrike -= dt;
+      if (this.nextStrike <= 0) {
+        const L = fx.lightning; this.nextStrike = L.interval[0] + this.rng() * (L.interval[1] - L.interval[0]);
+        const ps = this.players().filter(p => p.st === 'alive');
+        if (ps.length) {
+          const p = ps[Math.floor(this.rng() * ps.length)], a = this.rng() * Math.PI * 2, d = 4 + this.rng() * 22;
+          const x = p.x + Math.cos(a) * d, z = p.z + Math.sin(a) * d;
+          this.emit({ e: 'strikeWarn', x, z, r: L.radius, t: L.telegraph });
+          this.later(L.telegraph, () => {
+            this.emit({ e: 'strike', x, z, r: L.radius });
+            this.near(x, z, L.radius, (e) => {
+              if (e.type === 'ark') { if (L.killsSmallArk && (e.def.hp || 0) <= 200) this.damage(e, 9999, null, {}); else e.brain?.stun(L.arkStun || 4); }
+              else if (e.type === 'raider' && e.st === 'alive') { this.damage(e, L.dmg * (1 - Math.hypot(e.x - x, e.z - z) / L.radius * 0.5), null, { x: e.x, z: e.z, explosive: true }); e.buffs.stunned = L.stun || 1.5; }
+            });
+            this.noise(x, z, 60, null);
+          });
+        }
+      }
+    }
+    if (fx.coldDamage) {
+      const C = fx.coldDamage;
+      for (const p of this.players()) {
+        if (p.st !== 'alive') continue;
+        const indoor = C.indoorSafe && this.grid.indoorAt(p.x, p.z) >= 0;
+        p.coldT = indoor ? Math.max(0, (p.coldT || 0) - dt * 3) : (p.coldT || 0) + dt;
+        p.cold = p.coldT > C.delay;
+        if (p.cold && !p.buffs?.warm) this.damage(p, C.dps * dt, null, { bypassShield: true, x: p.x, z: p.z });
+      }
     }
   }
   extractRaider(e, x) {

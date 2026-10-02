@@ -38,6 +38,16 @@ export function hue(c, deg, sMul = 1, lAdd = 0) {
 export function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 export function rng(seed) { let a = typeof seed === 'string' ? hashStr(seed) : seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
+// named colours shared by the art modules
+export const K = {
+  ink: 0x1e1c22, black: 0x1a1a1e, dark: 0x2e2e36, gun: 0x44444e, gunL: 0x6a6c76, steel: 0x9a9ea8, chrome: 0xd0d4da,
+  wood: 0x8a5630, woodD: 0x5a3620, woodL: 0xb88048, olive: 0x5a6a3c, oliveD: 0x3e4a2e, oliveL: 0x84945a,
+  tan: 0xb8a476, tanD: 0x8a7650, brass: 0xd0a040, copper: 0xc0703a, red: 0xc8382a, redD: 0x8a2418, orange: 0xf08a28,
+  yellow: 0xf0c838, cyan: 0x5ae0ff, cyanD: 0x1e7a98, white: 0xe8e6dc, silver: 0xb8bcc4, purple: 0xb060f0, purpleD: 0x5a2a88,
+  rubber: 0x2a2a2e, blue: 0x3a78d0, blueD: 0x234a8a, green: 0x58b850, greenD: 0x2e6a2a, cream: 0xe8e0c8, paper: 0xd8ccb0,
+  pink: 0xe878a8, skin: 0xe0b090, glass: 0x9ad8f0, arc: 0xff7a20, arcHot: 0xffc040, arcRed: 0xff3a1a, rust: 0x9a5028,
+};
+
 // shared palette for char grids
 export const PAL = {
   k: 0x1e1c22, d: 0x2e2e36, m: 0x4a4a54, M: 0x70727c, s: 0xa8acb4, S: 0xdcdee4,
@@ -112,6 +122,40 @@ export class PB {
     for (;;) { this.s(x0, y0, c); if (x0 === x1 && y0 === y1) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } }
     return this;
   }
+  // "lathe" profile: rows of [width, colour] centred on cx, each row shaded like a vertical cylinder
+  lathe(cx, y0, rows, mode = 'cylV') {
+    rows.forEach((r, i) => {
+      if (!r) return;
+      const [w, c, m = mode] = r; if (w <= 0) return;
+      const x0 = Math.round(cx - w / 2), C = col(c);
+      for (let a = 0; a < w; a++) this.s(x0 + a, y0 + i, m === 'flat' ? C : rampV(C, a, w));
+    });
+    return this;
+  }
+  // thick line / capsule from (x0,y0) to (x1,y1) in pixel-centre coords, shaded across its width
+  bar(x0, y0, x1, y1, w, c, { cap = 'round', mode = 'cyl' } = {}) {
+    c = col(c);
+    const ax = x0 + 0.5, ay = y0 + 0.5, bx = x1 + 0.5, by = y1 + 0.5, dx = bx - ax, dy = by - ay;
+    const L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    let nx = -uy, ny = ux; if (ny > 0 || (ny === 0 && nx > 0)) { nx = -nx; ny = -ny; }   // normal points up / left
+    const hw = w / 2;
+    const info = (x, y) => {
+      const px = x + 0.5 - ax, py = y + 0.5 - ay;
+      const t = (px * ux + py * uy) / L, s = px * nx + py * ny;
+      if (cap === 'flat') return t >= 0 && t <= 1 && Math.abs(s) <= hw ? s : null;
+      const tc = Math.max(0, Math.min(1, t)), qx = px - dx * tc, qy = py - dy * tc;
+      return qx * qx + qy * qy <= hw * hw ? s : null;
+    };
+    for (let y = Math.floor(Math.min(y0, y1) - hw - 1); y <= Math.max(y0, y1) + hw + 1; y++)
+      for (let x = Math.floor(Math.min(x0, x1) - hw - 1); x <= Math.max(x0, x1) + hw + 1; x++) {
+        const s = info(x, y); if (s === null) continue;
+        const k = s / hw;
+        this.s(x, y, mode === 'flat' ? c : k > 0.45 ? lt(c, 0.3) : k > -0.1 ? c : k > -0.55 ? dk(c, 0.16) : dk(c, 0.36));
+      }
+    return this;
+  }
+  // 1-bit glyph from rows of '#'
+  glyph(rows, x, y, c) { rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] === '#') this.s(x + i, y + j, c); }); return this; }
   // polyline
   pl(pts, c) { for (let i = 0; i + 3 < pts.length; i += 2) this.l(pts[i], pts[i + 1], pts[i + 2], pts[i + 3], c); return this; }
   // char grid stamp; pal entries may be numbers or '#hex'
@@ -172,6 +216,16 @@ export class PB {
 }
 
 // shading ramps
+export function rampV(c, a, n) {
+  if (n <= 1) return lt(c, 0.1);
+  if (n === 2) return a === 0 ? lt(c, 0.22) : dk(c, 0.2);
+  if (n === 3) return a === 0 ? lt(c, 0.25) : a === 1 ? c : dk(c, 0.3);
+  if (a === 0) return lt(c, 0.16);
+  if (a === 1) return lt(c, 0.4);
+  if (a === n - 1) return dk(c, 0.4);
+  if (a >= n * 0.62) return dk(c, 0.18);
+  return c;
+}
 function tone(mode, c, x, y, pred, info, mnx, mxx, mny, mxy) {
   switch (mode) {
     case 'flat': return c;

@@ -8,7 +8,7 @@ export const TIMES = {
   dawn:  { sunDir: [-0.8, 0.35, -0.3], sun: 0xffb088, sunI: 1.8, sky: 0xb8b8e0, ground: 0x7a6060, amb: 1.4, glow: 1.2, grade: { tint: [1.05, 0.96, 0.92], sat: 1.05, contrast: 1.06 } },
   noon:  { sunDir: [0.35, 0.9, -0.45], sun: 0xfff4e0, sunI: 2.4, sky: 0xc8d8f0, ground: 0x9a8a70, amb: 1.5, glow: 0.8, grade: { tint: [1.02, 1.0, 0.97], sat: 1.08, contrast: 1.05 } },
   dusk:  { sunDir: [0.85, 0.3, -0.35], sun: 0xff8a40, sunI: 2.0, sky: 0xa898c8, ground: 0x7a5048, amb: 1.3, glow: 1.4, grade: { tint: [1.06, 0.94, 0.9], sat: 1.1, contrast: 1.08 } },
-  night: { sunDir: [-0.4, 0.75, -0.5], sun: 0x8aa8ff, sunI: 0.7, sky: 0x6a7ab8, ground: 0x2a3048, amb: 0.8, glow: 2.2, grade: { tint: [0.92, 0.97, 1.1], sat: 0.85, contrast: 1.1 } },
+  night: { sunDir: [-0.4, 0.75, -0.5], sun: 0x9ab4ff, sunI: 0.95, sky: 0x7888c8, ground: 0x343a58, amb: 1.05, glow: 2.2, grade: { tint: [0.92, 0.97, 1.1], sat: 0.85, contrast: 1.1 } },
 };
 export const WEATHER = {
   clear: { sunMul: 1, ambMul: 1, rain: 0, haze: 0, hazeCol: 0xc0b090, wind: 0.3, sat: 1 },
@@ -37,6 +37,7 @@ export class Lighting {
     this.statics = [];
     this.lightning = 0;
     this.flashBoost = 0;
+    this.maxLights = MAX_LIGHTS;
     this.set('noon', 'clear');
   }
   set(time, weather) {
@@ -67,6 +68,12 @@ export class Lighting {
   // spot light pointing along facing (radians, 0 = +z). flat = even ground wash (ARK gaze)
   spot(x, y, z, facing, halfAngle, color, intensity, range, priority = 1, flat = false, inner = 0.75) {
     this.requests.push({ x, y, z, color, intensity, range, priority, spot: true, dx: Math.sin(facing), dz: Math.cos(facing), half: halfAngle, inner, flat });
+  }
+  setQuality(q) {
+    const Q = { low: { lights: 12, steps: 0, shadow: 1024 }, medium: { lights: 20, steps: 24, shadow: 2048 }, high: { lights: 32, steps: 48, shadow: 2048 } }[q] || { lights: 20, steps: 24, shadow: 2048 };
+    this.maxLights = Q.lights; GU.uMaxSteps.value = Q.steps;
+    if (this.sun.shadow.mapSize.x !== Q.shadow) { this.sun.shadow.mapSize.set(Q.shadow, Q.shadow); this.sun.shadow.map?.dispose(); this.sun.shadow.map = null; }
+    this.quality = q;
   }
   addStatic(l) { this.statics.push(l); }
   clearStatics() { this.statics = []; }
@@ -104,7 +111,7 @@ export class Lighting {
     const rq = this.requests.filter(q => Math.abs(q.x - cx) < viewW / 2 + q.range && q.z - cz < viewH / 2 + q.range + 4 && cz - q.z < viewH / 2 + q.range + 10);
     for (const q of rq) { const dx = q.x - cx, dz = q.z - cz; q.score = q.priority * 60 - Math.sqrt(dx * dx + dz * dz); }
     rq.sort((a, b) => b.score - a.score);
-    const n = Math.min(MAX_LIGHTS, rq.length);
+    const n = Math.min(this.maxLights, rq.length);
     const A = GU.uLA.value, B = GU.uLB.value, C = GU.uLC.value;
     for (let i = 0; i < n; i++) {
       const q = rq[i];

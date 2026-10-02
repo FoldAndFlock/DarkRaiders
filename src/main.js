@@ -44,7 +44,7 @@ export async function startRaid({ mapId, seed, condition = null, time = null, we
   return game.start((f, msg) => app.onLoadProgress?.(f, msg));
 }
 
-function uiScale() { document.documentElement.style.setProperty('--px', String(Math.max(1, Math.min(4, Math.round(innerHeight / 520))))); }
+function uiScale() { document.documentElement.style.setProperty('--px', String(Math.max(1, Math.min(4, Math.floor(innerHeight / 430))))); }
 uiScale(); addEventListener('resize', uiScale);
 
 async function boot() {

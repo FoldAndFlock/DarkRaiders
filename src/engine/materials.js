@@ -19,6 +19,7 @@ export const GU = {
   // dynamic lights: A = pos.xyz, range ; B = colour*intensity, flags (1 = flat/gaze) ; C = dir.xz, cosOuter (-2 = omni), cosInner
   uLA: { value: v4s() }, uLB: { value: v4s() }, uLC: { value: v4s() }, uLN: { value: 0 },
   tOcc: { value: null }, uOccSize: { value: new THREE.Vector2(1, 1) },
+  uMaxSteps: { value: 48 },                                   // quality: light occlusion raymarch steps (0 = off)
 };
 
 const COMMON_VERT_PARS = /* glsl */`
@@ -41,7 +42,7 @@ const COMMON_FRAG_PARS = /* glsl */`
   varying vec3 vWPos; varying vec3 vWNormal;
   uniform vec4 uCut; uniform float uCutH; uniform vec4 uXray; uniform float uXrayY; uniform float uTime;
   uniform vec4 uLA[${MAX_LIGHTS}]; uniform vec4 uLB[${MAX_LIGHTS}]; uniform vec4 uLC[${MAX_LIGHTS}]; uniform int uLN;
-  uniform sampler2D tOcc; uniform vec2 uOccSize;
+  uniform sampler2D tOcc; uniform vec2 uOccSize; uniform float uMaxSteps;
   float dwBayer4(vec2 p){ ivec2 i = ivec2(mod(p,4.0)); int k = i.x + i.y*4;
     float m[16] = float[16](0.,8.,2.,10.,12.,4.,14.,6.,3.,11.,1.,9.,15.,7.,13.,5.);
     for(int j=0;j<16;j++){ if(j==k) return m[j]/16.0; } return 0.0; }
@@ -49,8 +50,8 @@ const COMMON_FRAG_PARS = /* glsl */`
   // march from surface point p toward light l through the occlusion grid
   float dwShadow(vec3 p, vec3 l){
     vec2 dir = l.xz - p.xz; float len = length(dir);
-    if (len < 0.35) return 1.0;
-    float steps = clamp(len / 0.45, 2.0, 48.0);
+    if (len < 0.35 || uMaxSteps < 1.0) return 1.0;
+    float steps = clamp(len / 0.45, 2.0, uMaxSteps);
     for (int s = 1; s < 48; s++) {
       float fs = float(s); if (fs >= steps) break;
       float t = fs / steps;
