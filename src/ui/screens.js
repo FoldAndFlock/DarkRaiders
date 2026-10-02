@@ -144,6 +144,23 @@ export class Screens {
         maps.appendChild(card);
       }
       left.appendChild(maps);
+      // selected map: pre-rendered layout thumbnail (tools/mapthumbs.mjs) + today's conditions
+      {
+        const fc = this.forecast(this.lobbyMap), cd = fc.cond ? CONDITIONS[fc.cond] : CONDITIONS.normal;
+        const pv = el('div', 'row'); pv.style.alignItems = 'flex-start'; pv.style.gap = 'calc(var(--px)*8px)';
+        const img = el('img'); img.src = `assets/maps/${this.lobbyMap}.png`; img.alt = '';
+        img.style.cssText = 'height:calc(var(--px)*150px);max-width:55%;image-rendering:pixelated;border:calc(var(--px)*1px) solid var(--line);background:#0c0c0c';
+        img.onerror = () => { img.style.display = 'none'; };
+        const info = el('div', 'col'); info.style.flex = '1';
+        info.appendChild(el('div', 'label', 'TOPSIDE FORECAST'));
+        info.appendChild(el('div', 'bold', `<span style="color:${cd?.color || 'var(--cream)'}">${(cd?.name || 'Calm Skies').toUpperCase()}</span>`));
+        info.appendChild(el('div', '', cd?.desc || ''));
+        for (const bl of cd?.bullets || []) info.appendChild(el('div', 'label', '- ' + bl));
+        info.appendChild(el('div', 'label', `${fc.time.toUpperCase()} - ${fc.weather.toUpperCase()}`));
+        info.appendChild(el('div', 'label', '<span class="green">&#9632;</span> LIFTS / METRO / AIRSHAFTS  <span class="yellow">&#9632;</span> RAIDER HATCHES (KEY)'));
+        pv.append(img, info);
+        left.appendChild(pv);
+      }
       // loadout summary
       const lo = p.loadout, caps = capacities(lo, playerStats(p));
       const sum = el('div', 'col');

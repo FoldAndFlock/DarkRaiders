@@ -2,11 +2,10 @@
 import { el, cell, DnD, Tooltip, RAR } from './itemui.js';
 import { ITEMS, makeStack } from '../game/items.js';
 import { capacities, fitLoadout, moveSlot, getSlot, setSlot, QUICK_TYPES } from '../game/inventory.js';
-import { TERRAIN } from '../engine/textures.js';
+import { renderMapImage } from './mapimage.js';
 import { RECIPES } from '../data/recipes.js';
 import { countIn, takeFrom, pickUp as pickUpInto } from '../game/inventory.js';
 
-const TERRAIN_COL = { grass: '#4a5a2a', dirt: '#5a4632', sand: '#c09c64', sandDark: '#8e7046', concrete: '#727068', damConcrete: '#857e70', asphalt: '#38383a', rock: '#5a544c', tiles: '#868076', wood: '#624432', mud: '#3e3424', gravel: '#6a665e', moss: '#3a4826', forest: '#2e3a1e', metalPanel: '#525a5c', hazard: '#a07a20' };
 
 export class RaidUI {
   constructor(game) {
@@ -186,26 +185,8 @@ export class RaidUI {
     this.g.audio?.play('ui_open');
   }
   closeMap() { this.mapEl?.remove(); this.mapEl = null; this.g.audio?.play('ui_close'); }
-  renderMapImage() {
-    const w = this.g.world, S = 2, cw = Math.ceil(w.w / S), ch = Math.ceil(w.h / S);
-    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
-    const x = c.getContext('2d'), img = x.createImageData(cw, ch);
-    const cols = TERRAIN.map(n => { const h = TERRAIN_COL[n] || '#555'; return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; });
-    for (let z = 0; z < ch; z++) for (let xx = 0; xx < cw; xx++) {
-      const wx = xx * S + 1, wz = z * S + 1;
-      let [r, g, b] = cols[w.terrainAt(wx, wz)] || [80, 80, 80];
-      const h = w.groundAt(wx, wz), hl = w.groundAt(wx - 2, wz - 2);
-      const shade = Math.max(0.55, Math.min(1.35, 1 + (h - hl) * 0.25));
-      const top = w.grid.topAt(wx, wz);
-      if (top > h + 1.5) { r = 46; g = 44; b = 42; }
-      if (w.grid.waterAt(wx, wz)) { r = 40; g = 80; b = 92; }
-      const i = (z * cw + xx) * 4; img.data[i] = r * shade; img.data[i + 1] = g * shade; img.data[i + 2] = b * shade; img.data[i + 3] = 255;
-    }
-    x.putImageData(img, 0, 0);
-    x.strokeStyle = '#9a9484'; x.lineWidth = 0.5;
-    for (const bd of w.buildings) { x.fillStyle = '#3a3836'; x.beginPath(); bd.poly.forEach(([px, pz], i) => i ? x.lineTo(px / S, pz / S) : x.moveTo(px / S, pz / S)); x.closePath(); x.fill(); x.stroke(); }
-    return c;
-  }
+  renderMapImage() { return renderMapImage(this.g.world, 2); }
+
   drawMap() {
     const c = this.mapCanvas, x = c.getContext('2d'), s = this.mapScale, g = this.g;
     x.imageSmoothingEnabled = false;

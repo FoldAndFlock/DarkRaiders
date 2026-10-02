@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8"><title>Map thumbnails</title>
+<body style="background:#111;color:#ccc;font:12px monospace">
+<div id="out"></div>
+<script type="module">
+// Builds each map's World and renders the lobby thumbnail (terrain + buildings + extracts).
+// tools/mapthumbs.mjs saves window.__thumbs to assets/maps/<id>.png
+import * as THREE from '../vendor/three.module.js';
+import { World } from '../src/engine/world.js';
+import { MAPS } from '../src/maps/index.js';
+import { renderMapImage } from '../src/ui/mapimage.js';
+const ids = (new URLSearchParams(location.search).get('maps') || 'damn_grounds,green_gate,sandy_city,test_range').split(',');
+const S = +(new URLSearchParams(location.search).get('s') || 2.5);
+window.__thumbs = {};
+for (const id of ids) {
+  const mod = (await MAPS[id]()).default;
+  const world = new World(new THREE.Scene(), mod.size[0], mod.size[1], { seed: mod.seed || 1, base: mod.base, cliff: mod.cliff });
+  mod.build(world, world.rng); world.finalize();
+  const c = renderMapImage(world, S), x = c.getContext('2d');
+  for (const e of world.extracts) { x.fillStyle = '#000'; x.fillRect(e.x / S - 3, e.z / S - 3, 6, 6); x.fillStyle = e.kind === 'hatch' ? '#f0c030' : '#68e088'; x.fillRect(e.x / S - 2, e.z / S - 2, 4, 4); }
+  window.__thumbs[id] = c.toDataURL('image/png');
+  const im = new Image(); im.src = window.__thumbs[id]; document.getElementById('out').append(id, im);
+}
+window.__ready = true;
+</script>
