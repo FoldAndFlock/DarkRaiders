@@ -400,50 +400,42 @@ function terrain(C) {
   const { w, areaFn, slope } = C;
   const VW = w.tw + 1, VH = w.th + 1;
   const TT = {}; let tt = performance.now(); const mark = (n) => { const t = performance.now(); TT[n] = Math.round(t - tt); tt = t; }; C.TT = TT;
-  // rasterised masks (vertex resolution) — much faster than per-vertex pointInPoly
-  const polyMask = (pts) => {
-    const m = new Float32Array(VW * VH);
-    for (let z = 0; z < VH; z++) {
-      const xs = [];
+  // rasterised masks: binary ones at vertex resolution, smooth (blurred) ones on a 4 m grid
+  const scanFill = (pts, fn, step = 1, cols = VW, rows = VH) => {
+    for (let r = 0; r < rows; r++) {
+      const z = r * step, xs = [];
       for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
         const [xi, zi] = pts[i], [xj, zj] = pts[j];
         if ((zi > z) !== (zj > z)) xs.push(xi + (z - zi) / (zj - zi) * (xj - xi));
       }
-      xs.sort((a, b) => a - b);
-      for (let k = 0; k + 1 < xs.length; k += 2) for (let x = Math.max(0, Math.ceil(xs[k])); x <= Math.min(VW - 1, Math.floor(xs[k + 1])); x++) m[z * VW + x] = 1;
+      xs.sort((p, q) => p - q);
+      for (let k = 0; k + 1 < xs.length; k += 2) for (let c = Math.max(0, Math.ceil(xs[k] / step)); c <= Math.min(cols - 1, Math.floor(xs[k + 1] / step)); c++) fn(r * cols + c, c, r);
     }
-    return m;
   };
-  const rectMask = (x0, z0, x1, z1) => polyMask([[x0, z0], [x1, z0], [x1, z1], [x0, z1]]);
-  const blur = (src, r) => {          // two passes of a separable running-sum box blur
-    const tmp = new Float32Array(src.length), out = Float32Array.from(src), k = 2 * r + 1;
+  const polyMask = (pts) => { const m = new Uint8Array(VW * VH); scanFill(pts, (i) => { m[i] = 1; }); return m; };
+  const G = 4, GW = Math.ceil(VW / G) + 1, GH = Math.ceil(VH / G) + 1;
+  const smoothMask = (pts, r) => {         // coarse mask + 2-pass running box blur (radius r metres)
+    const a = new Float32Array(GW * GH), t = new Float32Array(GW * GH), k = Math.max(1, Math.round(r / G)), n = 2 * k + 1;
+    scanFill(pts, (i) => { a[i] = 1; }, G, GW, GH);
     for (let pass = 0; pass < 2; pass++) {
-      for (let z = 0; z < VH; z++) {
-        const o = z * VW; let acc = 0;
-        for (let x = -r; x <= r; x++) acc += out[o + clamp(x, 0, VW - 1)];
-        for (let x = 0; x < VW; x++) { tmp[o + x] = acc / k; acc += out[o + Math.min(VW - 1, x + r + 1)] - out[o + Math.max(0, x - r)]; }
-      }
-      for (let x = 0; x < VW; x++) {
-        let acc = 0;
-        for (let z = -r; z <= r; z++) acc += tmp[clamp(z, 0, VH - 1) * VW + x];
-        for (let z = 0; z < VH; z++) { out[z * VW + x] = acc / k; acc += tmp[Math.min(VH - 1, z + r + 1) * VW + x] - tmp[Math.max(0, z - r) * VW + x]; }
-      }
+      for (let z = 0; z < GH; z++) { const o = z * GW; let acc = 0; for (let x = -k; x <= k; x++) acc += a[o + clamp(x, 0, GW - 1)]; for (let x = 0; x < GW; x++) { t[o + x] = acc / n; acc += a[o + Math.min(GW - 1, x + k + 1)] - a[o + Math.max(0, x - k)]; } }
+      for (let x = 0; x < GW; x++) { let acc = 0; for (let z = -k; z <= k; z++) acc += t[clamp(z, 0, GH - 1) * GW + x]; for (let z = 0; z < GH; z++) { a[z * GW + x] = acc / n; acc += t[Math.min(GH - 1, z + k + 1) * GW + x] - t[Math.max(0, z - k) * GW + x]; } }
     }
-    return out;
+    return a;
   };
+  const samp = (m, x, z) => { const fx = x / G, fz = z / G, ix = Math.min(GW - 2, fx | 0), iz = Math.min(GH - 2, fz | 0), tx = fx - ix, tz = fz - iz, i = iz * GW + ix;
+    return (m[i] * (1 - tx) + m[i + 1] * tx) * (1 - tz) + (m[i + GW] * (1 - tx) + m[i + GW + 1] * tx) * tz; };
+  const rectPts = (x0, z0, x1, z1) => [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
   mark('masks0');
   const swampBin = polyMask(SWAMP), basinBin = polyMask(BASIN);
-  C.swampAt = (x, z) => swampBin[clamp(Math.round(z), 0, VH - 1) * VW + clamp(Math.round(x), 0, VW - 1)] > 0.5;
-  C.basinAt = (x, z) => basinBin[clamp(Math.round(z), 0, VH - 1) * VW + clamp(Math.round(x), 0, VW - 1)] > 0.5;
-  const neS = blur(polyMask(NE_HIGHLAND), 9);
-  const swampS = blur(swampBin, 7), basinS = blur(basinBin, 13), coreS = blur(rectMask(540, 70, 940, 620), 16), southS = blur(rectMask(430, 580, 900, 770), 16);
-  mark('blur');
-  const n1 = makeNoise(11), n2 = makeNoise(23);
-  C.noise = n1; C.noise2 = n2;
-  const fbm = (n, x, z) => (n(x, z) * 0.6 + n(x * 2.3, z * 2.3) * 0.28 + n(x * 5.1, z * 5.1) * 0.12 - 0.5) * 2;
-  // macro relief + basin + noise in one pass
-  for (let z = 0; z < VH; z++) for (let x = 0; x < VW; x++) {
-    const i = z * VW + x;
+  C.swampAt = (x, z) => swampBin[clamp(Math.round(z), 0, VH - 1) * VW + clamp(Math.round(x), 0, VW - 1)] > 0;
+  C.basinAt = (x, z) => basinBin[clamp(Math.round(z), 0, VH - 1) * VW + clamp(Math.round(x), 0, VW - 1)] > 0;
+  const neS = smoothMask(NE_HIGHLAND, 9), swampS = smoothMask(SWAMP, 7), basinS = smoothMask(BASIN, 13);
+  const coreS = smoothMask(rectPts(540, 70, 940, 620), 16), southS = smoothMask(rectPts(430, 580, 900, 770), 16);
+  // macro relief on the coarse grid
+  const macro = new Float32Array(GW * GH);
+  for (let gz = 0; gz < GH; gz++) for (let gx = 0; gx < GW; gx++) {
+    const x = gx * G, z = gz * G, i = gz * GW + gx;
     let h = MID;
     const north = sm(150, 96, z) * sm(330, 430, x);
     h += north * (HIGH - MID + 0.6);                                                   // northern highland (dam abutment)
@@ -455,14 +447,22 @@ function terrain(C) {
     h += sm(730, 820, z) * sm(380, 470, x) * 7;                                        // southern (Formikai) hills
     h += sm(130, 20, z) * sm(320, 200, x) * 5;                                         // NW hills
     h += sm(600, 700, x) * sm(690, 730, z) * sm(1000, 900, x) * 2.5;                   // Wreckage rise
-    h = lerp(h, Math.max(h, HIGH + 0.9), neS[i]);
-    const bt = smooth(clamp(basinS[i] / 0.55, 0, 1));
-    h = lerp(h, LOW, bt);
+    h = lerp(h, Math.max(h, HIGH + 0.9), neS[i]);                                      // highland NE of the highway
+    h = lerp(h, LOW, smooth(clamp(basinS[i] / 0.55, 0, 1)));                           // spillway basin
+    macro[i] = h;
     const amp = Math.min(1 - swampS[i] * 0.78, 1 - coreS[i] * 0.65, 1 - southS[i] * 0.5);
-    h += fbm(n1, x / 90, z / 90) * 2.2 * amp;
-    h += (n2(x / 24, z / 24) * 0.7 + n2(x / 10.5, z / 10.5) * 0.3 - 0.5) * 1.5 * (0.3 + 0.7 * swampS[i]);
-    w.hv[i] = h;
+    coreS[i] = amp;                                                                    // reuse buffer: noise amplitude
   }
+  mark('blur');
+  const n1 = makeNoise(11), n2 = makeNoise(23);
+  C.noise = n1; C.noise2 = n2;
+  const fbm = (n, x, z) => (n(x, z) * 0.6 + n(x * 2.3, z * 2.3) * 0.28 + n(x * 5.1, z * 5.1) * 0.12 - 0.5) * 2;
+  for (let z = 0; z < VH; z++) for (let x = 0; x < VW; x++) {
+    const sw = samp(swampS, x, z);
+    w.hv[z * VW + x] = samp(macro, x, z) + fbm(n1, x / 90, z / 90) * 2.2 * samp(coreS, x, z)
+      + (n2(x / 24, z / 24) * 0.7 + n2(x / 10.5, z / 10.5) * 0.3 - 0.5) * 1.5 * (0.3 + 0.7 * sw);
+  }
+  C.southAt = (x, z) => samp(southS, x, z);
   mark('height');
   w.raiseCircle(566, 46, 46, -4.6, 0.6, 'add');                       // where the West Broken Bridge span fell
   w.ridge([[925, 110], [938, 200], [944, 262], [960, 320]], 22, 1.5, 16, 'min');   // East Broken Bridge ravine
@@ -478,8 +478,8 @@ function terrain(C) {
   mark('circles+flats');
   // ---------------- dam
   for (const [x0, z0, x1, z1] of DAM_RECTS) w.raiseRect(x0, z0, x1, z1, HIGH, 0, 'set');
-  w.raisePoly(PG_POLY, HIGH, 0, 'set');
-  w.raisePoly(C.strip(BALCONY, 13), HIGH, 0, 'set');
+  scanFill(PG_POLY, (i) => { w.hv[i] = HIGH; });
+  scanFill(C.strip(BALCONY, 13), (i) => { w.hv[i] = HIGH; });
   // The Breach: a rubble-strewn pass through the broken dam, swamp (west) -> basin (east)
   areaFn(586, 292, 676, 322, (x, z) => {
     const t = clamp((x - 588) / 84, 0, 1);
@@ -542,9 +542,9 @@ function terrain(C) {
       const vi = z * VW + x, g = w.hv[vi];
       const a = n1(x / 19, z / 19), b = n2(x / 7, z / 7), c = n1(x / 47 + 31, z / 47 + 17);
       let t = null;
-      if (swampBin[vi] > 0.5) t = g < SWAMP_WATER + 0.1 ? T.mud : a > 0.66 ? T.moss : b > 0.72 ? T.mud : c > 0.42 ? T.dirt : a < 0.3 ? T.gravel : null;
-      else if (basinBin[vi] > 0.5) t = g < 0.3 ? T.mud : a > 0.63 ? T.sandDark : b < 0.28 ? T.gravel : T.dirt;
-      else if (southS[vi] > 0.6) t = a > 0.64 ? T.moss : b > 0.6 ? T.dirt : c > 0.62 ? T.mud : null;
+      if (swampBin[vi]) t = g < SWAMP_WATER + 0.1 ? T.mud : a > 0.66 ? T.moss : b > 0.72 ? T.mud : c > 0.42 ? T.dirt : a < 0.3 ? T.gravel : null;
+      else if (basinBin[vi]) t = g < 0.3 ? T.mud : a > 0.63 ? T.sandDark : b < 0.28 ? T.gravel : T.dirt;
+      else if (samp(southS, x, z) > 0.6) t = a > 0.64 ? T.moss : b > 0.6 ? T.dirt : c > 0.62 ? T.mud : null;
       else if (g > 13) t = a > 0.45 ? T.rock : T.gravel;
       else if (x > 920 || z > 760 || x < 120) t = a > 0.72 ? T.rock : c > 0.62 ? T.dirt : b > 0.78 ? T.gravel : null;
       else t = a > 0.74 && c > 0.45 ? T.dirt : b > 0.8 ? T.gravel : a < 0.22 ? T.moss : null;
@@ -561,12 +561,12 @@ function terrain(C) {
       polyMask([[200, 520], [330, 520], [360, 600], [330, 690], [250, 690], [200, 620]]),
       polyMask([[600, 690], [740, 680], [760, 740], [640, 760]]),
     ];
-    const zones = zoneList[0]; for (const m of zoneList.slice(1)) for (let i = 0; i < m.length; i++) if (m[i] > 0.5) zones[i] = 1;
+    const zones = zoneList[0]; for (const m of zoneList.slice(1)) for (let i = 0; i < m.length; i++) if (m[i]) zones[i] = 1;
     for (let z = 0; z < Math.min(w.th, 760); z++) for (let x = 160; x < Math.min(tw, 920); x++) {
       const ci = z * tw + x, cur = w.tids[ci];
       if (cur !== T.grass && cur !== T.moss && cur !== T.forest) continue;
-      const vi = z * VW + x; if (zones[vi] < 0.5) continue;
-      if (swampBin[vi] > 0.5) continue;
+      const vi = z * VW + x; if (!zones[vi]) continue;
+      if (swampBin[vi]) continue;
       const a = n1(x / 13 + 7, z / 13 + 3), b = n2(x / 5, z / 5), c = n1(x / 31, z / 31 + 40);
       const t = a > 0.58 ? (b > 0.5 ? T.gravel : T.dirt) : c > 0.6 ? T.rock : b > 0.82 ? T.concrete : a < 0.3 ? null : (b > 0.45 ? T.gravel : null);
       if (t != null) w.tids[ci] = t;
@@ -595,7 +595,8 @@ function terrain(C) {
 // the dam faces, pier walls along the chutes, broken bridge ends, turbine shafts, balcony.
 function facades(C, X0, Z0, X1, Z1, tex) {
   const { w, rng } = C;
-  const V = (x, z) => w.vh(x, z);
+  const VW = w.tw + 1, VH = w.th + 1, hv = w.hv;
+  const V = (x, z) => hv[(z < 0 ? 0 : z >= VH ? VH - 1 : z) * VW + (x < 0 ? 0 : x >= VW ? VW - 1 : x)];
   const DROP = 2.2, PIECE = 6;
   const horizOf = (d) => d === 's' || d === 'n';
   const emit = (dir, a, b, line, top, low) => {
