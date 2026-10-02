@@ -3,12 +3,13 @@
 // annotated map) maps to world metres as  x = (px - 180) * 0.42453,  z = (pz - 80) * 0.42453  (north up).
 // See docs/research/map_sandy_city.md for POI ids, aliases, extracts, key rooms and deviations.
 //
-// Top-down adaptations: the many rotated villas / civic blocks of the reference are rebuilt as
-// axis-aligned "staircase" complexes (World buildings are axis-aligned); the elevated highway
+// Top-down adaptations: every traced block is a rotated World building (or a short row of collinear
+// buildings sharing one frame, for long terraces and key-room wings); the elevated highway
 // (Corso da Vinci) is a walkable deck with collapsed spans where the old streets ran underneath and
 // sand drifts that ramp up onto it; upper storeys are visual only.
 import './props_sandy_city.js';
 import { propInfo } from '../engine/models.js';
+import { rotFrame, rotPt, unrotPt } from '../engine/world.js';
 
 const MW = 900, MH = 900;
 const D2R = Math.PI / 180;
@@ -112,7 +113,7 @@ const FLATS = [
 // Elevated highway "Corso da Vinci": centreline from the east edge, through Piazza Arbusto, over the
 // old town and curving away south-west past the Abandoned Highway Camp to the corner of the map.
 const HIGHWAY = [[899, 572], [850, 566], [800, 558], [748, 554], [700, 549], [660, 545], [622, 541], [570, 538], [530, 540], [505, 543],
-  [478, 549], [455, 556], [428, 564], [402, 573], [378, 581], [352, 590], [330, 600], [312, 613], [292, 632], [272, 655], [255, 680],
+  [478, 549], [455, 556], [428, 564], [402, 573], [378, 581], [352, 591], [330, 603], [312, 617], [292, 636], [272, 658], [255, 681],
   [240, 705], [222, 735], [204, 768], [186, 804], [168, 842], [150, 880], [141, 899]];
 const HW_W = 11;          // deck width
 // collapsed spans (arc-length windows along HIGHWAY) where the old streets pass underneath
@@ -121,7 +122,7 @@ const HW_GAPS = [[262, 276], [372, 385], [452, 465], [560, 572]];
 const HW_RAMPS = [[150, 1], [214, -1], [330, 1], [418, -1], [505, 1], [642, -1], [700, 1], [770, 1], [840, -1]];
 
 // Marano rail line: north out of the station, south through the yard and onto the long viaduct SW.
-const RAIL = [[304, 22], [288, 52], [262, 88], [250, 140], [247, 200], [245, 256], [245, 346], [236, 382], [214, 430], [196, 482],
+const RAIL = [[304, 22], [288, 52], [262, 88], [250, 140], [247, 200], [234, 258], [217, 340], [210, 382], [200, 430], [190, 482],
   [180, 540], [166, 600], [152, 660], [138, 720], [126, 790], [114, 860], [106, 899]];
 const RAIL_VIADUCT_FROM = 540;   // arc length where the rail climbs onto its viaduct
 
@@ -129,9 +130,8 @@ const RAIL_VIADUCT_FROM = 540;   // arc length where the rail climbs onto its vi
 // kind: h house  a apartments  s shops  c civic  m medical  t tech  i industrial  p parking  o church  r ruin
 const B = [
   // ---- north: gas station, northern ruins, Su Durante, supermarket, market ruins
-  [446, 97, 11, 8, 60, 1, 's', { name: 'Gas Station Kiosk', tint: 'cream', poi: 'gas_station' }],
-  [497, 57, 42, 27, 69, 2, 'r', { sunk: 1.2 }],
-  [509, 99, 42, 28, 65, 3, 'a', { sunk: 1.5, tint: 'ochre' }],
+  [[437, 92], [447, 86], [453, 96], 1, 's', { name: 'Gas Station Kiosk', tint: 'cream', poi: 'gas_station' }],
+  [[512, 38], [531, 118], [503, 127], 3, 'a', { sunk: 1.5, tint: 'ochre', parts: 2, ruin: 0.5 }],
   [391, 111, 20, 14, -35, 2, 'h', { sunk: 1 }],
   [404, 135, 30, 18, -30, 2, 'h'],
   [298, 129, 37, 33, -33, 2, 'i', { name: 'Su Duranti Warehouse', poi: 'su_durante_warehouses' }],
@@ -152,7 +152,7 @@ const B = [
   [624, 281, 38, 26, 30, 2, 'h', { sunk: 1 }],
   [657, 285, 25, 10, 60, 1, 'r'],
   // ---- hospital and the north-west lanes
-  [[412, 198], [432, 188], [491, 275], 4, 'm', { name: 'Hospital', poi: 'hospital', key: 'hospital', keySeg: 1 }],
+  [[412, 198], [432, 188], [491, 275], 4, 'm', { name: 'Hospital', poi: 'hospital', key: 'hospital', keySeg: 1, parts: 3 }],
   [366, 238, 18, 14, 0, 1, 'r'],
   [286, 200, 16, 12, 0, 1, 'h', { sunk: 1.5 }],
   [267, 256, 24, 19, -20, 2, 'h'],
@@ -164,7 +164,7 @@ const B = [
   [330, 242, 20, 12, -30, 1, 'h', { sunk: 1 }],
   [356, 140, 22, 10, -50, 1, 'r', { sunk: 1 }],
   // ---- Marano Station / Warehouse / Maintenance Depot (west)
-  [226, 300, 88, 18, 90, 2, 'c', { name: 'Marino Station', poi: 'marano_station', wall: 'brick', tint: 'cream' }],
+  [[240, 258], [254, 262], [237, 344], 2, 'c', { parts: 2, name: 'Marino Station', poi: 'marano_station', wall: 'brick', tint: 'cream' }],
   [94, 369, 50, 46, 0, 2, 'i', { name: 'Warehouse', poi: 'warehouse' }],
   [132, 361, 34, 28, 90, 2, 'i', { poi: 'warehouse' }],
   [149, 386, 22, 22, 0, 1, 'i', { poi: 'warehouse' }],
@@ -177,7 +177,7 @@ const B = [
   [487, 333, 64, 56, -14, 3, 'p', { name: 'Parking Garage', poi: 'parking_garage' }],
   [568, 316, 112, 40, 61, 3, 's', { name: 'Galleria', poi: 'galleria', wall: 'concrete', tint: 'cream', flat: true }],
   [501, 396, 64, 30, 62, 3, 't', { name: 'Research', poi: 'research', rich: true }],
-  [533, 377, 64, 28, 59, 3, 't', { name: 'Space Travel', poi: 'space_travel', key: 'space_travel', keySeg: -1 }],
+  [533, 377, 64, 28, 59, 3, 't', { name: 'Space Travel', poi: 'space_travel', key: 'space_travel', keySeg: -1, parts: 2 }],
   // ---- Marano Park ring and Piazza Roma
   [326, 401, 70, 17, 50, 3, 'h', { tint: 'ochre' }],
   [298, 430, 40, 18, -42, 3, 'h'],
@@ -189,14 +189,15 @@ const B = [
   [376, 540, 34, 28, -30, 3, 'h', { tint: 'ochre' }],
   [401, 521, 28, 20, -30, 2, 'h'],
   [338, 553, 38, 20, -25, 2, 'h'],
-  [348, 505, 30, 22, -25, 2, 'h'],
   [558, 429, 30, 19, 60, 2, 's'],
   // ---- Town Hall
-  [477, 520, 92, 28, -26, 3, 'c', { name: 'Town Hall', poi: 'town_hall', key: 'town_hall', keySeg: 'mid', tint: 'cream', kindLoot: 'old' }],
-  [532, 489, 38, 24, -26, 3, 'c', { poi: 'town_hall', tint: 'ochre' }],
+  [[430, 527], [511, 481], [523, 503], 3, 'c', { name: 'Town Hall', poi: 'town_hall', key: 'town_hall', keySeg: 'mid', parts: 3, tint: 'cream', kindLoot: 'old' }],
+  [[512, 484], [528, 467], [551, 505], 3, 'c', { poi: 'town_hall', tint: 'ochre' }],
+  [[536, 507], [550, 503], [553, 527], 2, 'c', { poi: 'town_hall', tint: 'cream' }],
   // ---- south of the Corso: Santa Maria Houses and Main Street
-  [480, 602, 64, 17, 66, 3, 'a', { name: 'Santa Marta Houses', poi: 'santa_maria_houses', tint: 'pink' }],
-  [510, 598, 72, 18, -60, 3, 'a', { poi: 'santa_maria_houses', tint: 'ochre' }],
+  [[460, 575], [485, 634], [504, 626], 3, 'a', { name: 'Santa Marta Houses', poi: 'santa_maria_houses', tint: 'pink' }],
+  [[513, 610], [537, 568], [519, 557], 3, 'a', { poi: 'santa_maria_houses', tint: 'ochre' }],
+  [[485, 566], [512, 560], [514, 572], 3, 'a', { poi: 'santa_maria_houses', tint: 'cream', parts: 1 }],
   [[411, 637], [452, 607], [461, 621], 3, 'h', { poi: 'santa_maria_houses', tint: 'cream' }],
   [391, 632, 50, 32, 60, 3, 'a', { tint: 'terracotta' }],
   [[395, 601], [413, 591], [422, 607], 2, 'h'],
@@ -227,10 +228,9 @@ const B = [
   // ---- Grandioso Apartments / west lanes / Old Town
   [228, 598, 40, 37, 15, 5, 'a', { name: 'Grandiosa Apartments', poi: 'grandioso_apartments', key: 'residential', keySeg: 0, keyName: 'Residential (Grandiosa)', tint: 'cream' }],
   [217, 648, 40, 38, 15, 5, 'a', { poi: 'grandioso_apartments', tint: 'cream' }],
-  [249, 539, 49, 37, 69, 3, 'a', { tint: 'ochre', flat: true }],
-  [243, 510, 26, 20, -25, 2, 'h'],
-  [298, 607, 52, 32, 75, 2, 'h', { tint: 'pink' }],
-  [328, 566, 36, 22, 80, 2, 'h'],
+  [[236, 502], [275, 560], [262, 575], 3, 'a', { tint: 'ochre' }],
+  [[202, 541], [222, 530], [241, 563], 3, 'h', { tint: 'cream', parts: 1 }],
+  [[290, 579], [311, 586], [308, 626], 2, 'h', { tint: 'pink', parts: 1 }],
   [[286, 677], [349, 679], [348, 699], 2, 'h', { poi: 'old_town', tint: 'terracotta' }],
   [[317, 656], [342, 658], [340, 677], 2, 'h', { poi: 'old_town', tint: 'ochre' }],
   // ---- east: Piazza Arbusto, Buried Properties
@@ -380,33 +380,12 @@ function pickW(rng, list) { let t = 0; for (const e of list) t += e[2]; let r = 
 const R2 = v => Math.round(v * 2) / 2;
 
 // =====================================================================================================
-// BUILDING COMPLEXES  (rotated rects → axis-aligned staircase segments → World buildings)
+// BUILDING COMPLEXES  (traced rotated rects → rows of rotated World buildings sharing one frame)
 // =====================================================================================================
-function decompose(cx, cz, L, Wd, ang) {
-  let a = ((ang % 180) + 180) % 180; if (a > 90) a -= 180;
-  const r = a * D2R, ux = Math.cos(r), uz = Math.sin(r);
-  const tilt = Math.min(Math.abs(a), 90 - Math.abs(a)), t = tilt * D2R;
-  const nearX = Math.abs(a) <= 45, drift = L * Math.sin(t);
-  if (tilt < 12 || drift < 12 || L < 34) {
-    const ax = L * Math.cos(t) + Wd * Math.sin(t), az = L * Math.sin(t) + Wd * Math.cos(t), k = Math.sqrt(L * Wd / (ax * az));
-    const ex = (nearX ? ax : az) * k, ez = (nearX ? az : ax) * k;
-    return [[R2(cx - ex / 2), R2(cz - ez / 2), R2(cx + ex / 2), R2(cz + ez / 2)]];
-  }
-  const cut = Wd / Math.cos(t), along = L * Math.cos(t);
-  let n = clamp(Math.round(drift / 8), 2, 7);
-  while (n > 2 && along / n < 7.5) n--;
-  while (cut - drift / n < 4 && n < 9) n++;
-  const out = [], start = (nearX ? cx : cz) - along / 2 * Math.sign(nearX ? ux : uz || 1);
-  const dir = Math.sign(nearX ? ux : uz) || 1;
-  for (let k = 0; k < n; k++) {
-    const tm = -L / 2 + (k + 0.5) * L / n, px = cx + ux * tm, pz = cz + uz * tm;
-    const b0 = R2(start + dir * k * along / n), b1 = R2(start + dir * (k + 1) * along / n);
-    const lo = Math.min(b0, b1), hi = Math.max(b0, b1);
-    if (nearX) out.push([lo, R2(pz - cut / 2), hi, R2(pz + cut / 2)]);
-    else out.push([R2(px - cut / 2), lo, R2(px + cut / 2), hi]);
-  }
-  return out;
-}
+// Each complex has its own frame C.R = rotFrame(cx, cz, rot): segment rects, rooms, doors and furniture are
+// laid out axis-aligned in "complex coordinates" and mapped to the world with toW(). The rotation is folded
+// into (-45°, 45°] so the local south face (facade bands, shutters, balconies) is the camera-facing one.
+const toW = (C, x, z) => (C.R ? rotPt(C.R, x, z) : [x, z]);
 
 // [[x1,z1],[x2,z2],[x3,z3], ...rest] (three consecutive corners) -> [cx, cz, L, W, angle, ...rest]
 function fromCorners(b) {
@@ -415,12 +394,30 @@ function fromCorners(b) {
   const cx = (x1 + x3) / 2, cz = (z1 + z3) / 2;
   return la >= lb ? [cx, cz, la, lb, Math.atan2(az, ax) / D2R, ...rest] : [cx, cz, lb, la, Math.atan2(bz, bx) / D2R, ...rest];
 }
-class Occ { // 1 m occupancy raster of building segments
+class Occ { // 1 m occupancy raster of building segments (rotated footprints rasterised by cell centre)
   constructor() { this.a = new Int32Array(MW * MH).fill(-1); }
   mark(x0, z0, x1, z1, id) { for (let z = Math.max(0, Math.floor(z0)); z < Math.min(MH, Math.ceil(z1)); z++) for (let x = Math.max(0, Math.floor(x0)); x < Math.min(MW, Math.ceil(x1)); x++) this.a[z * MW + x] = id; }
+  markPoly(pts, id) {
+    const [a, b, c, d] = bounds(pts);
+    for (let z = Math.max(0, Math.floor(b)); z < Math.min(MH, Math.ceil(d)); z++) for (let x = Math.max(0, Math.floor(a)); x < Math.min(MW, Math.ceil(c)); x++)
+      if (inPoly(x + 0.5, z + 0.5, pts) || inPoly(x + 0.15, z + 0.15, pts) || inPoly(x + 0.85, z + 0.85, pts) || inPoly(x + 0.15, z + 0.85, pts) || inPoly(x + 0.85, z + 0.15, pts)) this.a[z * MW + x] = id;
+  }
   at(x, z) { if (x < 0 || z < 0 || x >= MW || z >= MH) return -2; return this.a[Math.floor(z) * MW + Math.floor(x)]; }
   free(x0, z0, x1, z1) { for (let z = Math.max(0, Math.floor(z0)); z < Math.min(MH, Math.ceil(z1)); z++) for (let x = Math.max(0, Math.floor(x0)); x < Math.min(MW, Math.ceil(x1)); x++) if (this.a[z * MW + x] >= 0) return false; return true; }
 }
+// separating-axis test for convex quads: true when the gap between them is smaller than m
+function quadsClash(P, Q, m = 0) {
+  for (const poly of [P, Q]) for (let i = 0; i < poly.length; i++) {
+    const [ax, az] = poly[i], [bx, bz] = poly[(i + 1) % poly.length], nx = -(bz - az), nz = bx - ax, l = Math.hypot(nx, nz) || 1;
+    let a0 = 1e9, a1 = -1e9, b0 = 1e9, b1 = -1e9;
+    for (const [x, z] of P) { const v = (x * nx + z * nz) / l; a0 = Math.min(a0, v); a1 = Math.max(a1, v); }
+    for (const [x, z] of Q) { const v = (x * nx + z * nz) / l; b0 = Math.min(b0, v); b1 = Math.max(b1, v); }
+    if (b0 - a1 >= m || a0 - b1 >= m) return false;
+  }
+  return true;
+}
+const rectPoly = (C, x0, z0, x1, z1) => [[x0, z0], [x1, z0], [x1, z1], [x0, z1]].map(([x, z]) => toW(C, x, z));
+const bboxHit = (P, Q, m) => { const a = bounds(P), b = bounds(Q); return a[0] < b[2] + m && b[0] < a[2] + m && a[1] < b[3] + m && b[1] < a[3] + m; };
 
 // recursive room split inside a segment (local coords 0..w, 0..d). Records walls [x0,z0,x1,z1,gaps].
 function bsp(rng, x0, z0, x1, z1, minR, maxR, walls, rooms, bgaps, depth = 0) {
@@ -452,51 +449,84 @@ function bsp(rng, x0, z0, x1, z1, minR, maxR, walls, rooms, bgaps, depth = 0) {
 }
 
 function layoutComplexes(ctx) {
-  const { occ } = ctx;
+  const { occ, rng } = ctx;
   ctx.cxs = []; ctx.segs = [];
-  const placed = (ctx.obstacles || []).slice();
+  const placed = (ctx.obstacles || []).map(o => ({ poly: o.poly, C: null }));
   B.forEach((b0, bi) => {
     const b = Array.isArray(b0[0]) ? fromCorners(b0) : b0;
     const [cx, cz, L, Wd, ang, storeys, kind, o = {}] = b;
-    const C = { bi, cx, cz, L, Wd, ang, storeys, kind, o, segs: [] };
-    for (const r of decompose(cx, cz, L, Wd, ang)) {
-      const s = { x0: r[0], z0: r[1], x1: r[2], z1: r[3], C };
-      // resolve conflicts with other complexes: push the new segment back until it only touches
-      let ok = true;
-      for (let it = 0; it < 3 && ok; it++) for (const T of placed) {
-        if (T.C === C) continue;
-        const ox = Math.min(s.x1, T.x1) - Math.max(s.x0, T.x0), oz = Math.min(s.z1, T.z1) - Math.max(s.z0, T.z0);
-        if (ox <= -1.2 || oz <= -1.2) continue;
-        if (ox <= 0 || oz <= 0) { // a sliver alley < 1.2 m: snap to touching
-          if (ox <= 0 && ox > -1.2) { if (s.x0 >= T.x1 - 0.01) s.x0 = T.x1; else if (s.x1 <= T.x0 + 0.01) s.x1 = T.x0; }
-          else if (oz <= 0 && oz > -1.2) { if (s.z0 >= T.z1 - 0.01) s.z0 = T.z1; else if (s.z1 <= T.z0 + 0.01) s.z1 = T.z0; }
-          continue;
+    let a = ((ang % 180) + 180) % 180; if (a > 90) a -= 180;
+    let r = a, longX = true;
+    if (a > 45) { r = a - 90; longX = false; } else if (a < -45) { r = a + 90; longX = false; }
+    const rot = r * D2R;
+    const C = { bi, cx, cz, L, Wd, ang, storeys, kind, o, segs: [], rot, R: Math.abs(rot) > 1e-4 ? rotFrame(cx, cz, rot) : null, longX };
+    // long terraces become rows of 2–3 houses (own storeys / plaster colour), civic + key wings as given
+    const row = kind === 'h' || kind === 'a';
+    const n = o.parts ?? (row ? (L > 62 ? 3 : L > 36 ? 2 : 1) : kind === 'c' || kind === 's' ? (L > 80 ? 2 : 1) : 1);
+    const cuts = [0];
+    for (let k = 1; k < n; k++) cuts.push(R2(L * k / n + (row && !o.key ? (rng() - 0.5) * 0.24 * L / n : 0)));
+    cuts.push(L);
+    for (let k = 0; k < n; k++) {
+      const a0 = -L / 2 + cuts[k], a1 = -L / 2 + cuts[k + 1];
+      const sg = longX ? { x0: cx + a0, z0: cz - Wd / 2, x1: cx + a1, z1: cz + Wd / 2 } : { x0: cx - Wd / 2, z0: cz + a0, x1: cx + Wd / 2, z1: cz + a1 };
+      sg.C = C; sg.part = k;
+      // resolve conflicts with earlier complexes / deck corridors: greedily trim the cheapest side
+      const clash = (q) => { const P = rectPoly(C, q.x0, q.z0, q.x1, q.z1); return placed.filter(T => T.C !== C && bboxHit(P, T.poly, 0.5) && quadsClash(P, T.poly, 0.35)); };
+      let bad = clash(sg), it = 0;
+      const W0 = sg.x1 - sg.x0, D0 = sg.z1 - sg.z0;
+      while (bad.length && it++ < 4) {
+        let best = null;
+        for (const side of ['n', 's', 'w', 'e']) {
+          const max = (side === 'n' || side === 's' ? D0 : W0) * 0.6;
+          for (let t = 0.5; t <= max && (!best || t < best.t); t += 0.5) {
+            const q = { x0: sg.x0 + (side === 'w' ? t : 0), z0: sg.z0 + (side === 'n' ? t : 0), x1: sg.x1 - (side === 'e' ? t : 0), z1: sg.z1 - (side === 's' ? t : 0) };
+            if (q.x1 - q.x0 < 5 || q.z1 - q.z0 < 5) break;
+            const left = clash(q);
+            if (!left.includes(bad[0])) { best = { t, q }; break; }
+          }
         }
-        if (ox < oz) { if ((s.x0 + s.x1) < (T.x0 + T.x1)) s.x1 = T.x0; else s.x0 = T.x1; }
-        else { if ((s.z0 + s.z1) < (T.z0 + T.z1)) s.z1 = T.z0; else s.z0 = T.z1; }
-        if (s.x1 - s.x0 < 5 || s.z1 - s.z0 < 5) { ok = false; break; }
+        if (!best) break;
+        Object.assign(sg, best.q); bad = clash(sg);
       }
-      if (!ok) continue;
-      s.id = ctx.segs.length; ctx.segs.push(s); C.segs.push(s); placed.push(s);
+      if (bad.length) { (ctx.dropped = ctx.dropped || []).push(bi + ':' + k + '@' + Math.round(cx) + ',' + Math.round(cz)); continue; }
+      sg.poly = rectPoly(C, sg.x0, sg.z0, sg.x1, sg.z1);
+      sg.id = ctx.segs.length; ctx.segs.push(sg); C.segs.push(sg); placed.push({ poly: sg.poly, C });
     }
     if (C.segs.length) ctx.cxs.push(C);
   });
-  for (const s of ctx.segs) occ.mark(s.x0, s.z0, s.x1, s.z1, s.id);
+  for (const sg of ctx.segs) occ.markPoly(sg.poly, sg.id);
 }
 
-// floor height for each complex from the shaped terrain (sunk buildings sit at the low corner)
+// floor height for each complex from the shaped terrain (sunk buildings sit lower, sand piled against them)
 function complexFloors(ctx) {
   const { w } = ctx;
   for (const C of ctx.cxs) {
     let sum = 0, n = 0, mn = 1e9;
     for (const s of C.segs) for (let i = 0; i <= 4; i++) for (let j = 0; j <= 4; j++) {
-      const g = w.groundAt(lerp(s.x0, s.x1, i / 4), lerp(s.z0, s.z1, j / 4)); sum += g; n++; mn = Math.min(mn, g);
+      const [x, z] = toW(C, lerp(s.x0, s.x1, i / 4), lerp(s.z0, s.z1, j / 4)), g = w.groundAt(x, z); sum += g; n++; mn = Math.min(mn, g);
     }
     C.floorY = C.o.sunk ? lerp(mn, sum / n, 0.55) : sum / n;
   }
 }
 
-function sideInfo(s, side) { // wall line of a segment side in world coords
+// a sloped cut (or fill) from a door of a sunk building out to the natural sand level, ≤ 0.28 m rise per metre
+function digRamp(ctx, C, s, side, p, gw) {
+  const { w } = ctx, si = sideInfo(s, side);
+  const [ax, az] = toW(C, si.horiz ? p : si.fixed, si.horiz ? si.fixed : p);
+  const lx = si.horiz ? 0 : si.out, lz = si.horiz ? si.out : 0, cs = C.R ? C.R.c : 1, sn = C.R ? C.R.s : 0;
+  const dx = lx * cs - lz * sn, dz = lx * sn + lz * cs;
+  const y0 = C.floorY;
+  let L = 2;
+  while (L < 16 && Math.abs(w.groundAt(ax + dx * L, az + dz * L) - y0) / L > 0.28) L += 1;
+  const up = w.groundAt(ax + dx * L, az + dz * L) > y0;
+  for (let u = 0; u < L; u += 0.5) {
+    const h = y0 + (w.groundAt(ax + dx * L, az + dz * L) - y0) * (u / L);
+    w.ridge([[ax + dx * u, az + dz * u], [ax + dx * (u + 0.5), az + dz * (u + 0.5)]], Math.max(2.4, gw + 0.8), h, 0.8, up ? 'min' : 'max');
+  }
+  (ctx.ramps = ctx.ramps || []).push([ax, az, dx, dz, L]);
+}
+
+function sideInfo(s, side) { // wall line of a segment side in complex coords
   if (side === 'n') return { horiz: true, a: s.x0, b: s.x1, fixed: s.z0, out: -1 };
   if (side === 's') return { horiz: true, a: s.x0, b: s.x1, fixed: s.z1, out: 1 };
   if (side === 'w') return { horiz: false, a: s.z0, b: s.z1, fixed: s.x0, out: -1 };
@@ -561,19 +591,23 @@ function buildComplexes(ctx) {
       for (const side of ['s', 'n', 'e', 'w']) {
         const si = sideInfo(s, side), runs = []; let cur = null;
         for (let p = si.a + 0.75; p <= si.b - 0.75; p += 0.5) {
-          const ox = si.horiz ? p : si.fixed + si.out * 1.1, oz = si.horiz ? si.fixed + si.out * 1.1 : p;
-          const free = occ.at(ox, oz) === -1;
+          const [ox, oz] = toW(C, si.horiz ? p : si.fixed + si.out * 1.1, si.horiz ? si.fixed + si.out * 1.1 : p);
+          const free = occ.at(ox, oz) === -1 && !ctx.onDeck(ox, oz);
           const g = free ? w.groundAt(ox, oz) - C.floorY : 99;
           const nearEnd = ends[side].some(e => Math.abs(e - p) < 0.9) || gapsWorld.some(([gx, gz]) => Math.hypot(gx - (si.horiz ? p : si.fixed), gz - (si.horiz ? si.fixed : p)) < 2.2);
-          const okDoor = free && Math.abs(g) < 0.9 && !nearEnd, okWin = free && g < 1.2 && !nearEnd;
-          if (okWin) { if (!cur) { cur = { a: p, b: p, door: [] }; runs.push(cur); } cur.b = p; if (okDoor) cur.door.push(p); }
+          // sunk / half-buried blocks may open onto higher (or lower) sand: a ramp is dug to the door
+          const okDoor = free && Math.abs(g) < (o.sunk ? 3.4 : 0.9) && !nearEnd, okWin = free && g < 1.2 && !nearEnd;
+          if (okWin || (o.sunk && okDoor)) { if (!cur) { cur = { a: p, b: p, door: [], g: [] }; runs.push(cur); } cur.b = p; if (okDoor) { cur.door.push(p); cur.g.push(g); } }
           else cur = null;
         }
         runsBy[side] = runs;
       }
       // choose doors: prefer south/street-facing runs with the most walkable frontage
       const cand = [];
-      for (const side of ['s', 'n', 'e', 'w']) for (const r of runsBy[side]) if (r.door.length >= 5) cand.push({ side, r, score: r.door.length * (side === 's' ? 1.3 : 1) * (0.6 + rng() * 0.8) });
+      for (const side of ['s', 'n', 'e', 'w']) for (const r of runsBy[side]) if (r.door.length >= 5) {
+        const mg = r.g.reduce((a, v) => a + Math.abs(v), 0) / r.g.length;
+        cand.push({ side, r, score: r.door.length * (side === 's' ? 1.3 : 1) * (0.6 + rng() * 0.8) / (1 + mg * 2) });
+      }
       cand.sort((a, b) => b.score - a.score);
       const perim = 2 * (W + D);
       const wantDoors = ruin ? 3 : C.segs.length > 1 ? (k === 0 || k === C.segs.length - 1 ? 1 : (rng() < 0.4 ? 1 : 0)) + (perim > 90 ? 1 : 0) : 1 + (perim > 50 ? 1 : 0) + (perim > 100 ? 1 : 0);
@@ -581,25 +615,36 @@ function buildComplexes(ctx) {
       let made = 0;
       for (const c of cand) {
         if (made >= wantDoors) break;
-        const pts = c.r.door; const p = pts[Math.floor(pts.length * (0.3 + rng() * 0.4))];
+        const pts = c.r.door, pi = Math.floor(pts.length * (0.3 + rng() * 0.4)), p = pts[pi], pg = c.r.g[pi];
         if (doorPos.some(([sd, q]) => sd === c.side && Math.abs(q - p) < 4)) continue;
         const gw = ruin ? 2 + rng() * 1.5 : (C.kind === 'i' || C.kind === 'p') && rng() < 0.6 ? 3.5 : C.kind === 'c' || C.kind === 's' ? 2.4 : 1.6;
         const real = !ruin && !lockId && rng() < 0.45;
         addGap(c.side, p - gw / 2, gw, lockId ? { door: true, locked: lockId } : real ? { door: true } : {});
         doorPos.push([c.side, p]); made++;
+        if (Math.abs(pg) > 0.35) digRamp(ctx, C, s, c.side, p, gw);
         const si = sideInfo(s, c.side);
-        ctx.doorsOut.push(si.horiz ? [p, si.fixed + si.out * 1.5] : [si.fixed + si.out * 1.5, p]);
+        ctx.doorsOut.push(si.horiz ? toW(C, p, si.fixed + si.out * 1.5) : toW(C, si.fixed + si.out * 1.5, p));
       }
-      if (!made && !gapsWorld.length) {   // sealed segment: breach the longest exposed run so its loot is reachable
+      const lastOfSealed = C.segs.length === 1 ? !gapsWorld.length : k === C.segs.length - 1 && !C.segs.some(t => t !== s && t.doorCount);
+      if (!made && lastOfSealed) {   // sealed building: open the free wall spot nearest to the sand level (dig a ramp if needed)
         let best = null;
-        for (const side of ['s', 'n', 'e', 'w']) for (const r of runsBy[side]) if (!best || r.b - r.a > best.r.b - best.r.a) best = { side, r };
-        if (best && best.r.b - best.r.a >= 2) {
-          const p = (best.r.a + best.r.b) / 2, gw = 1.8;
-          addGap(best.side, p - gw / 2, gw, lockId ? { door: true, locked: lockId } : {});
-          doorPos.push([best.side, p]); made++;
-          const si = sideInfo(s, best.side);
-          ctx.doorsOut.push(si.horiz ? [p, si.fixed + si.out * 1.5] : [si.fixed + si.out * 1.5, p]);
+        for (const side of ['s', 'n', 'e', 'w']) {
+          const si = sideInfo(s, side);
+          for (let p = si.a + 1.6; p <= si.b - 1.6; p += 0.5) {
+            const [ox, oz] = toW(C, si.horiz ? p : si.fixed + si.out * 1.1, si.horiz ? si.fixed + si.out * 1.1 : p);
+            if (occ.at(ox, oz) !== -1 || ctx.onDeck(ox, oz) || ends[side].some(e => Math.abs(e - p) < 1.2)) continue;
+            const g = w.groundAt(ox, oz) - C.floorY;
+            if (!best || Math.abs(g) < Math.abs(best.g)) best = { side, p, g };
+          }
         }
+        if (best && Math.abs(best.g) < 4) {
+          const gw = 1.8;
+          addGap(best.side, best.p - gw / 2, gw, lockId ? { door: true, locked: lockId } : {});
+          doorPos.push([best.side, best.p]); made++;
+          if (Math.abs(best.g) > 0.35) digRamp(ctx, C, s, best.side, best.p, gw);
+          const si = sideInfo(s, best.side);
+          ctx.doorsOut.push(si.horiz ? toW(C, best.p, si.fixed + si.out * 1.5) : toW(C, si.fixed + si.out * 1.5, best.p));
+        } else (ctx.sealed = ctx.sealed || []).push(C.bi);
       }
       s.doorCount = made;
       // windows (sills) along exposed runs; ruins get ragged breaches instead
@@ -616,11 +661,15 @@ function buildComplexes(ctx) {
       }
       // ---- the building itself
       const tower = o.name === 'Red Tower' || o.name === 'Bell Tower';
-      const storeys = ruin ? 1 : C.storeys;
+      // row houses: each house of a terrace gets its own height and plaster colour
+      const rowVar = C.segs.length > 1 && (C.kind === 'h' || C.kind === 'a') && !o.key;
+      const storeys = ruin ? 1 : rowVar ? clamp(C.storeys + Math.round((rng() - 0.5) * 2.2), 2, 5) : C.storeys;
+      const segTintName = rowVar && k > 0 && !o.tint ? TINT_CYCLE[Math.floor(rng() * TINT_CYCLE.length)] : tintName;
+      const segTint = tint == null ? null : TINT[segTintName];
       const h = ruin ? 2.2 + rng() * 1.6 : undefined;
-      const flat = !gable;
+      const segGable = rowVar ? (gable ? rng() < 0.8 : rng() < 0.25) : gable;
       const extras = [];
-      if (flat && !ruin) {
+      if (!segGable && !ruin) {
         const nEx = Math.floor(W * D / 70);
         for (let i = 0; i < nEx; i++) {
           const ex = 1 + rng() * Math.max(0.5, W - 4), ez = 1 + rng() * Math.max(0.5, D - 4), t = rng();
@@ -630,20 +679,23 @@ function buildComplexes(ctx) {
           else extras.push(Object.assign([ex, ez, ex + 1.6, ez + 1.0, 0.8], { tex: 'rust' }));                     // AC unit
         }
       }
+      const [wcx, wcz] = toW(C, (s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2);
       const bb = w.building({
-        x: s.x0, z: s.z0, w: W, d: D, storeys, h, wall: o.wall || st.wall, floor: floorTex, roof: gable ? 'roofTile' : st.roof,
-        roofShape: gable ? 'gable' : undefined, roofTint: gable ? roofTint : undefined, tint, thick: 0.3,
+        x: wcx - W / 2, z: wcz - D / 2, w: W, d: D, rot: C.rot || undefined, storeys, h, wall: o.wall || st.wall, floor: floorTex, roof: segGable ? 'roofTile' : st.roof,
+        roofShape: segGable ? 'gable' : undefined, roofTint: segGable ? roofTint : undefined, tint: segTint, thick: 0.3,
         doors, inner: walls, peek: ruin ? 0 : tower ? 0.85 : 0.72, name: k === 0 ? (o.name || null) : null,
         roofExtras: extras, floorY: C.floorY, blend: C.o.sunk ? 0.8 : 1.6, trim: 'damConcrete', innerH: 3.0,
-        vents: flat && !ruin ? undefined : 0, parapet: !ruin, facade: !ruin,
+        vents: !segGable && !ruin ? undefined : 0, parapet: !ruin, facade: !ruin,
       });
-      s.bid = bb.id; s.ruin = ruin; s.isKey = isKey;
+      s.bid = bb.id; s.ruin = ruin; s.isKey = isKey; s.bb = bb;
+      const hh = h ?? storeys * 3.2, span = Math.min(W, D);
+      s.roofTop = C.floorY + hh + 0.25 + (segGable ? Math.max(0, Math.floor(Math.max(2, Math.floor(span / 0.9)) / 2 - 0.01)) * 0.45 : 0);
       if (isKey) ctx.keySegs.push({ id: o.key, name: o.keyName || o.name || o.key, s, C });
       // ---- facade dressing on the visible (south) face: upper-storey windows, shutters, balconies
-      if (!ruin && storeys > 1) dressFacade(ctx, s, C, bb.id, storeys, runsBy.s, tintName);
-      if (ruin) for (let i = 0; i < Math.max(1, Math.floor(W * D / 60)); i++) w.prop(rng() < 0.5 ? 'sc_rubble' : 'sc_rubble2', s.x0 + 1.5 + rng() * (W - 3), s.z0 + 1.5 + rng() * (D - 3), rng() * 6, { solid: true });
+      if (!ruin && storeys > 1) dressFacade(ctx, s, C, bb.id, storeys, runsBy.s, segTintName);
+      if (ruin) for (let i = 0; i < Math.max(1, Math.floor(W * D / 60)); i++) w.prop(rng() < 0.5 ? 'sc_rubble' : 'sc_rubble2', ...toW(C, s.x0 + 1.5 + rng() * (W - 3), s.z0 + 1.5 + rng() * (D - 3)), rng() * 6, { solid: true });
       // ---- rooms → furniture + loot
-      for (const r of rooms) C.rooms.push({ x0: s.x0 + r[0], z0: s.z0 + r[1], x1: s.x0 + r[2], z1: s.z0 + r[3], seg: s, key: isKey ? o.key : null, ruin, gaps: gapsWorld.concat(innerGaps) });
+      for (const r of rooms) C.rooms.push({ x0: s.x0 + r[0], z0: s.z0 + r[1], x1: s.x0 + r[2], z1: s.z0 + r[3], seg: s, C, key: isKey ? o.key : null, ruin, gaps: gapsWorld.concat(innerGaps) });
     });
   }
 }
@@ -653,13 +705,13 @@ function dressFacade(ctx, s, C, bid, storeys, southRuns, tintName) {
   const { w, rng } = ctx;
   const W = s.x1 - s.x0, sh = 3.2, z = s.z1;
   const shutterTint = SHUTTER[tintName] || 0x9ac0a0;
-  const opt = (y, extra = {}) => ({ onBuilding: bid, rel0: y, cutaway: true, collide: false, cast: false, ...extra });
+  const opt = (y, extra = {}) => ({ onBuilding: bid, rel0: y, cutaway: true, collide: false, cast: false, R: C.R || undefined, ...extra });
   const balc = C.kind === 'a' || C.kind === 'h' ? rng() < 0.55 : false;
   for (let st = 1; st < storeys; st++) {
     const y = st * sh + 0.8;
     for (let x = s.x0 + 1.6; x <= s.x1 - 1.6; x += 3.2) {
       if (C.kind === 'i') continue;
-      if (!ctx.occFreeSouth(s, x)) continue;
+      if (!ctx.occFreeSouth(C, s, x)) continue;
       w.block(x - 0.55, z - 0.02, x + 0.55, z + 0.1, 1.5, 'roofTar', opt(y));
       if (C.kind !== 'm' && C.kind !== 't' && C.kind !== 'p') {
         w.block(x - 1.0, z, x - 0.58, z + 0.12, 1.5, 'wood', opt(y, { tint: shutterTint }));
@@ -711,8 +763,7 @@ function sunkMounds(ctx) {
   const { w } = ctx;
   for (const C of ctx.cxs) {
     if (!C.o.sunk) continue;
-    let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9;
-    for (const s of C.segs) { x0 = Math.min(x0, s.x0); z0 = Math.min(z0, s.z0); x1 = Math.max(x1, s.x1); z1 = Math.max(z1, s.z1); }
+    const [x0, z0, x1, z1] = bounds(C.segs.flatMap(s => s.poly));
     const W = x1 - x0, D = z1 - z0, r = Math.max(W, D) * 0.85 + 6;
     w.raiseCircle(x1 - W * 0.15, z0 + D * 0.15, r, C.o.sunk * 1.7, 0.75, 'add');
   }
@@ -727,15 +778,12 @@ function sandDrifts(ctx) {
     if (!occ.free(x - r * 0.6, z - r * 0.6, x + r * 0.6, z + r * 0.6)) continue;
     w.raiseCircle(x, z, r, 0.3 + rng() * 0.8, 0.85, 'add');
   }
+  // drifts banked against the windward (local north / west) walls, only where the lane is open
+  const openAlong = (C, ax, az, bx, bz) => { for (let t = 0; t <= 1; t += 0.2) { const [x, z] = toW(C, lerp(ax, bx, t), lerp(az, bz, t)); if (!occ.free(x - 1.5, z - 1.5, x + 1.5, z + 1.5)) return false; } return true; };
   for (const s of ctx.segs) {
-    if (rng() < 0.5) {
-      const z = s.z0 - 2.8, ok = occ.free(s.x0, z - 2, s.x1, z + 1);
-      if (ok) w.ridge([[s.x0 + 1, z], [s.x1 - 1, z]], 1.5, 0.5 + rng() * 0.7, 2.5, 'add');
-    }
-    if (rng() < 0.3) {
-      const x = s.x0 - 2.8, ok = occ.free(x - 2, s.z0, x + 1, s.z1);
-      if (ok) w.ridge([[x, s.z0 + 1], [x, s.z1 - 1]], 1.5, 0.4 + rng() * 0.6, 2.5, 'add');
-    }
+    const C = s.C;
+    if (rng() < 0.5 && openAlong(C, s.x0 + 1, s.z0 - 2.8, s.x1 - 1, s.z0 - 2.8)) w.ridge([toW(C, s.x0 + 1, s.z0 - 2.8), toW(C, s.x1 - 1, s.z0 - 2.8)], 1.5, 0.5 + rng() * 0.7, 2.5, 'add');
+    if (rng() < 0.3 && openAlong(C, s.x0 - 2.8, s.z0 + 1, s.x0 - 2.8, s.z1 - 1)) w.ridge([toW(C, s.x0 - 2.8, s.z0 + 1), toW(C, s.x0 - 2.8, s.z1 - 1)], 1.5, 0.4 + rng() * 0.6, 2.5, 'add');
   }
 }
 
@@ -804,30 +852,26 @@ function dressDeck(ctx, D, { wallTex = 'damConcrete', pil = 'concrete', rail = '
     }
     if (lastGap && s > D.from + step) brokenEnd(ctx, D, s - step / 2, -1);
     lastGap = false;
+    // side walls, parapets and pilasters as blocks turned to the deck's tangent (clean diagonals)
+    const ang = Math.atan2(tz, tx), L2 = step / 2 + 0.12;
+    const rblock = (cx, cz, hl, ht, h, tex, opts) => w.block(cx - hl, cz - ht, cx + hl, cz + ht, h, tex, { ...opts, rot: ang });
     for (const side of [1, -1]) {
       if (nearRamp(s, side)) continue;
       const nx = -tz * side, nz = tx * side;
-      const hx = Math.abs(tx) * step / 2 + Math.abs(nx) * 0.35, hz = Math.abs(tz) * step / 2 + Math.abs(nz) * 0.35;
       const wx = px + nx * (hw + 0.35), wz = pz + nz * (hw + 0.35);
-      const g = Math.min(w.groundAt(wx - hx, wz - hz), w.groundAt(wx + hx, wz + hz), w.groundAt(wx - hx, wz + hz), w.groundAt(wx + hx, wz - hz));
-      if (y - g > 0.6) w.block(wx - hx, wz - hz, wx + hx, wz + hz, y - g + 0.5, wallTex, { y0: g - 0.5, xray: true });
+      const g = Math.min(w.groundAt(wx - tx * L2, wz - tz * L2), w.groundAt(wx + tx * L2, wz + tz * L2), w.groundAt(wx + nx * 0.4, wz + nz * 0.4));
+      if (y - g > 0.6) rblock(wx, wz, L2, 0.35, y - g + 0.5, wallTex, { y0: g - 0.5, xray: true });
       // parapet on the deck edge
-      const rx = px + nx * (hw - 0.2), rz = pz + nz * (hw - 0.2);
-      const qx = Math.abs(tx) * step / 2 + Math.abs(nx) * 0.18, qz = Math.abs(tz) * step / 2 + Math.abs(nz) * 0.18;
-      if (rng() > 0.04) w.block(rx - qx, rz - qz, rx + qx, rz + qz, 0.95, rail, { y0: y - 0.05 });
-      if (Math.round(s / step) % 6 === 0 && y - g > 1.5) {
-        const ox = px + nx * (hw + 0.85), oz = pz + nz * (hw + 0.85), ex = Math.abs(tx) * 0.7 + Math.abs(nx) * 0.25, ez = Math.abs(tz) * 0.7 + Math.abs(nz) * 0.25;
-        w.block(ox - ex, oz - ez, ox + ex, oz + ez, y - g + 0.2, pil, { y0: g - 0.5, xray: true });
-      }
+      if (rng() > 0.04) rblock(px + nx * (hw - 0.2), pz + nz * (hw - 0.2), L2, 0.18, 0.95, rail, { y0: y - 0.05 });
+      if (Math.round(s / step) % 6 === 0 && y - g > 1.5) rblock(px + nx * (hw + 0.85), pz + nz * (hw + 0.85), 0.7, 0.3, y - g + 0.2, pil, { y0: g - 0.5, xray: true });
     }
   }
 }
 function brokenEnd(ctx, D, s, dir) {
   const { w, rng } = ctx;
   const [px, pz, tx, tz] = pointAt(D.pts, s), y = D.yAt(s), hw = D.width / 2;
-  const ex = Math.abs(tz) * hw + Math.abs(tx) * 0.5, ez = Math.abs(tx) * hw + Math.abs(tz) * 0.5;
   const g = w.groundAt(px + tx * dir * 2.5, pz + tz * dir * 2.5);
-  if (y - g > 0.8) w.block(px - ex, pz - ez, px + ex, pz + ez, y - g - 0.1, 'damConcrete', { y0: g - 0.5, xray: true });
+  if (y - g > 0.8) w.block(px - 0.5, pz - hw - 0.4, px + 0.5, pz + hw + 0.4, y - g - 0.1, 'damConcrete', { y0: g - 0.5, xray: true, rot: Math.atan2(tz, tx) });
   // spilled slabs, rubble and rebar into the gap
   for (let i = 0; i < 4; i++) {
     const a = (rng() - 0.5) * D.width * 0.8, f = 2 + rng() * 5;
@@ -868,30 +912,31 @@ function furnish(ctx) {
         const rect = [x - ex, z - ez, x + ex, z + ez];
         if (!placed.every(([a, b, c, d]) => rect[2] < a - 0.6 || rect[0] > c + 0.6 || rect[3] < b - 0.6 || rect[1] > d + 0.6)) continue;
         if (conts.some(([px, pz]) => px > rect[0] - 0.6 && px < rect[2] + 0.6 && pz > rect[1] - 0.6 && pz < rect[3] + 0.6)) continue;
-        if (kind) { w.prop(kind, x, z, rot, { solid: true }); placed.push(rect); }
+        if (kind) { w.prop(kind, ...toW(C, x, z), rot - C.rot, { solid: true }); placed.push(rect); }
         i++;
         const ck = keyLoot ? keyLoot[Math.floor(rng() * keyLoot.length)] : e[1];
         if (!ck) continue;
         if (!keyLoot && rng() < (C.o.rich ? ctx.lootSkip - 0.3 : C.o.poi ? ctx.lootSkip - 0.12 : ctx.lootSkip + 0.03)) continue;
-        const capKey = r.key === 'residential' ? 'res' + C.bi : r.key === 'space_travel' ? 'st' + r.seg.id : r.key, cap = { residential: 8, space_travel: 5 }[r.key] || 10;
+        const capKey = r.key === 'residential' ? 'res' + C.bi : r.key === 'space_travel' ? 'st' + r.seg.id : r.key, cap = { residential: 8, space_travel: 8 }[r.key] || 10;
         if (keyLoot && ((ctx.keyLoot[capKey] || 0) >= cap || conts.length >= 2)) continue;
         // container beside the furniture (or in its place), clear of walls, furniture and doorways
         const sgn = rng() < 0.5 ? 1 : -1;
         let cx = x, cz = z;
         if (kind) { if (side < 2) cx = x + sgn * (hw + 0.6); else cz = z + sgn * (hw + 0.6); }
-        if (side < 2) cz = clamp(cz, r.z0 + 0.8, r.z1 - 0.8); else cx = clamp(cx, r.x0 + 0.8, r.x1 - 0.8);   // off the wall
-        if (cx < r.x0 + 0.8 || cx > r.x1 - 0.8 || cz < r.z0 + 0.8 || cz > r.z1 - 0.8) { if (!kind) continue; cx = x - (cx - x); cz = z - (cz - z); }
-        if (cx < r.x0 + 0.8 || cx > r.x1 - 0.8 || cz < r.z0 + 0.8 || cz > r.z1 - 0.8) continue;
-        if (!clearOf(cx, cz, 0.45) || conts.some(([px, pz]) => Math.hypot(px - cx, pz - cz) < 1)) continue;
+        const wm = C.R ? 1.0 : 0.8, fm = C.R ? 0.5 : 0.45;   // rotated walls/furniture rasterise a little fatter
+        if (side < 2) cz = clamp(cz, r.z0 + wm, r.z1 - wm); else cx = clamp(cx, r.x0 + wm, r.x1 - wm);   // off the wall
+        if (cx < r.x0 + wm || cx > r.x1 - wm || cz < r.z0 + wm || cz > r.z1 - wm) { if (!kind) continue; cx = x - (cx - x); cz = z - (cz - z); }
+        if (cx < r.x0 + wm || cx > r.x1 - wm || cz < r.z0 + wm || cz > r.z1 - wm) continue;
+        if (!clearOf(cx, cz, fm) || conts.some(([px, pz]) => Math.hypot(px - cx, pz - cz) < 1)) continue;
         if (r.gaps.some(([gx, gz, door]) => Math.hypot(gx - cx, gz - cz) < (door ? 1.4 : 0.8))) continue;
         const tier = r.key ? 3 : C.o.rich ? (rng() < 0.35 ? 3 : 2) : C.o.poi ? (rng() < 0.07 ? 3 : 2) : (rng() < 0.15 ? 2 : 1);
-        w.container(ck, cx, cz, rot, { tier, room: r.key || null });
+        w.container(ck, ...toW(C, cx, cz), rot - C.rot, { tier, room: r.key || null });
         conts.push([cx, cz]);
         if (keyLoot) ctx.keyLoot[capKey] = (ctx.keyLoot[capKey] || 0) + 1;
         ctx.nCont++;
       }
       // interior light for named places (night raids)
-      if (!r.ruin && (r.key || (C.o.poi && rng() < 0.22)) && area > 12) w.lamp((r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2, { y: 2.6, color: r.key ? 0xffd890 : 0xffe0b0, intensity: 0.9, range: 8, flicker: rng() < 0.3 ? 0.4 : 0, model: null });
+      if (!r.ruin && (r.key || (C.o.poi && rng() < 0.22)) && area > 12) w.lamp(...toW(C, (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2), { y: 2.6, color: r.key ? 0xffd890 : 0xffe0b0, intensity: 0.9, range: 8, flicker: rng() < 0.3 ? 0.4 : 0, model: null });
     }
   }
 }
@@ -939,26 +984,34 @@ function paintDeck(ctx, D, tex, edge = null) {
 // obstacles that buildings must keep clear of (deck corridors, spiral ramp, station platforms)
 function addObstacles(ctx) {
   const obs = [];
-  const corridor = (pts, half, from = 0) => {
-    const total = polyLen(pts);
-    for (let s = from; s < total; s += 6) {
-      const [x, z, tx, tz] = pointAt(pts, Math.min(total, s + 3));
-      const hx = Math.abs(tx) * 3.5 + Math.abs(tz) * half, hz = Math.abs(tz) * 3.5 + Math.abs(tx) * half;
-      obs.push({ x0: x - hx, z0: z - hz, x1: x + hx, z1: z + hz, C: null });
+  const box = (x0, z0, x1, z1) => obs.push({ poly: [[x0, z0], [x1, z0], [x1, z1], [x0, z1]] });
+  // deck corridors as oriented strips along each polyline leg
+  const corridor = (pts, half, from = 0, to = 1e9) => {
+    let acc = 0;
+    for (let k = 0; k < pts.length - 1; k++) {
+      const [ax, az] = pts[k], [bx, bz] = pts[k + 1], L = Math.hypot(bx - ax, bz - az);
+      if (acc + L > from && acc < to) {
+        const t0 = Math.max(0, (from - acc) / L), t1 = Math.min(1, (to - acc) / L), ux = (bx - ax) / L, uz = (bz - az) / L, nx = -uz * half, nz = ux * half;
+        const sx = ax + (bx - ax) * t0 - ux, sz = az + (bz - az) * t0 - uz, ex = ax + (bx - ax) * t1 + ux, ez = az + (bz - az) * t1 + uz;
+        obs.push({ poly: [[sx + nx, sz + nz], [ex + nx, ez + nz], [ex - nx, ez - nz], [sx - nx, sz - nz]] });
+      }
+      acc += L;
     }
   };
   corridor(HIGHWAY, HW_W / 2 + 2.5);
   corridor(RAIL, 6, RAIL_VIADUCT_FROM - 10);
-  obs.push({ x0: 484, z0: 287, x1: 510, z1: 313, C: null });           // parking garage spiral ramp
-  obs.push({ x0: 236, z0: 236, x1: 255, z1: 352, C: null });           // station platform + tracks
+  box(484, 287, 510, 313);           // parking garage spiral ramp
+  corridor(RAIL, 4.2, 150, 372);    // station tracks + platform strip
   ctx.obstacles = obs;
 }
 function canopy(ctx, x, z, wd, dp, h, opts = {}) {
   // open-sided roof on corner posts (fades like any roof when you step under it)
   const g = { lintel: false };
-  return ctx.w.building({ x, z, w: wd, d: dp, h, wall: opts.wall || 'concrete', floor: opts.floor || false, roof: opts.roof || 'metalPanel', roofTint: opts.roofTint,
+  const bb = ctx.w.building({ x, z, w: wd, d: dp, h, rot: opts.rot, wall: opts.wall || 'concrete', floor: opts.floor || false, roof: opts.roof || 'metalPanel', roofTint: opts.roofTint,
     tint: opts.tint, thick: 0.45, parapet: opts.parapet ?? false, facade: false, vents: 0, name: opts.name || null, peek: opts.peek ?? 0.8, blend: 1,
     doors: [{ side: 'n', at: 0.6, w: wd - 1.2, ...g }, { side: 's', at: 0.6, w: wd - 1.2, ...g }, { side: 'w', at: 0.6, w: dp - 1.2, ...g }, { side: 'e', at: 0.6, w: dp - 1.2, ...g }] });
+  ctx.occ.markPoly(bb.poly, 99998);
+  return bb;
 }
 
 // =====================================================================================================
@@ -1011,15 +1064,16 @@ function cafe(ctx, x, z, n = 4) {
 function setPieces(ctx, HW, RL) {
   const { w, rng } = ctx;
   // ---------------- Gas Station
-  w.paint('concrete', 420, 68, 458, 104); w.paint('asphalt', 424, 72, 452, 100);
-  canopy(ctx, 425, 76, 22, 12, 4.6, { name: 'Gas Station', roof: 'metalPanel', wall: 'plaster', tint: TINT.cream });
-  for (let i = 0; i < 4; i++) w.prop('sc_pump', 429 + i * 4.6, 82, 0, { solid: true });
-  w.prop('sc_fiat3', 433, 86, 1.4, { solid: true }); w.container('car_trunk', 434.6, 86, 0, { tier: 1 });
+  // forecourt rotated with the reference block (-31°): pump canopy north of the kiosk
+  w.paintPoly('concrete', [[421, 76], [440, 65], [461, 99], [443, 110]]); w.paintPoly('asphalt', [[426, 78], [440, 70], [452, 90], [438, 98]]);
+  const gsR = -31 * D2R, gs = canopy(ctx, 438.5 - 5.85, 82.6 - 7.4, 11.7, 14.8, 4.6, { name: 'Gas Station', roof: 'metalPanel', wall: 'plaster', tint: TINT.cream, rot: gsR });
+  for (const lx of [2.4, 9.3]) for (const lz of [3.5, 11.3]) w.prop('sc_pump', ...w.local(gs, lx, lz), -gsR, { solid: true });
+  w.prop('sc_fiat3', ...w.local(gs, 5.9, 7.4), -gsR + 0.15, { solid: true }); w.container('car_trunk', ...w.local(gs, 5.9, 10.4), -gsR, { tier: 1 });
   w.prop('sc_carroof', 452, 74, 0.3, { solid: true }); w.prop('sc_sign', 420, 70, 0, { solid: true, scale: 1.6 });
   w.prop('barrel', 456, 92, 0, { solid: true }); w.prop('barrel', 457, 93.4, 0, { solid: true }); w.prop('barrelBlue', 455.6, 94, 0, { solid: true });
   w.container('toolbox', 454, 90, 0, { tier: 1 }); w.container('trash', 422, 98, 0);
-  w.lamp(424, 78, { y: 4.2, color: 0xfff4e0, intensity: 1.2, range: 12, model: null, flicker: 0.3 });
-  w.lamp(446, 78, { y: 4.2, color: 0xfff4e0, intensity: 1.2, range: 12, model: null });
+  w.lamp(...w.local(gs, 3, 7), { y: 4.2, color: 0xfff4e0, intensity: 1.2, range: 12, model: null, flicker: 0.3 });
+  w.lamp(...w.local(gs, 9, 7), { y: 4.2, color: 0xfff4e0, intensity: 1.2, range: 12, model: null });
   // ---------------- Su Durante Warehouses yard
   w.paint('concrete', 282, 140, 336, 176);
   for (let i = 0; i < 5; i++) w.prop(i % 2 ? 'sc_container' : 'sc_container2', 286 + i * 3.2, 172, 0.05 * (i - 2), { solid: true });
@@ -1091,27 +1145,37 @@ function setPieces(ctx, HW, RL) {
   // ---------------- Church Ruins: pews, altar, columns, bell tower bell, cypress avenue
   const nave = ctx.cxs.find(C => C.o.name === 'Church Ruins');
   if (nave) {
-    const s = nave.segs[0], cx = (s.x0 + s.x1) / 2;
-    for (let r = 0; r < 5; r++) { w.prop('sc_pew', cx - 3.2, s.z0 + 5 + r * 2.6, Math.PI, { solid: true }); w.prop('sc_pew', cx + 3.2, s.z0 + 5 + r * 2.6, Math.PI, { solid: true }); }
-    w.prop('sc_altar', cx, s.z0 + 2.2, 0, { solid: true }); w.container('safe', cx + 2.6, s.z0 + 1.6, 0, { tier: 3 });
-    w.container('cabinet', s.x0 + 1.2, s.z0 + 2, Math.PI / 2, { tier: 2 }); w.container('basket', s.x1 - 1.2, s.z1 - 2, -Math.PI / 2, { tier: 2 });
-    for (let i = 0; i < 4; i++) { w.prop('sc_column', s.x0 + 2.4, s.z0 + 4 + i * 5, 0, { solid: true }); w.prop(i === 2 ? 'sc_column_fallen' : 'sc_column', s.x1 - 2.4, s.z0 + 4 + i * 5, 1.2, { solid: true }); }
-    w.lamp(cx, s.z0 + 3, { y: 1.4, color: 0xffb060, intensity: 0.8, range: 6, flicker: 0.5, model: null });
+    // nave laid out in the church's own frame: altar at the far end of the long axis, two rows of pews
+    const C = nave, s = nave.segs[0], alongZ = s.z1 - s.z0 >= s.x1 - s.x0;
+    const P = (u, v) => toW(C, alongZ ? (s.x0 + s.x1) / 2 + v : s.x0 + u, alongZ ? s.z0 + u : (s.z0 + s.z1) / 2 + v);   // u along nave, v across
+    const len = alongZ ? s.z1 - s.z0 : s.x1 - s.x0, half = (alongZ ? s.x1 - s.x0 : s.z1 - s.z0) / 2;
+    const face = (alongZ ? Math.PI : -Math.PI / 2) - C.rot;
+    for (let r = 0; r < 5 && 5 + r * 2.6 < len - 2; r++) { w.prop('sc_pew', ...P(5 + r * 2.6, -3.2), face, { solid: true }); w.prop('sc_pew', ...P(5 + r * 2.6, 3.2), face, { solid: true }); }
+    w.prop('sc_altar', ...P(2.2, 0), face + Math.PI, { solid: true }); w.container('safe', ...P(1.6, 2.6), face + Math.PI, { tier: 3 });
+    w.container('cabinet', ...P(2, -half + 1.2), face, { tier: 2 }); w.container('basket', ...P(len - 2, half - 1.2), face, { tier: 2 });
+    for (let i = 0; i < 4 && 4 + i * 5 < len - 1; i++) { w.prop('sc_column', ...P(4 + i * 5, -half + 2.4), 0, { solid: true }); w.prop(i === 2 ? 'sc_column_fallen' : 'sc_column', ...P(4 + i * 5, half - 2.4), 1.2 - C.rot, { solid: true }); }
+    w.lamp(...P(3, 0), { y: 1.4, color: 0xffb060, intensity: 0.8, range: 6, flicker: 0.5, model: null });
   }
   const tower = ctx.cxs.find(C => C.o.name === 'Bell Tower');
-  if (tower) { const s = tower.segs[0]; w.prop('sc_bell', (s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2, 0, { y: tower.storeys * 3.2 + 0.3 + (tower.floorY - w.groundAt((s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2)) }); }
+  if (tower) { const s = tower.segs[0], [bx, bz] = toW(tower, (s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2); w.prop('sc_bell', bx, bz, -tower.rot, { y: tower.storeys * 3.2 + 0.3 + (tower.floorY - w.groundAt(bx, bz)) }); }
   for (let i = 0; i < 8; i++) w.prop('sc_cypress', ...freeSpot(ctx, 662 + i * 5, 738 + i * 0.5, 1), 0, { solid: true });
   for (let i = 0; i < 12; i++) w.prop(rng() < 0.5 ? 'sc_column' : 'sc_vase', ...freeSpot(ctx, 640 + rng() * 60, 770 + rng() * 40, 1), rng() * 6, { solid: true });
   // ---------------- Old Town / Grandioso: laundry between the blocks, parked cars
   for (let i = 0; i < 6; i++) w.prop(i % 2 ? 'sc_laundry' : 'sc_laundry2', ...freeSpot(ctx, 214 + rng() * 30, 616 + rng() * 10, 1), Math.PI * 0.08, {});
   for (let i = 0; i < 4; i++) { const [x, z] = freeSpot(ctx, 252 + i * 3, 600 + i * 9, 1.6); w.prop(['sc_fiat', 'sc_fiat2', 'sc_fiat3', 'sc_fiat4'][i], x, z, 0.3, { solid: true }); w.container('car_trunk', x, z + 2.1, 0, { tier: 1 }); }
   // ---------------- Marano Station: platform canopy, wagons, benches, sign
-  canopy(ctx, 237, 252, 15, 92, 4.2, { name: 'Marino Station Platform', roof: 'corrugated', wall: 'rust', peek: 0.75 });
-  w.paint('concrete', 237, 252, 241, 344);
-  for (let i = 0; i < 5; i++) w.prop('sc_bench', 238.6, 262 + i * 16, Math.PI / 2, { solid: true });
-  w.prop('sc_wagon', 246, 300, 0, { solid: true }); w.prop('sc_wagon', 246, 323, 0.02, { solid: true });
-  for (let i = 0; i < 6; i++) w.lamp(239, 258 + i * 16, { y: 3.6, color: 0xffe0b0, intensity: 1.0, range: 9, model: null, flicker: i === 3 ? 0.6 : 0 });
-  w.prop('sc_streetsign', 230, 250, 0, { solid: true });
+  { // platform strip between the track and the (rotated) station hall: benches, lamps, two stranded carriages
+    const a0 = polyDist(236, 250, RAIL)[1], a1 = polyDist(219, 336, RAIL)[1];
+    const at = (s2, off) => { const [x, z, tx, tz] = pointAt(RAIL, s2); return [x - tz * off, z + tx * off, Math.atan2(tx, tz)]; };
+    const strip = []; for (let s2 = a0; s2 <= a1; s2 += 6) strip.push(at(s2, 4.2).slice(0, 2));
+    w.path(strip, 3, 'concrete');
+    for (let s2 = a0 + 8, i = 0; s2 < a1 - 4; s2 += 15, i++) {
+      const [bx, bz, r] = at(s2, 4.6); w.prop('sc_bench', bx, bz, r + Math.PI / 2, { solid: true });
+      const [lx, lz] = at(s2 + 7, 4.4); w.lamp(lx, lz, { y: 3.6, color: 0xffe0b0, intensity: 1.0, range: 9, model: 'lamp', flicker: i === 3 ? 0.6 : 0 });
+    }
+    for (const s2 of [a0 + 26, a0 + 44]) { const [x, z, r] = at(s2, 0); w.prop('sc_wagon', x, z, r, { solid: true }); }
+    const [sx, sz] = at(a0 - 3, 4.5); w.prop('sc_streetsign', sx, sz, 0, { solid: true });
+  }
   // the three round cisterns north-west of the station, and a derailed wagon beside them
   for (const [x, z, sc] of [[155, 213, 2.0], [182, 221, 1.85], [152, 240, 2.4]]) { w.prop('sc_cistern', x, z, 0, { solid: true, scale: sc }); w.paintCircle('concrete', x, z, sc * 4.3, 0.05, x); }
   w.prop('sc_wagon', 203, 258, -0.28, { solid: true }); w.container('suitcase', 206.5, 252, 0, { tier: 1 });
@@ -1167,7 +1231,6 @@ function setPieces(ctx, HW, RL) {
   // ---------------- rail line: sleepers + rails on the yard and viaduct
   for (let s = 0; s < RL.total; s += 4) {
     const [x, z, tx, tz] = pointAt(RL.pts, s);
-    if (s > 242 && s < 340) continue;            // under the platform canopy the wagons sit on painted track
     w.prop('sc_rails', x, z, Math.atan2(tx, tz), {});
   }
 }
@@ -1224,24 +1287,47 @@ function vegetation(ctx) {
 }
 function bounds(pts) { let a = 1e9, b = 1e9, c = -1e9, d = -1e9; for (const [x, z] of pts) { a = Math.min(a, x); b = Math.min(b, z); c = Math.max(c, x); d = Math.max(d, z); } return [a, b, c, d]; }
 
+function buriedHouses(ctx) {
+  const { w, rng } = ctx;
+  // buried houses: roofs and attic windows poking from the sand (each at its own angle)
+  for (const [cx, cz, W, D, ax, show, deg0] of BURIED) {
+    const deg = deg0 ?? (((cx * 7 + cz * 13) % 70) - 35);   // half-buried villas lie at the town's skewed angles
+    const R = rotFrame(cx, cz, deg * D2R), F = { R }, poly = rectPoly(F, cx - W / 2, cz - D / 2, cx + W / 2, cz + D / 2);
+    if (poly.some(([x, z]) => ctx.occ.at(x, z) !== -1) || !ctx.occ.free(cx - 2, cz - 2, cx + 2, cz + 2)) continue;
+    const gs = poly.map(([x, z]) => w.groundAt(x, z)).concat([w.groundAt(cx, cz)]);
+    const g = Math.min(...gs), top = Math.max(...gs) + show, tint = TINT[TINT_CYCLE[Math.floor(rng() * TINT_CYCLE.length)]];
+    w.block(cx - W / 2, cz - D / 2, cx + W / 2, cz + D / 2, top - g + 2.5, 'plaster', { y0: g - 2.5, tint, R });
+    const steps = Math.floor((ax === 'x' ? D : W) / 1.8);
+    for (let k = 0; k < steps; k++) {
+      const ins = k * 0.9;
+      if (ax === 'x') w.block(cx - W / 2 - 0.3, cz - D / 2 + ins - 0.3, cx + W / 2 + 0.3, cz + D / 2 - ins + 0.3, 0.45, 'roofTile', { y0: top + k * 0.45, R, tint: ROOF_TINTS[k % 3] === 0xffffff ? 0xffffff : 0xf4dcc8 });
+      else w.block(cx - W / 2 + ins - 0.3, cz - D / 2 - 0.3, cx + W / 2 - ins + 0.3, cz + D / 2 + 0.3, 0.45, 'roofTile', { y0: top + k * 0.45, R });
+    }
+    w.block(cx - 0.6, cz + D / 2 - 0.05, cx + 0.6, cz + D / 2 + 0.1, 1.0, 'roofTar', { y0: top - 1.1, collide: false, R });
+    ctx.occ.markPoly(poly, 99999);
+    if (rng() < 0.5) w.container(rng() < 0.5 ? 'cabinet' : 'suitcase', ...rotPt(R, cx, cz + D / 2 + 1.6), Math.PI - deg * D2R, { tier: 2 });
+  }
+}
+
 function streetClutter(ctx) {
   const { w, rng } = ctx;
-  // shop fronts: awnings, planters, parked scooters along exposed south/north walls
+  // shop fronts: awnings, planters, parked scooters along exposed (local) south/north walls
   for (const s of ctx.segs) {
-    if (s.ruin || s.C.kind === 'i' || s.C.kind === 'p' || s.C.kind === 'm' || s.C.kind === 't') continue;
-    const shop = s.C.kind === 's' || (s.C.o.poi && rng() < 0.6) || rng() < 0.22;
+    const C = s.C;
+    if (s.ruin || C.kind === 'i' || C.kind === 'p' || C.kind === 'm' || C.kind === 't') continue;
+    const shop = C.kind === 's' || (C.o.poi && rng() < 0.6) || rng() < 0.22;
     for (const [side, z, rot] of [['s', s.z1, 0], ['n', s.z0, Math.PI]]) {
-      const out = side === 's' ? 1 : -1;
+      const out = side === 's' ? 1 : -1, wr = rot - C.rot;
       for (let x = s.x0 + 2.2; x < s.x1 - 2.2; x += 3.6 + rng() * 3) {
-        const oz = z + out * 1.2;
-        if (ctx.occ.at(x, oz) !== -1 || ctx.onDeck(x, oz)) continue;
-        if (Math.abs(w.groundAt(x, oz) - s.C.floorY) > 0.8) continue;
-        const t = rng();
-        if (shop && t < 0.4) w.prop(['sc_awning', 'sc_awning2', 'sc_awning3'][Math.floor(rng() * 3)], x, z + out * 0.16, rot, { y: s.C.floorY - w.groundAt(x, z + out * 0.5) });
-        else if (t < 0.52) w.prop(rng() < 0.5 ? 'sc_planter' : 'sc_planter2', x, z + out * 0.7, 0, { solid: true });
-        else if (t < 0.56 && !ctx.nearDoor(x, z + out * 1.2, 2)) w.prop(rng() < 0.5 ? 'sc_vespa' : 'sc_vespa2', x, z + out * 1.1, Math.PI / 2 + (rng() - 0.5) * 0.3, { solid: true });
-        else if (t < 0.6 && !ctx.nearDoor(x, z + out * 1.2, 2)) { w.prop('barrel', x, z + out * 0.7, 0, { solid: true }); }
-        else if (t < 0.63) w.prop('sc_laundry', x, z + out * 1.6, 0, {});
+        const [ox, oz] = toW(C, x, z + out * 1.2);
+        if (ctx.occ.at(ox, oz) !== -1 || ctx.onDeck(ox, oz)) continue;
+        if (Math.abs(w.groundAt(ox, oz) - C.floorY) > 0.8) continue;
+        const t = rng(), P = d => toW(C, x, z + out * d);
+        if (shop && t < 0.4) { const [ax, az] = P(0.16); w.prop(['sc_awning', 'sc_awning2', 'sc_awning3'][Math.floor(rng() * 3)], ax, az, wr, { y: C.floorY - w.groundAt(...P(0.5)) }); }
+        else if (t < 0.52) w.prop(rng() < 0.5 ? 'sc_planter' : 'sc_planter2', ...P(0.7), 0, { solid: true });
+        else if (t < 0.56 && !ctx.nearDoor(ox, oz, 2)) w.prop(rng() < 0.5 ? 'sc_vespa' : 'sc_vespa2', ...P(1.1), Math.PI / 2 + wr + (rng() - 0.5) * 0.3, { solid: true });
+        else if (t < 0.6 && !ctx.nearDoor(ox, oz, 2)) w.prop('barrel', ...P(0.7), 0, { solid: true });
+        else if (t < 0.63) w.prop('sc_laundry', ...P(1.6), wr, {});
       }
     }
   }
@@ -1307,6 +1393,14 @@ function streetClutter(ctx) {
     }
   }
   ctx.clutterCounts = cnt;
+  // Barron husks: fixed landmark wrecks of giant ARK half swallowed by the dunes (breachable, tier 3)
+  for (const [x0, z0, r] of [[150, 560, 0.6], [790, 300, -0.4], [620, 862, 1.1]]) {
+    const [x, z] = freeSpot(ctx, x0, z0, 4, 30);
+    w.container('barron_husk', x, z, r, { tier: 3 });
+    w.prop('husk', x + Math.cos(r) * 4.5, z - Math.sin(r) * 4.5, r + 0.8, { solid: true, scale: 1.6 });
+    for (let i = 0; i < 6; i++) { const a = i * 1.05 + r, d = 5 + (i % 3) * 1.5; w.prop(i % 2 ? 'debris' : 'sc_slab2', x + Math.cos(a) * d, z + Math.sin(a) * d, a, { solid: i % 2 === 0 }); }
+    ctx.keepClear.push([x, z, 3.5]);
+  }
   // husks + buried cars out in the dunes, ARK crates
   for (let i = 0, n = 0; i < 3000 && n < 46; i++) {
     const x = 20 + rng() * 860, z = 20 + rng() * 860;
@@ -1317,21 +1411,6 @@ function streetClutter(ctx) {
     else if (t < 0.75) { w.prop('arcCrate', x, z, rng() * 6, { solid: true }); w.container('arc_crate', x + 1.1, z, 0, { tier: 2 }); }
     else w.prop('sc_lamppost', x, z, 0, { solid: true, y: -1.2 });
     n++;
-  }
-  // buried houses: roofs and attic windows poking from the sand
-  for (const [cx, cz, W, D, ax, show] of BURIED) {
-    if (!ctx.occ.free(cx - W / 2, cz - D / 2, cx + W / 2, cz + D / 2)) continue;
-    const gs = [w.groundAt(cx - W / 2, cz - D / 2), w.groundAt(cx + W / 2, cz + D / 2), w.groundAt(cx - W / 2, cz + D / 2), w.groundAt(cx + W / 2, cz - D / 2), w.groundAt(cx, cz)];
-    const g = Math.min(...gs), top = Math.max(...gs) + show, tint = TINT[TINT_CYCLE[Math.floor(rng() * TINT_CYCLE.length)]];
-    w.block(cx - W / 2, cz - D / 2, cx + W / 2, cz + D / 2, top - g + 2.5, 'plaster', { y0: g - 2.5, tint });
-    const steps = Math.floor((ax === 'x' ? D : W) / 1.8);
-    for (let k = 0; k < steps; k++) {
-      const ins = k * 0.9;
-      if (ax === 'x') w.block(cx - W / 2 - 0.3, cz - D / 2 + ins - 0.3, cx + W / 2 + 0.3, cz + D / 2 - ins + 0.3, 0.45, 'roofTile', { y0: top + k * 0.45, tint: ROOF_TINTS[k % 3] === 0xffffff ? 0xffffff : 0xf4dcc8 });
-      else w.block(cx - W / 2 + ins - 0.3, cz - D / 2 - 0.3, cx + W / 2 - ins + 0.3, cz + D / 2 + 0.3, 0.45, 'roofTile', { y0: top + k * 0.45 });
-    }
-    w.block(cx - 0.6, cz + D / 2 - 0.05, cx + 0.6, cz + D / 2 + 0.1, 1.0, 'roofTar', { y0: top - 1.1, collide: false });
-    if (rng() < 0.5) w.container(rng() < 0.5 ? 'cabinet' : 'suitcase', cx, cz + D / 2 + 1.2, Math.PI, { tier: 2 });
   }
   // metro stairs (sealed secondary entrances)
   for (const [x, z] of METRO_STAIRS) { const [px, pz] = freeSpot(ctx, x, z, 1.6, 10); w.prop('sc_metro_stairs', px, pz, rng() < 0.5 ? 0 : Math.PI / 2, {}); }
@@ -1371,6 +1450,10 @@ const POIS = [
   ['maintenance_depot', 'Maintenance Depot', 108, 640, 36, 1, 'Maintenance Depot'],
   ['old_town', 'Old Town', 304, 668, 30, 1, 'Old Town'],
 ];
+// open ground big enough for a condition boss (Queene / Matriark) and its escorts. Sandy City's condition
+// roster (MAP_CONDITIONS) has no boss today, so these only matter if one is added: the park ring, the
+// warehouse yard and the half-buried east blocks are the reference's widest open spaces.
+const BOSS_ARENAS = { marino_park: true, warehouse: true, sandy_properties: true };
 // metro stations are named places too (quests visit them); positions resolved from the placed entrances
 const STATION_POIS = [['northern_station', 'Northern Station', 'northern'], ['western_station', 'Western Station', 'western'],
   ['eastern_station', 'Eastern Station', 'eastern'], ['southern_station', 'Southern Station', 'southern']];
@@ -1379,19 +1462,20 @@ function markers(ctx) {
   const { w, rng } = ctx;
   for (const [id, name, x, z, r, tier, orig] of POIS) {
     const al = orig.toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-    w.poi(id, name, x, z, r, { tier, aliases: al === id ? [] : [al] });
+    w.poi(id, name, x, z, r, { tier, aliases: al === id ? [] : [al], ...(BOSS_ARENAS[id] ? { bossPoi: BOSS_ARENAS[id] } : {}) });
   }
   for (const [id, name, k] of STATION_POIS) { const m = ctx.metro[k]; if (m) w.poi(id, name, m[0], m[1], 14, { tier: 1, aliases: [] }); }
-  // key rooms (one entry per locked id; staircase complexes list their segment rects)
+  // key rooms (one entry per locked building; multi-wing key areas list each rotated wing in `polys`)
   const byId = new Map();
   for (const k of ctx.keySegs) {
     const key = k.id + '|' + k.C.bi;
-    if (!byId.has(key)) byId.set(key, { id: k.id, name: k.name, rects: [] });
-    byId.get(key).rects.push([k.s.x0, k.s.z0, k.s.x1, k.s.z1]);
+    if (!byId.has(key)) byId.set(key, { id: k.id, name: k.name, polys: [] });
+    byId.get(key).polys.push(k.s.poly.map(([x, z]) => [+x.toFixed(2), +z.toFixed(2)]));
   }
+  // rotated key wings: x0..z1 is the world bounding box, `polys` the exact (rotated) footprints
   for (const e of byId.values()) {
-    const [x0, z0, x1, z1] = e.rects.reduce((a, r) => [Math.min(a[0], r[0]), Math.min(a[1], r[1]), Math.max(a[2], r[2]), Math.max(a[3], r[3])], [1e9, 1e9, -1e9, -1e9]);
-    w.keyRoom(e.id, x0, z0, x1, z1, null, { name: e.name, rects: e.rects });
+    const [x0, z0, x1, z1] = bounds(e.polys.flat());
+    w.keyRoom(e.id, x0, z0, x1, z1, null, { name: e.name, polys: e.polys });
   }
   // raider hatches (reference positions)
   hatch(ctx, 'collapsed_supermarket_hatch', 'Collapsed Supermarket Hatch', 478, 172);
@@ -1401,11 +1485,22 @@ function markers(ctx) {
   for (const [x, z] of ctx.spawnPts) w.spawnPoint(x, z);
 
   // ---------------------------------------------------------------- ARK
-  const roofY = name => { const C = ctx.cxs.find(c => c.o.name === name); return C ? { y: C.floorY + C.storeys * 3.2 + 0.3, roof: true } : {}; };
-  const roofOf = (name, fx = 0.5, fz = 0.5) => { const C = ctx.cxs.find(c => c.o.name === name); if (!C) return null; const s = C.segs[Math.floor(C.segs.length / 2)]; return [lerp(s.x0, s.x1, fx), lerp(s.z0, s.z1, fz), { y: C.floorY + C.storeys * 3.2 + 0.3, roof: true }]; };
+  // static perches sit on the actual roof (absolute height of the chosen segment's roof)
+  const roofOf = (name, fx = 0.5, fz = 0.5, si = null) => { const C = ctx.cxs.find(c => c.o.name === name); if (!C) return null; const s = C.segs[si ?? Math.floor(C.segs.length / 2)]; const [x, z] = toW(C, lerp(s.x0, s.x1, fx), lerp(s.z0, s.z1, fz)); return [x, z, { yAbs: s.roofTop, roof: true }]; };
+  const roofAt = (name, x, z) => {   // roof point of the named complex nearest to (x, z)
+    const C = ctx.cxs.find(c => c.o.name === name); if (!C) return null;
+    const [lx, lz] = C.R ? unrotPt(C.R, x, z) : [x, z];
+    let best = null;
+    for (const s of C.segs) { const qx = clamp(lx, s.x0 + 1.5, s.x1 - 1.5), qz = clamp(lz, s.z0 + 1.5, s.z1 - 1.5), d = Math.hypot(qx - lx, qz - lz); if (!best || d < best.d) best = { d, s, qx, qz }; }
+    const [wx, wz] = toW(C, best.qx, best.qz); return [wx, wz, { yAbs: best.s.roofTop, roof: true }];
+  };
   // sentinels on rooftops / towers (reference icons at Town Hall + the overpass, plus towers)
-  w.arkSpawn('sentinel', 478, 497, { ...roofY('Town Hall') });
-  w.arkSpawn('sentinel', 546, 546, { yAbs: ctx.HW.yAt(polyDist(546, 546, HIGHWAY)[1]) + 0.2 });
+  { const r = roofAt('Town Hall', 478, 497); if (r) w.arkSpawn('sentinel', r[0], r[1], r[2]); }   // reference Sentinel icon on the Town Hall roof
+  { // reference Sentinel icon on the overpass: snapped onto the Corso deck
+    const [d, sa] = polyDist(546, 546, HIGHWAY), [hx, hz, tx, tz] = pointAt(HIGHWAY, sa), side = Math.sign((546 - hx) * -tz + (546 - hz) * tx) || 1;
+    const off = Math.min(d, HW_W / 2 - 1.5) * side;
+    w.arkSpawn('sentinel', hx - tz * off, hz + tx * off, { yAbs: ctx.HW.yAt(sa) + 0.2 });
+  }
   for (const n of ['Red Tower', 'Bell Tower', 'Hospital']) { const r = roofOf(n); if (r) w.arkSpawn('sentinel', r[0], r[1], r[2]); }
   for (const n of ['Galleria', 'Grandiosa Apartments', 'Library']) { const r = roofOf(n, 0.6, 0.4); if (r) w.arkSpawn('turret', r[0], r[1], r[2]); }
   for (const n of ['Research', 'Space Travel', 'Warehouse', 'Marino Station']) { const r = roofOf(n, 0.3, 0.6); if (r) w.arkSpawn('turret', r[0], r[1], r[2]); }
@@ -1427,11 +1522,11 @@ function markers(ctx) {
   for (const [x, z, p] of hornets) { const [px, pz] = freeSpot(ctx, x, z, 2, 24); w.arkSpawn('hornet', px, pz, { count: 1, radius: 6, patrol: p }); }
   w.arkSpawn('rocketeer', 700, 549, { count: 1, radius: 10, patrol: [[640, 545], [800, 558], [880, 568]] });
   w.arkSpawn('rocketeer', 220, 740, { count: 1, radius: 10, patrol: [[272, 655], [204, 768], [160, 860]] });
-  w.arkSpawn('rocketeer', 640, 120, { count: 1, radius: 14, patrol: [[600, 80], [760, 90], [700, 160]] });
-  w.arkSpawn('rocketeer', 500, 860, { count: 1, radius: 14, patrol: [[400, 860], [600, 870], [520, 820]] });
+  w.arkSpawn('rocketeer', 640, 120, { count: 1, radius: 14, patrol: [[600, 80], [760, 90], [700, 160]], notCondition: 'hurricane' });
+  w.arkSpawn('rocketeer', 500, 860, { count: 1, radius: 14, patrol: [[400, 860], [600, 870], [520, 820]], notCondition: 'hurricane' });
   // ground ARK in the lanes and inside buildings
   const roomPick = (pred) => { const rs = ctx.cxs.filter(pred).flatMap(C => C.rooms).filter(r => !r.ruin && !r.key && (r.x1 - r.x0) * (r.z1 - r.z0) > 20); return rs[Math.floor(rng() * rs.length)]; };
-  for (let i = 0; i < 16; i++) { const r = roomPick(C => C.o.poi); if (r) w.arkSpawn('tick', (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2, { count: 2 + (i % 2), radius: 3 }); }
+  for (let i = 0; i < 16; i++) { const r = roomPick(C => C.o.poi); if (r) w.arkSpawn('tick', ...toW(r.C, (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2), { count: 2 + (i % 2), radius: 3 }); }
   const lanes = [[438, 160], [398, 470], [520, 460], [612, 500], [462, 664], [380, 690], [560, 650], [300, 560], [262, 420], [604, 690], [660, 610], [548, 248], [340, 260], [430, 760], [650, 470], [736, 520]];
   lanes.forEach(([x, z], i) => { const [px, pz] = freeSpot(ctx, x, z, 1.5, 15); w.arkSpawn(i % 3 === 2 ? 'fireball' : 'pop', px, pz, { count: i % 3 === 2 ? 1 : 3, radius: 6 }); });
   const shred = [[430, 668], [490, 630], [300, 690], [640, 640]];
@@ -1449,6 +1544,30 @@ function markers(ctx) {
   w.arkSpawn('bastion', 330, 860, { count: 1, radius: 24, patrol: [[280, 840], [380, 870]] });
   w.arkSpawn('bombardier', 830, 420, { count: 1, radius: 20 }); w.arkSpawn('spotter', 760, 470, { count: 1, radius: 20, patrol: [[720, 440], [790, 500]] });
   w.arkSpawn('bombardier', 70, 250, { count: 1, radius: 20 }); w.arkSpawn('spotter', 150, 300, { count: 1, radius: 20, patrol: [[120, 270], [190, 330]] });
+
+  // ---------------------------------------------------------------- condition-gated groups
+  const lane = (x, z) => freeSpot(ctx, x, z, 2, 20);
+  // Bird City: "ARC drones of all types patrol the sky in significantly greater numbers" over the rooftops
+  const birdLoops = [[[300, 470], [380, 440], [420, 520], [330, 560]], [[430, 590], [520, 560], [560, 640], [470, 700]], [[540, 280], [620, 300], [600, 380], [520, 360]],
+    [[360, 690], [440, 700], [430, 790], [350, 780]], [[600, 690], [680, 700], [700, 790], [610, 780]], [[400, 200], [500, 200], [520, 280], [420, 290]]];
+  birdLoops.forEach((p, i) => { const [x, z] = lane(...p[0]); w.arkSpawn(['wasp', 'hornet', 'snitch'][i % 3], x, z, { count: i % 3 === 0 ? 3 : 1, radius: 10, patrol: p, condition: 'bird_city' }); });
+  for (const [x, z] of [[470, 640], [600, 330]]) w.arkSpawn('rocketeer', x, z, { count: 1, radius: 12, patrol: [[x - 40, z], [x + 40, z + 10]], condition: 'bird_city' });
+  // Night Raid: increased ARK spawn rates — extra drone sweeps of the lit plazas + a hornet over Main Street
+  for (const [x, z, p] of [[458, 722, [[430, 700], [500, 720], [470, 760]]], [306, 458, [[290, 440], [340, 470], [300, 490]]], [628, 556, [[600, 540], [670, 550], [640, 580]]], [452, 238, [[420, 210], [480, 260]]]])
+    w.arkSpawn('wasp', ...lane(x, z), { count: 2, radius: 8, patrol: p, condition: 'night_raid' });
+  w.arkSpawn('hornet', ...lane(430, 670), { count: 1, radius: 8, patrol: [[330, 670], [560, 670], [690, 720]], condition: 'night_raid' });
+  // Hurricane: "the Hurricanes have drawn more ARC" — heavies push into the town edges; flyers grounded
+  w.arkSpawn('leaper', ...lane(640, 470), { count: 1, radius: 20, patrol: [[600, 430], [700, 480], [640, 520]], condition: 'hurricane' });
+  w.arkSpawn('bastion', ...lane(300, 700), { count: 1, radius: 16, patrol: [[260, 690], [350, 720]], condition: 'hurricane' });
+  w.arkSpawn('bastion', ...lane(470, 140), { count: 1, radius: 16, patrol: [[420, 120], [520, 160]], condition: 'hurricane' });
+  // Close Scrutiny: Surveyrs scanning the open squares, each guarded by Vaporisers
+  for (const [x, z] of [[424, 402], [104, 400], [540, 206], [628, 556], [700, 440]]) {
+    const [sx, sz] = lane(x, z);
+    w.arkSpawn('surveyor', sx, sz, { count: 1, radius: 10, patrol: [[sx - 15, sz], [sx, sz - 15], [sx + 15, sz], [sx, sz + 15]], condition: 'close_scrutiny' });
+    w.arkSpawn('vaporiser', sx + 4, sz + 4, { count: 2, radius: 8, condition: 'close_scrutiny' });
+  }
+  // Prospecting Probes: probes land in the open dunes "protected by flying ARC" — wasp escorts over the landing fields
+  for (const [x, z] of [[760, 220], [140, 500], [600, 850], [300, 60]]) w.arkSpawn('wasp', x, z, { count: 2, radius: 16, patrol: [[x - 25, z - 10], [x + 25, z + 10]], condition: 'prospecting_probes' });
 
   // ---------------------------------------------------------------- loot zones
   w.zone('Dunes', [[0, 0], [MW, 0], [MW, MH], [0, MH]], { tier: 1 });
@@ -1472,8 +1591,8 @@ export default {
   ambient: { music: 'sandy_city', birds: false, wind: true },
   conditions: ['night_raid', 'hurricane', 'lush_blooms', 'uncovered_caches', 'husk_graveyard', 'prospecting_probes', 'close_scrutiny', 'cold_snap', 'bird_city'],
   build(w, rng) {
-    const ctx = { w, rng, occ: new Occ(), doorsOut: [], keySegs: [], metro: {}, nCont: 0, lootSkip: 0.915, keyLoot: {} };
-    ctx.occFreeSouth = (s, x) => ctx.occ.at(x, s.z1 + 1.2) === -1;
+    const ctx = { w, rng, occ: new Occ(), doorsOut: [], keySegs: [], metro: {}, nCont: 0, lootSkip: 0.9, keyLoot: {} };
+    ctx.occFreeSouth = (C, s, x) => ctx.occ.at(...toW(C, x, s.z1 + 1.2)) === -1;
     ctx.decks = [];
     ctx.onDeck = (x, z) => ctx.decks.some(D => { const i = Math.round(z) * (MW + 1) + Math.round(x); return i >= 0 && i < D.arr.length && !Number.isNaN(D.arr[i]); });
     ctx.nearDoor = (x, z, r) => ctx.doorsOut.some(([dx, dz]) => Math.abs(dx - x) < r && Math.abs(dz - z) < r);
@@ -1494,7 +1613,7 @@ export default {
     paintDeck(ctx, ctx.HW, 'asphalt');
     w.path(RAIL.slice(0, 9), 6, 'gravel');
     paintDeck(ctx, ctx.RL, 'gravel', 'concrete'); mark('paint');
-    buildComplexes(ctx); mark('buildings');
+    buildComplexes(ctx); buriedHouses(ctx); mark('buildings');
     furnish(ctx); mark('furnish');
     dressDeck(ctx, ctx.HW);
     dressDeck(ctx, ctx.RL, { wallTex: 'brick', pil: 'damConcrete', rail: 'rust', step: 2 });

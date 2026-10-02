@@ -69,28 +69,46 @@ Metro entrances are `sc_metro` stairwells with an "M" totem + green beacon; twel
 metro stairs (`sc_metro_stairs`) dot the town where the reference shows stair icons.
 
 ## Key rooms (ids match the key items in `src/data/items.js`)
-| room id | where | rect (x0,z0 – x1,z1) | locked doors | tier-3 containers |
-|---|---|---|---|---|
-| hospital | Hospital, 2nd wing segment (reference "Hospital Key" icon) | 421,205.5 – 448,218 | 2 | 10 |
-| space_travel | whole Space Travel block (4 staircase segments, `rects` listed) | 504.5,358 – 561.5,404.5 | 5 | 20 |
-| town_hall | Town Hall centre segment (north door, next to the key icon) | 468.5,504.5 – 485.5,535.5 | 3 | 10 |
-| residential | Plaza Rossa west house (reference master-key icon by Main Street) | 401.5,689.5 – 420.5,728.5 | 9 total | 8 |
-| residential | Grandiosa Apartments north block | 208.5,579 – 247.5,617 | (shared) | 8 |
-| residential | Piazza Arbusta south block (east master-key icon) | 566,628.5 – 578,662.5 | (shared) | 8 |
+Key wings are rotated buildings; `keyRoom` records carry the world bounding box plus `polys` (exact rotated
+footprints, one per wing).
 
-All exterior and interior openings of a key segment are `door: true, locked: <id>`; validated in
-headless Chromium: 0 key-room cells reachable from a spawn without a key.
+| room id | where | bbox (x0,z0 – x1,z1) | locked doors | tier-3 containers |
+|---|---|---|---|---|
+| hospital | Hospital, middle wing (reference "Hospital Key" icon), rotated 56° | 432,216 – 471,257 | 3 | 10 |
+| space_travel | whole Space Travel block (2 wings), rotated 59° | 508,349 – 561,412 | 4 | 16 |
+| town_hall | Town Hall centre wing (north door by the key icon), rotated −30° | 457,496 – 496,534 | 4 | 10 |
+| residential | Plaza Rossa west house (master-key icon by Main Street) | 403,687 – 422,710 | 8 total | 8 |
+| residential | Grandiosa Apartments, north half of the north block | 204,575 – 233,616 | (shared) | 8 |
+| residential | Piazza Arbusta south block, west wing | 559,622 – 593,653 | (shared) | 8 |
+
+Every opening into a key wing is a `door: true, locked: <id>` (exterior doors and the internal doorways to
+the neighbouring wings). Reachability (headless Chromium, 0.5 m grid, locked door leaves rasterised in their
+rotated frame): **0 interior cells of any key wing reachable from a spawn without the key**.
 
 ## Other gameplay markers
 * 19 player spawns (reference spawn icons; the east one sits on the Corso deck at the map edge).
-* 98 ARK spawn groups: 5 sentinels (Town Hall roof + highway overpass from the reference, plus Red Tower,
-  Bell Tower, Hospital roof), 8 turrets (Research, Space Travel, Warehouse, Marino Station, Galleria,
-  Grandiosa, Library roofs, highway camp), 16 wasp pairs + 6 hornets on patrol loops over plazas/streets,
-  ticks inside POI rooms, pops/fireballs in the lanes, shredders on Main Street / Santa Marta, snitches and
-  surveyors in the dunes, rocketeers along the highway and dune rims, leapers/bastions/bombardier+spotter
-  pairs in the open dunes.
+* ARK: 98 always-on spawn groups + 30 condition-gated ones (128 total).
+  * Sentinels on the Town Hall roof and the overpass (reference icons; both snapped to the real roof /
+    deck height with `yAbs`), plus Red Tower, Bell Tower and Hospital roofs; 8 roof / deck turrets.
+  * 16 wasp pairs + 6 hornets on patrol loops over plazas and streets; ticks in POI rooms; pops,
+    fireballs and shredders in the lanes; snitches + surveyors in the dunes; rocketeers along the highway
+    and dune rims; leapers / bastions / two bombardier+spotter pairs in the open dunes.
+  * Condition groups (`condition` / `notCondition`, ids from `MAP_CONDITIONS.sandy_city`):
+    - `bird_city` ("drones of all types patrol the sky in greater numbers"): 6 rooftop drone loops
+      (wasp ×3 / hornet / snytch) + 2 rocketeers.
+    - `night_raid` ("increased ARC spawn rates"): 4 extra wasp pairs over the lit plazas + a Main Street hornet.
+    - `hurricane` ("drawn more ARC"): a leaper and two bastions push into the town edges; the two dune
+      rocketeers are suppressed (`notCondition`).
+    - `close_scrutiny`: 5 Surveyor scan sites (Marino Park, Warehouse yard, Market Ruins, Piazza Arbusta,
+      Sandy Properties), each guarded by 2 Vaporisers.
+    - `prospecting_probes`: wasp escorts over four dune landing fields.
+  * Boss arenas: `bossPoi: true` on marino_park, warehouse and sandy_properties (the widest open ground).
+    No Sandy City condition spawns a boss today (Harvester / Matriarch are not in its roster, as in ARC
+    Raiders), so these only matter if one is added.
+* Three fixed **Barron husks** (`barron_husk`, tier 3) half-buried in the dunes west of the rail yard,
+  in the NE olive clearing and in the southern dunes (the wiki notes Baron Husks have fixed locations).
 * Field depots (with field crates) at the Hospital forecourt, Plaza Rossa west and Sandy Properties.
-* ~830 containers (≈290 T1 / 440 T2 / 100 T3); loot themed per building kind (medical in the hospital,
+* ~840 containers (≈290 T1 / 450 T2 / 100 T3); loot themed per building kind (medical in the hospital,
   electronics/servers in Research + Space Travel, books/desks in Library + Town Hall, toolboxes in the
   warehouses/depots, car trunks on the highway, raider caches at the highway camp, plants in groves).
 * Zones: Dunes (1), Old Town (2), and the reference's outlined high-value areas (3): Hospital,
@@ -111,11 +129,17 @@ headless Chromium: 0 key-room cells reachable from a spawn without a key.
   barriers, husks; Abandoned Highway Camp (tents, tarps, campfire, raider caches, sandbags) on the deck.
 * **Marino rail line**: tracks north of the station, a platform canopy with wagons, then a brick viaduct
   rising to 4 m running SW past the Maintenance Depot (a second walkable deck).
-* Buildings: 227 World buildings from ~120 traced complexes. Rotated reference footprints become
-  axis-aligned "staircase" chains of segments joined by internal doorways; BSP room splits with doors,
-  windows (sills), Italian plaster tints (cream, ochre, pale pink, terracotta, peach…), gable tile roofs or
-  flat roofs with tanks/solar panels/chimneys/AC units, shutters + balconies on the visible south facade,
-  awnings/planters/scooters on street fronts.
+* Buildings (pass 2): 179 **rotated** World buildings from ~125 traced complexes, each at its reference
+  angle (folded into ±45° so the camera-facing facade stays the dressed one). Long terraces are split
+  into 2–3 row houses sharing one frame (own height, plaster colour and roof each); civic blocks and key
+  wings are explicit `parts`. Everything inside a complex — BSP rooms, doors, windows, furniture,
+  containers, facade shutters/balconies, awnings, church pews — is laid out in the complex's own frame and
+  mapped to the world, so it rotates with the walls. Overlaps with earlier blocks and with the deck
+  corridors are resolved with a separating-axis test (trim the cheapest side). Sunk buildings get a ramp
+  dug through the piled sand to each door (≤ 0.28 m rise per metre) so none are sealed.
+* The highway / viaduct side walls, parapets and pilasters are blocks turned to the deck tangent (clean
+  diagonals instead of stepped boxes); the gas-station canopy, Marino Station (rotated with the rail),
+  half-buried villas and the church interior follow their reference angles too.
 * Set pieces: three fountain piazzas (Plaza Rossa, Piazza Romana, Marino Park), market stalls (Market
   Ruins, Piazza Arbusta), café terraces, statues, the church nave with pews/altar/columns + bell tower with
   bell, cypress avenue, spiral ramp of the Parking Garage, three round cisterns NW of the station,
@@ -125,8 +149,10 @@ headless Chromium: 0 key-room cells reachable from a spawn without a key.
 * No walkable upper floors or snap-hook rooftop traversal: buildings are one walkable floor + visual
   storeys (2–7). Rooftop routes of the original are replaced by the walkable highway/rail decks and dune
   ramps.
-* Reference buildings are rotated; World buildings are axis-aligned, so rotated blocks are approximated
-  by stepped chains of segments (same footprint area/orientation, stepped outline).
+* Footprints are rectangles (or rows of rectangles); L- and V-shaped reference blocks (Santa Marta,
+  Town Hall annex) are 2–3 rotated rectangles meeting at the corner, with small gaps where they abut.
+* Rotations are folded into ±45°, so a block traced at 60° is built as a −30° block with its long side
+  running the other way; footprint and orientation match, only the "front" side differs.
 * Collapsed highway spans are placed where the reference's old streets cross under the Corso; the original
   has more continuous ramps to the overpass.
 * Metro stations are surface stairwells (no underground), hatches use the shared `hatch` prop.
@@ -134,5 +160,5 @@ headless Chromium: 0 key-room cells reachable from a spawn without a key.
   `Grandiosa`, `Su Duranti`, `Piazza Arbusta`) plus `Plaza Rossa`, `Corso da Vinchi`.
 
 ## Budget (headless Chromium, SwiftShader)
-227 buildings, ~18.7 k props, ~830 containers, 98 ARK groups, ~660 lamps; build + finalize ≈ 2.5–3.5 s
-(map `build()` alone ≈ 0.6–1.0 s).
+179 buildings, ~18.7 k props, ~840 containers, 128 ARK groups (98 always on), ~660 lamps;
+build + finalize ≈ 2.0–2.7 s at normal load (map `build()` ≈ 0.8–1.0 s).
