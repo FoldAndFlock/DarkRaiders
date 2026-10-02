@@ -41,9 +41,11 @@ Gamepads work too (twin-stick: left stick move, right stick aim, triggers ADS/fi
 
 ## What's in it
 
-* **Three maps** laid out after the real game: **Damn Grounds** (Dam Battlegrounds), **Green Gate**
-  (The Blue Gate) and **Sandy City** (Buried City), at near-real scale for 25–30 minute raids, with POIs,
-  key rooms, cargo elevators, raider hatches, metro stations, field depots and hundreds of containers.
+* **Three maps** traced from the real game's layouts: **Damn Grounds** (Dam Battlegrounds, 1100×825 m),
+  **Green Gate** (The Blue Gate, 1100×825 m) and **Sandy City** (Buried City, 900×900 m), at near-real scale
+  for 25–30 minute raids – POIs at their reference positions and angles, key rooms, cargo elevators,
+  airshafts, metro stations, raider hatches, field depots, ~700–850 containers and 100+ ARK groups each,
+  with rooftop Sentinels and condition-only bosses (Harvester Queene, Matriark).
 * **Map conditions**: Night Raid, Electromagnetic Storm (lightning strikes), Cold Snap, Hurricane,
   Lush Blooms, Uncovered Caches, Husk Graveyard, Prospecting Probes, Harvester/Matriarch bosses, Close
   Scrutiny, Locked Gate… plus random time of day and weather (rain, storms, fog, sandstorms, snow).
@@ -87,7 +89,11 @@ file and import it on another browser or machine.
 * `index.html?raid=test_range` jumps straight into the developer sandbox map (`&time=night&weather=rain&cond=em_storm`).
 * `index.html?dev` adds the sandbox to the lobby map list.
 * `tools/mapview.html?map=<id>&mode=overview` previews whole maps with markers; `mode=view&x=..&z=..` shows the in-game camera.
-* `tools/*.mjs` are headless Playwright test scripts (playtest, menu flow, co-op, gameplay loop).
+* `tools/arkgallery.html` (every ARK model, `?state=idle|alert|fire|broken|demo`), `tools/icons.html` (all item
+  icons + gun models), `tools/audio-test.html` (every sound, music state and jingle) and `tools/hubtest.html`
+  (the Speranzia hub on its own).
+* `tools/*.mjs` are headless Playwright test scripts (playtest, menu flow, co-op, gameplay loop);
+  `node tools/mapthumbs.mjs` regenerates the lobby map previews in `assets/maps/` after map edits.
 * Architecture and content schemas: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); map-building guide: [`docs/MAPS.md`](docs/MAPS.md).
 
 Fan project. ARC Raiders is a trademark of Embark Studios AB; DarkRaiders is not affiliated with or endorsed by Embark.
