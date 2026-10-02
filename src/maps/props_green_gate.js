@@ -613,3 +613,18 @@ P('gg_gatebalcony', () => {      // steel sentry balcony cantilevered off the ga
   v.box(14, 32, 1, 15, 34, 2, C.steelD); v.set(15, 34, 2, C.gW); v.glow(C.gW);
   return v.build();
 }, {});
+P('gg_venthouse', () => {     // small ventilation housing next to an airshaft head: louvred box + duct
+  const v = new Vox(16, 12, 12, 0.15, [8, 0, 6]);
+  v.box(0, 0, 0, 15, 1, 11, C.concD);
+  v.box(1, 2, 1, 14, 9, 10, (x, y) => (y % 2 ? C.steel : C.steelD));
+  v.box(1, 10, 1, 14, 10, 10, C.steelL); v.box(5, 11, 4, 10, 11, 7, C.steelD);
+  for (let y = 3; y < 9; y += 2) v.box(2, y, 11, 13, y, 11, C.black);
+  v.box(0, 4, 4, 0, 7, 7, C.haz);
+  return v.build();
+}, { solid: [1.2, 0.9, 1.7] });
+P('gg_hatchsign', () => {     // raider hatch marker post with a yellow plate
+  const v = new Vox(6, 22, 3, 0.1, [3, 0, 1.5]);
+  v.box(2, 0, 1, 3, 20, 1, C.steelD); v.box(0, 14, 0, 5, 19, 2, C.haz); v.box(1, 16, 2, 4, 17, 2, C.black);
+  v.set(2, 21, 1, C.gY); v.glow(C.gY);
+  return v.build();
+}, { solid: [0.12, 0.12, 2] });

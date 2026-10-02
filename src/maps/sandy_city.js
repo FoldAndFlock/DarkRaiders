@@ -142,7 +142,7 @@ const B = [
   [520, 234, 32, 20, 55, 1, 'r', { poi: 'market_ruins' }],
   [556, 128, 28, 12, 62, 2, 'h', { sunk: 1 }],
   // ---- Dune's End
-  [571, 206, 63, 28, 60, 3, 'a', { name: "Dune's End Block", poi: 'dunes_end', tint: 'pink' }],
+  [571, 206, 63, 28, 60, 3, 'a', { name: "Dune's End Block", poi: 'dunes_end', tint: 'pink', upper: 1 }],
   [589, 156, 25, 18, 50, 2, 'h', { poi: 'dunes_end', sunk: 2 }],
   [600, 247, 40, 30, -35, 3, 'a', { poi: 'dunes_end', tint: 'ochre' }],
   [674, 234, 20, 14, 30, 1, 'r', { sunk: 1.5 }],
@@ -152,7 +152,7 @@ const B = [
   [624, 281, 38, 26, 30, 2, 'h', { sunk: 1 }],
   [657, 285, 25, 10, 60, 1, 'r'],
   // ---- hospital and the north-west lanes
-  [[412, 198], [432, 188], [491, 275], 4, 'm', { name: 'Hospital', poi: 'hospital', key: 'hospital', keySeg: 1, parts: 3 }],
+  [[412, 198], [432, 188], [491, 275], 4, 'm', { name: 'Hospital', poi: 'hospital', key: 'hospital', keySeg: 1, keyStorey: 2, parts: 3, upper: 2 }],
   [366, 238, 18, 14, 0, 1, 'r'],
   [286, 200, 16, 12, 0, 1, 'h', { sunk: 1.5 }],
   [267, 256, 24, 19, -20, 2, 'h'],
@@ -164,7 +164,7 @@ const B = [
   [330, 242, 20, 12, -30, 1, 'h', { sunk: 1 }],
   [356, 140, 22, 10, -50, 1, 'r', { sunk: 1 }],
   // ---- Marano Station / Warehouse / Maintenance Depot (west)
-  [[240, 258], [254, 262], [237, 344], 2, 'c', { parts: 2, name: 'Marino Station', poi: 'marano_station', wall: 'brick', tint: 'cream' }],
+  [[240, 258], [254, 262], [237, 344], 2, 'c', { parts: 2, upper: 1, name: 'Marino Station', poi: 'marano_station', wall: 'brick', tint: 'cream' }],
   [94, 369, 50, 46, 0, 2, 'i', { name: 'Warehouse', poi: 'warehouse' }],
   [132, 361, 34, 28, 90, 2, 'i', { poi: 'warehouse' }],
   [149, 386, 22, 22, 0, 1, 'i', { poi: 'warehouse' }],
@@ -172,12 +172,12 @@ const B = [
   [94, 637, 32, 12, 80, 1, 'i', { name: 'Maintenance Depot', poi: 'maintenance_depot' }],
   [136, 658, 22, 15, 0, 1, 'i', { poi: 'maintenance_depot' }],
   // ---- Library / Parking Garage / Galleria / Research / Space Travel
-  [375, 318, 80, 34, -22, 3, 'c', { name: 'Library', poi: 'library', kindLoot: 'old', rich: true }],
-  [352, 285, 46, 26, -22, 3, 'c', { poi: 'library', kindLoot: 'old' }],
+  [375, 318, 80, 34, -22, 3, 'c', { name: 'Library', poi: 'library', kindLoot: 'old', rich: true, upper: 1 }],
+  [352, 285, 46, 26, -22, 3, 'c', { poi: 'library', kindLoot: 'old', upper: 1 }],
   [487, 333, 64, 56, -14, 3, 'p', { name: 'Parking Garage', poi: 'parking_garage' }],
-  [568, 316, 112, 40, 61, 3, 's', { name: 'Galleria', poi: 'galleria', wall: 'concrete', tint: 'cream', flat: true }],
-  [501, 396, 64, 30, 62, 3, 't', { name: 'Research', poi: 'research', rich: true }],
-  [533, 377, 64, 28, 59, 3, 't', { name: 'Space Travel', poi: 'space_travel', key: 'space_travel', keySeg: -1, parts: 2 }],
+  [568, 316, 112, 40, 61, 3, 's', { name: 'Galleria', poi: 'galleria', wall: 'concrete', tint: 'cream', flat: true, upper: 1 }],
+  [501, 396, 64, 30, 62, 3, 't', { name: 'Research', poi: 'research', rich: true, upper: 1 }],
+  [533, 377, 64, 28, 59, 3, 't', { name: 'Space Travel', poi: 'space_travel', key: 'space_travel', keySeg: -1, parts: 2, upper: 1 }],
   // ---- Marano Park ring and Piazza Roma
   [326, 401, 70, 17, 50, 3, 'h', { tint: 'ochre' }],
   [298, 430, 40, 18, -42, 3, 'h'],
@@ -191,11 +191,11 @@ const B = [
   [338, 553, 38, 20, -25, 2, 'h'],
   [558, 429, 30, 19, 60, 2, 's'],
   // ---- Town Hall
-  [[430, 527], [511, 481], [523, 503], 3, 'c', { name: 'Town Hall', poi: 'town_hall', key: 'town_hall', keySeg: 'mid', parts: 3, tint: 'cream', kindLoot: 'old' }],
-  [[512, 484], [528, 467], [551, 505], 3, 'c', { poi: 'town_hall', tint: 'ochre' }],
+  [[430, 527], [511, 481], [523, 503], 3, 'c', { name: 'Town Hall', poi: 'town_hall', key: 'town_hall', keySeg: 'mid', parts: 3, upper: 1, tint: 'cream', kindLoot: 'old' }],
+  [[512, 484], [528, 467], [551, 505], 3, 'c', { poi: 'town_hall', tint: 'ochre', upper: 1 }],
   [[536, 507], [550, 503], [553, 527], 2, 'c', { poi: 'town_hall', tint: 'cream' }],
   // ---- south of the Corso: Santa Maria Houses and Main Street
-  [[460, 575], [485, 634], [504, 626], 3, 'a', { name: 'Santa Marta Houses', poi: 'santa_maria_houses', tint: 'pink' }],
+  [[460, 575], [485, 634], [504, 626], 3, 'a', { name: 'Santa Marta Houses', poi: 'santa_maria_houses', tint: 'pink', upper: 1 }],
   [[513, 610], [537, 568], [519, 557], 3, 'a', { poi: 'santa_maria_houses', tint: 'ochre' }],
   [[485, 566], [512, 560], [514, 572], 3, 'a', { poi: 'santa_maria_houses', tint: 'cream', parts: 1 }],
   [[411, 637], [452, 607], [461, 621], 3, 'h', { poi: 'santa_maria_houses', tint: 'cream' }],
@@ -226,8 +226,8 @@ const B = [
   [548, 652, 30, 20, -20, 2, 'h', { tint: 'cream' }],
   [603, 650, 28, 19, 0, 2, 'h', { tint: 'ochre' }],
   // ---- Grandioso Apartments / west lanes / Old Town
-  [228, 598, 40, 37, 15, 5, 'a', { name: 'Grandiosa Apartments', poi: 'grandioso_apartments', key: 'residential', keySeg: 0, keyName: 'Residential (Grandiosa)', tint: 'cream' }],
-  [217, 648, 40, 38, 15, 5, 'a', { poi: 'grandioso_apartments', tint: 'cream' }],
+  [228, 598, 40, 37, 15, 5, 'a', { name: 'Grandiosa Apartments', poi: 'grandioso_apartments', upper: 2, key: 'residential', keySeg: 0, keyName: 'Residential (Grandiosa)', tint: 'cream' }],
+  [217, 648, 40, 38, 15, 5, 'a', { poi: 'grandioso_apartments', tint: 'cream', upper: 2 }],
   [[236, 502], [275, 560], [262, 575], 3, 'a', { tint: 'ochre' }],
   [[202, 541], [222, 530], [241, 563], 3, 'h', { tint: 'cream', parts: 1 }],
   [[290, 579], [311, 586], [308, 626], 2, 'h', { tint: 'pink', parts: 1 }],
@@ -350,10 +350,10 @@ const TINT = { cream: 0xfff4e4, ochre: 0xffd48e, pink: 0xffcbbb, terracotta: 0xf
 const TINT_CYCLE = ['cream', 'ochre', 'pink', 'terracotta', 'peach', 'yellow', 'rose', 'cream', 'ochre', 'sand'];
 const ROOF_TINTS = [0xffffff, 0xf6dcc4, 0xeac6aa, 0xfff0e0, 0xdcb090];
 const STYLE = {
-  h: { wall: 'plaster', roof: 'roofTile', gable: 0.85, floor: ['tiles', 'wood'], loot: 'res' },
-  a: { wall: 'plaster', roof: 'roofTar', gable: 0.3, floor: ['tiles', 'wood'], loot: 'res' },
+  h: { wall: 'plaster', roof: 'roofTile', gable: 0.45, floor: ['tiles', 'wood'], loot: 'res' },
+  a: { wall: 'plaster', roof: 'roofTar', gable: 0.15, floor: ['tiles', 'wood'], loot: 'res' },
   s: { wall: 'plaster', roof: 'roofTar', gable: 0.2, floor: ['tiles'], loot: 'com' },
-  c: { wall: 'plaster', roof: 'roofTile', gable: 0.6, floor: ['tiles'], loot: 'civ' },
+  c: { wall: 'plaster', roof: 'roofTile', gable: 0.4, floor: ['tiles'], loot: 'civ' },
   m: { wall: 'concrete', roof: 'roofTar', gable: 0, floor: ['tiles'], loot: 'med' },
   t: { wall: 'concrete', roof: 'roofTar', gable: 0, floor: ['metalPanel', 'tiles'], loot: 'tech' },
   i: { wall: 'corrugated', roof: 'corrugated', gable: 0, floor: ['concrete'], loot: 'ind' },
@@ -420,28 +420,30 @@ const rectPoly = (C, x0, z0, x1, z1) => [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]
 const bboxHit = (P, Q, m) => { const a = bounds(P), b = bounds(Q); return a[0] < b[2] + m && b[0] < a[2] + m && a[1] < b[3] + m && b[1] < a[3] + m; };
 
 // recursive room split inside a segment (local coords 0..w, 0..d). Records walls [x0,z0,x1,z1,gaps].
-function bsp(rng, x0, z0, x1, z1, minR, maxR, walls, rooms, bgaps, depth = 0) {
+// res: reserved rects (stair flights + their landings / stairwell holes) that no wall may cross
+function bsp(rng, x0, z0, x1, z1, minR, maxR, walls, rooms, bgaps, depth = 0, res = []) {
   const w = x1 - x0, d = z1 - z0;
   const canX = w >= 2 * minR, canZ = d >= 2 * minR;
   const small = w <= maxR && d <= maxR;
   if ((!canX && !canZ) || depth > 5 || (small && (depth > 0 ? rng() < 0.55 : rng() < 0.25))) { rooms.push([x0, z0, x1, z1]); return; }
-  for (let tries = 0; tries < 6; tries++) {
+  for (let tries = 0; tries < 8; tries++) {
     const splitX = canX && (!canZ || w > d * (0.75 + rng() * 0.5));
     const span = splitX ? w : d, p = R2((splitX ? x0 : z0) + span * (0.36 + rng() * 0.28));
     // don't run a wall into a door gap of the enclosing walls
     const bad = bgaps.some(g => g.axis !== (splitX ? 'x' : 'z') && (splitX ? (g.pos === z0 || g.pos === z1) : (g.pos === x0 || g.pos === x1)) && p > g.a - 0.9 && p < g.b + 0.9);
     if (bad) continue;
+    if (res.some(r => splitX ? p > r[0] - 0.25 && p < r[2] + 0.25 && r[3] > z0 && r[1] < z1 : p > r[1] - 0.25 && p < r[3] + 0.25 && r[2] > x0 && r[0] < x1)) continue;
     const len = splitX ? d : w, gw = len > 8 && rng() < 0.3 ? 2.4 : 1.6;
     const gat = R2(clamp(len * (0.15 + rng() * 0.7) - gw / 2, 0.7, len - gw - 0.7));
     const gap = { at: gat, w: gw };
     if (splitX) {
       walls.push([p, z0, p, z1, [gap]]);
       const ng = bgaps.concat([{ axis: 'x', pos: p, a: z0 + gat, b: z0 + gat + gw }]);
-      bsp(rng, x0, z0, p, z1, minR, maxR, walls, rooms, ng, depth + 1); bsp(rng, p, z0, x1, z1, minR, maxR, walls, rooms, ng, depth + 1);
+      bsp(rng, x0, z0, p, z1, minR, maxR, walls, rooms, ng, depth + 1, res); bsp(rng, p, z0, x1, z1, minR, maxR, walls, rooms, ng, depth + 1, res);
     } else {
       walls.push([x0, p, x1, p, [gap]]);
       const ng = bgaps.concat([{ axis: 'z', pos: p, a: x0 + gat, b: x0 + gat + gw }]);
-      bsp(rng, x0, z0, x1, p, minR, maxR, walls, rooms, ng, depth + 1); bsp(rng, x0, p, x1, z1, minR, maxR, walls, rooms, ng, depth + 1);
+      bsp(rng, x0, z0, x1, p, minR, maxR, walls, rooms, ng, depth + 1, res); bsp(rng, x0, p, x1, z1, minR, maxR, walls, rooms, ng, depth + 1, res);
     }
     return;
   }
@@ -533,6 +535,31 @@ function sideInfo(s, side) { // wall line of a segment side in complex coords
   return { horiz: false, a: s.z0, b: s.z1, fixed: s.x1, out: 1 };
 }
 
+// stair flights between walkable storeys, in building-local coords. Flights alternate between two
+// columns at opposite ends so a storey holds the hole of the flight below and the foot of the next one.
+// Each flight keeps 0.8 m clear along its sides and 1.2 m at foot and top (`res`, no wall may cross it).
+function stairPlan(W, D, n, toTop, sh = 3.2, fw = 2.2) {
+  const along = D >= 8.6 ? 'z' : W >= 8.6 ? 'x' : null;
+  if (!along || (n > 1 && (along === 'z' ? W : D) < 8.8)) return null;
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const top = toTop && k === n - 1, rise = top ? sh + 0.25 : sh, len = Math.max(2, Math.ceil(rise / 0.38)) * 0.55;
+    const colB = k % 2 === 1;   // wide flights: the 2 m nav grid finds its way up them
+    let f;
+    if (along === 'z') {
+      const x = colB ? W - 1.3 - fw : 1.3, z = (D - len) / 2;
+      f = { x, z, w: fw, dir: colB ? 'n' : 's', rect: [x, z, x + fw, z + len], res: [x - 0.7, z - 1.2, x + fw + 0.7, z + len + 1.2] };
+    } else {
+      const z = colB ? D - 1.3 - fw : 1.3, x = (W - len) / 2;
+      f = { x, z, w: fw, dir: colB ? 'w' : 'e', rect: [x, z, x + len, z + fw], res: [x - 1.2, z - 0.7, x + len + 1.2, z + fw + 0.7] };
+    }
+    if (f.res[0] < 0.25 || f.res[1] < 0.25 || f.res[2] > W - 0.25 || f.res[3] > D - 0.25) return null;
+    f.from = k; f.to = top ? 'top' : k + 1;
+    out.push(f);
+  }
+  return out;
+}
+
 function buildComplexes(ctx) {
   const { w, rng, occ } = ctx;
   let tintI = 0;
@@ -545,18 +572,85 @@ function buildComplexes(ctx) {
     const roofTint = ROOF_TINTS[Math.floor(rng() * ROOF_TINTS.length)];
     const floorTex = st.floor[Math.floor(rng() * st.floor.length)];
     const keyIdx = o.key ? (o.keySeg === -1 ? -1 : o.keySeg === 'mid' ? Math.floor(C.segs.length / 2) : (o.keySeg ?? 0)) : null;
+    const tower = o.name === 'Red Tower' || o.name === 'Bell Tower', garage = C.kind === 'p';
+    // a key wing may be locked only from storey `keyStorey` up (Hospital: the key room is on the 3rd floor,
+    // reached by the main wing's stairs and a locked door; the wing below is open)
+    const keyLvOf = (k) => keyIdx != null && (keyIdx === -1 || keyIdx === k) ? (o.keyStorey || 0) : Infinity;
+    const planFlights = (k, W, D, storeys) => {
+      if (tower || garage) return stairPlan(W, D, storeys, true, 3.2, garage ? 4.0 : 2.2);
+      if (!o.upper || storeys < 2) return null;
+      const kl = keyLvOf(k), n = Math.min(o.upper, storeys - 1, kl > 0 && kl < Infinity ? kl - 1 : 99);
+      return n > 0 ? stairPlan(W, D, n, false, 3.2, Math.min(W, D) >= 12 ? 3.8 : 2.2) : null;
+    };
+    const levelsOf = (k, flights, storeys) => {
+      const kl = keyLvOf(k);
+      let lv = flights ? (tower || garage ? storeys : flights.length + 1) : 1;
+      if (kl > 0 && kl < Infinity && storeys > kl) lv = Math.max(lv, kl + 1);
+      return lv;
+    };
+    // multi-storey public blocks: plan every wing's floors up front so the wings connect upstairs too
+    // (doorways in the shared walls on each common storey, locked where a key area begins)
+    const upConn = [];   // [segA, segB, side of A, at, width, storey, lock]
+    if (o.upper && !ruinAll && !o.ruin && C.segs.length > 1) {
+      const plan = C.segs.map((sg, k) => { const W = sg.x1 - sg.x0, D = sg.z1 - sg.z0, f = planFlights(k, W, D, C.storeys); return { f, lv: levelsOf(k, f, C.storeys) }; });
+      C.segs.forEach((sg, k) => C.segs.forEach((T, j) => {
+        if (j <= k) return;
+        for (const side of ['n', 's', 'w', 'e']) {
+          const si = sideInfo(sg, side), ti = sideInfo(T, { n: 's', s: 'n', w: 'e', e: 'w' }[side]);
+          if (si.horiz !== ti.horiz || Math.abs(si.fixed - ti.fixed) > 0.01) continue;
+          const a = Math.max(si.a, ti.a), b = Math.min(si.b, ti.b);
+          if (b - a < 4) continue;
+          for (let lv = 1; lv < Math.min(plan[k].lv, plan[j].lv); lv++) {
+            const gw = 1.8;
+            const resOf = (S, pl) => (pl.f || []).filter(f => f.from === lv || f.to === lv).map(f => [S.x0 + f.res[0], S.z0 + f.res[1], S.x0 + f.res[2], S.z0 + f.res[3]]);
+            const res = resOf(sg, plan[k]).concat(resOf(T, plan[j]));
+            let at = null;
+            for (let d = 0; d <= (b - a) / 2 && at == null; d += 0.5) for (const sgn of [1, -1]) {
+              const c = (a + b) / 2 + sgn * d; if (c - gw / 2 < a + 0.8 || c + gw / 2 > b - 0.8) continue;
+              const box = si.horiz ? [c - gw / 2 - 0.6, si.fixed - 1.6, c + gw / 2 + 0.6, si.fixed + 1.6] : [si.fixed - 1.6, c - gw / 2 - 0.6, si.fixed + 1.6, c + gw / 2 + 0.6];
+              if (!res.some(r => box[0] < r[2] && box[2] > r[0] && box[1] < r[3] && box[3] > r[1])) { at = c - gw / 2; break; }
+            }
+            if (at == null) continue;
+            const lock = (lv >= keyLvOf(k)) !== (lv >= keyLvOf(j)) ? o.key : null;
+            upConn.push([sg, T, side, at, gw, lv, lock]);
+          }
+        }
+      }));
+    }
     C.rooms = [];
     C.segs.forEach((s, k) => {
       const W = s.x1 - s.x0, D = s.z1 - s.z0;
       const isKey = keyIdx != null && (keyIdx === -1 || keyIdx === k);
-      const lockId = isKey ? o.key : null;
+      const keyLv = keyLvOf(k), keyAt = (lv) => lv >= keyLv;
+      const lockId = keyAt(0) ? o.key : null;
       const ruin = ruinAll || (o.ruin && rng() < o.ruin);
-      // ---- rooms
-      const walls = [], rooms = [], innerGaps = [];
-      const minR = C.kind === 'i' || C.kind === 'p' ? 7 : 3.6, maxR = C.kind === 'i' || C.kind === 'p' ? 22 : C.kind === 'o' ? 16 : 9;
-      if (!(C.kind === 'o' && k === 0) && !(o.name === 'Red Tower' || o.name === 'Bell Tower')) bsp(rng, 0, 0, W, D, minR, maxR, walls, rooms, []);
-      else rooms.push([0, 0, W, D]);
-      for (const [a, b, c, d, gl] of walls) for (const g of gl) innerGaps.push(a === c ? [s.x0 + a, s.z0 + b + g.at + g.w / 2, true] : [s.x0 + a + g.at + g.w / 2, s.z0 + b, true]);
+      // row houses: each house of a terrace gets its own height and plaster colour
+      const rowVar = C.segs.length > 1 && (C.kind === 'h' || C.kind === 'a') && !o.key && !o.upper;
+      const storeys = ruin ? 1 : rowVar ? clamp(C.storeys + Math.round((rng() - 0.5) * 2.2), 2, 5) : C.storeys;
+      // walkable storeys: towers and the garage all the way up (+ roof), POI blocks get a real first floor
+      const flights = ruin ? null : planFlights(k, W, D, storeys);
+      const levels = ruin ? 1 : levelsOf(k, flights, storeys);
+      // upstairs doorways to the neighbouring wings stay clear of BSP walls (reserved like the stairs)
+      const myConn = upConn.filter(q => q[0] === s || q[1] === s).map(q => {
+        const side = q[0] === s ? q[2] : { n: 's', s: 'n', w: 'e', e: 'w' }[q[2]], si = sideInfo(s, side), c = q[3] + q[4] / 2;
+        const box = si.horiz ? [c - 1.4 - s.x0, si.fixed - 1.3 - s.z0, c + 1.4 - s.x0, si.fixed + 1.3 - s.z0] : [si.fixed - 1.3 - s.x0, c - 1.4 - s.z0, si.fixed + 1.3 - s.x0, c + 1.4 - s.z0];
+        return { side, at: q[3], w: q[4], lv: q[5], lock: q[6], first: q[0] === s, box };
+      });
+      const resAt = (lv) => (flights ? flights.filter(f => f.from === lv || f.to === lv).map(f => f.res) : []).concat(myConn.filter(q => q.lv === lv).map(q => q.box));
+      // ---- rooms, one BSP per walkable storey (stair flights + holes kept clear)
+      const walls = [], roomsBy = [], innerGapsBy = [];
+      const minR = C.kind === 'i' ? 7 : 3.6, maxR = C.kind === 'i' ? 22 : C.kind === 'o' ? 16 : 9;
+      for (let lv = 0; lv < levels; lv++) {
+        const wl = [], rl = [];
+        if (!(C.kind === 'o' && k === 0) && !tower && !garage) bsp(rng, 0, 0, W, D, minR, maxR, wl, rl, [], 0, resAt(lv));
+        else rl.push([0, 0, W, D]);
+        for (const wv of wl) walls.push([...wv, lv]);
+        roomsBy.push(rl);
+        const ig = [];
+        for (const [a, b, c, d, gl] of wl) for (const g of gl) ig.push(a === c ? [s.x0 + a, s.z0 + b + g.at + g.w / 2, true] : [s.x0 + a + g.at + g.w / 2, s.z0 + b, true]);
+        innerGapsBy.push(ig);
+      }
+      const innerGaps = innerGapsBy[0];
       // inner wall ends on each side (to keep exterior openings clear of T-junctions)
       const ends = { n: [], s: [], w: [], e: [] };
       for (const [a, b, c, d] of walls) {
@@ -564,12 +658,12 @@ function buildComplexes(ctx) {
         else { if (a <= 0.01) ends.w.push(s.z0 + b); if (c >= W - 0.01) ends.e.push(s.z0 + b); }
       }
       // ---- openings
-      const doors = [], gapsWorld = [];
+      const doors = [], gapsWorld = [], gapsUp = [];
       const addGap = (side, at, gw, extra = {}) => {
         const si = sideInfo(s, side);
         doors.push({ side, at: R2(at - si.a), w: gw, ...extra });
-        const c = at + gw / 2;
-        gapsWorld.push(si.horiz ? [c, si.fixed, !extra.sill] : [si.fixed, c, !extra.sill]);
+        const c = at + gw / 2, pt = si.horiz ? [c, si.fixed, !extra.sill] : [si.fixed, c, !extra.sill];
+        if (extra.storey) (gapsUp[extra.storey] ||= []).push(pt); else gapsWorld.push(pt);
       };
       // connections to the next segment of the same complex (shared wall line)
       for (const T of C.segs) {
@@ -580,12 +674,12 @@ function buildComplexes(ctx) {
           const a = Math.max(si.a, ti.a), b = Math.min(si.b, ti.b);
           if (b - a < 3) continue;
           const gw = Math.min(3, b - a - 1.2), at = R2((a + b) / 2 - gw / 2);
-          const tKey = keyIdx != null && (keyIdx === -1 || C.segs.indexOf(T) === keyIdx);
-          const lock = isKey !== tKey ? o.key : null;
+          const lock = keyAt(0) !== (0 >= keyLvOf(C.segs.indexOf(T))) ? o.key : null;
           const first = s.id < T.id;  // only one of the two coincident walls spawns the door entity
           addGap(side, at, gw, lock && first ? { door: true, locked: lock } : {});
         }
       }
+      for (const q of myConn) addGap(q.side, q.at, q.w, q.lock && q.first ? { door: true, locked: q.lock, storey: q.lv } : { storey: q.lv });
       // exterior: exposed runs per side
       const runsBy = {};
       for (const side of ['s', 'n', 'e', 'w']) {
@@ -597,7 +691,7 @@ function buildComplexes(ctx) {
           const nearEnd = ends[side].some(e => Math.abs(e - p) < 0.9) || gapsWorld.some(([gx, gz]) => Math.hypot(gx - (si.horiz ? p : si.fixed), gz - (si.horiz ? si.fixed : p)) < 2.2);
           // sunk / half-buried blocks may open onto higher (or lower) sand: a ramp is dug to the door
           const okDoor = free && Math.abs(g) < (o.sunk ? 3.4 : 0.9) && !nearEnd, okWin = free && g < 1.2 && !nearEnd;
-          if (okWin || (o.sunk && okDoor)) { if (!cur) { cur = { a: p, b: p, door: [], g: [] }; runs.push(cur); } cur.b = p; if (okDoor) { cur.door.push(p); cur.g.push(g); } }
+          if (okWin || (o.sunk && okDoor)) { if (!cur) { cur = { a: p, b: p, door: [], g: [], free: [] }; runs.push(cur); } cur.b = p; if (okDoor) { cur.door.push(p); cur.g.push(g); } }
           else cur = null;
         }
         runsBy[side] = runs;
@@ -610,20 +704,21 @@ function buildComplexes(ctx) {
       }
       cand.sort((a, b) => b.score - a.score);
       const perim = 2 * (W + D);
-      const wantDoors = ruin ? 3 : C.segs.length > 1 ? (k === 0 || k === C.segs.length - 1 ? 1 : (rng() < 0.4 ? 1 : 0)) + (perim > 90 ? 1 : 0) : 1 + (perim > 50 ? 1 : 0) + (perim > 100 ? 1 : 0);
+      const wantDoors = ruin ? 3 : garage ? 4 : C.segs.length > 1 ? (k === 0 || k === C.segs.length - 1 ? 1 : (rng() < 0.4 ? 1 : 0)) + (perim > 90 ? 1 : 0) : 1 + (perim > 50 ? 1 : 0) + (perim > 100 ? 1 : 0);
       const doorPos = [];
       let made = 0;
       for (const c of cand) {
         if (made >= wantDoors) break;
         const pts = c.r.door, pi = Math.floor(pts.length * (0.3 + rng() * 0.4)), p = pts[pi], pg = c.r.g[pi];
         if (doorPos.some(([sd, q]) => sd === c.side && Math.abs(q - p) < 4)) continue;
-        const gw = ruin ? 2 + rng() * 1.5 : (C.kind === 'i' || C.kind === 'p') && rng() < 0.6 ? 3.5 : C.kind === 'c' || C.kind === 's' ? 2.4 : 1.6;
-        const real = !ruin && !lockId && rng() < 0.45;
+        const gw = ruin ? 2 + rng() * 1.5 : garage ? 5 : C.kind === 'i' && rng() < 0.6 ? 3.5 : C.kind === 'c' || C.kind === 's' ? 2.4 : 1.6;
+        const si0 = sideInfo(s, c.side);
+        if (p - gw / 2 < si0.a + 0.5 || p + gw / 2 > si0.b - 0.5) continue;
+        const real = !ruin && !lockId && !garage && rng() < 0.45;
         addGap(c.side, p - gw / 2, gw, lockId ? { door: true, locked: lockId } : real ? { door: true } : {});
         doorPos.push([c.side, p]); made++;
         if (Math.abs(pg) > 0.35) digRamp(ctx, C, s, c.side, p, gw);
-        const si = sideInfo(s, c.side);
-        ctx.doorsOut.push(si.horiz ? toW(C, p, si.fixed + si.out * 1.5) : toW(C, si.fixed + si.out * 1.5, p));
+        ctx.doorsOut.push(si0.horiz ? toW(C, p, si0.fixed + si0.out * 1.5) : toW(C, si0.fixed + si0.out * 1.5, p));
       }
       const lastOfSealed = C.segs.length === 1 ? !gapsWorld.length : k === C.segs.length - 1 && !C.segs.some(t => t !== s && t.doorCount);
       if (!made && lastOfSealed) {   // sealed building: open the free wall spot nearest to the sand level (dig a ramp if needed)
@@ -649,65 +744,242 @@ function buildComplexes(ctx) {
       s.doorCount = made;
       // windows (sills) along exposed runs; ruins get ragged breaches instead
       for (const side of ['s', 'n', 'e', 'w']) for (const r of runsBy[side]) {
-        const step = ruin ? 3.2 + rng() * 2 : C.kind === 'i' ? 7 : 3.6 + rng() * 0.8;
+        const step = ruin ? 3.2 + rng() * 2 : C.kind === 'i' ? 7 : garage ? 7 : 3.6 + rng() * 0.8;
         for (let p = r.a + 1.2; p + 1.2 <= r.b; p += step) {
-          if (doorPos.some(([sd, q]) => sd === side && Math.abs(q - p) < 2.6)) continue;
+          if (doorPos.some(([sd, q]) => sd === side && Math.abs(q - p) < 2.6 + (garage ? 2 : 0))) continue;
           if (gapsWorld.some(([gx, gz]) => { const si = sideInfo(s, side); return Math.hypot(gx - (si.horiz ? p : si.fixed), gz - (si.horiz ? si.fixed : p)) < 2; })) continue;
-          const ww = ruin ? 1.6 + rng() * 1.6 : C.kind === 's' && side === 's' ? 2.2 : 1.3;
+          const ww = ruin ? 1.6 + rng() * 1.6 : garage ? 4.5 : C.kind === 's' && side === 's' ? 2.2 : 1.3;
           const si = sideInfo(s, side);
           if (p - ww / 2 < si.a + 0.6 || p + ww / 2 > si.b - 0.6) continue;
-          addGap(side, p - ww / 2, ww, { sill: ruin ? 0.4 + rng() * 0.6 : C.kind === 's' && side === 's' ? 0.7 : 1.0, top: ruin ? 9 : undefined });
+          addGap(side, p - ww / 2, ww, { sill: ruin ? 0.4 + rng() * 0.6 : C.kind === 's' && side === 's' ? 0.7 : 1.0, top: ruin ? 9 : garage ? 2.6 : undefined });
+        }
+      }
+      // upper walkable storeys: windows on every side that is not shared with a neighbour of the complex
+      for (let lv = 1; lv < levels; lv++) for (const side of ['s', 'n', 'e', 'w']) {
+        const si = sideInfo(s, side), step = garage ? 7 : tower ? 4.2 : 3.6;
+        for (let p = si.a + (garage ? 3 : 1.6); p + (garage ? 3 : 1.6) <= si.b; p += step) {
+          const [ox, oz] = toW(C, si.horiz ? p : si.fixed + si.out * 1.1, si.horiz ? si.fixed + si.out * 1.1 : p);
+          const oc = occ.at(ox, oz); if (oc !== -1 && oc < 90000 && ctx.segs[oc] && ctx.segs[oc].C === C) continue;
+          if (walls.some(([a, b, c, d, , l2]) => l2 === lv && (a === c ? (side === 'n' && b <= 0.01 || side === 's' && d >= D - 0.01) && Math.abs(s.x0 + a - p) < 1.2 : (side === 'w' && a <= 0.01 || side === 'e' && c >= W - 0.01) && Math.abs(s.z0 + b - p) < 1.2))) continue;
+          const ww = garage ? 5 : 1.3;
+          addGap(side, p - ww / 2, ww, { sill: 1.0, storey: lv, top: garage ? 2.7 : undefined });
         }
       }
       // ---- the building itself
-      const tower = o.name === 'Red Tower' || o.name === 'Bell Tower';
-      // row houses: each house of a terrace gets its own height and plaster colour
-      const rowVar = C.segs.length > 1 && (C.kind === 'h' || C.kind === 'a') && !o.key;
-      const storeys = ruin ? 1 : rowVar ? clamp(C.storeys + Math.round((rng() - 0.5) * 2.2), 2, 5) : C.storeys;
       const segTintName = rowVar && k > 0 && !o.tint ? TINT_CYCLE[Math.floor(rng() * TINT_CYCLE.length)] : tintName;
       const segTint = tint == null ? null : TINT[segTintName];
       const h = ruin ? 2.2 + rng() * 1.6 : undefined;
-      const segGable = rowVar ? (gable ? rng() < 0.8 : rng() < 0.25) : gable;
+      const segGable = (rowVar ? (gable ? rng() < 0.8 : rng() < 0.25) : gable) && !tower && !garage;
       const extras = [];
-      if (!segGable && !ruin) {
+      const keepRoof = flights ? flights.filter(f => f.to === 'top').map(f => f.res) : [];
+      if (!segGable && !ruin && !garage) {
         const nEx = Math.floor(W * D / 70);
         for (let i = 0; i < nEx; i++) {
           const ex = 1 + rng() * Math.max(0.5, W - 4), ez = 1 + rng() * Math.max(0.5, D - 4), t = rng();
+          if (keepRoof.some(r => ex < r[2] + 1 && ex + 2.2 > r[0] - 1 && ez < r[3] + 1 && ez + 1.3 > r[1] - 1)) continue;
           if (t < 0.35) extras.push(Object.assign([ex, ez, ex + 1.3, ez + 1.3, 1.6], { tex: 'metalPanel' }));        // water tank
           else if (t < 0.6) extras.push(Object.assign([ex, ez, ex + 2.2, ez + 1.2, 0.25], { tex: 'metalPanel' }));  // solar panel
           else if (t < 0.8) extras.push(Object.assign([ex, ez, ex + 0.7, ez + 0.7, 1.4], { tex: 'brick' }));        // chimney
           else extras.push(Object.assign([ex, ez, ex + 1.6, ez + 1.0, 0.8], { tex: 'rust' }));                     // AC unit
         }
       }
+      // exterior roof ladder (flat roofs, never on key wings): a spot on a ground-level run away from openings
+      let ladder = null;
+      if (!ruin && !isKey && !segGable && !tower && storeys >= 1 && (o.upper || garage ? true : C.o.poi ? rng() < 0.45 : ctx.low.at(...toW(C, (s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2)) > 0.75 && rng() < 0.3)) {
+        const opts = [];
+        for (const side of ['n', 'e', 'w', 's']) for (const r of runsBy[side]) for (const p of r.door) {
+          const si = sideInfo(s, side);
+          if (p < si.a + 1.2 || p > si.b - 1.2) continue;
+          const near = gapsWorld.concat(...gapsUp.filter(Boolean)).some(([gx, gz]) => Math.hypot(gx - (si.horiz ? p : si.fixed), gz - (si.horiz ? si.fixed : p)) < 1.8);
+          if (!near) opts.push([side, p]);
+        }
+        if (opts.length) { const [side, p] = opts[Math.floor(rng() * opts.length)]; ladder = { side, at: R2(p - sideInfo(s, side).a) }; }
+      }
       const [wcx, wcz] = toW(C, (s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2);
+      const realFloors = levels > 1;
       const bb = w.building({
         x: wcx - W / 2, z: wcz - D / 2, w: W, d: D, rot: C.rot || undefined, storeys, h, wall: o.wall || st.wall, floor: floorTex, roof: segGable ? 'roofTile' : st.roof,
         roofShape: segGable ? 'gable' : undefined, roofTint: segGable ? roofTint : undefined, tint: segTint, thick: 0.3,
         doors, inner: walls, peek: ruin ? 0 : tower ? 0.85 : 0.72, name: k === 0 ? (o.name || null) : null,
         roofExtras: extras, floorY: C.floorY, blend: C.o.sunk ? 0.8 : 1.6, trim: 'damConcrete', innerH: 3.0,
-        vents: !segGable && !ruin ? undefined : 0, parapet: !ruin, facade: !ruin,
+        vents: !segGable && !ruin && !garage ? undefined : 0, parapet: !ruin, facade: !ruin,
+        floors: realFloors, perStorey: realFloors,
+        stairs: flights ? flights.map(f => ({ x: f.x, z: f.z, w: f.w, dir: f.dir, from: f.from, to: f.to })) : undefined,
+        ladders: ladder ? [ladder] : undefined,
       });
-      s.bid = bb.id; s.ruin = ruin; s.isKey = isKey; s.bb = bb;
+      s.bid = bb.id; s.ruin = ruin; s.isKey = isKey; s.bb = bb; s.levels = levels; s.flights = flights; s.gable = segGable; s.ladder = !!ladder; s.storeys = storeys;
       const hh = h ?? storeys * 3.2, span = Math.min(W, D);
-      s.roofTop = C.floorY + hh + 0.25 + (segGable ? Math.max(0, Math.floor(Math.max(2, Math.floor(span / 0.9)) / 2 - 0.01)) * 0.45 : 0);
-      if (isKey) ctx.keySegs.push({ id: o.key, name: o.keyName || o.name || o.key, s, C });
-      // ---- facade dressing on the visible (south) face: upper-storey windows, shutters, balconies
-      if (!ruin && storeys > 1) dressFacade(ctx, s, C, bb.id, storeys, runsBy.s, segTintName);
+      s.roofY = C.floorY + hh + 0.25;
+      s.roofTop = s.roofY + (segGable ? Math.max(0, Math.floor(Math.max(2, Math.floor(span / 0.9)) / 2 - 0.01)) * 0.45 : 0);
+      if (isKey) ctx.keySegs.push({ id: o.key, name: o.keyName || o.name || o.key, s, C, y0: C.floorY + (keyLv || 0) * 3.2 });
+      // ---- facade dressing on the visible (south) face for the storeys that are only visual
+      if (!ruin && storeys > levels) dressFacade(ctx, s, C, bb.id, storeys, runsBy.s, segTintName, levels);
       if (ruin) for (let i = 0; i < Math.max(1, Math.floor(W * D / 60)); i++) w.prop(rng() < 0.5 ? 'sc_rubble' : 'sc_rubble2', ...toW(C, s.x0 + 1.5 + rng() * (W - 3), s.z0 + 1.5 + rng() * (D - 3)), rng() * 6, { solid: true });
-      // ---- rooms → furniture + loot
-      for (const r of rooms) C.rooms.push({ x0: s.x0 + r[0], z0: s.z0 + r[1], x1: s.x0 + r[2], z1: s.z0 + r[3], seg: s, C, key: isKey ? o.key : null, ruin, gaps: gapsWorld.concat(innerGaps) });
+      if (garage) garageDressing(ctx, C, s, levels);
+      if (tower) towerDressing(ctx, C, s, levels);
+      // ---- rooms → furniture + loot (per walkable storey)
+      const resW = (lv) => resAt(lv).map(r => [s.x0 + r[0], s.z0 + r[1], s.x0 + r[2], s.z0 + r[3]]);
+      if (!garage && !tower) roomsBy.forEach((rl, lv) => {
+        for (const r of rl) C.rooms.push({ x0: s.x0 + r[0], z0: s.z0 + r[1], x1: s.x0 + r[2], z1: s.z0 + r[3], seg: s, C, key: keyAt(lv) ? o.key : null, ruin, storey: lv,
+          gaps: (lv ? (gapsUp[lv] || []) : gapsWorld).concat(innerGapsBy[lv]), res: resW(lv) });
+      });
     });
   }
 }
 
+// ---- rooftop routes ------------------------------------------------------------------------------
+// Buried City's signature: you can cross the old town over its terraces. Neighbouring flat roofs of the
+// same height get plank bridges; a roof up to one storey higher gets a plank + ladder; every connected
+// cluster of roofs gets at least one ladder from the street. Key wings are fine as stepping stones
+// (their roofs have no hatch, their upper windows have sills).
+function closestOnPoly(P, x, z) { let best = null; for (let i = 0; i < P.length; i++) { const [ax, az] = P[i], [bx, bz] = P[(i + 1) % P.length], [d, t] = segDist(x, z, ax, az, bx, bz); if (!best || d < best.d) best = { d, x: ax + (bx - ax) * t, z: az + (bz - az) * t, t, i }; } return best; }
+function roofRoutes(ctx) {
+  const { w, rng, occ } = ctx;
+  const roofs = ctx.segs.filter(s => s.bb && !s.ruin && !s.gable && s.storeys >= 1 && !(s.C.o.name === 'Red Tower' || s.C.o.name === 'Bell Tower'));
+  const parent = new Map(roofs.map(s => [s, s])), find = (s) => { while (parent.get(s) !== s) s = parent.get(s); return s; };
+  const join = (a, b) => parent.set(find(a), find(b));
+  const pairs = [];
+  for (let i = 0; i < roofs.length; i++) for (let j = i + 1; j < roofs.length; j++) {
+    const A = roofs[i], Bs = roofs[j]; if (!bboxHit(A.poly, Bs.poly, 7)) continue;
+    if (A.C === Bs.C && Math.abs(A.roofY - Bs.roofY) < 0.3) { join(A, Bs); continue; }   // touching parts of one block
+    // closest boundary points (sampled), away from corners
+    let best = null;
+    for (let e = 0; e < 4; e++) { const [ax, az] = A.poly[e], [bx, bz] = A.poly[(e + 1) % 4], L = Math.hypot(bx - ax, bz - az);
+      for (let t = 1.5; t <= L - 1.5; t += 1) { const x = ax + (bx - ax) * t / L, z = az + (bz - az) * t / L, q = closestOnPoly(Bs.poly, x, z); if (!best || q.d < best.d) best = { d: q.d, ax: x, az: z, bx: q.x, bz: q.z, qi: q.i, qt: q.t }; } }
+    if (!best || best.d > 9) continue;
+    const [qx0, qz0] = Bs.poly[best.qi], [qx1, qz1] = Bs.poly[(best.qi + 1) % 4], ql = Math.hypot(qx1 - qx0, qz1 - qz0);
+    if (Math.hypot(best.bx - qx0, best.bz - qz0) < 1.5 || Math.hypot(best.bx - qx1, best.bz - qz1) < 1.5 || ql < 4) continue;
+    pairs.push({ A, B: Bs, ...best, dh: Bs.roofY - A.roofY });
+  }
+  pairs.sort((p, q) => p.d - q.d);
+  ctx.pairDbg = { pairs: pairs.length, dh: pairs.map(p => +p.dh.toFixed(1)) };
+  let planks = 0, ladders = 0;
+  const used = new Map();
+  for (const pr of pairs) {
+    if (planks >= 70) break;
+    const { A, B: Bs, dh } = pr;
+    if ((used.get(A) || 0) >= 3 || (used.get(Bs) || 0) >= 3) continue;
+    if (Math.abs(dh) > 3.5 || (Math.abs(dh) > 0.45 && pr.d > 5)) continue;
+    if (find(A) === find(Bs) && rng() < 0.6) continue;
+    if (pr.d < 0.25) {
+      // walls touching: same height = one roofscape already; otherwise a ladder up the taller wall
+      if (Math.abs(dh) > 0.45) {
+        const [ccx, ccz] = (() => { const P = dh >= 0 ? A.poly : Bs.poly; return [P.reduce((q, p) => q + p[0], 0) / 4, P.reduce((q, p) => q + p[1], 0) / 4]; })();
+        let vx = pr.ax - ccx, vz = pr.az - ccz; const vl = Math.hypot(vx, vz); vx /= vl; vz /= vl;   // from the lower roof's centre toward the joint
+        const lo = dh >= 0 ? A : Bs, hi = dh >= 0 ? Bs : A;
+        const n = closestOnPoly(lo.poly, pr.ax, pr.az), [p0x, p0z] = lo.poly[n.i], [p1x, p1z] = lo.poly[(n.i + 1) % 4], el = Math.hypot(p1x - p0x, p1z - p0z);
+        let nx = (p1z - p0z) / el, nz = -(p1x - p0x) / el; if (nx * vx + nz * vz < 0) { nx = -nx; nz = -nz; }   // outward normal of the lower block at the joint
+        w.ladder(pr.ax - nx * 0.6, pr.az - nz * 0.6, lo.roofY, pr.ax + nx * 0.8, pr.az + nz * 0.8, hi.roofY, Math.atan2(-nx, -nz));
+        ladders++;
+      }
+      join(A, Bs); continue;
+    }
+    const ux = (pr.bx - pr.ax) / pr.d, uz = (pr.bz - pr.az) / pr.d;
+    // the span between the two walls must be open air (no third building in the way)
+    let clear = true;
+    for (let t = 0.3; t < pr.d - 0.3; t += 0.5) { const o = occ.at(pr.ax + ux * t, pr.az + uz * t); if (o !== -1 && o < 90000 && ctx.segs[o] !== A && ctx.segs[o] !== Bs) { clear = false; break; } }
+    if (!clear) continue;
+    const lo = dh >= 0 ? A : Bs, hi = dh >= 0 ? Bs : A, y = lo.roofY;
+    const [sx, sz, ex, ez] = dh >= 0 ? [pr.ax - ux * 1.0, pr.az - uz * 1.0, pr.bx + ux * 1.0, pr.bz + uz * 1.0] : [pr.bx + ux * 1.0, pr.bz + uz * 1.0, pr.ax - ux * 1.0, pr.az - uz * 1.0];
+    if (Math.abs(dh) <= 0.45) {
+      w.bridge([[sx, sz], [ex, ez]], 1.4, Math.max(A.roofY, Bs.roofY), 'wood', { thick: 0.18, rails: false, pillars: 0 });
+    } else {
+      // plank from the lower roof to the higher wall, ladder up its face
+      const dx = ex - sx, dz = ez - sz, dl = Math.hypot(dx, dz), vx = dx / dl, vz = dz / dl;
+      const wx = ex - vx * 1.0, wz = ez - vz * 1.0;                   // the higher building's wall face
+      w.bridge([[sx, sz], [wx - vx * 0.1, wz - vz * 0.1]], 1.4, y, 'wood', { thick: 0.18, rails: false, pillars: 0 });
+      w.ladder(wx - vx * 0.55, wz - vz * 0.55, y, wx + vx * 0.75, wz + vz * 0.75, hi.roofY, Math.atan2(-vx, -vz));
+      ladders++;
+    }
+    planks++; used.set(A, (used.get(A) || 0) + 1); used.set(Bs, (used.get(Bs) || 0) + 1); join(A, Bs);
+    (ctx.planks ||= []).push([sx, sz, ex, ez, y]);
+  }
+  // every cluster of two or more roofs gets a way up from the street
+  const clusters = new Map();
+  for (const s of roofs) { const r = find(s); if (!clusters.has(r)) clusters.set(r, []); clusters.get(r).push(s); }
+  let added = 0;
+  for (const list of clusters.values()) {
+    if (list.length < 2 || list.some(s => s.ladder)) continue;
+    for (const s of list) {
+      if (s.isKey) continue;
+      const C = s.C; let spot = null;
+      for (const side of ['s', 'n', 'e', 'w']) {
+        const si = sideInfo(s, side);
+        for (let p = si.a + 1.5; p <= si.b - 1.5 && !spot; p += 1) {
+          const [ox, oz] = toW(C, si.horiz ? p : si.fixed + si.out * 1.2, si.horiz ? si.fixed + si.out * 1.2 : p);
+          if (occ.at(ox, oz) !== -1 || ctx.onDeck(ox, oz) || ctx.nearDoor(ox, oz, 2) || Math.abs(w.groundAt(ox, oz) - C.floorY) > 0.6) continue;
+          const [bx, bz] = toW(C, si.horiz ? p : si.fixed + si.out * 0.55, si.horiz ? si.fixed + si.out * 0.55 : p);
+          const [tx, tz] = toW(C, si.horiz ? p : si.fixed - si.out * 0.75, si.horiz ? si.fixed - si.out * 0.75 : p);
+          spot = [bx, bz, tx, tz];
+        }
+        if (spot) break;
+      }
+      if (!spot) continue;
+      const [bx, bz, tx, tz] = spot;
+      w.ladder(bx, bz, null, tx, tz, s.roofY, Math.atan2(bx - tx, bz - tz));
+      ctx.keepClear.push([bx, bz, 1.2]); s.ladder = true; added++; break;
+    }
+  }
+  ctx.routeStats = { roofs: roofs.length, planks, roofLadders: ladders, streetLadders: added, clusters: [...clusters.values()].filter(l => l.length > 1).length };
+}
+
+// Parking Garage: open decks on a column grid, cars and loot on every level and on the roof
+function garageDressing(ctx, C, s, levels) {
+  const { w, rng } = ctx, W = s.x1 - s.x0, D = s.z1 - s.z0, R = C.R || undefined;
+  const res = (s.flights || []).map(f => f.res);
+  const freeOf = (lx, lz, m) => !res.some(r => lx > r[0] - m && lx < r[2] + m && lz > r[1] - m && lz < r[3] + m);
+  const cols = [];
+  for (let lx = 9; lx < W - 6; lx += 10) for (let lz = 8; lz < D - 6; lz += 10) if (freeOf(lx, lz, 1.2)) cols.push([lx, lz]);
+  for (let lv = 0; lv < levels; lv++) {
+    for (const [lx, lz] of cols) w.block(s.x0 + lx - 0.4, s.z0 + lz - 0.4, s.x0 + lx + 0.4, s.z0 + lz + 0.4, 2.95, 'concrete', { onBuilding: s.bid, rel0: lv * 3.2 || 0, R, cutaway: true });
+    const y = lv ? C.floorY + lv * 3.2 : null;
+    const at = (o) => (y != null ? { ...o, yAbs: y } : o);
+    // parking bays along the long sides: cars nose-in, a few trunks to search
+    for (let i = 0; i < 7; i++) {
+      const lx = 6 + rng() * (W - 12), lz = rng() < 0.5 ? 3.4 : D - 3.4;
+      if (!freeOf(lx, lz, 1.5) || cols.some(([cx, cz]) => Math.hypot(cx - lx, cz - lz) < 2.6)) continue;
+      const rot = (lz < D / 2 ? 0 : Math.PI) - C.rot + (rng() - 0.5) * 0.2, [x, z] = toW(C, s.x0 + lx, s.z0 + lz);
+      w.prop(['sc_fiat', 'sc_fiat2', 'sc_fiat3', 'sc_fiat4'][Math.floor(rng() * 4)], x, z, rot, at({ solid: true }));
+      if (rng() < 0.45) w.container('car_trunk', ...toW(C, s.x0 + lx, s.z0 + (lz < D / 2 ? lz + 2.6 : lz - 2.6)), rot, at({ tier: lv >= 2 ? 2 : 1 }));
+    }
+    for (let i = 0; i < 3; i++) {
+      const lx = 3 + rng() * (W - 6), lz = 3 + rng() * (D - 6);
+      if (!freeOf(lx, lz, 1) || cols.some(([cx, cz]) => Math.hypot(cx - lx, cz - lz) < 1.6)) continue;
+      const t = rng(), k = t < 0.4 ? 'barrel' : t < 0.7 ? 'sc_cratestack' : 'sc_barrier';
+      w.prop(k, ...toW(C, s.x0 + lx, s.z0 + lz), rng() * 6, at({ solid: true }));
+      if (rng() < 0.5) w.container(rng() < 0.5 ? 'toolbox' : 'locker', ...toW(C, s.x0 + lx + 1.3, s.z0 + lz), 0, at({ tier: 2 }));
+    }
+    for (let i = 0; i < 2; i++) { const [x, z] = toW(C, s.x0 + W * (0.3 + i * 0.4), s.z0 + D / 2); w.lamp(x, z, { yAbs: (y ?? C.floorY) + 2.7, color: 0xd8e8ff, intensity: 1.0, range: 11, flicker: rng() < 0.4 ? 0.5 : 0, model: null }); }
+  }
+  // roof deck: a couple of abandoned cars + a lamp mast
+  for (let i = 0; i < 4; i++) {
+    const lx = 6 + rng() * (W - 12), lz = 6 + rng() * (D - 12);
+    if (!freeOf(lx, lz, 2)) continue;
+    w.prop(['sc_fiat2', 'sc_fiat4', 'sc_carroof'][i % 3], ...toW(C, s.x0 + lx, s.z0 + lz), rng() * 6, { yAbs: s.roofY, solid: true });
+  }
+  w.container('raider_cache', ...toW(C, s.x0 + W / 2, s.z0 + D / 2 + 3), 0, { yAbs: s.roofY, tier: 3 });
+  w.lamp(...toW(C, s.x0 + W / 2, s.z0 + D / 2), { yAbs: s.roofY + 2.8, color: 0xffe0b0, intensity: 1.2, range: 12, model: null });
+}
+// Red Tower / bell tower: stairs to the top, a crate or two on the landings, lights on every floor
+function towerDressing(ctx, C, s, levels) {
+  const { w, rng } = ctx, W = s.x1 - s.x0, D = s.z1 - s.z0;
+  const res = (s.flights || []).map(f => f.res);
+  for (let lv = 0; lv < levels; lv++) {
+    const y = C.floorY + lv * 3.2, free = [];
+    for (const [lx, lz] of [[W / 2, 1.0], [W / 2, D - 1.0], [1.0, D / 2], [W - 1.0, D / 2]]) if (!res.some(r => lx > r[0] - 0.4 && lx < r[2] + 0.4 && lz > r[1] - 0.4 && lz < r[3] + 0.4)) free.push([lx, lz]);
+    if (free.length && (lv % 2 === 1 || lv === levels - 1)) { const [lx, lz] = free[Math.floor(rng() * free.length)]; w.container(lv === levels - 1 ? 'weapon_case' : rng() < 0.5 ? 'crate' : 'ammo_box', ...toW(C, s.x0 + lx, s.z0 + lz), -C.rot, lv ? { yAbs: y, tier: lv === levels - 1 ? 3 : 2 } : { tier: 2 }); }
+    w.lamp(...toW(C, s.x0 + W / 2, s.z0 + D / 2), { yAbs: y + 2.6, color: 0xffd090, intensity: 0.8, range: 7, flicker: 0.3, model: null });
+  }
+}
+
 const SHUTTER = { cream: 0x9ac0a0, ochre: 0x88b090, pink: 0xa8c8b0, terracotta: 0xd8c8a8, peach: 0x8ab09a, yellow: 0x7aa080, rose: 0xc0d0b8, sand: 0x90b8a0, white: 0x88a8c8, red: 0xd8c8a8 };
-function dressFacade(ctx, s, C, bid, storeys, southRuns, tintName) {
+function dressFacade(ctx, s, C, bid, storeys, southRuns, tintName, from = 1) {
   const { w, rng } = ctx;
   const W = s.x1 - s.x0, sh = 3.2, z = s.z1;
   const shutterTint = SHUTTER[tintName] || 0x9ac0a0;
   const opt = (y, extra = {}) => ({ onBuilding: bid, rel0: y, cutaway: true, collide: false, cast: false, R: C.R || undefined, ...extra });
   const balc = C.kind === 'a' || C.kind === 'h' ? rng() < 0.55 : false;
-  for (let st = 1; st < storeys; st++) {
+  for (let st = Math.max(1, from); st < storeys; st++) {
     const y = st * sh + 0.8;
     for (let x = s.x0 + 1.6; x <= s.x1 - 1.6; x += 3.2) {
       if (C.kind === 'i') continue;
@@ -775,6 +1047,7 @@ function sandDrifts(ctx) {
     const x = 160 + rng() * 680, z = 60 + rng() * 800;
     if (ctx.low.at(x, z) < 0.55) continue;
     const r = 3 + rng() * 6;
+    if (polyDist(x, z, HIGHWAY)[0] < HW_W / 2 + r + 2) continue;   // the street under the overpass stays clear
     if (!occ.free(x - r * 0.6, z - r * 0.6, x + r * 0.6, z + r * 0.6)) continue;
     w.raiseCircle(x, z, r, 0.3 + rng() * 0.8, 0.85, 'add');
   }
@@ -805,8 +1078,18 @@ function deckProfile(ctx, pts, lift, from = 0, rampLen = 0) {
 function makeDeck(ctx, D) {
   const { w } = ctx;
   const { pts, prof, width, gaps = [], ramps = [], from = 0 } = D;
-  const hw = width / 2, W1 = MW + 1, arr = new Float32Array(W1 * (MH + 1)).fill(NaN);
+  const hw = width / 2, W1 = MW + 1, arr = new Float32Array(W1 * (MH + 1)).fill(NaN), foot = new Uint8Array(W1 * (MH + 1));
   const inGap = s => s < from || gaps.some(([a, b]) => s >= a && s <= b);
+  // bridge mode: where the deck stands > 1.6 m above the old street it becomes a real overpass (a slab on
+  // piers you can walk under); low stretches stay a terrain embankment. Runs shorter than 8 m are merged.
+  const total0 = polyLen(pts), yAt0 = s => { const p = pointAt(pts, s), k = p[4]; let a0 = 0; for (let i = 0; i < k; i++) a0 += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]); const L = Math.hypot(pts[k + 1][0] - pts[k][0], pts[k + 1][1] - pts[k][1]); return lerp(prof[k], prof[k + 1], clamp((s - a0) / L, 0, 1)); };
+  const elev = new Uint8Array(Math.ceil(total0) + 2);
+  if (D.bridge) {
+    for (let s2 = 0; s2 <= total0; s2++) { const [x, z] = pointAt(pts, s2); elev[s2] = yAt0(s2) - w.groundAt(x, z) > 1.6 ? 1 : 0; }
+    for (let s2 = 0, run = 0; s2 <= total0 + 1; s2++) { if (elev[s2]) run++; else { if (run && run < 8) for (let q = s2 - run; q < s2; q++) elev[q] = 0; run = 0; } }
+    for (const [a, b] of D.embank || []) for (let s2 = Math.max(0, a); s2 <= Math.min(total0, b); s2++) elev[s2] = 0;
+  }
+  const isBridge = s => D.bridge && !inGap(s) && !!elev[clamp(Math.round(s), 0, elev.length - 1)];
   let acc = 0;
   for (let k = 0; k < pts.length - 1; k++) {
     const [ax, az] = pts[k], [bx, bz] = pts[k + 1], L = Math.hypot(bx - ax, bz - az);
@@ -814,6 +1097,7 @@ function makeDeck(ctx, D) {
       for (let x = Math.max(0, Math.floor(Math.min(ax, bx) - hw - 1)); x <= Math.min(MW, Math.ceil(Math.max(ax, bx) + hw + 1)); x++) {
         const [d, t] = segDist(x, z, ax, az, bx, bz);
         if (d > hw || inGap(acc + t * L)) continue;
+        if (isBridge(acc + t * L)) { foot[z * W1 + x] = 1; continue; }
         arr[z * W1 + x] = lerp(prof[k], prof[k + 1], t);
       }
     acc += L;
@@ -827,14 +1111,17 @@ function makeDeck(ctx, D) {
     let best = Number.isNaN(v) ? null : v;
     if (best == null) for (const r of R) {
       const dx = x - r.px, dz = z - r.pz, along = dx * r.tx + dz * r.tz, across = dx * r.nx + dz * r.nz;
-      if (across < hw - 0.5 || across > hw + r.len || Math.abs(along) > 7) continue;
-      const k = 1 - (across - hw) / r.len, lat = 1 - sstep(3.5, 7, Math.abs(along));
+      // on an overpass the drift runs on under the slab edge so its crest meets the deck flush
+      if (across < hw - (D.bridge ? 1.6 : 0.5) || across > hw + r.len || Math.abs(along) > 7) continue;
+      const k = Math.min(1, 1 - (across - hw) / r.len), lat = 1 - sstep(3.5, 7, Math.abs(along));
       const h = r.y * k * lat + w.groundAt(x, z) * (1 - k * lat);
       if (h > w.groundAt(x, z)) best = Math.max(best ?? -1e9, h);
     }
     return best;
   }, 'set');
-  D.R = R; D.inGap = inGap; D.arr = arr; D.from = from; D.gaps = gaps;
+  D.R = R; D.inGap = inGap; D.arr = arr; D.foot = foot; D.from = from; D.gaps = gaps; D.isBridge = isBridge;
+  // deck surface height at a world point (null = not on the deck footprint)
+  D.deckY = (x, z) => { const i = Math.round(z) * W1 + Math.round(x); if (i < 0 || i >= arr.length || (Number.isNaN(arr[i]) && !foot[i])) return null; return D.yAt(polyDist(x, z, pts)[1]); };
   return D;
 }
 // side walls, parapets, pilasters, broken ends — called after the heightfield is final
@@ -855,15 +1142,28 @@ function dressDeck(ctx, D, { wallTex = 'damConcrete', pil = 'concrete', rail = '
     // side walls, parapets and pilasters as blocks turned to the deck's tangent (clean diagonals)
     const ang = Math.atan2(tz, tx), L2 = step / 2 + 0.12;
     const rblock = (cx, cz, hl, ht, h, tex, opts) => w.block(cx - hl, cz - ht, cx + hl, cz + ht, h, tex, { ...opts, rot: ang });
+    const br = D.isBridge && D.isBridge(s);
+    if (br) {
+      // overpass: a slab you can walk on and under (overlapping pieces close the wedges on curves),
+      // a pier pair + cap every 18 m, painted centre line, drifted sand on the asphalt
+      w.bridge([[px - tx * (L2 + 0.5), pz - tz * (L2 + 0.5)], [px + tx * (L2 + 0.5), pz + tz * (L2 + 0.5)]], D.width, y, 'roofTar', { thick: 0.9, rails: false, pillars: 0 });
+      const si = Math.round(s / step);
+      if (si % 9 === 0) {
+        for (const o2 of [-1, 1]) { const qx = px - tz * o2 * (hw - 2), qz = pz + tx * o2 * (hw - 2); rblock(qx, qz, 0.7, 0.55, 0, 'damConcrete', { pillarTo: y - 0.9 }); }
+        rblock(px, pz, 0.55, hw - 0.6, 0.7, 'damConcrete', { y0: y - 1.6 });
+      }
+      if (si % 3 === 0) rblock(px, pz, 0.9, 0.08, 0.02, 'concrete', { y0: y, collide: false, cast: false, tint: 0xffd040 });
+      if (rng() < 0.08) { const o2 = (rng() - 0.5) * (D.width - 3); rblock(px - tz * o2, pz + tx * o2, 1.5 + rng() * 2.5, 0.8 + rng() * 1.6, 0.06, 'sand', { y0: y, collide: false, cast: false }); }
+    }
     for (const side of [1, -1]) {
       if (nearRamp(s, side)) continue;
       const nx = -tz * side, nz = tx * side;
       const wx = px + nx * (hw + 0.35), wz = pz + nz * (hw + 0.35);
       const g = Math.min(w.groundAt(wx - tx * L2, wz - tz * L2), w.groundAt(wx + tx * L2, wz + tz * L2), w.groundAt(wx + nx * 0.4, wz + nz * 0.4));
-      if (y - g > 0.6) rblock(wx, wz, L2, 0.35, y - g + 0.5, wallTex, { y0: g - 0.5, xray: true });
+      if (!br && y - g > 0.6) rblock(wx, wz, L2, 0.35, y - g + 0.5, wallTex, { y0: g - 0.5, xray: true });
       // parapet on the deck edge
       if (rng() > 0.04) rblock(px + nx * (hw - 0.2), pz + nz * (hw - 0.2), L2, 0.18, 0.95, rail, { y0: y - 0.05 });
-      if (Math.round(s / step) % 6 === 0 && y - g > 1.5) rblock(px + nx * (hw + 0.85), pz + nz * (hw + 0.85), 0.7, 0.3, y - g + 0.2, pil, { y0: g - 0.5, xray: true });
+      if (!br && Math.round(s / step) % 6 === 0 && y - g > 1.5) rblock(px + nx * (hw + 0.85), pz + nz * (hw + 0.85), 0.7, 0.3, y - g + 0.2, pil, { y0: g - 0.5, xray: true });
     }
   }
 }
@@ -894,8 +1194,10 @@ function furnish(ctx) {
       const keyLoot = r.key ? (KEY_LOOT[r.key] || KEY_LOOT.res) : null;
       let n = r.ruin ? (rng() < 0.45 ? 1 : 0) : clamp(Math.round(area / 24 + rng() * 0.8), 1, 6);
       if (r.key) n = Math.max(n, 4);
-      const placed = [], conts = [];   // furniture solid rects [x0,z0,x1,z1], container points
+      // stair flights / stairwells reserved in this room count as furniture (nothing placed on them)
+      const placed = (r.res || []).filter(q => q[2] > r.x0 && q[0] < r.x1 && q[3] > r.z0 && q[1] < r.z1).map(q => q.slice()), conts = [];
       const clearOf = (x, z, m) => placed.every(([a, b, c, d]) => x < a - m || x > c + m || z < b - m || z > d + m);
+      const lvY = r.storey ? C.floorY + r.storey * 3.2 : null, up = (o) => (lvY != null ? { ...o, yAbs: lvY } : o);
       for (let i = 0, tries = 0; i < n && tries < n * 8; tries++) {
         const e = pickW(rng, table);
         const kind = e[0], info = kind ? (propInfoSafe(kind)) : { solid: [0.4, 0.3, 0.8] };
@@ -912,7 +1214,7 @@ function furnish(ctx) {
         const rect = [x - ex, z - ez, x + ex, z + ez];
         if (!placed.every(([a, b, c, d]) => rect[2] < a - 0.6 || rect[0] > c + 0.6 || rect[3] < b - 0.6 || rect[1] > d + 0.6)) continue;
         if (conts.some(([px, pz]) => px > rect[0] - 0.6 && px < rect[2] + 0.6 && pz > rect[1] - 0.6 && pz < rect[3] + 0.6)) continue;
-        if (kind) { w.prop(kind, ...toW(C, x, z), rot - C.rot, { solid: true }); placed.push(rect); }
+        if (kind) { w.prop(kind, ...toW(C, x, z), rot - C.rot, up({ solid: true })); placed.push(rect); }
         i++;
         const ck = keyLoot ? keyLoot[Math.floor(rng() * keyLoot.length)] : e[1];
         if (!ck) continue;
@@ -930,13 +1232,13 @@ function furnish(ctx) {
         if (!clearOf(cx, cz, fm) || conts.some(([px, pz]) => Math.hypot(px - cx, pz - cz) < 1)) continue;
         if (r.gaps.some(([gx, gz, door]) => Math.hypot(gx - cx, gz - cz) < (door ? 1.4 : 0.8))) continue;
         const tier = r.key ? 3 : C.o.rich ? (rng() < 0.35 ? 3 : 2) : C.o.poi ? (rng() < 0.07 ? 3 : 2) : (rng() < 0.15 ? 2 : 1);
-        w.container(ck, ...toW(C, cx, cz), rot - C.rot, { tier, room: r.key || null });
+        w.container(ck, ...toW(C, cx, cz), rot - C.rot, up({ tier: r.storey && tier < 3 && rng() < 0.3 ? tier + 1 : tier, room: r.key || null }));
         conts.push([cx, cz]);
         if (keyLoot) ctx.keyLoot[capKey] = (ctx.keyLoot[capKey] || 0) + 1;
         ctx.nCont++;
       }
       // interior light for named places (night raids)
-      if (!r.ruin && (r.key || (C.o.poi && rng() < 0.22)) && area > 12) w.lamp(...toW(C, (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2), { y: 2.6, color: r.key ? 0xffd890 : 0xffe0b0, intensity: 0.9, range: 8, flicker: rng() < 0.3 ? 0.4 : 0, model: null });
+      if (!r.ruin && (r.key || (C.o.poi && rng() < 0.22)) && area > 12) w.lamp(...toW(C, (r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2), { y: 2.6, yAbs: lvY != null ? lvY + 2.6 : null, color: r.key ? 0xffd890 : 0xffe0b0, intensity: 0.9, range: 8, flicker: rng() < 0.3 ? 0.4 : 0, model: null });
     }
   }
 }
@@ -975,7 +1277,7 @@ function paintDeck(ctx, D, tex, edge = null) {
   let run = [];
   const flush = () => { if (run.length > 1) w.road(run, D.width - 0.6, tex, { edge, edgeW: 0.3, level: false }); run = []; };
   for (let s = D.from; s <= D.total; s += 4) {
-    if (D.inGap(s)) { flush(); continue; }
+    if (D.inGap(s) || (D.isBridge && D.isBridge(s))) { flush(); continue; }
     const p = pointAt(D.pts, s); run.push([p[0], p[1]]);
   }
   flush();
@@ -1026,22 +1328,89 @@ function freeSpot(ctx, x, z, r = 1.5, max = 18) {
 // sand-buried street lamp: light sits above the post so the post does not shadow its own light
 function stLamp(w, x, z, o = {}) { w.lamp(x, z, { color: 0xffd8a0, ...o, y: 2.8, model: null }); w.prop('sc_lamppost', x, z, (x * 7.31 + z) % 6.28, { solid: [0.15, 0.15, 2.1] }); }
 function ring(ctx, cx, cz, r, n, fn) { for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; fn(cx + Math.cos(a) * r, cz + Math.sin(a) * r, a, i); } }
-function metroStation(ctx, id, name, x, z, rot = 0) {
-  const { w } = ctx; [x, z] = freeSpot(ctx, x, z, 3);
-  w.paint('concrete', x - 4, z - 5, x + 4, z + 5);
-  w.prop('sc_metro', x, z, rot, {});
-  w.extract(id, name, x, z, { kind: 'metro' });
-  w.lamp(x + 2.2, z - 2.6, { y: 3.2, color: 0xfff0d0, intensity: 1.3, range: 10, model: null });
-  stLamp(w, x - 3.2, z + 3.4, { color: 0x80ffb0, intensity: 0.9, range: 7 });
-  return [x, z];
+// ---- underground metro stations ------------------------------------------------------------------
+// A 30 x 15 m hall sunk 5 m under the street (World `under`): two street stairwells (railings, M totems,
+// lamps) lead down at both ends onto a platform; the track runs along the hall's long axis 3 m in front of
+// the extract point, which faces it. 16 x 8 m around the point stays clear for the animated metro set.
+const ST_L = 30, ST_D = 15, ST_UNDER = 5, ST_STAIR = 7.7;
+function siteFree(ctx, cx, cz, rot, L, D, pad) {
+  const R = rotFrame(cx, cz, rot), { w } = ctx;
+  let gmin = 1e9, gmax = -1e9;
+  for (let lz = -pad; lz <= D + pad; lz += 1.5) for (let lx = -pad - 4; lx <= L + pad + 4; lx += 1.5) {
+    const inEnt = lx < -pad || lx > L + pad;                       // street in front of the two stair exits
+    if (inEnt && (lz < 0 || lz > 6)) continue;
+    const [x, z] = rotPt(R, cx - L / 2 + lx, cz - D / 2 + lz);
+    if (x < 8 || z < 8 || x > MW - 8 || z > MH - 8) return null;
+    if (ctx.occ.at(x, z) !== -1 || ctx.onDeck(x, z) || ctx.keepClear.some(([kx, kz, kr]) => Math.hypot(kx - x, kz - z) < kr)) return null;
+    if (polyDist(x, z, RAIL)[0] < 8 || polyDist(x, z, HIGHWAY)[0] < HW_W / 2 + 2) return null;
+    const g = w.groundAt(x, z); gmin = Math.min(gmin, g); gmax = Math.max(gmax, g);
+  }
+  return gmax - gmin < 1.6 ? { gmin, gmax } : null;
 }
+function metroStation(ctx, id, name, rx, rz, opts = {}) {
+  const { w, rng } = ctx, L = ST_L, D = ST_D;
+  let best = null;
+  for (let r = 0; r <= 40 && !best; r += 2) for (let a = 0; a < (r ? Math.ceil(r * 1.6) : 1); a++) {
+    const an = a / Math.ceil(r * 1.6 || 1) * Math.PI * 2, cx = rx + Math.cos(an) * r, cz = rz + Math.sin(an) * r;
+    for (const deg of [0, 90]) {   // axis-aligned halls: the stairwells line up with the 2 m nav grid
+      const f = siteFree(ctx, cx, cz, deg * D2R, L, D, 1.5);
+      if (f) { const sc = r; if (!best || sc < best.sc) best = { sc, cx, cz, rot: deg * D2R, ...f }; }
+    }
+  }
+  if (!best) { (ctx.stationFail ||= []).push(id); return null; }
+  // snap so the 4 m wide stair flights fill whole 2 m nav cells (the AI walks them)
+  if (best.rot === 0) best.cz += Math.round((best.cz - 6.5) / 2) * 2 - (best.cz - 6.5);
+  else best.cx += Math.round((best.cx + 2.5) / 2) * 2 - (best.cx + 2.5);
+  const { cx, cz, rot } = best, R = rotFrame(cx, cz, rot);
+  let sum = 0, n = 0; for (let lz = 0; lz <= D; lz += 3) for (let lx = 0; lx <= L; lx += 3) { sum += w.groundAt(...rotPt(R, cx - L / 2 + lx, cz - D / 2 + lz)); n++; }
+  const surf = sum / n, floor = surf - ST_UNDER;
+  const L2 = (lx, lz) => rotPt(R, cx - L / 2 + lx, cz - D / 2 + lz);
+  const hallPoly = [[0, 0], [L, 0], [L, D], [0, D]].map(([lx, lz]) => L2(lx, lz));
+  const lid = opts.lid || 'concrete';
+  w.building({ x: cx - L / 2, z: cz - D / 2, w: L, d: D, rot: rot || undefined, under: ST_UNDER, floorY: surf, wall: 'concrete', floor: 'tiles', roof: lid, tint: 0xf0e8dc, name,
+    stairs: [{ x: 0.8, z: 1.0, w: 4.0, dir: 'w', from: 0, to: 'top' }, { x: L - 0.8 - ST_STAIR, z: 1.0, w: 4.0, dir: 'e', from: 0, to: 'top' }] });
+  const hall = { id, poly: hallPoly, surf, floor, cx, cz, rot, R };
+  ctx.halls.push(hall);
+  ctx.occ.markPoly([[-1.5, -1.5], [L + 1.5, -1.5], [L + 1.5, D + 1.5], [-1.5, D + 1.5]].map(([lx, lz]) => L2(lx, lz)), 99990);
+  // ---- inside: track bed + tunnel mouths, pillars, benches, lights, signs, a little loot
+  const inH = { inHall: true }, face = -rot;
+  w.paintPoly('metalPanel', [L2(1, 10.4), L2(L - 1, 10.4), L2(L - 1, 13.6), L2(1, 13.6)]);
+  for (let lx = 2; lx < 6.5; lx += 4) w.prop('sc_rails', ...L2(lx, 12), Math.PI / 2 - rot, inH);
+  for (let lx = 24.5; lx < L - 1.5; lx += 4) w.prop('sc_rails', ...L2(lx, 12), Math.PI / 2 - rot, inH);
+  for (const lx of [1.0, L - 1.15]) w.block(cx - L / 2 + lx, cz - D / 2 + 10.3, cx - L / 2 + lx + 0.15, cz - D / 2 + 13.7, 3.8, 'roofTar', { y0: floor, R, collide: false, cast: false, tint: 0x303030 });
+  for (const lx of [10.5, 15, 19.5]) w.block(cx - L / 2 + lx - 0.4, cz - D / 2 + 2.2, cx - L / 2 + lx + 0.4, cz - D / 2 + 3.0, ST_UNDER, 'concrete', { y0: floor, R, tint: 0xd8d0c4 });
+  for (const lx of [12.75, 17.25]) w.prop('sc_bench', ...L2(lx, 4.2), face, inH);
+  for (const lx of [6, 15, 24]) w.lamp(...L2(lx, 7.5), { yAbs: floor + 3.6, color: 0xe8f0ff, intensity: 1.3, range: 12, flicker: rng() < 0.4 ? 0.4 : 0, model: null });
+  for (const lx of [4, 26]) w.lamp(...L2(lx, 3.0), { yAbs: floor + 3.0, color: 0xfff0d0, intensity: 0.9, range: 8, model: null });
+  w.prop('sc_sign', ...L2(15, 1.4), face, inH);
+  w.prop('sc_kiosk', ...L2(26.5, 7.6), face, { inHall: true, solid: true });
+  w.container('locker', ...L2(11.5, 1.6), face, { tier: 1, inHall: true });
+  w.container('trash', ...L2(4.2, 6.6), face, { tier: 1, inHall: true });
+  w.container(rng() < 0.5 ? 'backpack' : 'suitcase', ...L2(25.2, 9.4), face, { tier: 2, inHall: true });
+  // ---- the extract on the platform, facing the track
+  const [ex, ez] = L2(L / 2, 9);
+  w.extract(id, name, ex, ez, { kind: 'metro', face });
+  // ---- street level: railings round both stairwells, M totems + lamps at the entrances
+  const rail = (x0, z0, x1, z1) => w.block(cx - L / 2 + x0, cz - D / 2 + z0, cx - L / 2 + x1, cz - D / 2 + z1, 1.0, 'rust', { y0: surf + 0.02, R, xray: false });
+  for (const [xa, xb, xe] of [[1.0, 9.1, 9.1], [L - 9.1, L - 1.0, L - 9.25]]) {
+    rail(xa, 0.4, xb, 0.52); rail(xa, 5.5, xb, 5.62); rail(xe, 0.4, xe + 0.15, 5.62);
+  }
+  for (const [lx, lz, f] of [[-1.3, -0.4, face + Math.PI / 2], [L + 1.3, -0.4, face - Math.PI / 2]]) {
+    w.prop('sc_metro_sign', ...L2(lx, lz), f, { solid: true });
+    w.lamp(...L2(lx, 6.4), { y: 2.6, color: 0xfff0d0, intensity: 1.2, range: 10, model: 'sc_lamppost' });
+  }
+  for (const lx of [-3, L + 3]) w.paintPoly('concrete', [L2(lx - 2.5, -0.5), L2(lx + 2.5, -0.5), L2(lx + 2.5, 6.5), L2(lx - 2.5, 6.5)]);
+  return [cx, cz];
+}
+// raider hatch: the animated hatch + key post come from the extract set; keep ~2 m clear, face the street
 function hatch(ctx, id, name, x, z) {
-  const { w } = ctx; [x, z] = freeSpot(ctx, x, z, 2);
+  const { w } = ctx; [x, z] = freeSpot(ctx, x, z, 2.2);
+  let face = 0, best = -1;
+  for (let a = 0; a < 8; a++) { const an = a * Math.PI / 4, dx = Math.sin(an), dz = Math.cos(an); let free = 0; for (let d = 2; d <= 8; d += 2) if (ctx.occ.at(x + dx * d, z + dz * d) === -1 && !ctx.onDeck(x + dx * d, z + dz * d)) free++; if (free > best) { best = free; face = an; } }
   w.paint('metalPanel', x - 1.5, z - 1.5, x + 1.5, z + 1.5);
-  w.prop('hatch', x, z, 0, {});
-  w.extract(id, name, x, z, { kind: 'hatch', needsKey: 'raider_hatch_key' });
-  w.lamp(x + 1.6, z - 1.2, { y: 1.2, color: 0xffc040, intensity: 0.8, range: 6, flicker: 0.2, model: null });
-  w.prop('sandbag', x, z - 2.4, 0, { solid: true }); w.prop('sandbag', x + 2.4, z, Math.PI / 2, { solid: true });
+  w.extract(id, name, x, z, { kind: 'hatch', needsKey: 'raider_hatch_key', face });
+  w.lamp(x - Math.cos(face) * 2.4, z + Math.sin(face) * 2.4, { y: 2.6, color: 0xffc040, intensity: 0.9, range: 7, flicker: 0.2, model: 'sc_lamppost' });
+  ctx.keepClear.push([x, z, 2.4]);
   return [x, z];
 }
 function fountainPlaza(ctx, x, z, opts = {}) {
@@ -1102,7 +1471,6 @@ function setPieces(ctx, HW, RL) {
   for (let i = 0; i < 4; i++) { const [x, z] = freeSpot(ctx, 404 + i * 3, 218 + i * 6, 1.3); w.prop('sc_barrier', x, z, 0.9, { solid: true }); }
   w.prop('sc_fiat', ...freeSpot(ctx, 410, 262, 1.6), 0.4, { solid: true });
   // ---------------- Northern square: Library forecourt, statue, metro
-  ctx.metro.northern = metroStation(ctx, 'northern_station', 'Northern Station', 425, 303, Math.PI / 2);
   w.prop('sc_statue', ...freeSpot(ctx, 410, 312, 1.2), 0.3, { solid: true });
   for (let i = 0; i < 6; i++) w.prop(i % 2 ? 'sc_cypress' : 'sc_palm', ...freeSpot(ctx, 400 + i * 6, 290 + (i % 2) * 22, 1), rng() * 6, { solid: true });
   // ---------------- Parking Garage spiral ramp (stacked concrete rings)
@@ -1113,6 +1481,7 @@ function setPieces(ctx, HW, RL) {
   });
   w.block(491, 294, 503, 306, 9.5, 'concrete', {});
   w.block(489, 292, 505, 308, 0.4, 'damConcrete', { y0: w.groundAt(497, 300) + 9.2, collide: false });
+  ctx.occ.markPoly([[484, 287], [510, 287], [510, 313], [484, 313]], 99997);   // nothing spawns inside the ring
   // ---------------- Galleria entrances: cafés
   cafe(ctx, 536, 270, 4); cafe(ctx, 600, 368, 4);
   // ---------------- Research / Space Travel: antennae + barriers
@@ -1124,7 +1493,6 @@ function setPieces(ctx, HW, RL) {
   w.prop('sc_statue', ...freeSpot(ctx, 404, 430, 1.2), 1, { solid: true });
   for (let i = 0; i < 10; i++) w.prop('sc_bench', ...freeSpot(ctx, 392 + rng() * 70, 345 + rng() * 105, 1), rng() * 6, { solid: true });
   // ---------------- Piazza Roma + Western Station
-  ctx.metro.western = metroStation(ctx, 'western_station', 'Western Station', 310, 477, 0);
   fountainPlaza(ctx, 306, 458);
   cafe(ctx, 322, 446, 4);
   // ---------------- Town Hall: scaffold on the facade, square statue, barricades
@@ -1136,12 +1504,10 @@ function setPieces(ctx, HW, RL) {
   for (let i = 0; i < 6; i++) { const [x, z] = freeSpot(ctx, 604 + i * 9, 560 + (i % 2) * 5, 1.6, 6); w.prop(i % 2 ? 'sc_stall' : 'sc_stall2', x, z, (rng() - 0.5) * 0.4, { solid: true }); w.container(i % 2 ? 'medical_bag' : 'basket', x + 1.8, z, 0, { tier: 2 }); }
   cafe(ctx, 650, 566, 4);
   w.prop('sc_kiosk', ...freeSpot(ctx, 596, 552, 1.3), 0, { solid: true });
-  ctx.metro.eastern = metroStation(ctx, 'eastern_station', 'Eastern Station', 551, 613, 0);
   // ---------------- Plaza Rosa + Southern Station
   w.paintPoly('tiles', PLAZAS[0].pts);
   ctx.rosa = fountainPlaza(ctx, 462, 716);
   cafe(ctx, 478, 704, 6); cafe(ctx, 436, 700, 4);
-  ctx.metro.southern = metroStation(ctx, 'southern_station', 'Southern Station', 451, 737, 0);
   // ---------------- Church Ruins: pews, altar, columns, bell tower bell, cypress avenue
   const nave = ctx.cxs.find(C => C.o.name === 'Church Ruins');
   if (nave) {
@@ -1469,15 +1835,16 @@ function markers(ctx) {
   const byId = new Map();
   for (const k of ctx.keySegs) {
     const key = k.id + '|' + k.C.bi;
-    if (!byId.has(key)) byId.set(key, { id: k.id, name: k.name, polys: [] });
+    if (!byId.has(key)) byId.set(key, { id: k.id, name: k.name, polys: [], bids: [], floorYs: [] });
     byId.get(key).polys.push(k.s.poly.map(([x, z]) => [+x.toFixed(2), +z.toFixed(2)]));
+    byId.get(key).bids.push(k.s.bid);
+    byId.get(key).floorYs.push(+k.y0.toFixed(2));
   }
   // rotated key wings: x0..z1 is the world bounding box, `polys` the exact (rotated) footprints
   for (const e of byId.values()) {
     const [x0, z0, x1, z1] = bounds(e.polys.flat());
-    w.keyRoom(e.id, x0, z0, x1, z1, null, { name: e.name, polys: e.polys });
+    w.keyRoom(e.id, x0, z0, x1, z1, null, { name: e.name, polys: e.polys, bids: e.bids, floorYs: e.floorYs });
   }
-  // raider hatches (reference positions)
   hatch(ctx, 'collapsed_supermarket_hatch', 'Collapsed Supermarket Hatch', 478, 172);
   hatch(ctx, 'train_station_hatch', 'Train Station Hatch', 252, 344);
   hatch(ctx, 'highway_overpass_hatch', 'Highway Overpass Hatch', 524, 516);
@@ -1486,25 +1853,25 @@ function markers(ctx) {
 
   // ---------------------------------------------------------------- ARK
   // static perches sit on the actual roof (absolute height of the chosen segment's roof)
-  const roofOf = (name, fx = 0.5, fz = 0.5, si = null) => { const C = ctx.cxs.find(c => c.o.name === name); if (!C) return null; const s = C.segs[si ?? Math.floor(C.segs.length / 2)]; const [x, z] = toW(C, lerp(s.x0, s.x1, fx), lerp(s.z0, s.z1, fz)); return [x, z, { yAbs: s.roofTop, roof: true }]; };
+  const roofOf = (name, fx = 0.5, fz = 0.5, si = null) => { const C = ctx.cxs.find(c => c.o.name === name); if (!C) return null; const s = C.segs[si ?? Math.floor(C.segs.length / 2)]; const [x, z] = toW(C, lerp(s.x0, s.x1, fx), lerp(s.z0, s.z1, fz)); return [x, z, { surface: true, roof: true }]; };
   const roofAt = (name, x, z) => {   // roof point of the named complex nearest to (x, z)
     const C = ctx.cxs.find(c => c.o.name === name); if (!C) return null;
     const [lx, lz] = C.R ? unrotPt(C.R, x, z) : [x, z];
     let best = null;
     for (const s of C.segs) { const qx = clamp(lx, s.x0 + 1.5, s.x1 - 1.5), qz = clamp(lz, s.z0 + 1.5, s.z1 - 1.5), d = Math.hypot(qx - lx, qz - lz); if (!best || d < best.d) best = { d, s, qx, qz }; }
-    const [wx, wz] = toW(C, best.qx, best.qz); return [wx, wz, { yAbs: best.s.roofTop, roof: true }];
+    const [wx, wz] = toW(C, best.qx, best.qz); return [wx, wz, { surface: true, roof: true }];
   };
   // sentinels on rooftops / towers (reference icons at Town Hall + the overpass, plus towers)
   { const r = roofAt('Town Hall', 478, 497); if (r) w.arkSpawn('sentinel', r[0], r[1], r[2]); }   // reference Sentinel icon on the Town Hall roof
   { // reference Sentinel icon on the overpass: snapped onto the Corso deck
     const [d, sa] = polyDist(546, 546, HIGHWAY), [hx, hz, tx, tz] = pointAt(HIGHWAY, sa), side = Math.sign((546 - hx) * -tz + (546 - hz) * tx) || 1;
     const off = Math.min(d, HW_W / 2 - 1.5) * side;
-    w.arkSpawn('sentinel', hx - tz * off, hz + tx * off, { yAbs: ctx.HW.yAt(sa) + 0.2 });
+    w.arkSpawn('sentinel', hx - tz * off, hz + tx * off, { surface: true });
   }
-  for (const n of ['Red Tower', 'Bell Tower', 'Hospital']) { const r = roofOf(n); if (r) w.arkSpawn('sentinel', r[0], r[1], r[2]); }
+  for (const [n, fx, fz] of [['Red Tower', 0.62, 0.5], ['Bell Tower', 0.7, 0.3], ['Hospital', 0.5, 0.5]]) { const r = roofOf(n, fx, fz); if (r) w.arkSpawn('sentinel', r[0], r[1], r[2]); }
   for (const n of ['Galleria', 'Grandiosa Apartments', 'Library']) { const r = roofOf(n, 0.6, 0.4); if (r) w.arkSpawn('turret', r[0], r[1], r[2]); }
   for (const n of ['Research', 'Space Travel', 'Warehouse', 'Marino Station']) { const r = roofOf(n, 0.3, 0.6); if (r) w.arkSpawn('turret', r[0], r[1], r[2]); }
-  { const [x, z] = pointAt(HIGHWAY, 735); w.arkSpawn('turret', x, z, { yAbs: ctx.HW.yAt(735) }); }
+  { const [x, z] = pointAt(HIGHWAY, 735); w.arkSpawn('turret', x, z, { surface: true }); }
   // drones patrolling the plazas and streets
   const loops = [
     ['wasp', 448, 706, [[440, 700], [486, 704], [494, 740], [448, 746]]], ['wasp', 306, 458, [[290, 446], [330, 446], [334, 482], [292, 486]]],
@@ -1591,10 +1958,10 @@ export default {
   ambient: { music: 'sandy_city', birds: false, wind: true },
   conditions: ['night_raid', 'hurricane', 'lush_blooms', 'uncovered_caches', 'husk_graveyard', 'prospecting_probes', 'close_scrutiny', 'cold_snap', 'bird_city'],
   build(w, rng) {
-    const ctx = { w, rng, occ: new Occ(), doorsOut: [], keySegs: [], metro: {}, nCont: 0, lootSkip: 0.9, keyLoot: {} };
+    const ctx = { w, rng, occ: new Occ(), doorsOut: [], keySegs: [], metro: {}, nCont: 0, lootSkip: 0.97, keyLoot: {} };
     ctx.occFreeSouth = (C, s, x) => ctx.occ.at(...toW(C, x, s.z1 + 1.2)) === -1;
     ctx.decks = [];
-    ctx.onDeck = (x, z) => ctx.decks.some(D => { const i = Math.round(z) * (MW + 1) + Math.round(x); return i >= 0 && i < D.arr.length && !Number.isNaN(D.arr[i]); });
+    ctx.onDeck = (x, z) => ctx.decks.some(D => { const i = Math.round(z) * (MW + 1) + Math.round(x); return i >= 0 && i < D.arr.length && (!Number.isNaN(D.arr[i]) || D.foot[i] === 1); });
     ctx.nearDoor = (x, z, r) => ctx.doorsOut.some(([dx, dz]) => Math.abs(dx - x) < r && Math.abs(dz - z) < r);
     ctx.keepClear = [];
     ctx.blocked = (x, z, r) => ctx.keepClear.some(([kx, kz, kr]) => Math.abs(kx - x) < kr + r && Math.abs(kz - z) < kr + r) || !ctx.occ.free(x - r - 0.5, z - r - 0.5, x + r + 0.5, z + r + 0.5) || ctx.onDeck(x, z) || ctx.onDeck(x + r + 1, z) || ctx.onDeck(x - r - 1, z) || ctx.onDeck(x, z + r + 1) || ctx.onDeck(x, z - r - 1) || ctx.nearDoor(x, z, r + 1.6);
@@ -1605,7 +1972,7 @@ export default {
     layoutComplexes(ctx);
     sunkMounds(ctx);
     sandDrifts(ctx); mark('layout+drifts');
-    ctx.HW = makeDeck(ctx, { pts: HIGHWAY, prof: deckProfile(ctx, HIGHWAY, 5.2), width: HW_W, gaps: HW_GAPS, ramps: HW_RAMPS });
+    ctx.HW = makeDeck(ctx, { pts: HIGHWAY, prof: deckProfile(ctx, HIGHWAY, 5.2), width: HW_W, gaps: HW_GAPS, ramps: HW_RAMPS, bridge: true, embank: [[0, 36]] });
     ctx.RL = makeDeck(ctx, { pts: RAIL, prof: deckProfile(ctx, RAIL, 4.0, RAIL_VIADUCT_FROM, 60), width: 7, from: RAIL_VIADUCT_FROM, ramps: [[700, 1], [820, -1]] });
     ctx.decks.push(ctx.HW, ctx.RL); mark('decks');
     complexFloors(ctx);
@@ -1614,11 +1981,33 @@ export default {
     w.path(RAIL.slice(0, 9), 6, 'gravel');
     paintDeck(ctx, ctx.RL, 'gravel', 'concrete'); mark('paint');
     buildComplexes(ctx); buriedHouses(ctx); mark('buildings');
+    // underground metro stations (reference positions; the search keeps them clear of buildings / decks)
+    ctx.halls = [];
+    ctx.metro.northern = metroStation(ctx, 'northern_station', 'Northern Station', 425, 303, { lid: 'concrete', deg: -20 });
+    ctx.metro.western = metroStation(ctx, 'western_station', 'Western Station', 310, 477, { lid: 'tiles', deg: 30 });
+    ctx.metro.eastern = metroStation(ctx, 'eastern_station', 'Eastern Station', 555, 621, { lid: 'concrete', deg: -30 });
+    ctx.metro.southern = metroStation(ctx, 'southern_station', 'Southern Station', 451, 737, { lid: 'tiles', deg: 10 });
+    // raider hatches (reference positions, ~2 m clear)
+            roofRoutes(ctx);
+    // level-aware placement: anything put over a station lid sits on the lid, anything on the overpass on the deck
+    const overHall = (x, z) => ctx.halls.find(h => inPoly(x, z, h.poly));
+    const lvl = (o, x, z, lampY) => {
+      if (!o || o.yAbs != null || o.surface || o.inHall || o.under) return o;
+      const hl = overHall(x, z);
+      if (hl) return lampY != null ? { ...o, yAbs: hl.surf + 0.02 + lampY } : { ...o, surface: true };
+      const dy = ctx.HW.deckY(x, z);
+      if (dy != null) return lampY != null ? { ...o, yAbs: dy + lampY } : { ...o, yAbs: dy + (o.y || 0) };
+      return o;
+    };
+    const P0 = w.prop, C0 = w.container, L0 = w.lamp;
+    w.prop = function (kind, x, z, rot = 0, opts = {}) { return P0.call(this, kind, x, z, rot, lvl(opts, x, z)); };
+    w.container = function (kind, x, z, rot = 0, opts = {}) { return C0.call(this, kind, x, z, rot, lvl(opts, x, z)); };
+    w.lamp = function (x, z, opts = {}) { return L0.call(this, x, z, lvl(opts, x, z, Math.min(opts.y ?? 3.6, 2.8))); };
     furnish(ctx); mark('furnish');
     dressDeck(ctx, ctx.HW);
     dressDeck(ctx, ctx.RL, { wallTex: 'brick', pil: 'damConcrete', rail: 'rust', step: 2 });
     ctx.spawnPts = SPAWNS.map(([x, z]) => {
-      if (x > 840) { const pt = pointAt(HIGHWAY, polyDist(x, z, HIGHWAY)[1]); return [pt[0], pt[1]]; }   // east end: on the Corso deck
+      if (x > 840) { const pt = pointAt(HIGHWAY, polyDist(x, z, HIGHWAY)[1]); return [pt[0], pt[1]]; }   // east end: on the Corso embankment
       return freeSpot(ctx, x, z, 1.5, 12);
     });
     for (const [x, z] of ctx.spawnPts) ctx.keepClear.push([x, z, 2.5]);

@@ -331,6 +331,30 @@ reg('dg_sentmast', () => {
   return v.build();
 }, { solid: [0.8, 0.8, 4.2] });
 
+// extraction signage: green lit board on two posts (cargo elevators), small post sign (hatches)
+reg('dg_extsign', () => {
+  const v = new Vox(24, 30, 4, 0.1, [12, 0, 2]);
+  for (const x of [2, 21]) v.box(x, 0, 1, x, 22, 2, P.steelD);
+  v.box(0, 20, 0, 23, 29, 1, 0x1e3a28); v.box(1, 21, 2, 22, 28, 2, P.gGreen);
+  v.box(4, 23, 3, 8, 26, 3, P.white); v.box(9, 24, 3, 17, 25, 3, P.white); v.box(15, 23, 3, 16, 26, 3, P.white); v.box(17, 24, 3, 18, 25, 3, P.white);
+  v.box(0, 19, 0, 23, 19, 1, P.yellow);
+  v.glow(P.gGreen);
+  return v.build();
+}, { solid: [1.2, 0.12, 2.9] });
+reg('dg_hatchsign', () => {
+  const v = new Vox(10, 22, 3, 0.1, [5, 0, 1.5]);
+  v.box(4, 0, 1, 5, 16, 1, P.steelD); v.box(0, 15, 0, 9, 21, 1, P.yellow); v.box(1, 16, 2, 8, 20, 2, P.black); v.box(3, 17, 2, 6, 19, 2, P.gAmber);
+  v.glow(P.gAmber);
+  return v.build();
+}, { solid: [0.5, 0.1, 2.1] });
+// concrete parapet segment around a stairwell opening on a tunnel lid (2 m long)
+reg('dg_shaftrail', () => {
+  const v = new Vox(20, 10, 3, 0.1, [10, 0, 1.5]);
+  for (const x of [0, 9, 19]) v.box(x, 0, 0, x, 9, 2, P.steelD);
+  v.box(0, 9, 0, 19, 9, 2, P.yellow); v.box(0, 5, 1, 19, 5, 1, P.steel);
+  return v.build();
+}, { solid: [1.0, 0.12, 1.0] });
+
 reg('dg_walllamp', () => { const v = new Vox(4, 4, 3, 0.1, [2, 0, 1.5]); v.box(0, 0, 0, 3, 3, 0, P.steelD); v.box(1, 1, 1, 2, 2, 2, P.gLamp); v.glow(P.gLamp); return v.build(); }, { cast: false });
 
 reg('dg_satdish', () => {

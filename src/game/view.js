@@ -4,6 +4,7 @@ import * as THREE from '../../vendor/three.module.js';
 import { markEntity, OBLIQUE_K } from '../engine/renderer.js';
 import { RaiderModel, OUTFITS, arcMesh, gunGeo, voxMesh } from '../engine/models.js';
 import { createArkModel } from '../engine/arkmodels.js';
+import { createExtractModel } from '../engine/extracts.js';
 import { ContainerRenderer, containerGeo } from '../engine/containers.js';
 import { GU, litVox } from '../engine/materials.js';
 import { SURF } from '../engine/world.js';
@@ -64,17 +65,43 @@ export class View {
     const m = this.doorMeshes[i]; if (!m) return;
     m.userData.open = open;
   }
+  // extraction structures: animated voxel rigs per kind (engine/extracts.js), driven by updExtracts()
   buildExtracts(xs) {
     for (const x of xs) {
       const y = x.y ?? this.world.groundAt(x.x, x.z);
-      const kind = x.kind === 'hatch' ? 'hatch' : 'extractPad';
-      const m = voxMesh(kind === 'hatch' ? this.hatchGeo() : this.padGeo());
-      m.position.set(x.x, y + 0.02, x.z); this.R.scene.add(m);
-      this.extractVis[x.i] = { m, x, y };
+      const m = createExtractModel(x.kind || 'elevator', x);
+      m.root.position.set(x.x, y, x.z); m.root.rotation.y = x.face || 0;
+      this.R.scene.add(m.root);
+      const ctx = {
+        L: this.L, fx: this.fx, near: true,
+        play: (name, o) => this.g.audio?.play(name, { x: x.x, z: x.z, ...(o || {}) }),
+        shake: (a) => { const me = this.g.me; if (me && Math.hypot(me.x - x.x, me.z - x.z) < 16 && Math.abs((me.y ?? y) - y) < 4) this.shake = Math.max(this.shake, a); },
+      };
+      this.extractVis[x.i] = { m, x, y, ctx, loop: null, tick: null };
     }
   }
-  padGeo() { if (!this._pad) { const v = new Vox(30, 3, 30, 0.12, [15, 0, 15]); v.box(0, 0, 0, 29, 1, 29, (x, y, z) => ((x + z) >> 2) % 2 && (x < 2 || x > 27 || z < 2 || z > 27) ? 0xd8a020 : 0x3a3e40); v.box(13, 2, 13, 16, 2, 16, 0x40ff80); v.glow(0x40ff80); this._pad = v.build(); } return this._pad; }
-  hatchGeo() { if (!this._hatch) { const v = new Vox(12, 3, 12, 0.1, [6, 0, 6]); v.cyl(6, 6, 0, 1, 5.5, 0x4a4e52); v.cyl(6, 6, 2, 2, 4, 0x6a6e72); v.box(5, 2, 1, 6, 2, 10, 0xd8a020); v.glow(0xd8a020); this._hatch = v.build(); } return this._hatch; }
+  // per frame: each rig follows its extract's state (host: sim timers; clients: mirrored state + local
+  // timers) and requests its lights / particles / timeline sounds; fan ambience + last-5-s countdown ticks
+  updExtracts(dt) {
+    const g = this.g, A = g.audio, me = g.me, R = this.R;
+    const cx = R.view?.x ?? g.camX ?? 0, cz = R.view?.y ?? g.camZ ?? 0, hw = (R.viewW || 44) / 2 + 24, hh = (R.viewH || 26) / 2 + 30;
+    for (const xv of this.extractVis) {
+      if (!xv) continue;
+      const x = xv.x, st = g.extractState?.(x.i) ?? x.state ?? 'idle';
+      xv.ctx.near = Math.abs(x.x - cx) < hw && Math.abs(x.z - cz) < hh;
+      xv.m.update(dt, st, typeof x.t === 'number' ? x.t : null, xv.ctx);
+      const d = me ? Math.hypot(x.x - me.x, x.z - me.z) : 1e9, level = me && Math.abs((me.y ?? xv.y) - xv.y) < 6;
+      const lp = xv.m.loop;
+      if (lp && level && d < 32 && !g.localDone) {
+        if (!xv.loop) xv.loop = A?.loop?.(lp.name, { x: x.x, z: x.z, vol: lp.vol, pitch: lp.pitch }) || null;
+        else { xv.loop.setVol?.(lp.vol); xv.loop.setPitch?.(lp.pitch); }
+      } else if (xv.loop) { try { xv.loop.stop(); } catch (e) { /* */ } xv.loop = null; }
+      if (st === 'called' && level && d < 30) {
+        const s = Math.ceil(xv.m.timeLeft);
+        if (s >= 1 && s <= 5 && s !== xv.tick) { xv.tick = s; A?.play('extract_countdown_tick'); }
+      } else xv.tick = null;
+    }
+  }
 
   // -------------------------------------------------------------- entities
   makeVisual(e) {
@@ -308,16 +335,23 @@ export class View {
       case 'downed': g.onDowned?.(ev); A?.play('downed', this.posOf(ev.id)); break;
       case 'revived': g.feed(`${this.nameOf(ev.id)} was revived`, '#68e088'); A?.play('revive', this.posOf(ev.id)); break;
       case 'killed': g.onKilled?.(ev); break;
-      case 'extracted': g.onExtracted?.(ev); A?.play('extract_success', this.posOf(ev.id)); break;
+      case 'extracted': {
+        g.onExtracted?.(ev); A?.play('extract_success', this.posOf(ev.id));
+        const xv = this.extractVis[ev.x];   // raider hatch: lid swings open with a puff of steam
+        if (xv?.x.kind === 'hatch') { xv.m.trigger('use'); A?.play('extract_hatch_steam', this.extractPos(ev.x)); }
+        break;
+      }
       case 'loot': break;
       case 'opened': this.containers.setOpened(ev.i, true); break;
       case 'container': this.containers.add(ev.c); g.addDynamicContainer?.(ev.c); break;
       case 'door': this.setDoor(ev.i, ev.open); A?.play('door_open', this.doorPos(ev.i)); break;
       case 'locked': if (ev.by === g.meId) { A?.play('door_locked'); g.hudMsg('LOCKED - KEY REQUIRED', '#e84a30'); } break;
       case 'unlocked': A?.play('door_unlock', this.doorPos(ev.i)); break;
-      case 'xcall': g.onExtractCall?.(ev); A?.play('extract_call', this.extractPos(ev.i)); break;
-      case 'xopen': A?.play('elevator_arrive', this.extractPos(ev.i)); g.onExtractOpen?.(ev); break;
-      case 'xgone': A?.play('elevator_door', this.extractPos(ev.i)); break;
+      case 'xcall': g.onExtractCall?.(ev); A?.play('extract_call', this.extractPos(ev.i)); if (this.extractVis[ev.i]?.x.kind !== 'metro') A?.play('extract_klaxon', this.extractPos(ev.i)); break;
+      // metro: the rig cues rumble / brakes before arrival, here the doors open; lifts keep the arrival thump
+      case 'xopen': A?.play(this.extractVis[ev.i]?.x.kind === 'metro' ? 'elevator_door' : 'elevator_arrive', this.extractPos(ev.i)); g.onExtractOpen?.(ev); break;
+      case 'xgone': A?.play('elevator_door', this.extractPos(ev.i)); break;   // departure sounds are cued by the rig
+      case 'xidle': A?.play('extract_ready', this.extractPos(ev.i)); break;
       case 'throw': A?.play('grenade_pin', this.posOf(ev.by)); break;
       case 'bounce': A?.play('grenade_bounce', { x: ev.x, z: ev.z }); break;
       case 'pop': A?.play(ev.k === 'smoke' ? 'smoke_pop' : ev.k === 'gas' ? 'gas_hiss' : 'smoke_pop', { x: ev.x, z: ev.z }); break;
@@ -385,15 +419,6 @@ export class View {
   updateLights(dt) {
     this.flashes = this.flashes.filter(f => (f.t += dt) < f.life);
     for (const f of this.flashes) { const k = 1 - f.t / f.life; this.L.light(f.x, f.y, f.z, f.color, f.I * k, f.range, f.prio); }
-    // extraction pads / hatches beacons
-    for (const xv of this.extractVis) {
-      if (!xv) continue;
-      const st = this.g.extractState?.(xv.x.i);
-      if (st === 'offline') continue;
-      const col = st === 'called' ? 0xffc030 : st === 'open' ? 0x40ff80 : st === 'gone' ? 0x803020 : xv.x.kind === 'hatch' ? 0xffd040 : 0x40ff80;
-      const pulse = st === 'called' ? 0.6 + 0.4 * Math.sin(performance.now() / 150) : 1;
-      this.L.light(xv.x.x, xv.y + 1.2, xv.x.z, col, 1.4 * pulse, 8, 1.2);
-    }
     this.shake = Math.max(0, this.shake - dt * 1.5);
     this.R.shake = this.shake;
   }

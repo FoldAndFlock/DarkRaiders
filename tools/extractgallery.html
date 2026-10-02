@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Extract gallery</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0c0c0e; color: #e8e0c8; font: 12px monospace; overflow: hidden; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #ov { pointer-events: none; image-rendering: pixelated; }
+  #info { position: fixed; left: 4px; bottom: 4px; background: rgba(0,0,0,.7); padding: 2px 6px; z-index: 5; white-space: pre; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="ov"></canvas>
+<div id="info">loading…</div>
+<!--
+  Extraction structure gallery (src/engine/extracts.js): every kind (columns) in every state (rows) with the
+  game's Renderer + Lighting + World on a flat floor and a raider for scale. URL params:
+    kind=elevator,metro          kinds to show (elevator, hatch, metro, airshaft; default all)
+    state=called,open            states to show (idle, called, open, gone, offline; default all)
+    time=noon|dusk|night|dawn  weather=clear|rain|fog…
+    zoom=fit|1|3                 fit = everything (default), 1 = game scale (16 px/m), 3 = close-up
+    ct=3                         seconds left on the call timer for 'called' (cage / train mid-arrival)
+    ot=8                         seconds left before departure for 'open'
+    ge=3.5                       seconds since departure for 'gone'
+    face=0                       facing in degrees (0 = front toward the camera)
+    frames=90                    frames simulated before window.__ready; live=0 stops animating after that
+    raider=0                     hide the scale raiders
+  The hatch has no call cycle: its 'open' cell shows a raider using it (lid up, steam), called/gone show idle.
+-->
+<script type="module" src="./extractgallery.js"></script>
+</body>
+</html>

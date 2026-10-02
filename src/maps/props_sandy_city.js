@@ -184,6 +184,17 @@ function metroEntrance() {
   return v.build();
 }
 
+function metroSign() {
+  // street totem of a metro entrance: grey pole, red box with a lit white "M", small route plate
+  const v = new Vox(10, 40, 6, 0.1, [5, 0, 3]);
+  v.box(4, 0, 2, 5, 30, 3, 0x3a3a3a); v.box(3, 0, 1, 6, 1, 4, 0x2a2a2a);
+  v.box(1, 30, 1, 8, 39, 4, 0xc83a2a); v.box(2, 31, 4, 7, 38, 4, 0xf0e8d8);
+  for (const [x, y] of [[2, 31], [2, 32], [2, 33], [2, 34], [2, 35], [2, 36], [2, 37], [7, 31], [7, 32], [7, 33], [7, 34], [7, 35], [7, 36], [7, 37], [3, 36], [4, 35], [5, 35], [6, 36], [3, 37], [6, 37]]) v.set(x, y, 5, 0xc83a2a);
+  v.box(1, 24, 3, 8, 27, 3, 0x2a5aa8); v.box(2, 25, 4, 7, 26, 4, 0xe8e8e0);
+  v.glow(0xf0e8d8);
+  return v.build();
+}
+
 function metroStairs() {
   const v = new Vox(20, 14, 30, 0.1, [10, 0, 15]);
   for (let z = 3; z < 28; z++) { const s = Math.max(0x14, 0x5a - (z - 3) * 3); v.box(3, 0, z, 16, 0, z, (s << 16) | (s << 8) | s); }
@@ -604,6 +615,7 @@ R('sc_fountain', fountain, { solid: [2.8, 2.8, 0.7] });
 R('sc_statue', statue, { solid: [0.65, 0.65, 3.5] });
 R('sc_metro', metroEntrance, {});
 R('sc_metro_stairs', metroStairs, {});
+R('sc_metro_sign', metroSign, { solid: [0.35, 0.2, 3.8] });
 R('sc_barrier', barrier, { solid: [1.0, 0.3, 0.9] });
 R('sc_fiat', () => fiat(0xd8c8a0, 1), { solid: [0.8, 1.7, 1.2] });
 R('sc_fiat2', () => fiat(0x7aa8c8, 2), { solid: [0.8, 1.7, 1.2] });

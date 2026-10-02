@@ -171,6 +171,7 @@ export class RaidGame {
     this.view.sync(this.ents, dt);
     this.view.drawCones(this.ents, me);
     this.view.updateLights(dt);
+    this.view.updExtracts(dt);
     this.camera(dt);
     if (me) this.world.update(dt, me.x, me.z, me.y);
     this.weatherFx(dt);
