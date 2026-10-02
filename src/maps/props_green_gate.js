@@ -576,3 +576,40 @@ P('gg_totem', () => {        // raider shrine of ARK parts adorned with cloth
   v.glow(C.gR);
   return v.build();
 }, { solid: [0.5, 0.5, 2.6] });
+
+// ------------------------------------------------------------------ ARK PERCHES (v2: static ARK stand ON these, platform top = 7.0 m)
+function perchTower(wall, trim) {
+  const v = new Vox(16, 34, 16, 0.25, [8, 0, 8]);
+  for (const [x, z] of [[1, 1], [13, 1], [1, 13], [13, 13]]) v.box(x, 0, z, x + 1, 26, z + 1, C.steelD);
+  for (let y = 5; y < 26; y += 7) { v.box(1, y, 1, 14, y, 1, C.steel); v.box(1, y, 14, 14, y, 14, C.steel); v.box(1, y, 1, 1, y, 14, C.steel); v.box(14, y, 1, 14, y, 14, C.steel); }
+  for (let i = 0; i < 12; i++) { v.set(2 + i, 4 + i * 1.8, 1, C.steel); v.set(13 - i, 4 + i * 1.8, 14, C.steel); }
+  for (let y = 0; y < 27; y += 2) v.box(7, y, 15, 8, y, 15, C.steelL);            // ladder (south face)
+  v.box(6, 0, 15, 6, 27, 15, C.steelD); v.box(9, 0, 15, 9, 27, 15, C.steelD);
+  v.box(0, 26, 0, 15, 27, 15, wall);                                              // deck (top at 7.0 m)
+  v.box(0, 26, 0, 15, 26, 15, trim);
+  for (let i = 0; i < 16; i++) { if (i % 3 !== 1) { v.box(i, 28, 0, i, 31, 0, C.steel); v.box(i, 28, 15, i, 31, 15, C.steel); v.box(0, 28, i, 0, 31, i, C.steel); v.box(15, 28, i, 15, 31, i, C.steel); } }
+  v.box(0, 31, 0, 15, 31, 0, trim); v.box(0, 31, 15, 15, 31, 15, trim); v.box(0, 31, 0, 0, 31, 15, trim); v.box(15, 31, 0, 15, 31, 15, trim);
+  v.box(0, 28, 0, 3, 29, 1, 0x8a7a56); v.box(12, 28, 14, 15, 29, 15, 0x8a7a56);   // sandbags
+  v.box(14, 28, 14, 15, 33, 15, C.steelD); v.set(14, 33, 15, C.gW); v.set(1, 32, 1, C.gR);
+  v.glow(C.gW).glow(C.gR);
+  return v.build();
+}
+P('gg_perchtower', () => perchTower(C.woodD, C.haz), {});
+P('gg_perchtower_w', () => perchTower(C.white, C.white), {});      // the white lookout tower (quest)
+P('gg_printer', () => {        // field printer that spits the Locked Gate security code
+  const v = new Vox(10, 11, 7, 0.1, [5, 0, 3.5]);
+  v.box(0, 0, 0, 9, 6, 6, C.steelD); v.box(1, 7, 1, 8, 9, 5, 0xd8d4c8); v.box(2, 9, 6, 7, 9, 6, C.white);
+  v.box(1, 3, 7 - 1, 3, 4, 6, C.gG); v.box(6, 8, 6, 8, 8, 6, C.gR); v.glow(C.gG).glow(C.gR);
+  return v.build();
+}, { solid: [0.5, 0.35, 1.0] });
+P('gg_gatebalcony', () => {      // steel sentry balcony cantilevered off the gate face; deck top 8.0 m, back edge at local z = -1.75
+  const v = new Vox(16, 36, 14, 0.25, [8, 0, 7]);
+  v.box(0, 30, 0, 15, 31, 13, C.steelD); v.box(0, 31, 0, 15, 31, 13, (x, y, z) => ((x + z) % 4 === 0 ? C.steel : C.steelD));
+  for (let i = 0; i < 16; i++) if (i % 3 !== 1) { v.box(i, 32, 13, i, 35, 13, C.steel); }
+  for (let i = 0; i < 14; i++) if (i % 3 !== 1) { v.box(0, 32, i, 0, 35, i, C.steel); v.box(15, 32, i, 15, 35, i, C.steel); }
+  v.box(0, 35, 0, 0, 35, 13, C.haz); v.box(15, 35, 0, 15, 35, 13, C.haz); v.box(0, 35, 13, 15, 35, 13, C.haz);
+  for (const x of [1, 14]) for (let t = 0; t <= 12; t++) v.box(x, 18 + t, Math.round(t), x, 18 + t, Math.round(t), C.steelD);   // diagonal struts into the wall
+  v.box(0, 17, 0, 15, 18, 1, C.steelD);
+  v.box(14, 32, 1, 15, 34, 2, C.steelD); v.set(15, 34, 2, C.gW); v.glow(C.gW);
+  return v.build();
+}, {});

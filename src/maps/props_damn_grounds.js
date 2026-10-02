@@ -320,6 +320,17 @@ reg('dg_floodlight', () => {
   return v.build();
 }, { solid: [0.25, 0.25, 6.5] });
 
+// 4.2 m lattice perch for a Sentinal emplacement on the dam
+reg('dg_sentmast', () => {
+  const v = new Vox(16, 44, 16, 0.1, [8, 0, 8]);
+  v.box(0, 0, 0, 15, 1, 15, P.concD);
+  for (const [x, z] of [[1, 1], [14, 1], [1, 14], [14, 14]]) v.box(x, 0, z, x, 40, z, P.steel);
+  for (let y = 4; y < 38; y += 9) { line(v, 1, y, 1, 14, y + 8, 1, P.steelD); line(v, 14, y, 14, 1, y + 8, 14, P.steelD); line(v, 1, y, 14, 1, y + 8, 1, P.steelD); line(v, 14, y, 1, 14, y + 8, 14, P.steelD); }
+  v.box(0, 40, 0, 15, 41, 15, P.steelD);
+  for (let x = 0; x < 16; x += 3) { v.set(x, 42, 0, P.yellow); v.set(x, 42, 15, P.yellow); }
+  return v.build();
+}, { solid: [0.8, 0.8, 4.2] });
+
 reg('dg_walllamp', () => { const v = new Vox(4, 4, 3, 0.1, [2, 0, 1.5]); v.box(0, 0, 0, 3, 3, 0, P.steelD); v.box(1, 1, 1, 2, 2, 2, P.gLamp); v.glow(P.gLamp); return v.build(); }, { cast: false });
 
 reg('dg_satdish', () => {
