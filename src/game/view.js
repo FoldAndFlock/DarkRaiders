@@ -438,7 +438,7 @@ export class View {
         const st = g.extractState?.(x.i);
         if (st === 'offline') consider({ kind: 'offline', ref: x.i, x: x.x, z: x.z, time: 999, label: (x.kind === 'hatch' ? 'HATCH' : 'EXTRACT') + ' OFFLINE (MAP CONDITION)' }, dd);
         else if (x.kind === 'hatch') consider({ kind: 'hatch', ref: x.i, x: x.x, z: x.z, time: 2.5, label: 'USE RAIDER HATCH (KEY)' }, dd);
-        else if (st === 'idle') consider({ kind: 'extract', ref: x.i, x: x.x, z: x.z, time: 1.2, label: 'CALL ' + (x.kind === 'metro' ? 'METRO' : 'ELEVATOR') + ' - ' + x.name }, dd);
+        else if (st === 'idle') consider({ kind: 'extract', ref: x.i, x: x.x, z: x.z, time: 1.2, label: 'CALL ' + (x.kind === 'metro' ? 'METRO' : x.kind === 'airshaft' ? 'AIRSHAFT LIFT' : 'ELEVATOR') + ' - ' + x.name }, dd);
       }
     }
     if (best && (best.kind === 'container' || best.kind === 'loot')) this.setHighlight(best); else this.setHighlight(null);
@@ -458,7 +458,7 @@ export class View {
   }
 }
 export function containerLabel(kind) {
-  return ({ locker: 'Locker', crate: 'Crate', weapon_case: 'Weapon Case', ammo_box: 'Ammo Box', medical_bag: 'Medical Bag', toolbox: 'Toolbox', electronics: 'Electronics', cabinet: 'Cabinet', desk: 'Desk', safe: 'Safe', trash: 'Trash', car_trunk: 'Car Trunk', fridge: 'Fridge', suitcase: 'Suitcase', backpack: 'Backpack', arc_crate: 'ARK Crate', arc_husk: 'ARK Husk', raider_cache: 'Raider Cache', field_depot: 'Field Depot', plant: 'Plant', basket: 'Basket', security_locker: 'Security Locker', bag: 'Bag' })[kind] || kind;
+  return ({ locker: 'Locker', crate: 'Crate', weapon_case: 'Weapon Case', ammo_box: 'Ammo Box', medical_bag: 'Medical Bag', toolbox: 'Toolbox', electronics: 'Electronics', cabinet: 'Cabinet', desk: 'Desk', safe: 'Safe', trash: 'Trash', car_trunk: 'Car Trunk', fridge: 'Fridge', suitcase: 'Suitcase', backpack: 'Backpack', arc_crate: 'ARK Crate', arc_husk: 'ARK Husk', barron_husk: 'Barron Husk', deforestr_husk: 'Deforestr Husk', raider_cache: 'Raider Cache', field_depot: 'Field Depot', plant: 'Plant', basket: 'Basket', security_locker: 'Security Locker', bag: 'Bag' })[kind] || kind;
 }
 function distToSeg(px, pz, ax, az, bx, bz) {
   const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1;

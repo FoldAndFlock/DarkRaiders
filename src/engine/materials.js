@@ -56,6 +56,7 @@ const COMMON_FRAG_PARS = /* glsl */`
     for (int s = 1; s < 48; s++) {
       float fs = float(s); if (fs >= steps) break;
       float t = fs / steps;
+      if (len * (1.0 - t) < 0.6) break;             // the light's own post / housing never shadows it
       if (dwTop(p.xz + dir * t) > mix(p.y, l.y, t)) return 0.0;
     }
     return 1.0;

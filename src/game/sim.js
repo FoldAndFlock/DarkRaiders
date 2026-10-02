@@ -88,6 +88,8 @@ export class Sim {
         e.zones.push(zn); if (zn.hp) e.parts[zn.key] = zn.hp;
       }
     }
+    // perched emplacements (rooftops, towers, decks): y = metres above ground, yAbs = absolute height
+    if (opts.yAbs != null) e.y = opts.yAbs; else if (opts.y) e.y += opts.y;
     e.brain = new ArkBrain(this, e, opts);
     return e;
   }
@@ -567,18 +569,25 @@ export class Sim {
   populate() {
     const fx = this.condEffects;
     const mul = fx.arkMul || 1;
+    const cid = this.cond?.id || null;
     for (const s of this.world.arkSpawns) {
-      const n = Math.max(1, Math.round(s.count * mul));
+      // condition-only groups (bosses, escorts) and groups suppressed under a condition
+      if (s.condition && !(cid && [].concat(s.condition).includes(cid))) continue;
+      if (s.notCondition && cid && [].concat(s.notCondition).includes(cid)) continue;
+      const n = Math.max(1, Math.round(s.count * (s.condition ? 1 : mul)));
       for (let i = 0; i < n; i++) {
         const [x, z] = this.nav.randomOpenNear(s.x, s.z, s.radius || 4, this.rng);
         const def = arkDefFor(s.kind);
         const fixed = !!def?.static || def?.speed === 0;
-        this.spawnArk(s.kind, fixed ? s.x : x, fixed ? s.z : z, { patrol: s.patrol, home: [s.x, s.z], fixed, y: s.y });
+        this.spawnArk(s.kind, fixed ? s.x : x, fixed ? s.z : z, { patrol: s.patrol, home: [s.x, s.z], fixed, y: fixed ? s.y : 0, yAbs: fixed ? s.yAbs : null, boss: !!s.boss });
       }
     }
     if (fx.spawnBoss) {
-      const p = this.world.pois[Math.floor(this.rng() * this.world.pois.length)];
-      if (p) this.spawnArk(fx.spawnBoss, p.x, p.z, { boss: true });
+      // maps can mark arenas: poi(..., { bossPoi: true | [bossKinds] }); otherwise any POI
+      const arenas = this.world.pois.filter(p => p.bossPoi === true || (Array.isArray(p.bossPoi) && p.bossPoi.includes(fx.spawnBoss)));
+      const pool = arenas.length ? arenas : this.world.pois;
+      const p = pool[Math.floor(this.rng() * pool.length)];
+      if (p) { const [x, z] = this.nav.randomOpenNear(p.x, p.z, 8, this.rng); this.spawnArk(fx.spawnBoss, x, z, { boss: true }); }
     }
   }
   // avoid: [{x,z}] positions (player squads) bots must not spawn near

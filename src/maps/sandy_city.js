@@ -1405,11 +1405,11 @@ function markers(ctx) {
   const roofOf = (name, fx = 0.5, fz = 0.5) => { const C = ctx.cxs.find(c => c.o.name === name); if (!C) return null; const s = C.segs[Math.floor(C.segs.length / 2)]; return [lerp(s.x0, s.x1, fx), lerp(s.z0, s.z1, fz), { y: C.floorY + C.storeys * 3.2 + 0.3, roof: true }]; };
   // sentinels on rooftops / towers (reference icons at Town Hall + the overpass, plus towers)
   w.arkSpawn('sentinel', 478, 497, { ...roofY('Town Hall') });
-  w.arkSpawn('sentinel', 546, 546, { y: ctx.HW.yAt(polyDist(546, 546, HIGHWAY)[1]) + 0.2 });
+  w.arkSpawn('sentinel', 546, 546, { yAbs: ctx.HW.yAt(polyDist(546, 546, HIGHWAY)[1]) + 0.2 });
   for (const n of ['Red Tower', 'Bell Tower', 'Hospital']) { const r = roofOf(n); if (r) w.arkSpawn('sentinel', r[0], r[1], r[2]); }
   for (const n of ['Galleria', 'Grandiosa Apartments', 'Library']) { const r = roofOf(n, 0.6, 0.4); if (r) w.arkSpawn('turret', r[0], r[1], r[2]); }
   for (const n of ['Research', 'Space Travel', 'Warehouse', 'Marino Station']) { const r = roofOf(n, 0.3, 0.6); if (r) w.arkSpawn('turret', r[0], r[1], r[2]); }
-  { const [x, z] = pointAt(HIGHWAY, 735); w.arkSpawn('turret', x, z, { y: ctx.HW.yAt(735) }); }
+  { const [x, z] = pointAt(HIGHWAY, 735); w.arkSpawn('turret', x, z, { yAbs: ctx.HW.yAt(735) }); }
   // drones patrolling the plazas and streets
   const loops = [
     ['wasp', 448, 706, [[440, 700], [486, 704], [494, 740], [448, 746]]], ['wasp', 306, 458, [[290, 446], [330, 446], [334, 482], [292, 486]]],

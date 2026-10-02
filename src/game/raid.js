@@ -334,7 +334,7 @@ export class RaidGame {
     else { const e = this.ents.get(ev.id); if (e && !e.bot) this.feed(`${ev.name} EXTRACTED`, '#68e088'); }
   }
   onExtractCall(ev) { const x = this.extractsData[ev.i]; if (this.isHost) {} if (this.me && Math.hypot(x.x - this.me.x, x.z - this.me.z) < 120) { this.banner('EXTRACTION CALLED', '#68e088', `${x.name} - arriving in ${Math.round(x.callTime || 25)}s. Hold the zone.`, 4); this.audio?.music?.('extract'); } }
-  onExtractOpen(ev) { const x = this.extractsData[ev.i]; if (this.me && Math.hypot(x.x - this.me.x, x.z - this.me.z) < 60) this.banner('ELEVATOR OPEN', '#68e088', 'Get inside the zone! Departing in 12s', 3); }
+  onExtractOpen(ev) { const x = this.extractsData[ev.i]; if (this.me && Math.hypot(x.x - this.me.x, x.z - this.me.z) < 60) this.banner((x.kind === 'metro' ? 'METRO' : x.kind === 'airshaft' ? 'AIRSHAFT LIFT' : 'ELEVATOR') + ' OPEN', '#68e088', 'Get inside the zone! Departing in 12s', 3); }
   onEmote(ev) { this.emotes = this.emotes || new Map(); this.emotes.set(ev.id, { text: ev.text, ttl: 3 }); }
   onChat(ev) { this.chatLines.push({ from: ev.from, text: ev.text, ttl: 10, color: SQUAD_COLORS[(ev.slot ?? 0) % 4] }); if (this.chatLines.length > 30) this.chatLines.shift(); this.audio?.play('chat_msg'); }
   onPing(ev) { this.pings.set(ev.by, { x: ev.x, z: ev.z, t: 8, slot: ev.slot }); }

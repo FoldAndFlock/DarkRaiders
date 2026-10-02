@@ -32,7 +32,7 @@ Terrain height (resolved before structures, call order doesn't matter):
 `raiseCircle(cx,cz,r,h,falloff,mode)`, `raisePoly(pts,h,blend,mode)` (blend 0 → vertical cliff),
 `ridge(points,width,h,blend,mode)`, `ramp(x0,z0,x1,z1,h0,h1,'x'|'z')`, `flatten(...)`,
 `deck(points,width,y,tex,opts)` (walkable raised strip: dam crest, bridges),
-`river(points,width,{level,depth,bank,bed})`, `water(x0,z0,x1,z1,{level})`, `waterPoly(pts,{level})`
+`river(points,width,{level,depth,bank,bed})`, `water(x0,z0,x1,z1,{level, deep?, shallow?, opacity?})`, `waterPoly(pts,{level, deep?, shallow?, opacity?})` (colours as hex)
 (water shows wherever terrain is below `level`; depth > ~0.95 m is impassable).
 
 Paint: `paint(tex,x0,z0,x1,z1)`, `paintCircle`, `paintPoly(tex, pts)`, `paintFn(fn)`,
@@ -59,7 +59,10 @@ Add your own voxel props in `src/maps/props_<id>.js` via
 `registerProp(kind, () => new Vox(...)...build(), { solid: [hw, hd, h], cast })` (see `src/engine/voxel.js`
 and existing builders in `src/engine/models.js`), imported at the top of your map module.
 **Prefix custom prop kinds with your map id** (`dg_dome`, `gg_gatepylon`, `sc_awning`) to avoid clashes.
-Lights: `lamp(x,z,{y,color,intensity,range,flicker,spot,model})` (intensity ~0.8–2, range 6–14).
+Lights: `lamp(x,z,{y,color,intensity,range,flicker,spot,model})` (intensity ~0.8–2, range 6–14). The
+light itself is capped ~2.8 m above ground (range extended for taller fixtures) so mast lights still
+reach the ground; the fixture's own post never shadows it.
+`raisePoly(pts, h, 0)` (blend 0) takes a fast scanline path.
 
 Gameplay markers (consumed by the game – be generous and thoughtful):
 * `poi(id, name, x, z, r, { tier, aliases })` — every named location from the reference. `id` = snake_case
@@ -69,13 +72,17 @@ Gameplay markers (consumed by the game – be generous and thoughtful):
 * `spawnPoint(x, z)` — player/squad insertion points (reference "player spawn" icons).
 * `container(kind, x, z, rot, { tier: 1..3, room })` — loot. Kinds: `locker crate weapon_case ammo_box
   medical_bag toolbox electronics cabinet desk safe trash car_trunk fridge suitcase backpack arc_crate
-  arc_husk raider_cache field_depot plant basket security_locker`. Put them where they make sense
+  arc_husk barron_husk deforestr_husk raider_cache field_depot plant basket security_locker`. Put them where they make sense
   (medical in hospitals/medical POIs, electronics in tech/research, weapon cases in security, plants in
   nature areas…). Tier 3 = key rooms / landmark loot. Aim for 400–800 containers per map.
 * `arkSpawn(archetype, x, z, { count, radius, patrol: [[x,z],…] })` — archetypes: `wasp hornet tick pop
   fireball snitch surveyor sentinel turret rocketeer leaper bastion bombardier spotter shredder`. Sentinels
   and turrets sit on rooftops/towers (use reference Sentinel icons). Heavier ARK (leaper, bastion,
   bombardier, rocketeer) roam open areas. 60–120 spawn groups per map; give drones patrol loops.
+  Perches: static ARK take `y` (metres above ground) or `yAbs` (absolute height) to sit on roofs, towers
+  and decks. `condition: 'harvester' | [...]` spawns a group only under that map condition (bosses,
+  escorts); `notCondition` suppresses it. Mark boss arenas with `poi(..., { bossPoi: true | [kinds] })` —
+  condition bosses (`spawnBoss`) pick one of those instead of a random POI.
 * `keyRoom(roomId, x0,z0,x1,z1, null, { name })` + doors with `locked: roomId` — key rooms from the
   reference (e.g. Dam: control_tower, staff_room, surveillance, testing_annex, controlled_access_zone;
   Sandy City: hospital, town_hall, residential (several), space_travel; Green Gate: village, cellar,

@@ -281,6 +281,7 @@ export class World {
   }
   raisePoly(pts, h, blend = 4, mode = 'set') {
     const [a, b, c, d] = polyBounds(pts);
+    if (blend <= 0) { this._area(a, b, c, d, (x, z, i) => { if (pointInPoly(x, z, pts)) this._apply(i, h, 1, mode); }); return; }
     this._area(a - blend, b - blend, c + blend, d + blend, (x, z, i) => {
       let t;
       if (pointInPoly(x, z, pts)) t = 1;
@@ -593,7 +594,8 @@ export class World {
     this._buildRoofs();
     this._buildProps();
     this._buildOcclusion();
-    this.lamps.forEach(l => { l.y = this.groundAt(l.x, l.z) + l.yRel; });
+    // high fixtures: the light itself sits ~2.8 m up (3D falloff would leave the ground dark), range compensated
+    this.lamps.forEach(l => { const hy = Math.min(l.yRel, 2.8); l.y = this.groundAt(l.x, l.z) + hy; l.range += Math.max(0, l.yRel - hy) * 0.6; });
     for (const c of this.containers) c.y = this.groundAt(c.x, c.z);
     this.buildings.forEach(b => this._setAlpha(b.id, b.alpha));
   }
@@ -656,7 +658,14 @@ export class World {
     }
   }
   _buildWater() {
-    const wmat = waterMaterial();
+    const wmat = waterMaterial(), mats = new Map();
+    const matFor = (o) => {
+      if (o.material) return o.material;
+      if (o.deep == null && o.shallow == null && o.opacity == null) return wmat;
+      const k = [o.deep, o.shallow, o.opacity].join('|');
+      if (!mats.has(k)) mats.set(k, waterMaterial({ deep: o.deep ?? 0x2a5058, shallow: o.shallow ?? 0x4a7a78, opacity: o.opacity ?? 0.86 }));
+      return mats.get(k);
+    };
     for (const wv of this.waters) {
       let geo;
       if (wv.poly) {
@@ -670,7 +679,7 @@ export class World {
         geo = new THREE.PlaneGeometry(wv.x1 - wv.x0, wv.z1 - wv.z0); geo.rotateX(-Math.PI / 2);
         geo.translate((wv.x0 + wv.x1) / 2, wv.level, (wv.z0 + wv.z1) / 2);
       }
-      const m = new THREE.Mesh(geo, wv.opts.material || wmat); m.receiveShadow = true; m.renderOrder = 2;
+      const m = new THREE.Mesh(geo, matFor(wv.opts)); m.receiveShadow = true; m.renderOrder = 2;
       this.root.add(m);
     }
   }
