@@ -180,3 +180,5 @@ export const MAP_CONDITIONS = {
   sandy_city: ['normal', 'lush_blooms', 'uncovered_caches', 'night_raid', 'cold_snap', 'prospecting_probes',
                'husk_graveyard', 'bird_city', 'hurricane', 'close_scrutiny'],
 };
+// every condition knows its own id (sim / map markers gate on cond.id)
+for (const [k, v] of Object.entries(CONDITIONS)) v.id ??= k;

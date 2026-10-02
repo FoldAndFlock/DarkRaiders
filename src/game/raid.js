@@ -459,6 +459,12 @@ function tick() { return new Promise(r => setTimeout(r, 0)); }
 
 // Condition-driven world additions, deterministic from the raid seed so every peer agrees.
 function applyConditionToWorld(w, cond, seed) {
+  // map markers tied to a condition ({ condition: id | [ids] } / { notCondition }) only exist under it;
+  // runs identically on host and clients so container indices stay in sync
+  const cid = cond?.id || null, keep = (m) => (!m.condition || (cid && [].concat(m.condition).includes(cid))) && !(m.notCondition && cid && [].concat(m.notCondition).includes(cid));
+  w.containers = w.containers.filter(keep);
+  w.props = w.props.filter(p => keep(p.opts || {}));
+  w.lamps = w.lamps.filter(keep);
   const fx = cond?.effects; if (!fx) return;
   const r = mulberry(seed * 977 + 31);
   const pois = w.pois.length ? w.pois : [{ x: w.w / 2, z: w.h / 2, r: 40 }];

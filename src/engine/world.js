@@ -518,9 +518,9 @@ export class World {
     kinds.forEach((k, i) => this.scatter(k, area, Math.round(n / kinds.length), { solid: true, seed: Math.floor(r() * 1e6) + i, ...opts }));
     if (opts.undergrowth !== false) this.scatter('bush', area, Math.round(n * 0.6), { seed: Math.floor(r() * 1e6), ...opts, solid: false });
   }
-  lamp(x, z, { y = 3.6, color = 0xffd8a0, intensity = 1.2, range = 10, flicker = 0, spot = null, model = 'lamp', rot = 0 } = {}) {
-    this.lamps.push({ x, z, yRel: y, color, intensity, range, flicker, spot });
-    if (model) this.prop(model, x, z, rot, { solid: [0.15, 0.15, 3] });
+  lamp(x, z, { y = 3.6, color = 0xffd8a0, intensity = 1.2, range = 10, flicker = 0, spot = null, model = 'lamp', rot = 0, condition = null, notCondition = null } = {}) {
+    this.lamps.push({ x, z, yRel: y, color, intensity, range, flicker, spot, condition, notCondition });
+    if (model) this.prop(model, x, z, rot, { solid: [0.15, 0.15, 3], condition, notCondition });
   }
 
   // =============================================================== GAMEPLAY MARKERS
@@ -586,8 +586,12 @@ export class World {
       if (sol) {
         const s = p.opts.scale || 1;
         let [hw, hd, hh] = sol; hw *= s; hd *= s; hh *= s;
-        if (Math.abs(Math.sin(p.rot)) > 0.7) [hw, hd] = [hd, hw];
-        g.fillRect(g.top, p.x - hw, p.z - hd, p.x + hw, p.z + hd, p.y + hh, 'max');
+        const q = Math.abs(Math.sin(2 * p.rot)) > 0.05;        // not a right angle: rasterise the turned box
+        if (q) g.fillRotRect(g.top, p.x - hw, p.z - hd, p.x + hw, p.z + hd, rotFrame(p.x, p.z, -p.rot), p.y + hh, 'max', true);
+        else {
+          if (Math.abs(Math.sin(p.rot)) > 0.7) [hw, hd] = [hd, hw];
+          g.fillRect(g.top, p.x - hw, p.z - hd, p.x + hw, p.z + hd, p.y + hh, 'max');
+        }
       }
     }
     this._buildTerrain();

@@ -82,7 +82,8 @@ Gameplay markers (consumed by the game – be generous and thoughtful):
   Perches: static ARK take `y` (metres above ground) or `yAbs` (absolute height) to sit on roofs, towers
   and decks. `condition: 'harvester' | [...]` spawns a group only under that map condition (bosses,
   escorts); `notCondition` suppresses it. Mark boss arenas with `poi(..., { bossPoi: true | [kinds] })` —
-  condition bosses (`spawnBoss`) pick one of those instead of a random POI.
+  condition bosses (`spawnBoss`) pick one of those instead of a random POI. `container`, `prop` and `lamp`
+  accept the same `condition` / `notCondition` options (e.g. Hurricane caches, Husk Graveyard wrecks).
 * `keyRoom(roomId, x0,z0,x1,z1, null, { name })` + doors with `locked: roomId` — key rooms from the
   reference (e.g. Dam: control_tower, staff_room, surveillance, testing_annex, controlled_access_zone;
   Sandy City: hospital, town_hall, residential (several), space_travel; Green Gate: village, cellar,
