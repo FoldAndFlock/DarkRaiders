@@ -606,7 +606,7 @@ export class View {
     let best = null, bd = 26 * this.R.scale / 3;
     for (const v of this.vis.values()) {
       const e = v.e; if (e.id === selfId || (e.type !== 'ark' && e.type !== 'raider') || e.st === 'dead') continue;
-      const cy = v.py + (e.alt || 0) + (e.type === 'raider' ? (e.crouch ? 0.8 : 1.15) : 0.4);
+      const cy = v.py + (v.pa ?? e.alt ?? 0) + (e.type === 'raider' ? (e.crouch ? 0.8 : 1.15) : 0.4);
       const s = this.R.worldToScreen(v.px, cy, v.pz);
       const d = Math.hypot(s.x - mx, s.y - my) / (this.R.scale / 3);
       const rad = (e.type === 'ark' ? Math.max(1, (e.r || 0.6) * 1.5) : 1) * 26;
