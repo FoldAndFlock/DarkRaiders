@@ -371,11 +371,13 @@ export default {
     // static ARK (Sentinels / turrets) stand ON their perch: y = metres above the terrain at (x, z)
     const perched = (kind, x, z, perch, y, o = {}) => w.arkSpawn(kind, x, z, { count: 1, radius: 0, perch, y, ...o });
     // open-deck perch tower (deck top 7.0 m); only the legs collide so the deck's ARK sees out
-    const perchTower = (x, z, arkKind = null, model = 'gg_perchtower') => {
+    // facing (sim convention: 0 = +z/south, atan2(dx, dz)) toward a world point — fixed ARK sweep about it
+    const faceTo = (x, z, tx, tz) => Math.atan2(tx - x, tz - z);
+    const perchTower = (x, z, arkKind = null, model = 'gg_perchtower', f = null) => {
       w.prop(model, x, z, 0, {});
       for (const [dx, dz] of [[-1.55, -1.55], [1.55, -1.55], [-1.55, 1.55], [1.55, 1.55]]) w.prop('gg_col', x + dx, z + dz, 0, { y: -0.5, solid: [0.25, 0.25, 7.5] });
       mark(x - 3, z - 3, x + 3, z + 3, 2 | 4);
-      if (arkKind) perched(arkKind, x, z, 'perch_tower', 7.0);
+      if (arkKind) perched(arkKind, x, z, 'perch_tower', 7.0, f == null ? {} : { f });
       w.lamp(x + 1.6, z + 1.6, { y: 7.8, model: null, color: 0xe8f4ff, intensity: 1.6, range: 14 });
     };
     const watchtower = (x, z, scale = 1) => {   // roofed decorative guard tower
@@ -411,7 +413,7 @@ export default {
       // reference Sentinel icon sits on the gate itself. Pylon tops (32 m) or the wall walk (15 m) would draw it
       // 12-26 m up-screen — off the 22 m view while it lasers you — so it stands on a sentry balcony 8 m up the face
       w.prop('gg_gatebalcony', ...at(19.4, -10.15), ROT, { yAbs: gWall(1) });                     // bolted to the sliding leaf's face (t -8.4)
-      perched('sentinel', ...at(19.4, -10.6), 'gate_balcony', 8, { yAbs: gWall(1) + 8 });
+      perched('sentinel', ...at(19.4, -10.6), 'gate_balcony', 8, { yAbs: gWall(1) + 8, f: Math.atan2(-NV[0], -NV[1]) });   // sweeps the plaza, back to the gate
       w.poi('outer_gates', 'Outer Gates', ...at(0, -2), 44, { tier: 3, aliases: ['outer_gates'] });
     }
 
@@ -464,7 +466,7 @@ export default {
       for (const [aa, bb] of [[-24, -48], [-24, 48], [-150, -30], [-150, 30]]) w.prop('gg_flag', ...cp(aa, bb), 0, { solid: true });
       for (const [aa, bb, k] of [[-150, -52, 'gg_container'], [-146, -52, 'gg_container2'], [-134, 52, 'gg_container3'], [-30, -50, 'gg_container2'], [-30, 50, 'gg_container'], [-112, -52, 'gg_crates'], [-80, 52, 'gg_pallet']]) w.prop(k, ...cp(aa, bb), PI / 4, { solid: true });
       // watchtowers at the plaza corners (turrets / sentinel perches) + floodlight masts
-      for (const [a, b] of [[-158, -50], [-158, 50], [-20, -56], [-20, 56]]) perchTower(...cp(a, b), 'turret');
+      for (const [a, b] of [[-158, -50], [-158, 50], [-20, -56], [-20, 56]]) { const [x, z] = cp(a, b); perchTower(x, z, 'turret', 'gg_perchtower', faceTo(x, z, ...cp(-90, 0))); }
       for (const [a, b] of [[-130, -32], [-130, 32], [-100, -32], [-100, 32], [-70, -32], [-70, 32], [-44, -30], [-44, 30], [-150, 0], [-20, 0]]) { const [x, z] = cp(a, b); w.lamp(x, z, { y: 6.5, model: 'gg_lightmast', color: 0xe8f4ff, intensity: 2.6, range: 21 }); }
       // forested south-west half of the Checkpoint (the reference polygon covers dense woods)
       const FW = [cp(-158, -44), cp(-158, -12), cp(-236, -12), cp(-236, -36)], FE = [cp(-158, 12), cp(-158, 46), cp(-236, 40), cp(-236, 12)];
@@ -476,7 +478,7 @@ export default {
       w.arkSpawn('tick', ...cp(-92, -42), { count: 3, radius: 6, habitat: 'indoor' });
       w.arkSpawn('pop', ...cp(-64, 40), { count: 2 });
       w.arkSpawn('snitch', ...cp(-180, 20), { count: 1, patrol: [cp(-200, 0), cp(-160, 30), cp(-120, 0)] });
-      perchTower(414, 347, 'sentinel');   // reference Sentinel icon west of the Checkpoint
+      perchTower(414, 347, 'sentinel', 'gg_perchtower', faceTo(414, 347, 470, 400));   // reference Sentinel icon west of the Checkpoint: covers the plaza's west woods + highway
       w.zone('Checkpoint', CHK_POLY, { tier: 2 });
       w.poi('checkpoint', 'Checkpoint', ...cp(-100, 0), 80, { tier: 2, aliases: ['checkpoint'] });
     }
@@ -514,8 +516,8 @@ export default {
       for (const [lx, lz, k] of [[12, 1.2, 'toolbox'], [36, 30.8, 'crate'], [52, 1.2, 'arc_crate'], [88, 30.8, 'toolbox'], [116, 1.2, 'raider_cache'], [140, 30.8, 'ammo_box'], [96, 1.2, 'trash'], [150, 1.4, 'electronics'], [70, 30.8, 'locker']])
         ct(TT, k, lx, lz, { tier: 2, poi: 'traffic_tunnel' });
       for (const [lx, lz] of [[30, 4], [58, 28], [92, 4], [120, 28], [150, 10]]) pl(TT, 'gg_barrier', lx, lz, 0);
-      perched('sentinel', ...worldOf(TT, 128, 16), 'tunnel_floor', 0, { habitat: 'indoor' });   // kept low: an eye above 10 m would see out over the tunnel walls
-      w.arkSpawn('turret', ...worldOf(TT, 146, 16), { habitat: 'indoor' });
+      perched('sentinel', ...worldOf(TT, 128, 16), 'tunnel_floor', 0, { habitat: 'indoor', f: faceTo(...TT_N, ...TT_S) });   // kept low: an eye above 10 m would see out over the tunnel walls
+      w.arkSpawn('turret', ...worldOf(TT, 146, 16), { habitat: 'indoor', f: faceTo(...TT_N, ...TT_S) });   // looks down the band toward the yard
       w.arkSpawn('tick', ...worldOf(TT, 40, 16), { count: 3, habitat: 'indoor' });
       w.arkSpawn('pop', ...worldOf(TT, 90, 16), { count: 2, habitat: 'indoor' });
       w.arkSpawn('shredder', ...worldOf(TT, 70, 16), { habitat: 'indoor', patrol: [worldOf(TT, 14, 16), worldOf(TT, 140, 16)] });
@@ -559,7 +561,7 @@ export default {
       for (const [lx, lz] of [[16, 10], [16, 30], [30, 20]]) tlampL(SW, lx, lz);
       rampGF(62, 72, -112, -100, BENCH_Y, TUN_Y, 'z');     // stair-ramp up to the Reception courtyard
       w.arkSpawn('tick', ...worldOf(SW, 16, 20), { count: 2, habitat: 'indoor' }); w.arkSpawn('pop', ...worldOf(SW, 18, 36), { count: 2, habitat: 'indoor' });
-      w.arkSpawn('turret', ...worldOf(SW, 20, 6), { habitat: 'indoor' });
+      w.arkSpawn('turret', ...worldOf(SW, 20, 6), { habitat: 'indoor', f: faceTo(...worldOf(SW, 20, 6), ...worldOf(SW, 17, 42)) });   // covers the wing toward its yard door
       w.poi('security_wing', 'Security Wing', ...worldOf(SW, 17, 21), 26, { tier: 3, aliases: ['security_wing'], underground: true });
 
       // ---------------------------------------------------------------- Maintenance Wing (gate frame): yard -> NE hall -> pit -> Data Vault
@@ -609,8 +611,8 @@ export default {
       house(gfDef(160, 176, 98, 110, { h: 3.4, wall: 'corrugated', roof: 'corrugated', floor: 'concrete', name: 'Loading Office', doors: [{ side: 'w', at: 4, w: 1.8 }, { side: 'n', at: 9, w: 3 }, ...winRow('s', 16, 2, 4)] }), 'industrial', { tier: 2, poi: 'warehouse_complex' });
       house(gfDef(160, 174, 60, 70, { h: 3.4, wall: 'concrete', roof: 'roofTar', floor: 'tiles', name: 'Dispatch', doors: [{ side: 'w', at: 4, w: 1.8 }, ...winRow('e', 10, 2, 3)] }), 'office', { tier: 2, poi: 'warehouse_complex' });
       w.prop('gg_siren', 792, 250, 0, { solid: true });
-      perchTower(800, 192, 'sentinel');      // reference Sentinel icon east of the Headhouse, overlooking the Maintenance Hall roof
-      perchTower(745, 344, 'turret', 'gg_perchtower_w');      // the white lookout tower south of the Warehouse (quest)
+      perchTower(800, 192, 'sentinel', 'gg_perchtower', faceTo(800, 192, 746, 289));      // reference Sentinel icon east of the Headhouse, overlooking the Maintenance Hall roof
+      perchTower(745, 344, 'turret', 'gg_perchtower_w', faceTo(745, 344, 760, 420));      // the white lookout tower south of the Warehouse (quest)
       for (const [a, b] of [[150, 72], [196, 110], [120, 128], [80, 62]]) lightPost(...cp(a, b), 0xe8f4ff, 'gg_lightmast', 6.5, 2.6, 21);
       for (const [a, b, k, r] of [[190, 72, 'gg_container3', PI / 4], [196, 122, 'gg_container', -PI / 4], [178, 84, 'gg_truck', PI / 4 + 0.2], [130, 130, 'gg_crates', 0], [184, 98, 'gg_pallet', 0]]) w.prop(k, ...cp(a, b), r, { solid: true });
       w.prop('gg_airshaft', 806, 283, 0, { solid: true }); w.lamp(806, 283, { y: 5, model: null, color: 0x40ff80, intensity: 1.5, range: 9 });
@@ -653,7 +655,7 @@ export default {
       for (const [x, z] of [[548, 176], [596, 174], [536, 150], [596, 150]]) { w.prop('sandbag', x, z, x > 590 ? PI / 2 : 0, { solid: true }); }
       w.block(536, 173, 576, 174.2, 2.2, 'damConcrete', {}); w.block(586, 173, 600, 174.2, 2.2, 'damConcrete', {});     // blast walls
       lightPost(534, 172); lightPost(600, 166); lightPost(596, 136);
-      perchTower(467.5, 191.5, 'sentinel');      // reference Sentinel icon above the Cliffside Airshaft
+      perchTower(467.5, 191.5, 'sentinel', 'gg_perchtower', faceTo(467.5, 191.5, 455, 240));      // reference Sentinel icon above the Cliffside Airshaft
       w.arkSpawn('wasp', 570, 160, { count: 2, patrol: [[540, 128], [610, 128], [610, 178], [540, 178]] });
       w.arkSpawn('hornet', 520, 200, { count: 1, patrol: [[500, 170], [560, 230], [620, 175]] });
       w.zone('Reinforced Reception', [[530, 128], [630, 128], [630, 205], [530, 205]], { tier: 3 });
@@ -683,9 +685,10 @@ export default {
       w.container('raider_cache', 676, 190, 0, { tier: 3, poi: 'headhouse' });
       w.lamp(676, 190, { y: 5, model: null, color: 0xc8e0ff, intensity: 1.3, range: 16 });
       w.lamp(676, 190, { y: 10.5, model: null, color: 0xff4030, intensity: 0.6, range: 8, flicker: 0.3 });
-      // reference icon is on the Headhouse; roofs aren't in the LOS grid, so a roof-top Sentinel would see (and laser)
-      // straight down into the hall — it stands on the concrete drum rim (12.75 m) instead, walls screen the hall
-      perched('sentinel', 698.5, 190, 'headhouse_rim', 0, { yAbs: BENCH_Y - 0.1 + 3.35 });
+      // reference icon: on the Headhouse roof. It stands on the south roof-edge railing (13.65 m) just outside the
+      // footprint: sim.canSee only hides a building's interior from observers whose (x, z) is outside it, and from
+      // the roof centre the hall walls would block its view anyway. Sweeps south over the ramp, plaza and hall roof.
+      perched('sentinel', 687, 208.8, 'headhouse_roof_edge', 0, { yAbs: TUN_Y + 6.0 + 0.25 + 0.9, f: 0 });
       w.arkSpawn('pop', 676, 186, { count: 2, habitat: 'indoor' });
       w.poi('headhouse', 'Headhouse', 676, 190, 32, { tier: 2, aliases: ['headhouse'] });
 
@@ -743,8 +746,9 @@ export default {
       for (const [x, z] of [[884, 100], [884, 150], [940, 160], [972, 150], [960, 128]]) lightPost(...gP(x, z), 0xffd8a0);
       gProp('gg_container2', 950, 150, 0.3); gProp('gg_generator', 940, 132, 0); gProp('gg_crates', 945, 158, 0);
       for (let i = 0; i < 26; i++) { const [x, z] = gP(R(872, 984), R(70, 176)); if (free(x, z, 1.5, 3) && pointInPoly(x, z, PEAK)) w.prop(pick(['gg_bush', 'gg_flowers', 'gg_grass', 'gg_rock_s', 'gg_cypress', 'gg_olive']), x, z, rng() * 6, { solid: true, scale: R(0.7, 1) }); }
-      // reference Sentinel icon by the north wing: a perch tower just outside the hostel (a roof perch would see into the rooms)
-      perchTower(...gP(907, 79), 'sentinel');
+      // reference Sentinel icon: on the Pilgrim Hostel roof (3 storeys, 9.85 m), on the cloister-side parapet just
+      // outside the footprint (same canSee reason as the Headhouse), sweeping the cloister and the west ramp
+      perched('sentinel', ...gP(915, 100.5), 'hostel_roof_edge', 0, { yAbs: PEAK_Y + 9.6 + 0.25, f: faceTo(...gP(915, 100.5), ...gP(915, 140)) });
       // Locked Gate condition: security-code printer + its rocket escort
       gProp('gg_printer', 932, 120, 0); gCont('electronics', 932, 121.4, { tier: 2, poi: 'pilgrims_peak', note: 'security_code_printer' });
       w.arkSpawn('rocketeer', 925, 130, { count: 2, condition: 'locked_gate', patrol: [[880, 100], [960, 80], [970, 160], [890, 170]] });
