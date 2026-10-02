@@ -13,6 +13,49 @@ key rooms) and `docs/ref/dam_blank.jpg` (clean render, used for building footpri
 * Blank reference (4096 x 4096 px): X = (px - 1930) / 2.97 + 496, Z = (py - 1350) / 2.97 + 206.
 * Legend checks: the eye-diamond icon is a **Sentinel** and the double ring is a **Baron husk**, so the
   Sentinel spawns below sit exactly on the reference icons.
+* The Queen icon (♛) is at (862, 368) in the Red Lakes basin and the Matriarch icon is at (349, 680),
+  south-east of the Water Towers. Both are now boss arenas (see **ARK** below).
+
+## Turned frames (second pass, rotated buildings)
+
+The reference dam and most POIs are turned. The map builds them in local frames (`frame()` in the module;
+`GW` converts frame to world, `GL` world to frame):
+
+| Frame | Pivot | Angle | Contents |
+|---|---|---|---|
+| `DAM` | (650, 300) | +30° | Everything on the dam, plus Pattern House and Raider Outpost East. Design coords are **(u, v)**: u points ESE toward the basin, v runs SSW down the dam. |
+| `G_WTC` | (382, 436) | −15° | Water Treatment Control and its plaza and settling basins |
+| `G_RUB`, `G_PALE`, `G_BEN` | own centres | −15° | Rubie Residence (villa, cottage, guesthouse, garden walls), Pale Apartments, Ben Welda's Sunroof |
+| `G_TA` | (728, 630) | −60° | Testing Annex (the dam frame turned 90°) |
+| `G_SS`, `G_ET`, `G_PH` | own centres | +30° | Electrical Substation yard, Electrical Tower, Pump House |
+
+Smaller buildings get small hand angles (outposts, bunkers, huts, Scrap Yard sheds, farmhouse). 66 of
+the 75 buildings are rotated; the hydroponics domes and lab stay square.
+
+How the angles were measured: I de-rotated the blank render in each candidate frame
+(`rotref.py` / `rotpoi.py`, kept in the scratchpad only) until the building edges and the yellow/pink
+POI outlines of the annotated map lined up with the axes. In the dam frame the whole dam becomes one
+straight vertical spine.
+
+Dam layout in (u, v), all at HIGH (9 m) unless noted:
+* **Power Generation plateau:** u −100..82, v −201..−112, with an east wing u 82..140, v −201..−138.
+  The highway deck runs along v = −206.
+* **Controlled Access Zone:** u −60..25, v −112..−40.
+* **Pipeline Tower deck:** u 25..82, v −112..−54.
+* **Broken stub above The Breach:** u −42..12, v −40..−26.
+* **The Breach:** a gap from v −26 to 40. Its floor falls from swamp level (west) to basin level
+  (east) and holds a crater pool, a fallen monolith, slabs and a rubble slope.
+* **Floodgates crest:** u −32..18, v 40..152, with 7 spillway chutes at v = 52…136. The chutes are
+  8 m wide ramps from u 18 to 58 between pier walls, ending on a concrete apron with puddles.
+* **South platform** (Primary Facility, Control Tower, Research & Administration): u −50..82,
+  v 150..242, plus a west wing toward Water Treatment.
+* **Red Lakes Balcony walkway:** u 78..286, v 172..184.
+* **Four flooded turbine shafts** on the plateau.
+
+`frameWalls()` replaces the first pass's axis-aligned facade scan. It walks every edge of the turned
+rects and drops 1.8 m-thick concrete wall pieces (≤ 6 m, rotated with the frame) wherever the ground
+outside is more than 2.2 m lower. Parapets are added in coherent 14 m stretches. The turbine shafts
+get the same walls facing inward.
 
 ## Terrain tiers
 
@@ -74,7 +117,9 @@ Names are lightly tweaked per ARCHITECTURE.md. `aliases` holds the snake_case of
 | scrap_yard | Scrap Yard | scrap_yard | 510 | 696 | 36 | 2 |
 | wreckage | Wreckage | wreckage | 606 | 690 | 30 | 2 |
 | formikai_outpost | Formikai Outpost | formicai_outpost | 528 | 796 | 34 | 2 |
-| field_depot (x5) | Field Depot | field_depot | 846,205 · 478,244 · 508,492 · 288,414 · 682,548 | | 10 | 1 |
+| red_lakes | Red Lakes (boss arena, `bossPoi: ['queene']`) | red_lakes | 862 | 368 | 60 | 2 |
+| tower_hill | Tower Hill (boss arena, `bossPoi: ['matriark']`) | tower_hill | 347 | 680 | 40 | 1 |
+| field_depot (x5) | Field Depot | field_depot | about (840, 181) · 478, 244 · about (507, 483) · 288, 414 · about (684, 548) | | 10 | 1 |
 
 Every `poi` id used by `src/data/quests.js` for this map exists. That includes `field_depot`, which
 appears 5 times, so "visit a Field Depot" works at any of them.
@@ -96,47 +141,93 @@ All hatches set `needsKey: 'raider_hatch_key'`.
 
 ## Key rooms (`keyRoom` + door `locked: roomId`)
 
-| room id | Room | rect (x0,z0 to x1,z1) | locked door | tier-3 containers |
+| room id | Room | bounding box of the turned room | locked door | tier-3 containers |
 |---|---|---|---|---|
-| controlled_access_zone | Controlled Access Zone Vault | 658,208 to 680,222 | (669.2, 222) | 7 |
-| control_tower | Control Tower control room | 584,458 to 616,469 | (598.2, 469) | 5 |
-| staff_room | Staff Room (Research & Administration) | 558,522 to 574,536 | (564.9, 522) | 5 |
-| surveillance | Surveillance Room (Water Treatment Control) | 366,446 to 382,458 | (372.9, 446) | 5 |
-| testing_annex | Testing Annex Secure Lab | 740,620 to 752,646 | (740, 630.9) | 4 |
+| controlled_access_zone | Controlled Access Zone Vault (dam frame) | 662,200 to 690,225 | (672.5, 219.5) | 8 |
+| control_tower | Control Tower control room (dam frame) | 589,455 to 633,488 | (608.0, 476.7) | 5 |
+| staff_room | Staff Room in Research & Administration (dam frame) | 555,508 to 577,529 | (568.2, 511.4) | 4 |
+| surveillance | Surveillance Room in Water Treatment Control (−15°) | 369,446 to 388,461 | (375.8, 448.0) | 5 |
+| testing_annex | Testing Annex Secure Lab (−60°) | 729,603 to 759,630 | (738.2, 622.1) | 5 |
+
+Each `keyRoom` keeps the axis-aligned bounding box in x0..z1 and also carries `poly`, the 4 world
+corners of the turned room. Seal check, using the same flood fill from a spawn: with every door open,
+each room is reachable (it has 544 to 1711 interior samples). With only its locked door closed, **0**
+interior samples are reachable for all five rooms, so the rooms are sealed except through the locked
+door.
 
 These match the `key.room` values of the `damn_grounds_*_key` items in `src/data/items.js`.
 * Controlled Access Zone flavour: a fuel cell (blue barrel), four `dg_switch` panels, the 4-light
   `dg_puzzle` panel above the vault door, and a resource-lock fuse box.
 * Control Tower: a 20 m shaft (block) with the `dg_ctrltop` glass cab at 29 m (visual).
 
-## Spawns, Sentinels, Baron husks
+## Spawns, Sentinels, Baron husks, bosses
 
 * 22 player spawns on the reference spawn icons (a few moved 2 to 4 m off obstacles).
-* Sentinels (reference eye-diamond icons): (731,162) on the Power Control roof, (646,272), (607,345)
-  on Floodgate Control, (668,340), (568,397), (592,542).
-* Baron husks (reference rings): Old Battleground (256,330), southern swamp (325,474), south of the
-  Water Towers (347,681).
+* Sentinels (reference eye-diamond icons) sit on static perches (`arkSpawn` `y` / `yAbs`):
 
-## Counts (seed 4471)
+  | Position | Perch | Absolute height |
+  |---|---|---|
+  | (733, 159) | Power Control roof | 15.7 m |
+  | (650, 263) | 4.2 m lattice mast (`dg_sentmast`) on the broken stub | 13.2 m |
+  | (607, 345) | Floodgate Control roof | 15.7 m |
+  | (671, 338) | Fallen monolith in The Breach | 5.2 m |
+  | (568, 397) | Gate Hut roof | 12.5 m |
+  | (594, 538) | Research & Administration roof | 15.7 m |
 
-* Buildings: 74 (budget 300)
-* Props: about 19.6k (budget 30k)
-* Containers: 676 (tier 1 about 420, tier 2 about 228, tier 3 28)
-* ARK spawn groups: 95
-* Lamps: about 410
-* Doors: 80 (5 locked)
-* Zones: 21
+  These heights were checked in a live raid.
+* Turrets sit on the roofs of:
+  * Generator Hall
+  * Controlled Access Zone
+  * Control Tower
+  * Testing Annex
+  * Water Treatment Control
+  * Primary Facility
+  * Substation Control
+  * Pump House
 
-Build time: `build()` takes about 0.8 to 1.3 s and `finalize()` (engine) about 2.3 to 2.7 s, measured in
-headless SwiftShader on a heavily loaded 4-core box. `mapview` reports 3.0 to 4.3 s. Per-phase timings are
-exposed on `world.buildTimings`.
+  Another turret sits on the Pipeline Tower catwalk.
+* Baron husks (reference rings) are now searchable `barron_husk` containers: The Breach (620, 316), Old
+  Battleground (250, 322), southern swamp (324, 474).
+* Boss arenas:
+  * Harvester condition: the Queene spawns at **Red Lakes** (verified in a raid at (865, 367)).
+    A hornet and rocketeer escort (`condition: 'harvester'`) is added, and the basin Leapr and the
+    east Bombardeer stand down (`notCondition`).
+  * Matriark condition: she spawns on **Tower Hill** (verified at (348, 681)) with a wasp and hornet
+    brood.
+  * Night raids add fireballs in the swamp and forest. Close Scrutiny adds a snitch over the Floodgates.
+
+## Counts (seed 4471, second pass)
+
+* Buildings: 75, of which 66 are rotated (budget 300)
+* Props: about 19.4k (budget 30k)
+* Containers: 660 (tier 1: 399, tier 2: 233, tier 3: 28)
+* ARK spawn groups: 102, including 9 condition-gated
+* Lamps: 410, of which 47 are mast/tower lights above 6 m
+* Doors: 81 (5 locked)
+* Zones: 26
+
+Build time: `build()` takes about 0.75 to 0.85 s and `finalize()` (engine) about 2.9 to 3.2 s, measured in
+headless SwiftShader on a 4-core box. `mapview` reports 2.8 to 4.4 s, under the 6 s budget. Per-phase
+timings are exposed on `world.buildTimings`.
+
+Validation (flood fill over the collision grid from a spawn):
+* all 81 doors passable
+* all buildings, spawns and extracts reachable
+* 0 of 660 containers unreachable
+* key rooms sealed (above)
+* about 93.7% of the map's cells walkable
+
+`index.html?raid=damn_grounds` runs with no console errors under the normal, harvester, matriarch and
+night_raid conditions.
 
 ## Layout notes and deviations (top-down adaptation)
 
-* **Rotation.** The reference's dam monoliths and buildings are rotated about 30°. `building()` is
-  axis-aligned, so the dam is rebuilt as a staircase of axis-aligned monoliths that follows the same
-  diagonal. Floodgates F1 to F4 step down to the SW. The Power Generation plateau is one polygon whose NE
-  edge follows the elevated highway, like the reference band.
+* **Rotation (second pass).** The dam, its buildings, the Control Tower, the Controlled Access Zone and
+  the other clearly turned POIs now match the reference angles (see **Turned frames**). Plot-level
+  positions are unchanged from the first pass. Two things remain approximations of the stepped,
+  overlapping concrete of the real dam:
+  * the dam's surfaces are a handful of turned rectangles;
+  * the spillway apron is a flat concrete band.
 * **Verticality.** Upper floors, the Control Tower interior climb, the Controlled Access Zone parkour and
   snap-hook routes are flattened to one walkable floor (`storeys` is visual only).
   * The Control Tower top is a decorative cab on a shaft.
@@ -168,10 +259,12 @@ exposed on `world.buildTimings`.
   * the dirt-bike circuit west of the Water Towers (traced from the blank render)
 * **Lighting:**
   * street lamps every ~34 m along asphalt roads
-  * floodlights (`dg_floodlight`) and red beacons along the crest, balcony and plateau
+  * floodlights (`dg_floodlight`) and red beacons along the crest, balcony, plateau and broken bridges
   * a ceiling light in every furnished room (colour by room type), fires at camps
   * green glow on cargo elevators, amber on hatches
-  * no lamps on tall masts, because light attenuation is 3D
+  * mast/tower lights restored now that the engine drops high fixtures to about 2.8 m and widens their
+    range: red aviation lights on the Pipeline Tower, the scrap-yard and plateau cranes, the four water
+    towers, the radar dome and the Electrical Tower pylon, plus a cyan wash from the Control Tower cab
 
 ## Custom props (`props_damn_grounds.js`)
 
@@ -182,7 +275,7 @@ exposed on `world.buildTimings`.
 * **Dam:** `dg_floodgate`, `dg_gantry`, `dg_pipetower`, `dg_bigpipe`, `dg_valve`, `dg_pump`,
   `dg_spillgrate`, `dg_rail`
 * **Landmarks:** `dg_watertower`, `dg_ctrltop`, `dg_beacon`, `dg_floodlight`, `dg_walllamp`,
-  `dg_satdish`, `dg_antennamast`, `dg_radar`, `dg_crane`
+  `dg_satdish`, `dg_antennamast`, `dg_radar`, `dg_crane`, `dg_sentmast` (Sentinal perch)
 * **Industrial:** `dg_container(B,G)`, `dg_truck`, `dg_scaffold`, `dg_sign`, `dg_signred`,
   `dg_barrier`, `dg_fence`, `dg_rubble`, `dg_slab`, `dg_brokenspan`, `dg_hedgehog`, `dg_tent`,
   `dg_watchtower`, `dg_ventbox`, `dg_tankS`, `dg_stairs`
@@ -195,6 +288,11 @@ exposed on `world.buildTimings`.
 ## Map-builder helpers worth reusing
 
 These live in `makeCtx()`:
+* `C.dbld` / `C.gbld` place buildings in a frame. Their contents use building-local offsets through
+  `C.F` (furnish), `C.P` (prop), `C.Cn` (container), `C.IL` (light) and `C.K` (key room with `poly`).
+  These wrap `world.local`.
+* `C.lshape`, `C.lslope` and `C.lfill` do terrain work in a turned frame. `C.gfence` and `C.compound`
+  build fenced yards and walled compounds in a frame.
 * `C.bld` records door points.
 * `C.furnish(type, rect, {tier, room})` places props along the walls, then containers, then a ceiling
   light.
@@ -208,18 +306,21 @@ These live in `makeCtx()`:
 Validation used during development: a flood fill over the collision grid checked that all buildings,
 spawns, extracts and doors are reachable. 4 of 676 containers sit in tight spots.
 
-## Engine wishes
+## Engine wishes (after the second pass)
 
-1. Rotated buildings and blocks (an `angle` on `building()` / `block()`), so the 30° dam monoliths,
-   the Control Tower and the CAZ can match the reference orientation.
-2. Walkable roofs or mezzanines (a second walkable layer) for the Control Tower, the Pipeline Tower
-   catwalks, the dam galleries and the Flood Access tunnels.
-3. A polygon or polyline `wall` primitive (curved dome footings, clarifier rims). Rings are now made of
-   many small blocks.
-4. `raisePoly` with `blend = 0` should skip the per-vertex edge-distance loop (it is the slowest terrain
-   call). The map uses its own scanline fill instead.
-5. Lamp height vs range: lamps use 3D attenuation, so high-mounted lights barely reach the ground. A
-   "ground-projected" or cone option for floodlights and beacons would help night readability.
-6. A small ring or ripple artifact shows around lamp-post bases at night (also visible in `test_range`).
-7. Water material per body is supported through `opts.material`. A first-class `color` option on
-   `water()` / `waterPoly()` / `river()` would be nicer.
+Done by the engine since the first pass: rotated buildings and blocks, static ARK perches,
+condition-gated spawns, boss POIs, searchable Baron husks, water colours, the fast `raisePoly` path,
+high-mounted lamps, and the lamp-post ring fix.
+
+Still wished for:
+1. Walkable roofs or mezzanines (a second walkable layer) for the Control Tower climb, the Pipeline
+   Tower catwalks, the dam galleries and the Flood Access / maintenance tunnels. These are still
+   portals, signs and decoration only.
+2. A rotated `raiseRect` / `ramp` / `flatten` (or a `rot` option on them). The map does its own turned
+   terrain ops (`C.lshape` / `C.lslope` / `C.lfill`).
+3. A polyline/curved `wall` primitive for the dome footings and the clarifier rim (still rings of small
+   blocks).
+4. Rotated solid footprints for props (`prop` collision snaps to 0°/90°). Turned furniture and clutter
+   in the 30° buildings use the nearer axis-aligned box.
+5. The overview tool (`mapview` overview mode) could draw `keyRoom.poly` when present. It currently
+   draws the bounding box.
