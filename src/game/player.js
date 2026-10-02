@@ -75,8 +75,10 @@ export class PlayerController {
       this.crosshairAt(input, R, feet);
       hov = g.view.pickEntity(input.mouse.x, input.mouse.y, e.id);
     } else {
-      const p = R.screenToGround(input.mouse.x, input.mouse.y, feet + 1.1); this.aim.x = p.x; this.aim.z = p.z;
       hov = g.view.pickEntity(input.mouse.x, input.mouse.y, e.id);
+      // over an entity, unproject at its aim height (a hovering drone sits north of the ground point
+      // under the cursor); keeps fine aim on the body for weak points
+      const p = R.screenToGround(input.mouse.x, input.mouse.y, hov ? hov.aimY : feet + 1.1); this.aim.x = p.x; this.aim.z = p.z;
     }
     this.aim.entity = hov;
     // aim height: the floor under the cursor at our level (or lower: shooting down off a roof)
