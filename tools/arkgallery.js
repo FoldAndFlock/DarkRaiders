@@ -30,13 +30,14 @@ world.finalize();
 const items = [];
 let zc = 0, maxW = 0;
 const GAP = 1.0;
+const zq = q.get('zoom') || '1', wide = zq === 'fit' || +zq <= 1.5;
 for (const row of rows) {
   const ents = [];
   for (const id of row) for (let r = 0; r < (rear ? 2 : 1); r++) ents.push({ id, rearView: r === 1 });
   let x = 0, rowR = 0, rowH = 0;
   const placed = ents.map(e => {
     const def = ARK[e.id], rad = def.size?.radius ?? def.radius ?? 0.6;
-    const w = Math.max(1.2, rad * 2.3);
+    const w = Math.max(wide ? 2.3 : 1.3, rad * 2.3);
     const it = { ...e, def, rad, x: x + w / 2 };
     x += w + GAP; rowR = Math.max(rowR, rad);
     const hh = def.flying ? (altMode === 'real' ? def.height : 1.3 + (def.size?.height || 0.5)) : (def.size?.height ?? def.height ?? 1);
@@ -119,7 +120,7 @@ const octx = ov.getContext('2d');
 function drawLabels() {
   ov.width = R.cssW; ov.height = R.cssH;
   octx.clearRect(0, 0, ov.width, ov.height);
-  const sc = Math.max(1, Math.round(R.scale * Math.min(1, zoom) ));
+  const sc = zoom >= 2 ? 2 : 1;
   for (const it of items) {
     const p = toScreen(it.x, 0, it.z + Math.max(it.rad, 0.5) + 0.25);
     drawText(octx, it.def.name.toUpperCase() + (it.rearView ? ' (REAR)' : ''), p.x, p.y, { align: 'center', color: '#f0d890', shadow: '#000', scale: sc });

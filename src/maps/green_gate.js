@@ -314,7 +314,7 @@ export default {
           used.push([sx, sz]);
         }
       }
-      if (opts.light !== false && ww * dd > 30) w.lamp(x + ww / 2, z + dd / 2, { y: Math.min(3.0, (o.h || 3.2) - 0.3), model: null, color: opts.lightColor ?? 0xffd8a0, intensity: opts.lightI ?? 0.9, range: Math.min(12, Math.max(ww, dd) * 0.8 + 3), flicker: opts.flicker ?? 0 });
+      if (opts.light !== false && ww * dd > 30) w.lamp(x + ww / 2, z + dd / 2, { y: Math.min(3.0, (o.h || 3.2) - 0.3), model: null, color: opts.lightColor ?? 0xffd8a0, intensity: opts.lightI ?? 1.3, range: Math.min(12, Math.max(ww, dd) * 0.8 + 3), flicker: opts.flicker ?? 0 });
     };
     // building + furniture in one go
     const house = (o, kind = 'home', fo = {}) => { const b = bldg(o); furnish(o, kind, fo); return b; };
@@ -326,8 +326,8 @@ export default {
       for (let i = 0; i <= n; i++) { const t = i / n; w.prop('gg_col', ax + (bx - ax) * t, az + (bz - az) * t, 0, { y: -0.5, solid: [half, half, h + 0.5] }); }
     };
     const vehicle = (kind, x, z, rot) => { w.prop(kind, x, z, rot, { solid: true }); mark(x - 3, z - 3, x + 3, z + 3, 2); };
-    const lightPost = (x, z, color = 0xffe0b0, model = 'lamp', y = 3.6, intensity = 1.1, range = 10) => w.lamp(x, z, { y, color, intensity, range, model });
-    const tunnelLamp = (x, z, y = 3.3) => w.lamp(x, z, { y, model: null, color: 0xc8e0ff, intensity: 1.0, range: 10, flicker: rng() < 0.25 ? 0.4 : 0 });
+    const lightPost = (x, z, color = 0xffe0b0, model = 'lamp', y = 3.6, intensity = 1.8, range = 12) => w.lamp(x, z, { y, color, intensity: Math.max(intensity, 1.7), range: Math.max(range, 12), model });
+    const tunnelLamp = (x, z, y = 3.0) => w.lamp(x, z, { y, model: null, color: 0xc8e0ff, intensity: 1.6, range: 11, flicker: rng() < 0.25 ? 0.4 : 0 });
 
     // ======================================================================== 4. THE OUTER GATES
     {
@@ -340,7 +340,7 @@ export default {
       diagCollide(...at(-31, -7.4), ...at(-17, -7.4), 0.9, 12, 0.8);
       diagCollide(...at(17, -7.4), ...at(31, -7.4), 0.9, 12, 0.8);
       // floodlights on the pylons' checkpoint side + beacon lights
-      for (const s of [-44, -12, 12, 44]) { const [x, z] = at(s, -8.5); w.lamp(x, z, { y: 9, model: null, color: 0xd8f0ff, intensity: 1.6, range: 14 }); }
+      for (const s of [-44, -12, 12, 44]) { const [x, z] = at(s, -8.5); w.lamp(x, z, { y: 9, model: null, color: 0xd8f0ff, intensity: 2.2, range: 16 }); }
       const [gx, gz] = at(0, -10); w.lamp(gx, gz, { y: 12, model: null, color: 0x9affc8, intensity: 0.9, range: 12 });
       w.paintPoly('concrete', [at(-52, -12), at(52, -12), at(52, 8), at(-52, 8)]);
       for (let s = -6; s <= 6; s += 3) w.prop('gg_chevron', ...at(s, -1), ROT, { y: 0.03 });
@@ -403,7 +403,7 @@ export default {
       for (const [aa, bb, k] of [[-150, -52, 'gg_container'], [-146, -52, 'gg_container2'], [-134, 52, 'gg_container3'], [-30, -50, 'gg_container2'], [-30, 50, 'gg_container'], [-112, -52, 'gg_crates'], [-80, 52, 'gg_pallet']]) w.prop(k, ...cp(aa, bb), PI / 4, { solid: true });
       // watchtowers at the plaza corners (turrets / sentinel perches) + floodlight masts
       for (const [a, b] of [[-158, -50], [-158, 50], [-20, -56], [-20, 56]]) { const [x, z] = cp(a, b); w.prop('gg_watchtower', x, z, 0, { solid: true }); mark(x - 3, z - 3, x + 3, z + 3, 2); w.arkSpawn('turret', x, z, { perch: 'watchtower', y: 8.5 }); }
-      for (const [a, b] of [[-130, -32], [-130, 32], [-100, -32], [-100, 32], [-70, -32], [-70, 32], [-44, -30], [-44, 30], [-150, 0], [-20, 0]]) { const [x, z] = cp(a, b); w.lamp(x, z, { y: 7.6, model: 'gg_lightmast', color: 0xe8f4ff, intensity: 1.5, range: 15 }); }
+      for (const [a, b] of [[-130, -32], [-130, 32], [-100, -32], [-100, 32], [-70, -32], [-70, 32], [-44, -30], [-44, 30], [-150, 0], [-20, 0]]) { const [x, z] = cp(a, b); w.lamp(x, z, { y: 7.6, model: 'gg_lightmast', color: 0xe8f4ff, intensity: 2.1, range: 16 }); }
       // forested south-west half of the Checkpoint (the reference polygon covers dense woods)
       const FW = [cp(-158, -44), cp(-158, -12), cp(-236, -12), cp(-236, -36)], FE = [cp(-158, 12), cp(-158, 46), cp(-236, 40), cp(-236, 12)];
       for (const f of [FW, FE]) w.forest(f, 2.6, ['pine', 'gg_spruce', 'tree'], { avoid: (x, z) => !free(x, z, 1.2, 3) });
@@ -579,7 +579,7 @@ export default {
       w.arkSpawn('turret', 745, 344, { perch: 'watchtower', y: 8.5 });
       for (const [x, z] of [[708, 246], [790, 246], [790, 330], [700, 330]]) lightPost(x, z, 0xe8f4ff, 'gg_lightmast', 7.6, 1.4, 14);
       for (const [x, z, k, r] of [[800, 300, 'gg_container3', 0.1], [806, 312, 'gg_container', 1.6], [700, 236, 'gg_truck', 1.4], [727, 336, 'gg_crates', 0], [812, 262, 'gg_pallet', 0]]) w.prop(k, x, z, r, { solid: true });
-      w.prop('gg_airshaft', 806, 283, 0, { solid: true }); w.lamp(806, 283, { y: 5, model: null, color: 0x40ff80, intensity: 0.9, range: 8 });
+      w.prop('gg_airshaft', 806, 283, 0, { solid: true }); w.lamp(806, 283, { y: 5, model: null, color: 0x40ff80, intensity: 1.5, range: 9 });
       w.extract('warehouse_airshaft', 'Warehouse Airshaft', 806, 288.5, { kind: 'airshaft' });
       w.arkSpawn('rocketeer', 760, 230, { count: 1, patrol: [[700, 220], [820, 230], [820, 340], [700, 340]] });
       w.arkSpawn('wasp', 740, 330, { count: 3, patrol: [[710, 330], [790, 330], [790, 250], [710, 250]] });
@@ -756,7 +756,7 @@ export default {
       w.zone('Village', [[245, 22], [278, 18], [432, 44], [520, 108], [505, 166], [300, 125], [238, 60]], { tier: 2 });
       w.poi('village', 'Village', 372, 88, 100, { tier: 2, aliases: ['village'] });
       // Lucky Hatch
-      w.prop('hatch', 500, 108, 0, {}); w.lamp(500, 108, { y: 1.2, model: null, color: 0xffd040, intensity: 0.8, range: 6 });
+      w.prop('hatch', 500, 108, 0, {}); w.lamp(500, 108, { y: 1.2, model: null, color: 0xffd040, intensity: 1.4, range: 7 });
       w.extract('lucky_hatch', 'Lucky Hatch', 500, 108, { kind: 'hatch', needsKey: 'raider_hatch' });
     }
 
@@ -774,7 +774,7 @@ export default {
       // Raider's Refuge: hidden raider camp
       house({ x: 296, z: 196, w: 10, d: 8, h: 3.0, wall: 'wood', floor: 'wood', roof: 'corrugated', name: "Raider's Refuge Shack", doors: [{ side: 's', at: 2, w: 1.6 }, { side: 'w', at: 3, w: 1.2, sill: 1 }, { side: 'e', at: 3, w: 1.2, sill: 1 }] }, 'camp', { tier: 2, poi: 'raiders_refuge', cont0: 3 });
       w.prop('gg_tarp', 312, 212, 0.4, { solid: true }); w.prop('gg_tent', 292, 214, 1.2, { solid: true }); w.prop('gg_tent', 318, 198, -0.5, { solid: true });
-      w.prop('gg_campfire', 304, 210, 0, {}); w.lamp(304, 210, { y: 0.8, model: null, color: 0xff9040, intensity: 1.2, range: 8, flicker: 0.6 });
+      w.prop('gg_campfire', 304, 210, 0, {}); w.lamp(304, 210, { y: 0.8, model: null, color: 0xff9040, intensity: 1.8, range: 9, flicker: 0.6 });
       for (const [x, z] of [[300, 214], [308, 216], [310, 205]]) w.prop('gg_logs', x, z, rng() * 3, { solid: true, scale: 0.6 });
       for (const [x, z, k] of [[313, 210, 'raider_cache'], [290, 211, 'backpack'], [318, 202, 'ammo_box'], [293, 217, 'medical_bag']]) w.container(k, x, z, 0, { tier: 2, poi: 'raiders_refuge' });
       w.prop('gg_crates', 286, 200, 0.2, { solid: true }); w.prop('antenna', 300, 194, 0, { solid: true });
@@ -788,12 +788,12 @@ export default {
       for (const [x, z, k] of [[251.5, 296, 'safe'], [254.5, 296, 'weapon_case'], [251.5, 302, 'plant'], [254.5, 302.5, 'raider_cache']]) w.container(k, x, z, 0, { tier: 3, room: 'cellar', poi: 'trappers_glade' });
       furnish({ ...TC, x: 256, w: 6, inner: [] , doors: [{ side: 'e', at: 2, w: 1.6 }, { side: 'w', at: 6, w: 1.6 }] }, 'home', { tier: 1, poi: 'trappers_glade', cont0: 2 });
       house({ x: 284, z: 300, w: 9, d: 8, h: 3.0, wall: 'corrugated', floor: 'wood', roof: 'corrugated', name: 'Raider Structure', doors: [{ side: 'n', at: 3, w: 1.6 }, { side: 'w', at: 3, w: 1.2, sill: 1 }] }, 'camp', { tier: 2, poi: 'trappers_glade', cont0: 2 });
-      w.prop('gg_tent', 270, 276, 0.6, { solid: true }); w.prop('gg_woodpile', 264, 292, 0, { solid: true }); w.prop('gg_campfire', 276, 288, 0, {}); w.lamp(276, 288, { y: 0.8, model: null, color: 0xff9040, intensity: 1.0, range: 7, flicker: 0.6 });
+      w.prop('gg_tent', 270, 276, 0.6, { solid: true }); w.prop('gg_woodpile', 264, 292, 0, { solid: true }); w.prop('gg_campfire', 276, 288, 0, {}); w.lamp(276, 288, { y: 0.8, model: null, color: 0xff9040, intensity: 1.8, range: 9, flicker: 0.6 });
       for (const [x, z] of [[292, 280], [300, 288], [272, 312], [296, 318], [260, 282]]) w.container(pick(['plant', 'basket', 'plant']), x, z, 0, { tier: 1, poi: 'trappers_glade' });
       for (const [x, z] of [[268, 262], [306, 270], [312, 300]]) w.prop('gg_watchtower', x, z, 0, { solid: true, scale: 0.6 });
       w.arkSpawn('tick', 285, 290, { count: 2 }); w.arkSpawn('leaper', 260, 250, { radius: 40 });
       w.poi('trappers_glade', "Trapper's Glade", 282, 292, 32, { tier: 1, aliases: ['trappers_glade'] });
-      w.prop('hatch', 216, 306, 0, {}); w.lamp(216, 306, { y: 1.2, model: null, color: 0xffd040, intensity: 0.8, range: 6 });
+      w.prop('hatch', 216, 306, 0, {}); w.lamp(216, 306, { y: 1.2, model: null, color: 0xffd040, intensity: 1.4, range: 7 });
       w.extract('reinforced_hatch', 'Reinforced Hatch', 216, 306, { kind: 'hatch', needsKey: 'raider_hatch' });
 
       // Adorned Wreckage: fallen ARK hull rings, engines and the Deforestr husk
@@ -810,7 +810,7 @@ export default {
       w.zone('Adorned Wreckage', [[96, 330], [250, 320], [270, 420], [130, 450]], { tier: 2 });
       w.poi('adorned_wreckage', 'Adorned Wreckage', 205, 360, 50, { tier: 2, aliases: ['adorned_wreckage'] });
       // Forest Airshaft
-      w.prop('gg_airshaft', 273, 472, 0.3, { solid: true }); w.lamp(273, 472, { y: 5, model: null, color: 0x40ff80, intensity: 0.9, range: 8 }); mark(266, 465, 280, 479, 2 | 4);
+      w.prop('gg_airshaft', 273, 472, 0.3, { solid: true }); w.lamp(273, 472, { y: 5, model: null, color: 0x40ff80, intensity: 1.5, range: 9 }); mark(266, 465, 280, 479, 2 | 4);
       w.extract('forest_airshaft', 'Forest Airshaft', 273, 477.5, { kind: 'airshaft' });
     }
 
@@ -908,7 +908,7 @@ export default {
       w.zone('Ancient Fort', [[FX - 6, FZ - 6], [FX + FW + 6, FZ - 6], [FX + FW + 6, FZ + FD + 6], [FX - 6, FZ + FD + 6]], { tier: 2 });
       w.poi('ancient_fort', 'Ancient Fort', FX + FW / 2, FZ + FD / 2, 34, { tier: 2, aliases: ['ancient_fort'] });
       // Fragrant Hatch
-      w.prop('hatch', 444, 527, 0, {}); w.lamp(444, 527, { y: 1.2, model: null, color: 0xffd040, intensity: 0.8, range: 6 });
+      w.prop('hatch', 444, 527, 0, {}); w.lamp(444, 527, { y: 1.2, model: null, color: 0xffd040, intensity: 1.4, range: 7 });
       w.extract('fragrant_hatch', 'Fragrant Hatch', 444, 527, { kind: 'hatch', needsKey: 'raider_hatch' });
       for (let i = 0; i < 14; i++) { const x = R(420, 470), z = R(510, 545); if (free(x, z, 1, 3)) w.prop(pick(['gg_flowers', 'gg_bush', 'gg_flowers']), x, z, rng() * 6, {}); }
     }
@@ -926,10 +926,10 @@ export default {
       w.spawnPoint(649, 498, { poi: 'maintenance_bunker' });
       w.poi('maintenance_bunker', 'Maintenance Bunker', 635, 514, 24, { tier: 2, aliases: ['maintenance_bunker'] });
       // Overlook Airshaft on its knoll
-      w.prop('gg_airshaft', 680, 486, 0, { solid: true }); w.lamp(680, 486, { y: 5, model: null, color: 0x40ff80, intensity: 0.9, range: 8 });
+      w.prop('gg_airshaft', 680, 486, 0, { solid: true }); w.lamp(680, 486, { y: 5, model: null, color: 0x40ff80, intensity: 1.5, range: 9 });
       w.extract('overlook_airshaft', 'Overlook Airshaft', 680, 491.5, { kind: 'airshaft' });
       // Cliffside Airshaft at the foot of the bench cliff
-      w.prop('gg_airshaft', 460, 218, 0, { solid: true }); w.lamp(460, 218, { y: 5, model: null, color: 0x40ff80, intensity: 0.9, range: 8 }); mark(452, 210, 468, 226, 2 | 4);
+      w.prop('gg_airshaft', 460, 218, 0, { solid: true }); w.lamp(460, 218, { y: 5, model: null, color: 0x40ff80, intensity: 1.5, range: 9 }); mark(452, 210, 468, 226, 2 | 4);
       w.extract('cliffside_airshaft', 'Cliffside Airshaft', 460, 223.5, { kind: 'airshaft' });
       // Broken Earth: a trail of destruction — craters, upturned slabs, downed ARK machines
       w.paintPoly('mud', [[706, 528], [722, 540], [672, 590], [632, 622], [616, 610], [660, 566]]);
@@ -960,7 +960,7 @@ export default {
       });
       for (const [x, z, k, r] of [[950, 318, 'gg_pallet', 0], [888, 330, 'gg_container3', 1.6], [950, 332, 'gg_logs', 0.2], [900, 268, 'gg_truck', 1.5], [944, 360, 'gg_crates', 0]]) w.prop(k, x, z, r, { solid: true });
       for (const [x, z] of [[902, 296], [930, 296], [918, 318], [930, 340]]) lightPost(x, z, 0xffd8a0);
-      w.prop('hatch', 955, 292, 0, {}); w.lamp(955, 292, { y: 1.2, model: null, color: 0xffd040, intensity: 0.8, range: 6 });
+      w.prop('hatch', 955, 292, 0, {}); w.lamp(955, 292, { y: 1.2, model: null, color: 0xffd040, intensity: 1.4, range: 7 });
       w.extract('prefab_hatch', 'Prefab Hatch', 955, 292, { kind: 'hatch', needsKey: 'raider_hatch' });
       w.arkSpawn('pop', 916, 312, { count: 3 }); w.arkSpawn('tick', 928, 330, { count: 2, habitat: 'indoor' }); w.arkSpawn('hornet', 920, 300, { count: 2, patrol: [[880, 270], [960, 270], [960, 360], [880, 360]] });
       w.zone('Abandoned Housing Project', [[884, 270], [962, 266], [962, 360], [884, 360]], { tier: 2 });
