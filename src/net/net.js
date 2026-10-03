@@ -7,6 +7,12 @@ import { HostSession } from '../game/session.js';
 const PREFIX = 'darkraiders-';
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const NET_VERSION = 1;
+// a client that hears nothing from the host for this long treats it as gone (and carries on solo); the host
+// lets a silent client go after GUEST_SILENCE (ms)
+const HOST_SILENCE = 8000, GUEST_SILENCE = 30000;
+// every CACHE_EVERY s the host tells each client what lies in the loot around it (bags on the ground, the
+// contents of opened containers), so a client that has to carry on solo keeps the loot it was standing in
+const CACHE_EVERY = 2, CACHE_R = 60;
 // the deployed build (each deploy lives under v/<sha>/): host and client must run the same one
 export const BUILD = (import.meta.url.match(/\/v\/([0-9a-f]{6,})\//) || [])[1] || 'dev';
 // this browser tab: sent with every hello so the host can tell a repeated join from a new raider
@@ -101,6 +107,7 @@ export class Net {
     this.handlers = {};
     this.sessions = new Map();  // host: pid -> HostSession
     this.pending = new Map();   // client: reqId -> resolve
+    this.cache = { l: [], c: [] };   // client: the host's last report of the loot around us
     this.reqId = 0;
     this.t.on('message', (from, m) => this.onMessage(from, m));
     this.t.on('connect', (id) => this.onConnect(id));
@@ -139,7 +146,7 @@ export class Net {
     else this.t.send('host', msg);
   }
   broadcastLobby() { if (!this.isHost) return; const s = this.lobbyState(); this.t.broadcast({ k: 'lobby', s }); this.emit('lobby', s); }
-  resetRaidState() { this.game = null; this.myEnt = null; this._youResolve = null; this.sessions.clear(); this.pending.clear(); this.done = new Set(); }
+  resetRaidState() { this.game = null; this.myEnt = null; this._youResolve = null; this.sessions.clear(); this.pending.clear(); this.done = new Set(); this.cache = { l: [], c: [] }; this.hostGoneDone = false; }
   startRaid(opts) {      // host
     this.resetRaidState();
     this.raidOpts = opts;
@@ -159,11 +166,19 @@ export class Net {
       if (m) this.emit('chat', { from: 'SYSTEM', text: `${m.name} disconnected`, slot: 0 });
       this.broadcastLobby();
       this.checkAllDone();
-    } else { this.emit('hostlost'); this.game?.onHostLost?.(); }
+    } else this.hostGone();
+  }
+  // client: the host left / crashed / went silent - the raid (if any) carries on solo on this machine
+  hostGone() {
+    const g = this.game;
+    if (!this.hostGoneDone) { this.hostGoneDone = true; this.emit('hostlost'); }
+    g?.onHostLost?.(this);       // (once per raid - also for a raid that only got going after the host was gone)
+    try { this.t.close(); } catch (e) { /* */ }
   }
   onMessage(from, m) {
     if (!m || !m.k) return;
-    if (this.isHost) return this.hostMsg(from, m);
+    if (this.isHost) { const s = this.sessions.get(from); if (s) s.heard = performance.now(); return this.hostMsg(from, m); }
+    this.heard = performance.now();
     return this.clientMsg(m);
   }
 
@@ -244,10 +259,16 @@ export class Net {
       this.sessions.set(m.pid, new HostSession(sim, e));
       this.t.send(m.pid, { k: 'you', id: e.id, x, z, y: e.y });
     }
-    this.snapT = 0;
+    this.snapT = 0; this.cacheT = 0;
   }
   hostTick(evs, dt) {
+    // a client gone quiet (frozen / crashed without the connection closing) is let go: its raider leaves the
+    // raid and, when it comes back, it finds the host gone and carries on solo
+    const now = performance.now();
+    for (const [pid, s] of this.sessions) if (s.heard && now - s.heard > GUEST_SILENCE) { this.t.drop?.(pid); this.onDisconnect(pid); }   // (heard: once it has loaded in)
     if (!this.t.conns.size) return;
+    this.cacheT += dt;
+    if (this.cacheT >= CACHE_EVERY) { this.cacheT = 0; this.sendCaches(); }
     const pub = evs.filter(e => !e.local);
     if (pub.length) this.t.broadcast({ k: 'ev', e: pub });
     this.snapT += dt;
@@ -264,6 +285,16 @@ export class Net {
         else if (near) ents.push(packOther(e));
       }
       this.t.send(pid, { k: 'snap', t: sim.t, tl: sim.timeLeft, ents, x: sim.extracts.map(x => x.used ? [x.state, +x.t.toFixed(1), x.callDur || 0, 1] : [x.state, +x.t.toFixed(1), x.callDur || 0]), d: sim.doors.map(d => d.open ? 1 : 0), ended: sim.raidEnded });
+    }
+  }
+  sendCaches() {
+    const sim = this.game.sim;
+    for (const [pid, s] of this.sessions) {
+      const me = s.ent, near = (o) => Math.abs(o.x - me.x) < CACHE_R && Math.abs(o.z - me.z) < CACHE_R;
+      const l = [], c = [];
+      for (const e of sim.entities.values()) if (e.type === 'loot' && e.items?.length && near(e)) l.push([e.id, r2(e.x), r2(e.y), r2(e.z), e.kind, e.label || null, e.items]);
+      for (const k of sim.containers) if (k?.opened && k.contents && near(k)) c.push([k.i, k.contents]);
+      this.t.send(pid, { k: 'cache', l, c });
     }
   }
   checkAllDone() {
@@ -295,7 +326,18 @@ export class Net {
       case 'ev': for (const ev of m.e) this.game?.dispatch(ev); break;
       case 'res': { const r = this.pending.get(m.id); if (r) { this.pending.delete(m.id); r(m.d); } break; }
       case 'end': if (this.game) { if (!this.game.localDone) this.game.onLocalExtract(); this.game.endIn = 2.5; } break;
+      case 'cache': this.cache = { l: m.l || [], c: m.c || [] }; break;
     }
+  }
+  // keep the cached loot in step with this client's own takes / put-backs between the host's reports
+  cacheTake(kind, ref, uid, qty) {
+    const list = kind === 'container' ? this.cache.c.find(x => x[0] === ref)?.[1] : this.cache.l.find(x => x[0] === ref)?.[6];
+    const i = list ? list.findIndex(s => s.uid === uid) : -1; if (i < 0) return;
+    if (qty == null || qty >= list[i].qty) list.splice(i, 1); else list[i] = { ...list[i], qty: list[i].qty - qty };
+  }
+  cachePut(kind, ref, stack) {
+    const list = kind === 'container' ? this.cache.c.find(x => x[0] === ref)?.[1] : this.cache.l.find(x => x[0] === ref)?.[6];
+    if (list && stack) list.push({ ...stack });
   }
   // RaidGame (client) asks for its entity
   async clientJoinRaid(game, sp) {
@@ -313,6 +355,7 @@ export class Net {
     this.act({ t: 'stats', stats: Object.fromEntries(Object.entries(st).filter(([k, v]) => typeof v === 'number')), regen: game.o.regen || null });
     this.snaps = [];
     this.sendT = 0;
+    this.heard = this.lastUpd = performance.now();
     return e;
   }
   applySnap(m) {
@@ -340,6 +383,12 @@ export class Net {
   }
   clientUpdate(dt) {
     const g = this.game; if (!g) return;
+    // the host has gone quiet: carry on solo. (Coming back from being frozen ourselves - a locked phone - first
+    // gives the connection a fresh chance to deliver what is queued.)
+    const now = performance.now();
+    if (now - (this.lastUpd || now) > 1500) this.heard = Math.max(this.heard || 0, now);
+    this.lastUpd = now;
+    if (now - (this.heard || now) > HOST_SILENCE) { this.hostGone(); return; }
     // interpolate remote entities ~110 ms in the past
     const rt = performance.now() - 110;
     for (const e of g.ents.values()) {
@@ -367,8 +416,8 @@ export class ClientSession {
   throwItem(id, x, z) { this.net.act({ t: 'throw', id, x, z }); }
   melee(a, m, o) { this.net.act({ t: 'melee', a, m, o }); }
   open(kind, ref) { return this.net.request({ t: 'open', kind, ref }); }
-  take(kind, ref, uid, qty = null) { return this.net.request({ t: 'take', kind, ref, uid, qty }); }
-  put(kind, ref, stack) { this.net.act({ t: 'put', kind, ref, stack }); }
+  take(kind, ref, uid, qty = null) { return this.net.request({ t: 'take', kind, ref, uid, qty }).then(s => { if (s) this.net.cacheTake(kind, ref, uid, s.qty); return s; }); }
+  put(kind, ref, stack) { this.net.act({ t: 'put', kind, ref, stack }); this.net.cachePut(kind, ref, stack); }
   dropItems(stacks, label) { this.net.act({ t: 'drop', stacks, label }); }
   door(i, key) { this.net.act({ t: 'door', i, key }); }
   callExtract(i) { this.net.act({ t: 'xcall', i }); }
@@ -391,7 +440,7 @@ const ST = ['alive', 'downed', 'dead', 'out'], AST = ['idle', 'search', 'alert',
 const r2 = v => Math.round(v * 100) / 100;
 function round(s) { const o = {}; for (const k in s) o[k] = typeof s[k] === 'number' ? Math.round(s[k] * 1000) / 1000 : s[k]; return o; }
 function packRaider(e) {
-  const fl = (e.moving ? 1 : 0) | (e.sprint ? 2 : 0) | (e.crouch ? 4 : 0) | (e.flash ? 8 : 0) | (e.bot ? 16 : 0);
+  const fl = (e.moving ? 1 : 0) | (e.sprint ? 2 : 0) | (e.crouch ? 4 : 0) | (e.flash ? 8 : 0) | (e.bot ? 16 : 0) | (e.bot && e.temper === 'hostile' ? 32 : 0);
   return ['r', e.id, r2(e.x), r2(e.y), r2(e.z), r2(e.f), r2(e.mf || 0), fl, ST.indexOf(e.st), Math.round(e.hp), e.maxHp, Math.round(e.sh), e.shMax, e.wk, e.outfit, e.name, e.team, e.slot ?? -1, e.emote || null, e.tagged || 0, e.wid || null];
 }
 function packArk(e) {
@@ -407,7 +456,7 @@ function packOther(e) {
 }
 function unpack(p) {
   switch (p[0]) {
-    case 'r': return { type: 'raider', id: p[1], x: p[2], y: p[3], z: p[4], f: p[5], mf: p[6], moving: !!(p[7] & 1), sprint: !!(p[7] & 2), crouch: !!(p[7] & 4), flash: !!(p[7] & 8), bot: !!(p[7] & 16), st: ST[p[8]], hp: p[9], maxHp: p[10], sh: p[11], shMax: p[12], wk: p[13], outfit: p[14], name: p[15], team: p[16], slot: p[17], emote: p[18], tagged: p[19], wid: p[20], r: 0.35, buffs: {} };
+    case 'r': return { type: 'raider', id: p[1], x: p[2], y: p[3], z: p[4], f: p[5], mf: p[6], moving: !!(p[7] & 1), sprint: !!(p[7] & 2), crouch: !!(p[7] & 4), flash: !!(p[7] & 8), bot: !!(p[7] & 16), hostile: !!(p[7] & 32), st: ST[p[8]], hp: p[9], maxHp: p[10], sh: p[11], shMax: p[12], wk: p[13], outfit: p[14], name: p[15], team: p[16], slot: p[17], emote: p[18], tagged: p[19], wid: p[20], r: 0.35, buffs: {} };
     case 'a': return { type: 'ark', id: p[1], kind: p[2], x: p[3], y: p[4], z: p[5], f: p[6], alt: p[7], st: AST[p[8]], gaze: p[9], vis: p[10], tele: p[11], hpf: p[12], dormant: !!p[13], tgt: p[14], fl: p[15] || 0, broken: p[16] || null, r: 0.6 };
     case 'l': return { type: 'loot', id: p[1], x: p[2], y: p[3], z: p[4], kind: p[5], label: p[6] };
     case 'p': return { type: 'proj', id: p[1], kind: p[2], x: p[3], y: p[4], z: p[5] };

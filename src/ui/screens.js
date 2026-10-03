@@ -330,7 +330,8 @@ export class Screens {
     net.on('lobby', (s) => { if (stale()) return; if (s.map) this.lobbyMap = s.map; if (!this.inRaid) this.renderLobby?.(); });
     net.on('chat', (m) => { if (stale()) return; this.lobbyChat.push(m); if (!this.inRaid) this.renderLobby?.(); });
     net.on('error', (e) => { if (stale()) return; this.netError = String(e.message || e.type || e); if (!this.inRaid) this.renderLobby?.(); });
-    net.on('hostlost', () => { if (stale()) return; this.netError = 'Lost connection to the squad host.'; this.net = null; if (!this.inRaid) this.lobby(); });
+    // (mid-raid the raid carries on solo and says so itself; the results then lead back to Desperanza)
+    net.on('hostlost', () => { if (stale()) return; this.net = null; if (!this.inRaid) { this.netError = 'Lost connection to the squad host.'; this.lobby(); } });
     net.on('start', (opts) => { if (stale() || this.inRaid) return; this.launch({ ...opts, net }); });
   }
 

@@ -180,7 +180,8 @@ export class View {
       if (!xv) continue;
       const x = xv.x, st = g.extractState?.(x.i) ?? x.state ?? 'idle';
       xv.ctx.near = Math.abs(x.x - cx) < hw && Math.abs(x.z - cz) < hh;
-      xv.ctx.viewer = me && me.st !== 'out' ? me : null;    // roofs fade / walls cut / the car roof hides while you are inside
+      const vw = g.viewer?.() ?? me;                          // (or the squadmate you are spectating)
+      xv.ctx.viewer = vw && vw.st !== 'out' ? vw : null;    // roofs fade / walls cut / the car roof hides while you are inside
       xv.m.update(dt, st, typeof x.t === 'number' ? x.t : null, xv.ctx);
       // cabin doors / platform gates: solid while shut on every peer (client-side prediction collides with them
       // too); a shutting gate puts the local player back out at the entry - unless they are in the cabin for

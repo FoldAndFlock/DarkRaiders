@@ -117,6 +117,11 @@ it on another browser or machine.
   the game at your own [PeerJS server](https://github.com/peers/peerjs-server):
   `index.html?peerhost=my.server&peerport=443&peerpath=/myapp`.
 * Very strict NATs may need a TURN server; most home connections work out of the box.
+* Whoever is out first (extracted or dead) spectates a squadmate who is still in, down to whatever floor or
+  tunnel they're on. The host's raid keeps running even with the host's tab in the background.
+* If the host leaves, crashes or goes silent for 8 seconds, each squadmate's raid carries on as a solo raid on
+  their own machine, with the same spot, health, kit, raid clock and nearby loot. Nobody loses their haul to a
+  dropped host.
 * For same-machine testing, `?net=local` uses a BroadcastChannel transport between browser tabs.
 
 ## Development

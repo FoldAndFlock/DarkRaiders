@@ -14,6 +14,7 @@ import { Sim } from './sim.js';
 import { View } from './view.js';
 import { PlayerController } from './player.js';
 import { HostSession } from './session.js';
+import { BotBrain } from './bot_ai.js';
 import { ITEMS, ROMAN, weaponStats, makeStack } from './items.js';
 import { capacities, countLoadout, takeFrom, pickUp, allStacks } from './inventory.js';
 import { searchTime } from './loot.js';
@@ -121,6 +122,7 @@ export class RaidGame {
     onProgress(1, 'Deploying');
     this.last = performance.now(); this.acc = 0;
     this.running = true;
+    this.startBgClock();
     return new Promise((resolve) => { this.resolve = resolve; requestAnimationFrame((t) => this.frame(t)); });
   }
   get me() { return this.ents.get(this.meId); }
@@ -160,29 +162,18 @@ export class RaidGame {
       if (input.hit('emote')) this.session.emote("DON'T SHOOT!");
       if (me?.st === 'downed' && input.hit('reload')) { this.session.giveUp(); }
     }
-    // simulation
-    if (this.isHost && !frozen) {
-      this.acc += dt;
-      let n = 0;
-      while (this.acc >= TICK && n++ < 4) {
-        this.sim.tick(TICK);
-        const evs = this.sim.events; this.sim.events = [];
-        for (const ev of evs) this.dispatch(ev);
-        this.net?.hostTick?.(evs, TICK);
-        this.acc -= TICK;
-      }
-      this.simTime = this.sim.t; this.timeLeft = this.sim.timeLeft;
-    } else if (!this.isHost) {      // (a paused solo host just skips the simulation)
-      this.net.clientUpdate(dt);
-      for (const x of this.extractsData) if (x.t > 0 && x.state !== 'idle' && x.state !== 'offline') x.t = Math.max(0, x.t - dt);
-    }
+    // simulation (a paused solo host just skips it)
+    if (!frozen) this.simulate(dt);
     // presentation
+    if (me && (me.st === 'dead' || me.st === 'out')) this.pickSpectate();
+    const vw = this.viewer();
     this.view.sync(this.ents, dt);
     this.view.drawCones(this.ents, me);
     this.view.updateLights(dt);
     this.view.updExtracts(dt);
     this.camera(dt);
-    if (me) this.world.update(dt, me.x, me.z, me.y);
+    // roofs / upper floors / the surface over a tunnel are cut away for whoever the camera follows
+    if (vw) this.world.update(dt, vw.rx ?? vw.x, vw.rz ?? vw.z, vw.ry ?? vw.y ?? 0);
     this.weatherFx(dt);
     this.fx.update(dt);
     this.cones.update(dt);
@@ -220,9 +211,85 @@ export class RaidGame {
     input.endFrame();
     requestAnimationFrame((t) => this.frame(t));
   }
+  // host / solo: step the simulation and pass its events on; client: follow the host
+  simulate(dt, maxSteps = 4) {
+    if (this.isHost) {
+      this.acc += dt;
+      let n = 0;
+      while (this.acc >= TICK && n++ < maxSteps) {
+        this.sim.tick(TICK);
+        const evs = this.sim.events; this.sim.events = [];
+        for (const ev of evs) this.dispatch(ev);
+        this.net?.hostTick?.(evs, TICK);
+        this.acc -= TICK;
+      }
+      this.simTime = this.sim.t; this.timeLeft = this.sim.timeLeft;
+    } else if (this.net) {
+      this.net.clientUpdate(dt);
+      for (const x of this.extractsData) if (x.t > 0 && x.state !== 'idle' && x.state !== 'offline') x.t = Math.max(0, x.t - dt);
+    }
+  }
+  // Browsers stop animation frames in a hidden tab (another tab in front, minimised, phone locked). In a squad
+  // the host's simulation must not stop with them (an extracted host spectating from another tab would freeze
+  // everyone else's raid), and a hidden client must keep reporting in - so a worker clock steps the raid while
+  // the tab is hidden. Solo raids just wait.
+  startBgClock() {
+    if (!this.net) return;
+    // and keep the screen on (a phone left to spectate would lock itself and freeze the page entirely)
+    this.holdWake();
+    this.onVis = () => { if (!document.hidden && this.running && this.net) this.holdWake(); };   // (a hidden tab loses the lock)
+    addEventListener('visibilitychange', this.onVis);
+    const tickFn = () => this.bgTick();
+    try {
+      this.bgWorker = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 50)'], { type: 'text/javascript' })));
+      this.bgWorker.onmessage = tickFn;
+    } catch (e) { this.bgTimer = setInterval(tickFn, 50); }   // throttled when hidden, but better than nothing
+  }
+  stopBgClock() {
+    try { this.bgWorker?.terminate(); } catch (e) { /* */ }
+    clearInterval(this.bgTimer); this.bgWorker = null; this.bgTimer = null;
+    if (this.onVis) removeEventListener('visibilitychange', this.onVis);
+    this.onVis = null;
+    try { this.wake?.release?.(); } catch (e) { /* */ }
+    this.wake = null;
+  }
+  async holdWake() {
+    if (this.wake && !this.wake.released) return;
+    try {
+      const w = await navigator.wakeLock?.request?.('screen'); if (!w) return;
+      if (!this.running || this.ended || !this.net) { w.release(); return; }   // (the raid moved on meanwhile)
+      this.wake = w;
+    } catch (e) { /* unsupported / not allowed: fine */ }
+  }
+  bgTick() {
+    if (!this.running || this.ended) return;
+    if (!document.hidden) { this.bgLast = null; return; }       // frames are running: they drive everything
+    const now = performance.now(), dt = this.bgLast == null ? 0.05 : Math.min(1, (now - this.bgLast) / 1000);
+    this.bgLast = now;
+    try {
+      this.simulate(dt, 40);
+      this.fx.update(dt);
+      const fl = this.view.flashes; if (fl.length > 32) fl.splice(0, fl.length - 32);
+      this.checkEnd(dt);
+    } catch (e) { console.warn('background tick', e); }
+  }
+  // whose view the camera, the floor cutaway and the HUD's level follow: the local raider, or the squadmate
+  // being spectated once the local raider is dead or out
+  viewer() {
+    const me = this.me;
+    if (me && (me.st === 'dead' || me.st === 'out') && this.spectate) { const s = this.ents.get(this.spectate); if (s) return s; }
+    return me;
+  }
+  // keep spectating someone still in the raid (the one being watched may extract or die first)
+  pickSpectate() {
+    const live = (e) => e && e.type === 'raider' && !e.bot && e.team === this.myTeam && e.id !== this.meId && (e.st === 'alive' || e.st === 'downed');
+    if (live(this.ents.get(this.spectate))) return;
+    for (const e of this.ents.values()) if (live(e)) { this.spectate = e.id; return; }
+  }
   dispatch(ev) {
     this.view.event(ev);
     switch (ev.e) {
+      case 'arkdown': (this.deadArk ||= new Set()).add(ev.id); break;   // (clients: a solo takeover leaves these out)
       case 'opened': { const c = this.containersData[ev.i]; if (c) c.opened = true; break; }
       case 'door': { const d = this.doorsData[ev.i]; if (d) d.open = ev.open; break; }
       case 'unlocked': { const d = this.doorsData[ev.i]; if (d) { d.lockedNow = false; d.locked = null; } break; }
@@ -241,17 +308,18 @@ export class RaidGame {
   }
   camera(dt) {
     const me = this.me; if (!me) return;
-    let tx = me.x, tz = me.z - (me.y || 0) * 0;
-    // spectate a teammate after death / extraction
-    if ((me.st === 'dead' || me.st === 'out') && this.spectate) { const s = this.ents.get(this.spectate); if (s) { tx = s.x; tz = s.z; } }
-    else if (this.pc && !this.uiBlocking) {
+    // spectating a teammate after death / extraction: follow them (and their height - tunnels, upper floors)
+    const v = this.viewer(), spect = v !== me;
+    let tx = spect ? (v.rx ?? v.x) : me.x, tz = spect ? (v.rz ?? v.z) : me.z;
+    const ty = spect ? (v.ry ?? v.y ?? 0) : (me.y || 0);
+    if (!spect && this.pc && !this.uiBlocking) {
       const lead = this.pc.ads ? 0.42 : 0.22, max = this.pc.ads ? 11 : 6;
       let lx = (this.pc.aim.x - me.x) * lead, lz = (this.pc.aim.z - me.z) * lead;
       const l = Math.hypot(lx, lz); if (l > max) { lx *= max / l; lz *= max / l; }
       tx += lx; tz += lz;
     }
     // oblique: lift the camera by the ground height so the player stays centred on screen
-    tz -= (me.y || 0) * 0.8;
+    tz -= ty * 0.8;
     const k = 1 - Math.pow(0.0005, dt);
     this.camX += (tx - this.camX) * k; this.camZ += (tz - this.camZ) * k;
     this.R.center.set(this.camX, this.camZ);
@@ -429,18 +497,124 @@ export class RaidGame {
     if (kept.shield) kept.shield.charge = shieldCharge;
     this.result = { outcome, loadout: kept, xp: this.xp, stats: this.stats, map: this.mapId, time: this.simTime || 0 };
     // pick someone to spectate in co-op
-    for (const e of this.ents.values()) if (e.type === 'raider' && !e.bot && e.team === this.myTeam && e.id !== this.meId && (e.st === 'alive' || e.st === 'downed')) { this.spectate = e.id; break; }
+    this.pickSpectate();
     this.net?.reportDone?.(outcome);
     if (!this.net || !this.spectate) this.endIn = 4.5;
   }
+  // ------------------------------------------------------------------ host lost
+  // The squad host left, crashed or went silent. Nobody loses the raid over it: this client's raid carries on
+  // as a solo raid on this machine, rebuilt from what it last saw - the same spot, health, shield and kit, the
+  // raid clock, doors, extractions, the machines and raiders around, nearby loot - with a local simulation.
+  onHostLost(net = this.net) {
+    if (this.isHost || this.ended || this.handedOff) return;
+    this.handedOff = true;
+    this.net = null;
+    if (net?.game === this) net.game = null;
+    try { net?.t?.close?.(); } catch (e) { /* */ }
+    if (this.localDone) { this.spectate = null; this.endIn = Math.min(this.endIn ?? 2.5, 2.5); return; }   // already out: just finish
+    try { this.goSolo(net); }
+    catch (e) {
+      // could not rebuild the raid: never take the kit with it - they leave with what they carry
+      console.warn('solo takeover failed', e);
+      this.banner('HOST LOST', '#f0c030', 'The squad host is gone - you got out with everything you carry', 6);
+      this.onLocalExtract();
+    }
+  }
+  goSolo(net) {
+    const o = this.o, map = o.map, old = this.ents, me = this.me, lo = this.pc.lo;
+    const cache = net?.cache || { l: [], c: [] };
+    const sim = new Sim(this.world, map, { seed: o.seed, condition: this.cond, raidLen: Math.round((o.raidLen || 1800) * (this.cond?.effects?.durationMul || 1)) });
+    sim.night = this.timeOfDay === 'night';
+    sim.populate();          // same seed -> the host's own starting machines, with the host's ids
+    sim.events = [];
+    let maxId = 0; for (const id of old.keys()) maxId = Math.max(maxId, id);
+    sim.nextId = Math.max(sim.nextId, maxId + 1);
+    const rekey = (e, id) => { sim.entities.delete(e.id); e.id = id; sim.entities.set(id, e); };
+    // raid clock (no repeated time warnings), doors, extractions as last mirrored
+    sim.t = this.simTime || 0; sim.timeLeft = this.timeLeft ?? sim.raidLen;
+    for (const m of [600, 300, 120, 60]) if (sim.timeLeft <= m) sim.warned[m] = true;
+    if (sim.timeLeft <= 0) sim.overtime = true;
+    this.doorsData.forEach((d, i) => { const sd = sim.doors[i]; if (!sd) return; sd.open = !!d.open; if (!d.lockedNow) sd.locked = null; sim._doorBlock(sd, !sd.open); });
+    this.extractsData.forEach((x, i) => { const sx = sim.extracts[i]; if (!sx) return; sx.state = x.state; sx.t = +x.t || 0; sx.callDur = x.callDur || 0; if (x.used) sx.used = true; sim._gate(sx); });
+    // containers: unopened ones roll the same contents from the seed; opened ones keep what the host last
+    // reported for them nearby (empty otherwise); ARK husks that appeared during the raid come along
+    const cc = new Map(cache.c);
+    this.containersData.forEach((c, i) => {
+      if (!c) return;
+      let sc = sim.containers[i];
+      if (!sc) sc = sim.containers[i] = { kind: c.kind, x: c.x, z: c.z, y: c.y, rot: c.rot, tier: c.tier, i, contents: null, opened: false, dynamic: true, label: c.label };
+      sc.opened = !!c.opened; sc.searchedByMe = c.searchedByMe; sc.unlocked = c.unlocked;
+      if (sc.opened) sc.contents = (cc.get(i) || []).map(st => ({ ...st }));
+    });
+    // machines: the host's starting set (same ids), minus the destroyed ones; the ones in view as last seen
+    const dead = this.deadArk || new Set();
+    for (const e of [...sim.entities.values()]) {
+      const s = old.get(e.id);
+      if (dead.has(e.id)) sim.entities.delete(e.id);
+      else if (s && !(s.type === 'ark' && s.kind === e.kind)) rekey(e, sim.nextId++);   // (never expected - keeps ids unique)
+    }
+    for (const s of old.values()) {
+      if (s.type !== 'ark' || s.st === 'dead') continue;
+      let e = sim.entities.get(s.id);
+      if (!e) { e = sim.spawnArk(s.kind, s.x, s.z, { baseY: s.y, f: s.f }); if (!e) continue; rekey(e, s.id); }   // brought in mid-raid
+      e.x = s.x; e.z = s.z; e.y = s.y; e.f = s.f; if (s.alt) e.alt = s.alt;
+      e.hp = Math.max(1, e.maxHp * (s.hpf ?? 1));
+      const br = e.brain;
+      for (const k of s.broken || []) {
+        if (!(k in e.parts) || e.parts[k] <= 0) continue;
+        e.parts[k] = 0;
+        const zn = e.zones.find(z => z.key === k);
+        if (br) { br.brokenCount = (br.brokenCount || 0) + 1; if (zn?.onBreak === 'slow') br.speedMul = Math.max(0.3, br.speedMul - (e.def.slowPerLeg || 0.25)); if (zn?.onBreak === 'disarm') br.disarmed = true; if (zn?.onBreak === 'blind') br.blind = true; }
+      }
+      if (br && s.st === 'alert' && s.tgt === this.meId) { e.st = 'alert'; br.target = this.meId; br.lastSeen = [me.x, me.z, me.y]; br.lostT = 0; e.vis = 1; }
+      else if (br && (s.st === 'alert' || s.st === 'search')) br.investigate?.(s.x, s.z, true);
+    }
+    // other raiders in view (not squadmates - each of them carries on in their own solo raid)
+    for (const s of old.values()) {
+      if (s.type !== 'raider' || !s.bot || s.st !== 'alive' || sim.entities.has(s.id)) continue;
+      let sq = sim.squads.get(s.team);
+      if (!sq) sim.squads.set(s.team, sq = { id: s.team, temper: s.hostile ? 'hostile' : 'neutral', members: [] });
+      const b = sim.addRaider({ pid: 'bot' + s.id, name: s.name, bot: true, team: s.team, x: s.x, z: s.z, y: s.y, f: s.f, outfit: s.outfit, temper: sq.temper, stats: { max_hp: s.maxHp || 100 } });
+      rekey(b, s.id); b.hp = Math.max(1, s.hp || b.hp);
+      b.brain = new BotBrain(sim, b, sq); sq.members.push(b.id);
+    }
+    // loot on the ground the host last reported nearby
+    for (const [id, x, y, z, kind, label, items] of cache.l) {
+      if (sim.entities.has(id) || !items?.length) continue;
+      const l = sim.add({ type: 'loot', kind, x, y, z, items: items.map(st => ({ ...st })), born: sim.t, label });
+      rekey(l, id);
+    }
+    // the local raider: the same object (the controller, view and UI hold it) as a full sim raider
+    const keep = { id: this.meId, x: me.x, y: me.y, z: me.z, f: me.f, mf: me.mf, hp: me.hp, st: me.st === 'downed' ? 'downed' : 'alive', slot: me.slot ?? 0,
+      wid: me.wid, wk: me.wk, crouch: me.crouch, moving: me.moving, sprint: me.sprint, flash: me.flash };
+    const sh = me.sh, fresh = sim.addRaider({ pid: 'local', name: o.name, team: me.team ?? this.myTeam ?? 1, x: me.x, z: me.z, y: me.y, outfit: o.outfit, stats: this.stats0 || {} });
+    sim.entities.delete(fresh.id);
+    Object.assign(me, fresh, keep);
+    me.maxHp = fresh.maxHp; me.hp = Math.min(me.maxHp, me.hp > 0 ? me.hp : 1);
+    if (me.st === 'downed') { me.hp = 0; me.downHp = (this.stats0?.downed_hp || 75) * 0.5; }
+    me.regen = o.regen || null; me.grace = sim.t + 3;      // a breather while the world settles
+    if (lo.shield) sim.setShield(me, lo.shield, sh ?? null);
+    sim.entities.set(this.meId, me);
+    // switch over: from here on this is a solo raid
+    this.ui.closeInv?.();
+    this.sim = sim; this.ents = sim.entities;
+    this.containersData = sim.containers; this.doorsData = sim.doors; this.extractsData = sim.extracts;
+    for (const d of this.doorsData) d.lockedNow = !!d.locked;
+    this.session = new HostSession(sim, me);
+    this.isHost = true; this.acc = 0; this.predicted = false; this.spectate = null; this.paused = false;
+    this.stopBgClock();
+    this.banner('HOST LOST - YOU\'RE SOLO NOW', '#f0c030', 'The squad host dropped out. Your raid carries on - same spot, same kit.', 6);
+    this.feed('SQUAD HOST DISCONNECTED - RAID CONTINUES SOLO', '#f0c030');
+  }
   checkEnd(dt) {
     if (this.endIn != null) { this.endIn -= dt; if (this.endIn <= 0) this.end(); }
-    if (this.isHost && this.sim.raidEnded && !this.localDone) this.onLocalDeath();
+    if (this.isHost && this.sim?.raidEnded && !this.localDone) this.onLocalDeath();
     if (this.combatT) { this.combatT -= dt; if (this.combatT <= 0) { this.combatT = 0; this.audio?.music?.('raid_calm', { map: this.mapId }); } }
   }
   end() {
     if (this.ended) return;
     this.ended = true; this.running = false;
+    this.stopBgClock();
     this.ui.destroy(); this.touch?.destroy();
     removeEventListener('resize', this.hudResize); removeEventListener('dr:uiscale', this.hudResize);
     this.R.gl.setAnimationLoop(null);
@@ -452,6 +626,12 @@ export class RaidGame {
   }
 
   // ------------------------------------------------------------------ HUD
+  whereText(me) {
+    const v = this.viewer();
+    if (!v || v === me) return this.whereLabel(me);
+    const w = this.whereLabel(v);
+    return `SPECTATING ${String(v.name || 'SQUADMATE').toUpperCase()}${w ? '  -  ' + w : ''}`;
+  }
   // which level the player is on (multi-level maps): underground / upper floor / rooftop / elevated
   whereLabel(me) {
     if (!me) return null;
@@ -496,7 +676,7 @@ export class RaidGame {
     const lo = pc.lo, ws = pc.wstats, w = pc.weapon;
     const caps = pc.caps;
     const st = {
-      raid: { map: this.o.map.name, time: Math.max(0, this.timeLeft ?? 0), condition: (this.timeLeft ?? 1) <= 0 ? 'OVERTIME - EXTRACTION IN PROGRESS' : (this.cond?.name || '').toUpperCase(), weather: `${this.timeOfDay.toUpperCase()}  ${this.weather.toUpperCase()}`, where: this.whereLabel(me) },
+      raid: { map: this.o.map.name, time: Math.max(0, this.timeLeft ?? 0), condition: (this.timeLeft ?? 1) <= 0 ? 'OVERTIME - EXTRACTION IN PROGRESS' : (this.cond?.name || '').toUpperCase(), weather: `${this.timeOfDay.toUpperCase()}  ${this.weather.toUpperCase()}`, where: this.whereText(me) },
       player: { name: this.o.name, level: this.profile?.level, hp: me.st === 'downed' ? me.downHp : me.hp, hpMax: me.st === 'downed' ? (pc.stats?.downed_hp || 75) : me.maxHp, shield: me.sh, shieldMax: me.shMax, stamina: pc.stamina / pc.stats.max_stamina, weight: pc.weight(), weightMax: caps.weightLimit },
       weapon: pc.axeShown ? { name: 'Hatchet Job', tier: 'AXE', rarity: 'uncommon', melee: true, note: w ? ((w.dur ?? 1) <= 0 ? 'GUN BROKEN' : 'NO AMMO') : 'NO GUN', mode: '', alt: lo.weapons.filter(Boolean).map(x => ITEMS[x.id].name).join(' / ') }
         : w ? { name: ITEMS[w.id].name, tier: ROMAN[w.tier || 1], rarity: ITEMS[w.id].rarity, mag: w.ammo || 0, reserve: countLoadout(lo, ws.ammo), mode: pc.reloadT > 0 ? 'RELOADING' : ((w.dur ?? 1) <= 0 ? 'BROKEN' : ws.mode.toUpperCase()), alt: lo.weapons.filter((x, i) => x && i !== pc.slot).map(x => ITEMS[x.id].name).join(' / ') } : { name: 'Unarmed', tier: '', rarity: 'common', mag: 0, reserve: 0, mode: '' },
