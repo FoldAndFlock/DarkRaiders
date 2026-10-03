@@ -47,8 +47,8 @@ touch controls. On a phone, "Add to Home Screen" runs it full-screen without bro
 ## What's in it
 
 * **Three original maps** at 25–30-minute raid scale, each with its own design note in [`docs/maps/`](docs/maps):
-  * **Dam Grounds** (1100×825 m): a hydroelectric utility that defaulted on its loans. The Damn Dam holds back
-    the Overdue Reservoir; below it a 12 m gorge with the Hamster Wheel powerhouse and the Bridge To Nowhere;
+  * **Dam Grounds** (1100×825 m): a hydroelectric utility that defaulted on its loans. Its dam, the Debt Ceiling,
+    holds back the Overdue Reservoir; below it a 12 m gorge with the Hamster Wheel powerhouse and the Bridge To Nowhere;
     staff housing, the Ivory Tower and the Paywall up on the plateaus; the Red Ink Lakes and Subprime Trailer
     Park down in the lowlands.
   * **Sandy City** (900×900 m): a seaside resort that went bust twice – first the sea left, then the sand
@@ -79,7 +79,8 @@ touch controls. On a phone, "Add to Home Screen" runs it full-screen without bro
   marks you for its Shell Company, Neighborhood Watch snipers, the Close Talker, Rocket Surgeons, the Vape
   Lord, Parkour Dad, the HOA President, the Cloud Service that crashes mid-raid, The Landlady and Helicopter
   Mom – with top-down weak points: shoot rotors off drones, flank armoured fronts, crack rear canisters to
-  expose cores, break Parkour Dad's knees.
+  expose cores, break Parkour Dad's knees. They hit about half as hard as the machines they parody, and shots
+  at them get generous aim assist (a near miss is bent onto the body, at the right height for hovering drones).
   **ARK vision cones are real light** – a spotlight traced against walls, trees, rocks and terrain, whose
   colour follows the machine's mood: cool white while patrolling, yellow → orange when suspicious, red once it
   has spotted you. Edge-of-screen chevrons warn of nearby machines.

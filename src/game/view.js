@@ -374,7 +374,7 @@ export class View {
     const A = this.g.audio, model = def.model, kind = e.kind, live = e.st !== 'dead' && !e.dormant;
     let loop = kind === 'spottr' ? 'spottr_loop' : ARK_LOOP[model];
     if (model === 'fireball') loop = v.flameAt && performance.now() - v.flameAt < 400 ? 'fyreball_flame_loop' : (e.st === 'alert' || v.spd > 0.3 ? loop : null);
-    if (model === 'pop' && e.st !== 'alert') loop = null;
+    if (model === 'pop' && e.st !== 'alert' && !((v.spd || 0) > 0.3)) loop = null;   // rolls audibly whenever it moves
     this.updLoop(v, loop, live);
     if (!A || !live) { v.tele0 = 0; v.st0 = e.st; return; }
     const me = this.g.me, d = me ? Math.hypot(v.px - me.x, v.pz - me.z) : 1e9, tele = e.tele || 0, at = { x: v.px, z: v.pz };
@@ -384,9 +384,12 @@ export class View {
     v.st0 = e.st;
     const st = ARK_STEP[model];
     if (st && (v.spd || 0) > 0.3 && d < 70) { v.stepT = (v.stepT ?? 0) - dt; if (v.stepT <= 0) { v.stepT = st[1]; A.play(st[0], { ...at, pitch: st[2] }); } }
-    if (model === 'pop' && e.st === 'alert' && tele <= 0.02 && d < 32) {   // beeps speed up as it closes in
+    // Pop beeps: hunting you, they speed up as it closes in; still searching (rolling toward a noise), a slower
+    // warning beep so one can't sneak up silently
+    const hunting = e.st === 'alert', rolling = e.st === 'search' && (v.spd || 0) > 0.3;
+    if (model === 'pop' && tele <= 0.02 && (hunting ? d < 32 : rolling && d < 26)) {
       v.beepT = (v.beepT ?? 0) - dt;
-      if (v.beepT <= 0) { v.beepT = Math.min(0.6, Math.max(0.08, d / 14)); A.play('popp_beep', at); }
+      if (v.beepT <= 0) { v.beepT = hunting ? Math.min(0.6, Math.max(0.08, d / 14)) : Math.min(1.1, Math.max(0.45, d / 18)); A.play('popp_beep', { ...at, vol: hunting ? 1 : 0.75 }); }
     }
   }
   telegraphLaser(v, e, tele) {
@@ -603,15 +606,31 @@ export class View {
   doorPos(i) { const m = this.doorMeshes[i]; return m ? { x: m.position.x, z: m.position.z } : {}; }
   extractPos(i) { const x = this.extractVis[i]; return x ? { x: x.x.x, z: x.x.z } : {}; }
   extractCallPos(i) { const p = this.extractVis[i]?.x.pts?.call; return p ? { x: p[0], z: p[1] } : this.extractPos(i); }
+  // the ARK / raider under the cursor (CSS px). Generous for ARK: anywhere on the body's screen silhouette
+  // (a vertical segment from its feet - or a flyer's shadow - up to its top) plus a margin, so big walkers and
+  // hovering drones are easy to point at; aimY is the height on that segment under the cursor, so the aim
+  // point unprojects onto the machine itself. Raiders stay tight (a small circle on the chest).
   pickEntity(mx, my, selfId) {
-    let best = null, bd = 26 * this.R.scale / 3;
+    const k = this.R.scale / 3, M = 48;          // distances in reference px (scale 3): ~48 px per metre
+    let best = null, bs = 1;
     for (const v of this.vis.values()) {
       const e = v.e; if (e.id === selfId || (e.type !== 'ark' && e.type !== 'raider') || e.st === 'dead') continue;
-      const cy = v.py + (v.pa ?? e.alt ?? 0) + (e.type === 'raider' ? (e.crouch ? 0.8 : 1.15) : 0.4);
-      const s = this.R.worldToScreen(v.px, cy, v.pz);
-      const d = Math.hypot(s.x - mx, s.y - my) / (this.R.scale / 3);
-      const rad = (e.type === 'ark' ? Math.max(1, (e.r || 0.6) * 1.5) : 1) * 26;
-      if (d < rad && d < bd) { bd = d; best = { id: e.id, aimY: cy, type: e.type }; }
+      if (e.type === 'raider') {
+        const cy = v.py + (v.pa ?? e.alt ?? 0) + (e.crouch ? 0.8 : 1.15), s = this.R.worldToScreen(v.px, cy, v.pz);
+        const sc = Math.hypot(s.x - mx, s.y - my) / k / 26;
+        if (sc < bs) { bs = sc; best = { id: e.id, aimY: cy, type: e.type }; }
+        continue;
+      }
+      const alt = v.pa ?? e.alt ?? 0, fly = alt > 0.6;
+      const y0 = v.py + 0.2, y1 = fly ? v.py + alt + 0.4 : v.py + Math.max(0.5, (e.h || 1));
+      const a = this.R.worldToScreen(v.px, y0, v.pz), b = this.R.worldToScreen(v.px, y1, v.pz);
+      const sx = b.x - a.x, sy = b.y - a.y, L2 = sx * sx + sy * sy || 1e-6;
+      const t = Math.max(0, Math.min(1, ((mx - a.x) * sx + (my - a.y) * sy) / L2));
+      const d = Math.hypot(a.x + sx * t - mx, a.y + sy * t - my) / k;
+      const sc = d / (((e.r || 0.6) + (fly ? 0.9 : 0.5)) * M);
+      // aimY: the height on that line under the cursor, so the aim point lands on the machine's own column
+      // (the shot's height is then set onto the body by the player's ARK aim assist)
+      if (sc < bs) { bs = sc; best = { id: e.id, aimY: y0 + (y1 - y0) * t, type: e.type }; }
     }
     return best;
   }

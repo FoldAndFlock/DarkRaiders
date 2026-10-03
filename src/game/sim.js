@@ -13,6 +13,12 @@ import { extractWorldPoints, inCabin, extractGateClosed, inGateZone } from '../e
 // Extraction: 40 s from the call to the doors opening, 8 s of closing after the lever - together just
 // enough for a downed raider at the call point to call it, crawl in and pull the lever.
 export const DOWN_DRAIN = 75 / 60, EXTRACT_CALL = 40, EXTRACT_CLOSE = 8;
+// everything the ARK do to raiders (guns, lasers, blasts, latches, the fire they leave, their death blasts and
+// rockets that land after they die) is scaled by this: they hit half as hard as the game they parody
+export const ARK_DMG_MUL = 0.5;
+// how far an extraction call carries for the AI (m): heard within EXTRACT_NOISE (capped by each machine's
+// own hearing), and idle machines within EXTRACT_PULL are sent to the call point
+export const EXTRACT_NOISE = 40, EXTRACT_PULL = 35;
 
 const HASH = 16;
 export const RAIDER_R = 0.35, RAIDER_H = 1.85, CROUCH_H = 1.2;
@@ -307,6 +313,7 @@ export class Sim {
       if (e.hp <= 0) { this.killArk(e, src, o.weapon || (o.explosive ? 'grenade' : null)); res = 'k'; }
     } else if (e.type === 'raider') {
       if (e.buffs?.invuln) return 'w';
+      if (src?.type === 'ark' || o.ark) dmg *= ARK_DMG_MUL;
       dmg *= 1 - (e.stats?.damage_reduction || 0);
       if (o.explosive) dmg *= 1 - (e.stats?.explosive_resist || 0);
       e.lastHit = this.t; e.lastSrc = src?.id;
@@ -352,7 +359,7 @@ export class Sim {
     this.emit({ e: 'arkdown', id: e.id, kind: e.kind, x: e.x, z: e.z, y: e.y + (e.alt || 0), src: src?.id, w: weapon, xp: e.def.xp || 20, big: (e.def.hp || 100) > 600 });
     const items = rollArkDrops(e.def.loot, this.rng, this.condEffects.lootMul || 1);
     this.dropLoot(e.x, e.z, items, 'ark', e.kind, e.y);
-    if (e.def.explodeOnDeath || (e.def.behavior === 'pop' && !e.def.noDeathBlast && e.kind !== 'komet')) this.explode(e.x, e.y + 0.5, e.z, e.def.attack?.radius || 3.5, e.def.attack?.dmg || 40, null, 'frag');
+    if (e.def.explodeOnDeath || (e.def.behavior === 'pop' && !e.def.noDeathBlast && e.kind !== 'komet')) this.explode(e.x, e.y + 0.5, e.z, e.def.attack?.radius || 3.5, e.def.attack?.dmg || 40, null, 'frag', null, { ark: true });
     if ((e.def.hp || 0) >= 300 && !e.def.flying) {
       // big husks stay as salvageable containers
       const c = { kind: 'arc_husk', x: e.x, z: e.z, y: e.y, rot: e.f, tier: (e.def.hp > 1500 ? 3 : 2), i: this.containers.length, contents: null, opened: false, dynamic: true, label: e.def.name + ' Husk' };
@@ -366,7 +373,7 @@ export class Sim {
     this.emit({ e: 'loot', id: l.id, x, z, y: l.y, kind, label, n: items.length });
     return l;
   }
-  explode(x, y, z, radius, dmg, src, kind = 'frag', weapon = null) {
+  explode(x, y, z, radius, dmg, src, kind = 'frag', weapon = null, xo = {}) {
     this.emit({ e: 'boom', x, y, z, r: radius, k: kind });
     this.noise(x, z, 60, src);
     this._rehash();
@@ -377,7 +384,7 @@ export class Sim {
       if (!this.grid.los(x, y + 0.3, z, e.x, ey, e.z)) return;
       const f = 1 - clamp((d - e.r) / radius, 0, 1) * 0.7;
       const r = (src?.stats?.grenade_radius || 1);
-      this.damage(e, dmg * f * (r > 1 ? 1 : 1), src, { explosive: true, armorPen: 0.6, x: e.x, z: e.z, weapon, bx: x, bz: z });
+      this.damage(e, dmg * f * (r > 1 ? 1 : 1), src, { explosive: true, armorPen: 0.6, x: e.x, z: e.z, weapon, bx: x, bz: z, ark: xo.ark });
     });
   }
 
@@ -455,12 +462,12 @@ export class Sim {
           const a = this.rng() * Math.PI * 2; this.launch(owner, 'rocket', p.x, p.y + 1, p.z, Math.sin(a) * 10, 6, Math.cos(a) * 10, { dmg: (d.dmg || 60) / 2, radius: 2.5, g: 4, homing: tgt?.id, team: p.team }); }
         this.emit({ e: 'pop', x: p.x, z: p.z, k }); break;
       }
-      default: this.explode(p.x, p.y, p.z, r, dmg, owner, k === 'rocket' || k === 'mortar' ? 'rocket' : 'frag', p.item);
+      default: this.explode(p.x, p.y, p.z, r, dmg, owner, k === 'rocket' || k === 'mortar' ? 'rocket' : 'frag', p.item, { ark: p.team === -1 });
     }
     this.remove(p);
   }
   addHazard(kind, x, z, r, dur, owner, dps = 0, y = null) {
-    const h = this.add({ type: 'hz', kind, x, z, y: this.floor(x, z, (y ?? owner?.y ?? this.ground(x, z)) + 0.3), r, dur, age: 0, owner: owner?.id, team: owner?.team, dps });
+    const h = this.add({ type: 'hz', kind, x, z, y: this.floor(x, z, (y ?? owner?.y ?? this.ground(x, z)) + 0.3), r, dur, age: 0, owner: owner?.id, team: owner?.team, dps, ark: owner?.type === 'ark' });
     if (kind === 'smoke') this.smokes.push(h);
     if (kind === 'barricade' && h.y <= this.grid.floorAt(x, z, -1e9) + 0.5) this.world.setTop(x - 1, z - 0.3, x + 1, z + 0.3, h.y + 1.3);
     return h;
@@ -468,7 +475,7 @@ export class Sim {
   _hazard(h, dt) {
     h.age += dt;
     if (h.kind === 'fire' || h.kind === 'gas') {
-      this.near(h.x, h.z, h.r, (e) => { if (Math.abs((e.y || 0) - h.y) > 2.6) return; if (e.st === 'alive' || e.type === 'ark') { if (e.type === 'ark' && h.kind === 'gas') return; this.damage(e, h.dps * dt, this.entities.get(h.owner), { bypassShield: h.kind === 'gas', x: e.x, z: e.z, weapon: h.item || null }); if (h.kind === 'gas' && e.type === 'raider') e.buffs.gassed = 1; } });
+      this.near(h.x, h.z, h.r, (e) => { if (Math.abs((e.y || 0) - h.y) > 2.6) return; if (e.st === 'alive' || e.type === 'ark') { if (e.type === 'ark' && h.kind === 'gas') return; this.damage(e, h.dps * dt, this.entities.get(h.owner), { bypassShield: h.kind === 'gas', x: e.x, z: e.z, weapon: h.item || null, ark: h.ark }); if (h.kind === 'gas' && e.type === 'raider') e.buffs.gassed = 1; } });
     }
     if (h.kind === 'lure') this.noise(h.x, h.z, 45, { id: h.owner, team: h.team });
     if (h.age >= h.dur) {
@@ -520,10 +527,15 @@ export class Sim {
     const T = x.callTime || EXTRACT_CALL;
     x.state = 'called'; x.t = x.callDur = T;
     this.emit({ e: 'xcall', i: x.i, by: by?.id, t: T });
-    // elevators + metro blare a zone-wide alarm; the airshaft dropship is only heard closer by
-    const loud = x.kind !== 'airshaft', r = loud ? 75 : 45;
-    this.noise(x.x, x.z, r, by);
-    this.near(x.x, x.z, loud ? 70 : 40, (e) => { if (e.type === 'ark') e.brain.investigate(x.x, x.z, true); });
+    // the alarm brings the neighbourhood, not the whole map: ARK that can hear it (within EXTRACT_NOISE, less
+    // for the quieter airshaft dropship) come to look, and idle or searching ones within EXTRACT_PULL are sent
+    // straight there. Machines already fighting someone keep at it, and bosses stay in their arenas. Players
+    // hear the klaxon further out (sfx_extract.js) - that's a warning, not a summons.
+    const loud = x.kind !== 'airshaft';
+    this.noise(x.x, x.z, loud ? EXTRACT_NOISE : EXTRACT_NOISE * 0.75, by);
+    this.near(x.x, x.z, loud ? EXTRACT_PULL : EXTRACT_PULL * 0.7, (e) => {
+      if (e.type === 'ark' && e.st !== 'alert' && e.st !== 'dead' && (e.def?.threat || 0) < 9) e.brain.investigate(x.x, x.z);
+    });
     return true;
   }
   departExtract(x, by) {

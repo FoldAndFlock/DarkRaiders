@@ -164,7 +164,7 @@ export const ARKS = {
   // Pop: rhythmic beep that speeds up as it closes in; beeps blur into a constant tone ~1 s before it blows
   popp_beep: def((R) => {
     const out = buf(0.12); beepAt(out, 2200, 0, 0.075, 1); return snes(out, { bits: 8, p: 0.5 });
-  }, { vol: 0.62, dist: 32, max: 6, pj: 0, prio: 2 }),
+  }, { vol: 0.8, dist: 40, max: 6, pj: 0, prio: 3 }),   // a danger cue: carries further than most ARK sounds
   popp_fuse: def((R) => {
     const out = buf(1.3);
     let t = 0, gap = 0.17, f = 2200;
@@ -185,7 +185,7 @@ export const ARKS = {
     for (let k = 0; k < 40; k++) mix(out, click(R, R.r(2000, 5000), 0.006, 2), R.r(0.05, 0.2), R() * d);
     const w = osc(d + 0.25, { wave: 'sq', pw: 0.3, f: 300, vib: 0.02, vibHz: 3 }); filt(w, 'bp', 900, 900, 3); layer(out, w, 0.15);
     return snes(seamless(out, 0.25), { bits: 8, fade: 0, p: 0.7 });
-  }, { ...LOOP, vol: 0.5, dist: 30 }),
+  }, { ...LOOP, vol: 0.6, dist: 34 }),
   // Fireball: armoured roller – opens its front panel, then ignites the burner
   fyreball_alert: def((R) => {
     const out = buf(0.9);

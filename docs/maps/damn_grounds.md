@@ -4,7 +4,7 @@
 
 ## Concept
 The regional hydro utility, **Synergy Power & Light**, missed one payment too many and the ARK came to
-repossess it. A curved arch dam — **The Damn Dam** — holds back the **Overdue Reservoir** along the north
+repossess it. A curved arch dam — **The Debt Ceiling** — holds back the **Overdue Reservoir** along the north
 edge. Below it a sheer-walled gorge carries the tailrace south past the powerhouse, under a highway bridge
 that has collapsed in the middle, and out onto the southern lowlands, where the utility's water treatment,
 substation, tailings ponds and staff housing were left to the marsh, the raiders and the repo men.
@@ -16,7 +16,7 @@ plateaus meet only on the dam crest.
 ## Regions
 | Region | Where | What it plays like |
 |---|---|---|
-| The Damn Dam | north-centre, crest x 455–715 / z 150–210 | A curved concrete arch, crest road on top (toll booth, wrecks, sandbag nests, floodlights, a sniper mast). Sheer concrete faces: down into the gorge on one side, into the reservoir on the other. The only high crossing between the plateaus. |
+| The Debt Ceiling | north-centre, crest x 455–715 / z 150–210 | A curved concrete arch, crest road on top (toll booth, wrecks, sandbag nests, floodlights, a sniper mast). Sheer concrete faces: down into the gorge on one side, into the reservoir on the other. The only high crossing between the plateaus. |
 | The gorge | x ≈ 465–745, z 160–480 | 12 m rock walls. The powerhouse sits at the dam's foot; the tailrace river runs down the middle (wadeable). A concrete ledge road climbs the west wall, the **Corporate Ladder** stair house climbs the east wall, the dry **Spillway of Regret** chute comes down the east side. The **Bridge To Nowhere** crosses at z 360 with its middle span on the floor. Opens south onto the lowlands. |
 | West plateau | x 0–465, z 120–400 | The staff town: villa and marina on the reservoir shore, the Bottleneck intake tower on a causeway, apartment blocks, cottages, the head office and cafeteria, the Ivory Tower at the dam's west end, the Show Home cul-de-sac. Slopes gently (wooded) down to the lowlands in the south. |
 | East plateau | x 715–1100, z 150–445 | Floodgates and the chute head, the Paywall compound, the Kale Bubble domes, the Impound Lot, the Eastside Squat, the Customer Retention Center. Ends in a sheer escarpment over the Red Ink Lakes: the **Bottom Line Balcony** promenade runs along its lip; the Bottom Line Steps and the east ramp road lead down. |
@@ -30,7 +30,7 @@ Quest-referenced ids are marked ★ (ids are internal and never change).
 | id | Name | What's there |
 |---|---|---|
 | field_depot ★ | Supply Shack (×5) | Resupply hut with a roof antenna: west plateau (388,366), gorge floor (652,238), east plateau (944,396), lowlands west (272,522), south (744,768). |
-| dam_crest | The Damn Dam | Crest road, toll booth, crest wrecks, sandbag nests, pilasters on the downstream face, intake grilles on the upstream face. |
+| dam_crest | The Debt Ceiling | Crest road, toll booth, crest wrecks, sandbag nests, pilasters on the downstream face, intake grilles on the upstream face. |
 | generator_hall ★ | The Hamster Wheel | 64 m turbine hall at the foot of the dam: four turbines + generators, overhead gantry, consoles; penstocks from the dam face; a 3-storey control wing with roof ladder. |
 | power_generation_complex ★ | Synergy Power & Light (In Receivership) | The whole powerhouse floor (map label hidden): turbine hall, control wing, maintenance shop, spare parts store, transformer yard + switch house, tailrace basin, the **Cable Vault** underground (vent shafts above, the power switch at the foot of the west stairs). |
 | corporate_ladder | The Corporate Ladder | 4-storey stair house against the east gorge wall; enter from the gorge floor, climb, walk out of the top floor onto a bridge to the east plateau. Roof hatch ladder. |

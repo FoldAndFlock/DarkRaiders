@@ -48,7 +48,7 @@ export const EXTRACT = {
     const sw = osc(d, { wave: 'saw', fn: (t) => 520 + 300 * Math.sin(Math.PI * 2 * t / d - Math.PI / 2) }); filt(sw, 'lp', 2400);
     env(sw, [[0, 0], [0.3, 1], [d - 0.3, 1], [d, 0]]); layer(out, sw, 0.22);
     return snes(echo(out, 0.21, 0.3, 2).subarray(0, d * SR), { drv: 2, bits: 8, p: 0.85, fade: 0.05 });
-  }, { ...X, vol: 0.7, dist: 130, prio: 4 }),
+  }, { ...X, vol: 0.7, dist: 100, prio: 4 }),
   // metro station alarm (same family): PA chime, then a ringing platform bell with a two-tone underlay
   extract_metro_alarm: def((R) => {
     const d = 3.85, out = buf(d);
@@ -56,7 +56,7 @@ export const EXTRACT = {
     const b = fm(2.6, { f: 1180, ratio: 2.76, index: 3, index1: 2 }); am(b, 18, 1, 3); env(b, [[0, 0], [0.03, 1], [2.5, 0.9], [2.6, 0]]); layer(out, b, 0.4, 1.0);
     for (let k = 0; k < 6; k++) mix(out, horn(k & 1 ? 415 : 349, 0.42), 0.3, 1.0 + k * 0.42);
     return snes(echo(out, 0.19, 0.3, 2).subarray(0, d * SR), { drv: 1.6, bits: 8, p: 0.82, fade: 0.05 });
-  }, { ...X, vol: 0.68, dist: 120, prio: 4 }),
+  }, { ...X, vol: 0.68, dist: 95, prio: 4 }),
   // airshaft: an engine spooling up and drawing closer instead of a siren; carries less far
   extract_airshaft_engine: def((R) => {
     const d = 9.5, out = buf(d);

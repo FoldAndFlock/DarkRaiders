@@ -218,7 +218,7 @@ export class BotBrain {
       let best = null, bd = 1e9;
       for (const x of sim.extracts) {
         if (!usable(x)) continue;
-        const d = Math.hypot(x.x - e.x, x.z - e.z) - (x.state === 'called' || x.state === 'open' ? 60 : 0);   // join one already coming
+        const d = Math.hypot(x.x - e.x, x.z - e.z) - (x.state === 'called' || x.state === 'open' ? 20 : 0);   // join one already coming if it's barely further
         if (d < bd) { bd = d; best = x; }
       }
       this.xgoal = best; this.boardT = 0; this.boardWait = 3 + sim.rng() * 9;

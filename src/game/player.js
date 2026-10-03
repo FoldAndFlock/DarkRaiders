@@ -253,6 +253,32 @@ export class PlayerController {
     }
     return best;
   }
+  // Shots at ARK get generous help in every input mode: a shot passing within about a metre of a machine
+  // (more for flyers) is bent onto its body, and its slope is aimed at the body's height, so it can't sail
+  // under a hovering drone or over a crawler, however steep. A line that already crosses the body is kept
+  // exactly, so weak points still reward precise aim. Raiders get no help; walls still block (LOS).
+  arkAssist(ox, oy, oz, a, range) {
+    const g = this.g, vis = g.view?.vis, grid = g.world?.grid; if (!vis || !grid) return null;
+    const hov = this.aim.entity?.type === 'ark' ? this.aim.entity.id : null;
+    let best = null;
+    for (const v of vis.values()) {
+      const t = v.e;
+      if (!t || t.type !== 'ark' || t.st === 'dead' || t.st === 'out' || v.cutHidden) continue;
+      const dx = v.px - ox, dz = v.pz - oz, d = Math.hypot(dx, dz);
+      if (d < 0.2 || d > range * 2) continue;
+      const alt = v.pa ?? t.alt ?? 0, fly = alt > 0.6, r = t.r || 0.6;
+      const cone = Math.min(0.5, Math.atan2(r + (fly ? 1.4 : 0.9), d));
+      const da = wrapAngle(Math.atan2(dx, dz) - a);
+      if (Math.abs(da) > cone) continue;
+      const cy = fly ? v.py + alt + 0.2 : v.py + clamp((t.h || 1) * 0.5, 0.25, 1.4);
+      if (!grid.los(ox, oy, oz, v.px, cy, v.pz)) continue;
+      const score = Math.abs(da) / cone - (t.id === hov ? 1 : 0) + d / (range * 8);
+      if (!best || score < best.score) best = { score, da, d, r, cy, dir: Math.atan2(dx, dz) };
+    }
+    if (!best) return null;
+    const keep = Math.atan2(best.r * 0.55, best.d);      // inside this the line already crosses the body
+    return { a: Math.abs(best.da) <= keep ? a : best.dir - Math.sign(best.da) * keep, dy: clamp((best.cy - oy) / Math.max(0.5, best.d - best.r * 0.5), -3, 3) };   // slope to where the shot enters the body
+  }
   isHostile(t) {
     if (t.team === this.e.team) return false;
     if (t.brain?.hostileTo) return t.brain.hostileTo(this.e);
@@ -335,8 +361,10 @@ export class PlayerController {
     const ox = e.x + Math.sin(this.aim.a) * 0.55, oz = e.z + Math.cos(this.aim.a) * 0.55;
     const oy = e.y + (this.crouch ? 0.95 : 1.3);
     const d = Math.max(1, Math.hypot(this.aim.x - ox, this.aim.z - oz));
-    const dy = clamp((this.aim.y - oy) / d, -0.6, 0.6);
-    const shot = { x: ox, y: oy, z: oz, a: this.aim.a, dy, wid: w.id, tier: w.tier || 1, mods: w.mods || {}, spread,
+    let a = this.aim.a, dy = clamp((this.aim.y - oy) / d, -0.6, 0.6);
+    const assist = this.arkAssist(ox, oy, oz, a, ws.range || 30);
+    if (assist) { a = assist.a; dy = assist.dy; }
+    const shot = { x: ox, y: oy, z: oz, a, dy, wid: w.id, tier: w.tier || 1, mods: w.mods || {}, spread,
       dmgMul: this.stats.weapon_damage * (this.charge ? 1 : 1), arkMul: this.stats.arc_damage, vis: gunModelFor(w.id), snd: gunSoundFor(w.id) };
     if (ws.mode === 'launcher' || ws.class === 'launcher') g.session.launch(shot);
     else {

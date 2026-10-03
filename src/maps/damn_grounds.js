@@ -1,6 +1,6 @@
 // Dam Grounds (1100 x 825 m, north up) - an original layout.
 // Story: the regional hydro utility, Synergy Power & Light, missed one payment too many and the ARK came to
-// repossess it. A curved arch dam (The Damn Dam) holds back the Overdue Reservoir along the north edge. Below
+// repossess it. A curved arch dam (The Debt Ceiling) holds back the Overdue Reservoir along the north edge. Below
 // it a sheer-walled gorge runs south past the powerhouse, under the collapsed highway (The Bridge To Nowhere)
 // and opens onto the southern lowlands. Two plateaus flank the gorge:
 //   * WEST plateau - the staff town: Golden Handshake Villa, the marina, Shoebox Flats, the Show Home
@@ -851,7 +851,7 @@ function undergrounds(C) {
 function damAndGorge(C) {
   const { w, rng } = C;
   const CR = (t) => archPt(CREST_R, t);
-  // ---------------- The Damn Dam: the crest
+  // ---------------- The Debt Ceiling: the crest
   // pilasters on the downstream face + a toll booth (the dam crest is a toll road; nobody has paid in years)
   for (let k = -5; k <= 5; k++) {
     const t = k * 0.13, [x, z] = archPt(ARCH.rIn - 1.6, t), g = w.groundAt(...archPt(ARCH.rIn - 4, t));
@@ -1800,7 +1800,7 @@ function markers(C) {
   P('control_tower', 'The Ivory Tower', 432, 230, 28, 3);
   P('pipeline_tower', 'The Bottleneck', 420, 132, 34, 2);
   // the dam + the gorge
-  P('dam_crest', 'The Damn Dam', 585, 160, 70, 2);
+  P('dam_crest', 'The Debt Ceiling', 585, 160, 70, 2);
   P('power_generation_complex', 'Synergy Power & Light (In Receivership)', 590, 230, 82, 2, { hideLabel: true });
   P('generator_hall', 'The Hamster Wheel', 576, 180, 36, 2);
   P('corporate_ladder', 'The Corporate Ladder', 693, 251, 14, 1);
