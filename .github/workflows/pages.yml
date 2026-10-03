@@ -24,10 +24,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Each deploy's code lives under its own v/<sha>/ path, so a browser's 10-minute cache can never
+      # mix files from two versions (the root keeps index.html, the manifest and plain asset copies).
       - name: Stage the game files
         run: |
-          mkdir _site
-          cp -r index.html manifest.webmanifest src vendor assets _site/
+          V="v/${GITHUB_SHA::10}"
+          mkdir -p "_site/$V"
+          cp -r src vendor assets "_site/$V/"
+          cp -r manifest.webmanifest assets _site/
+          sed -E "s#(href|src)=\"(src|vendor|assets)/#\1=\"$V/\2/#g" index.html > _site/index.html
+          grep -n "$V" _site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

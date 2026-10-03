@@ -2,7 +2,7 @@
 // callout guards). The raid layer only writes into input.virtual (see game/input.js): stick vectors
 // move / aim (x east, z south, length 0..1), fire / ads flags, and bind action names in down (held)
 // and pressed (went down this frame; the input clears it in endFrame).
-import { touchEnabled, isTouchDevice, canFullscreen, isFullscreen, toggleFullscreen } from './settings.js';
+import { touchEnabled, isTouchDevice, canFullscreen, isFullscreen, toggleFullscreen, touchMode, touchSeen } from './settings.js';
 import { ITEMS } from '../game/items.js';
 
 function el(tag, cls = '', html = '') { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; }
@@ -308,9 +308,42 @@ export function initTouchGlobal() {
   addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') lastTouchAt = performance.now(); }, true);
   // no long-press context menus / callouts and no pinch zoom while touch controls are on
   addEventListener('contextmenu', (e) => { if (touchEnabled() && !e.target.closest?.('input, textarea')) e.preventDefault(); });
-  document.addEventListener('gesturestart', (e) => { if (touchEnabled()) e.preventDefault(); }, { passive: false });
-  document.addEventListener('touchmove', (e) => { if (e.touches.length > 1 && touchEnabled()) e.preventDefault(); }, { passive: false });
+  // the page itself never pans or zooms (iOS Safari ignores user-scalable=no and can rubber-band the
+  // body): pinches are always stopped, one-finger drags unless they scroll a list or move a slider
+  document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+  document.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 1 || !scrollsInside(e.target)) { if (e.cancelable) e.preventDefault(); }
+  }, { passive: false });
   portraitHint();
+  if (/[?&]touchdebug/.test(location.search)) touchDebug();
+}
+
+// does a one-finger drag starting at el belong to something that scrolls or takes drags itself?
+function scrollsInside(el) {
+  for (let n = el; n && n !== document.body && n.nodeType === 1; n = n.parentElement) {
+    if (n.matches('input, textarea, select')) return true;
+    const cs = getComputedStyle(n);
+    if ((/(auto|scroll)/.test(cs.overflowY) && n.scrollHeight > n.clientHeight + 1) || (/(auto|scroll)/.test(cs.overflowX) && n.scrollWidth > n.clientWidth + 1)) return true;
+  }
+  return false;
+}
+
+// ?touchdebug: a small live readout of why touch controls are / aren't showing (for phones without devtools)
+function touchDebug() {
+  const box = el('div', '');
+  box.style.cssText = 'position:fixed;left:50%;top:env(safe-area-inset-top,0px);transform:translateX(-50%);z-index:99;background:rgba(0,0,0,0.8);color:#7f7;font:11px monospace;padding:4px 6px;pointer-events:none;white-space:pre;max-width:96vw;overflow:hidden';
+  const errs = [];
+  addEventListener('error', (e) => errs.push(String(e.message || e.error).slice(0, 90)));
+  addEventListener('unhandledrejection', (e) => errs.push(String(e.reason?.message || e.reason).slice(0, 90)));
+  const tick = () => {
+    const g = window.app?.game, t = g?.touch, i = window.app?.input;
+    box.textContent = `touch=${touchMode?.() ?? '?'} enabled=${touchEnabled()} coarse=${isTouchDevice()} seen=${touchSeen()} ontouchstart=${'ontouchstart' in window}\n` +
+      `raid=${!!g?.running} layer=${t ? (t.visible ? 'visible' : 'hidden') : 'none'} engaged=${!!t?.engaged} blocking=${!!g?.ui?.blocking} paused=${!!g?.paused} me=${g?.me?.st || '-'} mode=${i?.mode}\n` +
+      `${innerWidth}x${innerHeight} dpr=${devicePixelRatio} ${navigator.userAgent.slice(0, 80)}` + (errs.length ? `\nERR ${errs.slice(-2).join(' | ')}` : '');
+    setTimeout(tick, 400);
+  };
+  const mount = () => { document.body.appendChild(box); tick(); };
+  if (document.body) mount(); else addEventListener('DOMContentLoaded', mount);
 }
 
 // phones: suggest landscape (dismissable), with a fullscreen shortcut where the browser allows it

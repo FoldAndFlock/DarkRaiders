@@ -120,8 +120,16 @@ export class Input {
     target.addEventListener('keyup', ku);
     target.addEventListener('blur', () => { this.down.clear(); this.mouse.l = this.mouse.r = false; });
     const canvasEl = document.getElementById('gl') || document.body;
+    // phones send emulated mouse events right after a tap: they must not aim, fire or switch the input
+    // mode away from touch (iOS has no sourceCapabilities to tell them apart, so go by time)
+    this.lastTouchAt = -1e9;
+    const touched = () => { this.lastTouchAt = performance.now(); };
+    addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') touched(); }, true);
+    addEventListener('touchstart', touched, { capture: true, passive: true });
+    addEventListener('touchend', touched, { capture: true, passive: true });
+    const emulated = () => performance.now() - this.lastTouchAt < 1000;
     addEventListener('mousemove', (e) => {
-      if (this.synthetic > 0) return;
+      if (this.synthetic > 0 || emulated()) return;
       // In pad mode the cursor position belongs to the pad crosshair until the mouse really moves: browsers
       // also send mousemove at the resting cursor position when the page changes under it (menus opening).
       const moved = this._mx != null && Math.abs(e.clientX - this._mx) + Math.abs(e.clientY - this._my) > 2;
@@ -130,7 +138,7 @@ export class Input {
       this.mouse.x = e.clientX; this.mouse.y = e.clientY; this.mouse.moved = true; this.usingPad = false; this.usingTouch = false;
     });
     canvasEl.addEventListener('mousedown', (e) => {
-      if (this.synthetic > 0) return;
+      if (this.synthetic > 0 || emulated()) return;
       if (e.button === 0) { this.mouse.l = true; this.mouse.lp = true; }
       if (e.button === 2) { this.mouse.r = true; this.mouse.rp = true; }
       if (e.button === 1) { this.mouse.m = true; this.pressed.add('Mouse1'); e.preventDefault(); }

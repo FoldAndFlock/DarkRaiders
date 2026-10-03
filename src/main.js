@@ -16,6 +16,12 @@ export const app = {
   screen: null,
 };
 window.app = app;
+// a new version was deployed while this page was open: its lazily loaded modules are gone, so a
+// failed module load reloads into the new version (once per minute at most)
+const stale = (m) => /dynamically imported module|Importing a module script failed|error loading dynamically imported module|Failed to fetch dynamically/i.test(String(m || ''));
+const reloadNew = () => { try { if (Date.now() - (+sessionStorage.getItem('dr_reload') || 0) < 60000) return; sessionStorage.setItem('dr_reload', String(Date.now())); } catch (e) { /* storage off */ } location.reload(); };
+addEventListener('unhandledrejection', (e) => { if (stale(e.reason?.message || e.reason)) reloadNew(); });
+addEventListener('error', (e) => { if (stale(e.message)) reloadNew(); });
 
 async function loadAudio() {
   try { const m = await import('./audio/audio.js'); app.audio = m.audio || m.default || null; } catch (e) { console.warn('audio unavailable', e.message); app.audio = null; }
@@ -31,7 +37,8 @@ export function playerStats(p) {
 
 export async function startRaid({ mapId, seed, condition = null, time = null, weather = null, net = null, raidLen = 1800, objectives = null, onQuestEvent = null }) {
   const p = app.profile;
-  const map = (await MAPS[mapId]()).default;
+  let mod; try { mod = await MAPS[mapId](); } catch (e) { if (stale(e?.message)) reloadNew(); throw e; }
+  const map = mod.default;
   const stats = playerStats(p);
   const aug = ITEMS[p.loadout.augment?.id]?.augment;
   const game = new RaidGame({

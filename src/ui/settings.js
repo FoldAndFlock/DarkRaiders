@@ -69,7 +69,10 @@ export function uiScale() { return S.ui; }
 export function domPx() { return S.px; }
 export function touchScale() { return S.tk; }
 export function touchMode() { return S.touch; }
-export function touchEnabled() { return S.touch === 'on' || (S.touch === 'auto' && isTouchDevice()); }
+// Auto: a touch-first device, or any real touch seen this session (some browsers misreport the pointer)
+let sawTouch = false;
+export function touchEnabled() { return S.touch === 'on' || (S.touch === 'auto' && (isTouchDevice() || sawTouch)); }
+export const touchSeen = () => sawTouch;
 
 // boot: localStorage first (title screen), then the profile once it is loaded
 export function initSettings(app) {
@@ -77,6 +80,8 @@ export function initSettings(app) {
   S.ui = normUi(lsGet(LS_UI));
   S.touch = normTouch(lsGet(LS_TOUCH));
   apply();
+  const seen = (e) => { if (sawTouch || (e.pointerType && e.pointerType !== 'touch')) return; sawTouch = true; apply(); };
+  addEventListener('pointerdown', seen, true); addEventListener('touchstart', seen, { capture: true, passive: true });
   let t = 0;
   addEventListener('resize', () => { clearTimeout(t); t = setTimeout(apply, 60); apply(); });
   window.matchMedia?.('(pointer: coarse)')?.addEventListener?.('change', apply);
