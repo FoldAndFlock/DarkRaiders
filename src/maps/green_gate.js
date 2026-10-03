@@ -182,7 +182,7 @@ export default {
       [730, 80, 810, 170], [870, 40, 960, 110], [630, 260, 700, 320], [360, 540, 480, 660], [460, 610, 630, 770], [540, 470, 720, 620], [170, 590, 310, 710], [80, 690, 150, 750],
       [880, 640, 1000, 780], [340, 440, 420, 500], [210, 310, 270, 345], [570, 300, 640, 370], [780, 620, 880, 720]];
     for (const r of RES) mark(...r, 4);
-    for (const [x, z, r] of [[1034, 330, 12], [372, 268, 12], [146, 548, 12], [716, 714, 12], [668, 150, 6], [452, 532, 6], [978, 748, 6], [108, 122, 6], ...SPAWNS.map(([x, z]) => [x, z, 12])]) mark(x - r, z - r, x + r, z + r, 4);
+    for (const [x, z, r] of [[998, 334, 12], [372, 268, 12], [146, 548, 12], [716, 714, 12], [668, 150, 6], [452, 532, 6], [978, 748, 6], [108, 122, 6], ...SPAWNS.map(([x, z]) => [x, z, 12])]) mark(x - r, z - r, x + r, z + r, 4);
     for (const [pts, hw] of [[HWY_W, 9], [HWY_E, 9], [HWY_C, 10], [R_VILLAGE, 5], [R_VX, 4], [R_SPURW, 5], [R_FORT, 5], [R_NORTH, 5], [R_NE, 5], [R_GLADE, 4], [R_SHELFN, 5], [R_SHELFS, 5],
       [R_SOUTH, 5], [R_SE, 5], [R_PEAK, 5], [R_LAKE, 4], [R_SW, 4], [R_SEE, 4]]) markLine(pts, hw, 1);
     markLine(CREEK, 10, 8); markPoly(LAKE, 8); markLine([[190, 392], [380, 392]], 9, 1);
@@ -286,7 +286,7 @@ export default {
       [[850, 668], [880, 720], [930, 760], [978, 748]],
       [[300, 464], [250, 500], [200, 530], [168, 560]],
       [[120, 720], [100, 680], [80, 620], [70, 560]],
-      [[1000, 260], [1034, 330], [1040, 400], [1030, 470]],
+      [[1000, 260], [998, 334], [1040, 400], [1030, 470]],
     ]) { const P = resample(t, 5); w.path(P, 2.6, 'dirt'); markLine(P, 1.6, 1); }
 
     // ======================================================================== 3. STRUCTURE HELPERS
@@ -799,7 +799,7 @@ export default {
       for (const [x, z] of [[908, 262], [908, 284], [930, 284]]) w.prop('gg_coolers', x, z, 0, { surface: true, solid: true });
       w.prop('gg_bb_cloud', 954, 252, 0, { solid: true });
       for (const [x, z] of [[952, 272], [952, 286]]) lightPost(x, z, 0x9ad0ff);
-      airshaftSite('rage_quit_airshaft', 'Rage Quit Airshaft', 1034, 330, faceTo(1034, 330, 1020, 330));
+      airshaftSite('rage_quit_airshaft', 'Rage Quit Airshaft', 998, 334, faceTo(998, 334, 984, 334));
       w.arkSpawn('surveyor', 990, 330, { count: 1, patrol: [[960, 300], [1040, 280], [1050, 400], [960, 380]] });
       w.arkSpawn('rocketeer', 960, 360, { count: 1, patrol: [[900, 320], [1040, 320], [1040, 520], [900, 520]] });
       w.zone('Shelf', SHELF, { tier: 2 });
@@ -1306,7 +1306,7 @@ export default {
       w.prop('gg_hottub', 958, 708, 0, { solid: true });
       for (const [x, z, k] of [[916, 708, 'backpack'], [940, 700, 'suitcase'], [912, 728, 'basket'], [946, 732, 'medical_bag']]) w.container(k, x, z, 0, { tier: 1, poi: 'glamping_site' });
       w.arkSpawn('pop', 930, 720, { count: 2 }); w.arkSpawn('hornet', 930, 720, { count: 1, patrol: [[890, 680], [970, 680], [980, 760], [900, 770]] });
-      w.poi('glamping_site', 'Glamping Pyramid Scheme', 930, 716, 30, { tier: 1 });
+      w.poi('glamping_site', 'Glamping Pyramid Scheme', 930, 730, 32, { tier: 1 });
       hatchSite('glampsite_doggy_door', 'Glampsite Doggy Door', 978, 748, faceTo(978, 748, 960, 740));
     }
 

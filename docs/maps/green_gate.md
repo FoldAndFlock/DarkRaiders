@@ -65,7 +65,7 @@ Quest-referenced ids are marked ★ (ids are internal and never change).
 ## Extractions
 | id | Name | Kind | Where |
 |---|---|---|---|
-| rage_quit_airshaft | Rage Quit Airshaft | airshaft | the Shelf, east (1034, 330) |
+| rage_quit_airshaft | Rage Quit Airshaft | airshaft | the Shelf, east (998, 334) |
 | severance_airshaft | Severance Package Airshaft | airshaft | creek valley north of the lake (372, 268) |
 | early_retirement_airshaft | Early Retirement Airshaft | airshaft | south-west woods (146, 548) |
 | two_weeks_notice_airshaft | Two Weeks' Notice Airshaft | airshaft | south, east of the mesa (716, 714) |
