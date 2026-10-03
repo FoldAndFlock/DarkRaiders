@@ -1,5 +1,5 @@
-// ARK machine sounds. Each machine has its own audio fingerprint (as in ARC Raiders, where every
-// machine has a distinct state-dependent sound and alert): loops for movement/idle, a detection
+// ARK machine sounds. Each machine has its own audio fingerprint (a distinct state-dependent sound
+// and alert, so players can tell what is coming by ear): loops for movement/idle, a detection
 // alert, telegraph/wind-up cues and attack sounds. Metallic FM + crunchy square = the shared
 // "ARK voice"; everything is original synthesis.
 import { SR, buf, noise, osc, fm, metal, unison, ad, env, filt, filtFn, layer, mix, snes, am, seamless, comb, echo } from './dsp.js';

@@ -1,4 +1,4 @@
-// Speranzia economy: trader stock + pricing, selling, stash expansions and the free loadout.
+// Desperanza economy: trader stock + pricing, selling, stash expansions and the free loadout.
 // Pure logic on a profile object (no DOM). Every mutating call returns { ok, msg, ... }.
 import { ITEMS, makeStack, maxStack, stackValue, weaponStats } from './items.js';
 import { TRADERS } from '../data/traders.js';
@@ -60,7 +60,7 @@ export function buy(p, tid, itemId, qty = 1) {
   if (e.left <= 0) return no('Sold out - restocks in ' + restockIn(p) + ' raid(s)');
   const cost = e.price * qty;
   if (p.coins < cost) return no('Not enough Scrip');
-  if (!stashFits(p, [{ id: itemId, qty }])) return no('Stash is full');
+  if (!stashFits(p, [{ id: itemId, qty }])) return no('Stash is full - sell something first. You will not miss it.');
   const st = traderState(p);
   st.bought[tid] = st.bought[tid] || {};
   st.bought[tid][itemId] = (st.bought[tid][itemId] || 0) + qty;
@@ -101,13 +101,13 @@ export function stashExpansion(p) {
 }
 export function buyStashExpansion(p) {
   const e = stashExpansion(p);
-  if (e.maxed) return no('Stash is fully expanded');
+  if (e.maxed) return no('Stash is fully expanded. The problem is you now.');
   if (p.coins < e.price) return no('Not enough Scrip');
   p.coins -= e.price; p.stashSize += e.slots;
   return ok(`Stash expanded to ${p.stashSize} slots`, { cost: e.price });
 }
 
-// ---------------------------------------------------------------- free loadout (ARC Raiders style)
+// ---------------------------------------------------------------- free loadout
 // A random basic kit, all items flagged { free: true } (unsellable, cannot be recycled). One claim per raid.
 export const FREE_GUNS = Object.keys(ITEMS).filter(id => ITEMS[id].type === 'weapon' && ITEMS[id].rarity === 'common' && (ITEMS[id].weapon.tiers || []).length);
 export const AMMO_TARGET = { ammo_light: 60, ammo_medium: 48, ammo_heavy: 24, ammo_shotgun: 16, ammo_energy: 2, ammo_launcher: 6 };
@@ -143,5 +143,5 @@ export function claimFreeLoadout(p, rng = Math.random) {
   for (const s of cur) stashPut(p, s);
   p.loadout = makeFreeLoadout(rng);
   p.freeLoadoutRaid = raidsOf(p);
-  return ok('Free loadout issued: ' + ITEMS[p.loadout.weapons[0].id].name);
+  return ok('Free loadout issued: ' + ITEMS[p.loadout.weapons[0].id].name + '. Terms and conditions apply.');
 }

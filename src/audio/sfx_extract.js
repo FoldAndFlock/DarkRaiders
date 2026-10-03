@@ -1,11 +1,11 @@
 // Extraction sequence sounds, timed to the rigs in src/engine/extracts.js and the xcall / xopen / xclose /
-// xgone / xidle / extracted events in src/game/view.js. Gameplay flow (sim.js): called 30-45 s (the car /
+// xgone / xidle / extracted events in src/game/view.js. Gameplay flow (sim.js): called 40 s (the car /
 // train / dropship arrives over the last 6-8 s, ticks in the last 5 s) -> open (auto-departs after 90 s) ->
-// a raider pulls the departure lever -> closing 10 s (buzzer, warning lights, doors) -> gone (cooldown 75 s;
-// a metro station closes for the raid). Modelled on ARC Raiders' extracts: the cargo-elevator call is a loud,
-// zone-wide alarm that draws ARK and Raiders; metro stations use the same alarm family; airshafts announce
-// themselves with an approaching VTOL dropship that carries less far; Raider Hatches are silent apart from
-// the key and the seal. Original synthesis only.
+// a raider pulls the departure lever -> closing 8 s (buzzer, warning lights, doors) -> gone (cooldown 75 s;
+// a metro station closes for the raid). The cargo-elevator call is a loud, zone-wide alarm that draws ARK and
+// Raiders (while the elevator's door speaker plays hold music under it: see muzak.js); metro stations use the
+// same alarm family; airshafts announce themselves with an approaching VTOL dropship that carries less far;
+// hatches are silent apart from the key and the seal. Original synthesis only.
 import { SR, buf, noise, osc, fm, ad, env, filt, layer, mix, snes, am, seamless, echo, unison } from './dsp.js';
 import { def, click, clack, whoosh, thump, blips, bell, N, rotor, rustle, servo } from './sfx_lib.js';
 

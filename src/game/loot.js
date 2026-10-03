@@ -43,7 +43,8 @@ export const CONTAINER_LOOT = {
   backpack: { n: [2, 4], w: { basic_mat: 2, ammo: 1, medical: 1.5, grenade: 1, valuable: 1, hatch_key: 0.1 }, time: 1.6 },
   arc_crate: { n: [1, 3], w: { arc_mat: 5, refined_mat: 2, blueprint: 0.4 }, time: 2.0 },
   arc_husk: { n: [1, 3], w: { arc_mat: 4, basic_mat: 2 }, time: 2.6 },
-  // big husk wrecks placed by maps (Barron = Bastion-class, Deforestr = heavy cutter): richer ARK salvage
+  // big husk wrecks placed by maps (barron_husk = Legacy System, a dead Beta Test war machine;
+  // deforestr_husk = Hedge Fund, a felled forest-clearing giant): richer ARK salvage
   barron_husk: { n: [3, 5], w: { arc_mat: 5, refined_mat: 2, basic_mat: 2, blueprint: 0.35 }, time: 3.4 },
   deforestr_husk: { n: [2, 4], w: { arc_mat: 4, refined_mat: 1.5, basic_mat: 2.5, blueprint: 0.25 }, time: 3.0 },
   raider_cache: { n: [3, 5], w: { weapon: 1.5, ammo: 2, medical: 2, grenade: 1.5, augment: 0.6, shield: 0.6, mod: 1, blueprint: 0.9, valuable: 1, hatch_key: 0.3 }, time: 2.6 },

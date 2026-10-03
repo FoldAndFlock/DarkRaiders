@@ -1,4 +1,4 @@
-// Loadout / stash inventory model. Slot-based like ARC Raiders: augment defines backpack, quick-use,
+// Loadout / stash inventory model. Slot-based: the augment defines backpack, quick-use,
 // safe-pocket and weapon slot counts + weight limit; skills add on top.
 import { ITEMS, maxStack, makeStack, stackWeight } from './items.js';
 

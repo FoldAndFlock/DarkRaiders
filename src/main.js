@@ -67,7 +67,9 @@ async function boot() {
   addEventListener('pointerdown', startAudio, { once: true });
   addEventListener('keydown', startAudio, { once: true });
   if (dev) {
-    // developer shortcut: straight into a raid with the current profile loadout
+    // developer shortcut: straight into a raid with the current profile loadout (same loading screen +
+    // tips as a normal deploy; it never blocks input and is gone the moment loading finishes)
+    try { const { loadingScreen } = await import('./ui/screens.js'); loadingScreen(app, document.getElementById('ui'), { mapId: dev, condition: q.get('cond'), time: q.get('time'), weather: q.get('weather') }, 0); } catch (e) { /* loading screen is optional */ }
     const res = await startRaid({ mapId: dev, seed: +(q.get('seed') || 7), condition: q.get('cond'), time: q.get('time'), weather: q.get('weather'), raidLen: +(q.get('len') || 1800) });
     console.log('raid result', res?.outcome);
     return;

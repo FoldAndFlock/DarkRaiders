@@ -1,4 +1,4 @@
-// Speranzia - the between-raid hub (DOM UI). Tabs: Loadout & Stash, Workshop, Traders, Skills, Quests, Raider.
+// Desperanza - the between-raid hub (DOM UI). Tabs: Loadout & Stash, Workshop, Traders, Skills, Quests, Raider.
 // Usage: const hub = new Hub(app); hub.mount(document.getElementById('ui')); ... hub.unmount();
 // app: { profile, save(), audioSafe: { play(name), setVolumes(obj) }, screens: { lobby() } }
 // Every change mutates app.profile and calls app.save().
@@ -14,7 +14,11 @@ import * as Craft from '../game/crafting.js';
 import * as Q from '../game/quests.js';
 import { settingsRows, syncProfile, capPx, touchEnabled } from './settings.js';
 
+// shown in the Raider tab's ABOUT block (same wording as the title screen)
+const DISCLAIMER = 'DarkRaiders is an unofficial parody of ARC Raiders. Not affiliated with or endorsed by Embark Studios.';
+
 // ---------------------------------------------------------------- small helpers
+const STASH_FULL = 'Stash is full - you have a problem. Several hundred of them.';
 const fmt = (n) => Math.round(n || 0).toLocaleString('en-US');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nm = (id) => ITEMS[id]?.name || id;
@@ -400,7 +404,7 @@ export class Hub {
     const sc = Craft.scrappie(p), bps = Craft.blueprintStacks(p).filter(s => !Craft.blueprintKnown(p, s.id)).length;
     const badge = { skills: p.skillPoints || 0, quests: ready ? ready + '!' : (avail || 0), workshop: (sc.pending.length ? 1 : 0) + bps };
     this.head.innerHTML = `
-      <div class="hh-brand"><div class="hh-mark"><i></i><i></i><i></i><i></i><i></i></div><div><div class="hh-logo">SPERANZIA</div><div class="hh-sub">DARKRAIDERS · RAIDER HUB</div></div></div>
+      <div class="hh-brand"><div class="hh-mark"><i></i><i></i><i></i><i></i><i></i></div><div><div class="hh-logo">DESPERANZA</div><div class="hh-sub">DARKRAIDERS · THE SEWER SUITES</div></div></div>
       <div class="hh-who"><div class="hh-lv"><span>LV</span><b>${p.level}</b></div><div class="hh-id"><div class="hh-name">${esc(p.name)}</div>
         <div class="hh-xp"><div class="bar"><i style="width:${(clamp01(p.xp / need) * 100).toFixed(1)}%"></i></div><span>${fmt(p.xp)} / ${fmt(need)} XP</span></div></div></div>
       <div class="hh-gap"></div>
@@ -411,8 +415,8 @@ export class Hub {
         <div class="hh-hint">${esc(this.tabHint())}</div></div>`;
   }
   tabHint() {
-    if (touchEnabled()) return { loadout: 'TAP: INSPECT · DOUBLE-TAP: EQUIP · HOLD: DRAG / ACTIONS', skills: 'TAP A SKILL · ADD POINT IN THE SIDE PANEL' }[this.tab] || { workshop: 'CRAFT · RECYCLE · UPGRADE · SCRAPPIE', traders: 'BUY · SELL · TAKE JOBS', quests: 'ACCEPT JOBS · TRACK OBJECTIVES · TURN IN', raider: 'PROFILE · SETTINGS · SAVE DATA' }[this.tab] || '';
-    return { loadout: 'DRAG TO EQUIP · SHIFT+CLICK MOVE · RIGHT-CLICK ACTIONS', workshop: 'CRAFT · RECYCLE · UPGRADE · SCRAPPIE', traders: 'BUY · SELL · TAKE JOBS',
+    if (touchEnabled()) return { loadout: 'TAP: INSPECT · DOUBLE-TAP: EQUIP · HOLD: DRAG / ACTIONS', skills: 'TAP A SKILL · ADD POINT IN THE SIDE PANEL' }[this.tab] || { workshop: 'CRAFT · RECYCLE · UPGRADE · NUGGET', traders: 'BUY · SELL · TAKE JOBS', quests: 'ACCEPT JOBS · TRACK OBJECTIVES · TURN IN', raider: 'PROFILE · SETTINGS · SAVE DATA' }[this.tab] || '';
+    return { loadout: 'DRAG TO EQUIP · SHIFT+CLICK MOVE · RIGHT-CLICK ACTIONS', workshop: 'CRAFT · RECYCLE · UPGRADE · NUGGET', traders: 'BUY · SELL · TAKE JOBS',
       skills: 'CLICK A SKILL · DOUBLE-CLICK TO ADD A POINT', quests: 'ACCEPT JOBS · TRACK OBJECTIVES · TURN IN', raider: 'PROFILE · SETTINGS · SAVE DATA' }[this.tab] || '';
   }
   onHeadClick(e) {
@@ -591,7 +595,7 @@ export class Hub {
     const g = this.weaponByKey(wKey), id = g?.mods?.[slot]; if (!id) return false;
     const st = makeStack(id, 1);
     if (to && LO_C.has(to.c) && ['backpack', 'safe'].includes(to.c) && !getSlot(this.p.loadout, to)) setSlot(this.p.loadout, to, st);
-    else { if (!P.stashFits(this.p, [st])) return this.fail('Stash is full'); P.stashPut(this.p, st); }
+    else { if (!P.stashFits(this.p, [st])) return this.fail(STASH_FULL); P.stashPut(this.p, st); }
     delete g.mods[slot]; this.clampAmmo(g);
     return true;
   }
@@ -604,7 +608,7 @@ export class Hub {
     if (from.c === 'mod') return this.detachMod(from.w, from.slot, to);
     if (to.c === 'stash') {
       if (from.c === 'stash') return false;
-      if (!P.stashFits(p, [A])) return this.fail('Stash is full');
+      if (!P.stashFits(p, [A])) return this.fail(STASH_FULL);
       setSlot(lo, from, null); P.stashPut(p, A); return true;
     }
     if (!LO_C.has(to.c)) return false;
@@ -690,14 +694,14 @@ export class Hub {
   async freeLoadout() {
     const p = this.p;
     if (!Eco.freeLoadoutAvailable(p)) return this.commit({ ok: false, msg: 'Free loadout already claimed - one per raid' });
-    const ok = await this.confirmBox('FREE LOADOUT', '<p>Get a random basic kit for free: a Free Loadout Augment, a common weapon with ammo and bandages (sometimes a shield or grenades).</p><p class="dimc">Your current loadout is moved to the stash. Free kit items are marked <b class="yellow">F</b> and cannot be sold or recycled. One claim per raid.</p>', 'CLAIM KIT');
+    const ok = await this.confirmBox('FREE LOADOUT', '<p>Get a random basic kit for free: a hand-me-down augment, a common weapon with ammo and bandages (sometimes a shield or grenades).</p><p class="dimc">Free the way a timeshare presentation is free: no strings, just a few rules.</p><p class="dimc">Your current loadout is moved to the stash. Free kit items are marked <b class="yellow">F</b> and cannot be sold or recycled. One claim per raid.</p>', 'CLAIM KIT');
     if (!ok) return;
     this.commit(Eco.claimFreeLoadout(p), 'ui_equip');
   }
   unequipAll() {
     const p = this.p, lo = p.loadout, all = allStacks(lo);
     if (!all.length) return;
-    if (!P.stashFits(p, all)) return this.commit({ ok: false, msg: 'Stash is full' });
+    if (!P.stashFits(p, all)) return this.commit({ ok: false, msg: STASH_FULL });
     for (const s of all) P.stashPut(p, s);
     lo.augment = null; lo.shield = null; lo.weapons = lo.weapons.map(() => null);
     for (const k of ['backpack', 'quick', 'safe']) lo[k] = lo[k].map(() => null);
@@ -950,7 +954,7 @@ export class Hub {
     const u = Craft.upgradeState(p, g), up = div('wm-box');
     if (u.next) {
       const perks = Object.entries(u.next.mods || {}).map(([k, m]) => { const prev = d.weapon.tiers.find(t => t.tier === (g.tier || 1))?.mods?.[k] || 1; const pct = Math.round((m / prev - 1) * 100); const [l, gd] = MOD_STAT[k] || [k.toUpperCase(), 1]; return `<span class="${(pct > 0) === (gd > 0) ? 'green' : 'red'}">${l} ${pct > 0 ? '+' : ''}${pct}%</span>`; }).join(' ');
-      up.innerHTML = `<div class="lbl">UPGRADE TO TIER ${ROM[u.next.tier]} <span class="dimc">· GUNSMITH ${ROM[u.next.level || 1]}</span></div><div class="perks">${perks}</div>`;
+      up.innerHTML = `<div class="lbl">UPGRADE TO TIER ${ROM[u.next.tier]} <span class="dimc">· ${esc(Craft.BENCHES.gunsmith?.name || 'Gun Garage').toUpperCase()} ${ROM[u.next.level || 1]}</span></div><div class="perks">${perks}</div>`;
       up.appendChild(this.costRow(u.next.cost));
       up.appendChild(btn(u.ok ? `UPGRADE → ${ROM[u.next.tier]}` : u.reason.toUpperCase(), u.ok ? 'primary' : '', () => this.commit(Craft.weaponUpgrade(p, g), 'ui_upgrade'), !u.ok));
     } else up.innerHTML = `<div class="lbl">UPGRADE</div><div class="dimc">${u.reason.toUpperCase()}</div>`;
@@ -988,7 +992,7 @@ export class Hub {
     }
     nav.body.appendChild(div('lbl', 'SERVICES'));
     const sc = Craft.scrappie(p), bpn = Craft.blueprintStacks(p).filter(s => !Craft.blueprintKnown(p, s.id)).length;
-    for (const [id, l, sub] of [['recycler', 'RECYCLER', `YIELD ${Math.round(Craft.scrapYield(p) * 100)}%`], ['weapons', 'WEAPON BENCH', 'UPGRADE · REPAIR'], ['blueprints', 'BLUEPRINTS', `${p.blueprints.length} LEARNED${bpn ? ` · <b class="yellow">${bpn} NEW</b>` : ''}`], ['scrappie', 'SCRAPPIE', sc.pending.length ? `<b class="yellow">HAUL READY (${sc.raids})</b>` : `LEVEL ${sc.level}`]]) {
+    for (const [id, l, sub] of [['recycler', 'RECYCLER', `YIELD ${Math.round(Craft.scrapYield(p) * 100)}%`], ['weapons', 'WEAPON BENCH', 'UPGRADE · REPAIR'], ['blueprints', 'BLUEPRINTS', `${p.blueprints.length} LEARNED${bpn ? ` · <b class="yellow">${bpn} NEW</b>` : ''}`], ['scrappie', 'NUGGET', sc.pending.length ? `<b class="yellow">HAUL READY (${sc.raids})</b>` : `LEVEL ${sc.level}`]]) {
       const it = div('nav-it svc' + (S.view === id ? ' on' : ''), `<div class="nm">${l}</div><div class="sub">${sub}</div>`);
       it.addEventListener('click', () => { S.view = id; S.sel = null; this.sfx('ui_click'); this.render(); });
       nav.body.appendChild(it);
@@ -1056,7 +1060,7 @@ export class Hub {
   recyclerView(main, side) {
     const p = this.p, S = this.st.workshop;
     const H = this.panel('RECYCLER', 'bench-head', `YIELD <b class="yellow">${Math.round(Craft.scrapYield(p) * 100)}%</b>`);
-    H.body.appendChild(div('bh-desc', 'Break items down into crafting materials. Weapons return their mods and loaded ammo first. Skills that raise scrap yield (A Lil\' Extra) add bonus materials. Free-kit items cannot be recycled.'));
+    H.body.appendChild(div('bh-desc', 'Break items down into crafting materials. Weapons return their mods and loaded ammo first. Skills that raise scrap yield (Coffee Tin Of Screws) add bonus materials. Free-kit items cannot be recycled.'));
     main.appendChild(H.root);
     const L = this.panel('RECYCLABLE ITEMS IN STASH', 'rc-panel');
     const chips = div('chips');
@@ -1068,7 +1072,7 @@ export class Hub {
     const items = p.stash.filter(s => Craft.canRecycle(s) && (!types || types.includes(ITEMS[s.id].type))).sort((a, b) => Eco.fullValue(b) - Eco.fullValue(a));
     if (S.rec && !items.find(s => s.uid === S.rec)) S.rec = null;
     for (const s of items) grid.appendChild(this.icell(s, { sel: S.rec === s.uid }, () => { S.rec = s.uid; this.sfx('ui_click'); this.render(); }));
-    if (!items.length) grid.appendChild(div('st-empty', 'NOTHING TO RECYCLE'));
+    if (!items.length) grid.appendChild(div('st-empty', 'NOTHING TO RECYCLE. SUSPICIOUSLY TIDY.'));
     L.body.appendChild(grid);
     main.appendChild(L.root);
     const s = p.stash.find(x => x && x.uid === S.rec);
@@ -1084,13 +1088,14 @@ export class Hub {
   }
   weaponsView(main, side) {
     const p = this.p;
-    const H = this.panel('WEAPON BENCH', 'bench-head', `GUNSMITH <b class="yellow">${Craft.benchLevel(p, 'gunsmith')}</b> / ${Craft.benchMax('gunsmith')}`);
-    H.body.appendChild(div('bh-desc', 'Upgrade weapons up to tier IV (each tier needs a higher Gunsmith level) and repair worn durability. Upgrading also refurbishes the weapon. Click a weapon for mods and full stats.'));
+    const gs = esc(Craft.BENCHES.gunsmith?.name || 'Gun Garage');
+    const H = this.panel('WEAPON BENCH', 'bench-head', `${gs.toUpperCase()} <b class="yellow">${Craft.benchLevel(p, 'gunsmith')}</b> / ${Craft.benchMax('gunsmith')}`);
+    H.body.appendChild(div('bh-desc', `Upgrade weapons up to tier IV (each tier needs a higher ${gs} level) and repair worn durability. Upgrading also refurbishes the weapon. Click a weapon for mods and full stats.`));
     main.appendChild(H.root);
     const L = this.panel('YOUR WEAPONS', 'rc-panel');
     L.body.classList.add('scroll'); L.body.dataset.scroll = 'weapons';
     const guns = [...p.loadout.weapons.filter(Boolean), ...p.stash.filter(s => s && ITEMS[s.id]?.type === 'weapon')];
-    if (!guns.length) L.body.appendChild(div('st-empty', 'NO WEAPONS OWNED'));
+    if (!guns.length) L.body.appendChild(div('st-empty', 'NO WEAPONS OWNED. PACIFISM IS A BOLD BUILD.'));
     for (const g of guns) {
       const d = ITEMS[g.id], ws = weaponStats(g), u = Craft.upgradeState(p, g), rc = Craft.repairCost(g), dur = clamp01((g.dur ?? ws.durability) / ws.durability);
       const row = div('rc-row wpn');
@@ -1107,7 +1112,7 @@ export class Hub {
       L.body.appendChild(row);
     }
     main.appendChild(L.root);
-    side.appendChild(div('in-sum', `<div class="lbl">TIERS</div><p>Tier II needs Gunsmith I, tier III Gunsmith II, tier IV Gunsmith III.</p><div class="lbl">REPAIRS</div><p>Repair cost scales with wear and rarity: Metal Parts for common guns, components and gun parts for rarer ones, plus a small Scrip fee.</p><p class="dimc">Broken weapons (0 durability) cannot fire.</p>`));
+    side.appendChild(div('in-sum', `<div class="lbl">TIERS</div><p>Tier II needs ${gs} I, tier III ${gs} II, tier IV ${gs} III.</p><div class="lbl">REPAIRS</div><p>Repair cost scales with wear and rarity: Metal Parts for common guns, components and gun parts for rarer ones, plus a small Scrip fee.</p><p class="dimc">Broken weapons (0 durability) cannot fire.</p>`));
   }
   blueprintsView(main, side) {
     const p = this.p;
@@ -1144,19 +1149,19 @@ export class Hub {
   }
   scrappieView(main, side) {
     const p = this.p, sc = Craft.scrappie(p), lvd = Craft.scrappieLevelDef(p), nx = Craft.scrappieNext(p), cap = Craft.SCRAPPY.capacityRaids || 5;
-    const H = this.panel('SCRAPPIE', 'bench-head scr', `LEVEL <b class="yellow">${sc.level}</b> / ${Craft.SCRAPPY.levels.length}`);
+    const H = this.panel('NUGGET', 'bench-head scr', `LEVEL <b class="yellow">${sc.level}</b> / ${Craft.SCRAPPY.levels.length}`);
     const top = div('scr-top');
     const art = div('scrappie-art'); art.dataset.f = '0'; art.appendChild(scrappieArt(0));
     top.appendChild(art);
-    const txt = div('scr-txt', `<div class="nm">SCRAPPIE <span class="dimc">THE WORKSHOP ROOSTER</span></div><p>${esc(Craft.SCRAPPY.desc)}</p>
+    const txt = div('scr-txt', `<div class="nm">NUGGET <span class="dimc">WORKSHOP ROOSTER &amp; UNION REP</span></div><p>${esc(Craft.SCRAPPY.desc)}</p>
       <div class="nest"><span>NEST</span><div class="pips">${Array.from({ length: cap }, (_, i) => `<i class="${i < sc.raids ? 'on' : ''}"></i>`).join('')}</div><b>${sc.raids}/${cap} RAIDS</b></div>
-      ${sc.raids >= cap ? '<p class="red">NEST FULL - COLLECT TO KEEP HIM SCAVENGING</p>' : ''}`);
+      ${sc.raids >= cap ? '<p class="red">NEST FULL - NUGGET IS ON STRIKE UNTIL YOU COLLECT HIS HAUL</p>' : ''}`);
     top.appendChild(txt);
     H.body.appendChild(top);
     main.appendChild(H.root);
     const L = this.panel('HAUL', 'rc-panel');
     const g = div('mats haul'); for (const e of sc.pending) g.appendChild(this.icell(makeStack(e.id, 1), { count: e.qty }));
-    if (!sc.pending.length) g.appendChild(div('st-empty', 'NOTHING YET - SCRAPPIE BRINGS MATERIALS BACK AFTER EVERY RAID'));
+    if (!sc.pending.length) g.appendChild(div('st-empty', 'NOTHING YET - NUGGET BRINGS MATERIALS BACK AFTER EVERY RAID. HE IS PAID IN SEEDS.'));
     L.body.appendChild(g);
     L.body.appendChild(btn('COLLECT ALL', sc.pending.length ? 'primary big' : 'big', () => this.commit(Craft.scrappieCollect(p), 'ui_buy'), !sc.pending.length));
     L.body.appendChild(div('lbl', `YIELDS PER RAID AT LEVEL ${sc.level} <span class="dimc">(MORE FOR LONGER RAIDS, MAX AT 15 MIN)</span>`));
@@ -1164,11 +1169,11 @@ export class Hub {
     main.appendChild(L.root);
     side.appendChild(div('lbl', 'FEED & UPGRADE'));
     if (nx) {
-      side.appendChild(div('in-sum', `<p>Level ${nx.level} Scrappie brings back more of everything.</p>`));
+      side.appendChild(div('in-sum', `<p>Level ${nx.level} Nugget brings back more of everything. He negotiated this in his last contract.</p>`));
       side.appendChild(this.costRow(nx.cost));
       const can = P.hasMaterials(p, nx.cost);
       side.appendChild(div('in-acts')).appendChild(btn(`UPGRADE TO LEVEL ${nx.level}`, can ? 'primary' : '', () => this.commit(Craft.scrappieUpgrade(p), 'ui_upgrade'), !can));
-    } else side.appendChild(div('green', 'SCRAPPIE IS FULLY GROWN'));
+    } else side.appendChild(div('green', 'NUGGET IS FULLY GROWN. HE WOULD LIKE A TITLE BUMP.'));
   }
 
   // ================================================================ TRADERS
@@ -1183,14 +1188,16 @@ export class Hub {
       it.style.setProperty('--tc', tr.color);
       const pc = div('pt'); pc.appendChild(traderPortrait(id)); it.appendChild(pc);
       it.appendChild(div('tx', `<div class="nm">${esc(tr.name).toUpperCase()}</div><div class="sub">${esc(tr.title).toUpperCase()}${qn ? ` · <b class="yellow">${qn} JOB${qn > 1 ? 'S' : ''}</b>` : ''}</div>`));
-      it.addEventListener('click', () => { S.t = id; S.sel = null; this.sfx('ui_click'); this.render(); });
+      it.addEventListener('click', () => { if (this.greet) delete this.greet[id]; S.t = id; S.sel = null; this.sfx('ui_click'); this.render(); });
       nav.body.appendChild(it);
     }
     wrap.appendChild(nav.root);
     const main = div('ws-main');
+    // what the trader says when you visit (re-rolled each time you pick them)
+    const lines = t.greet || [], gi = lines.length ? ((this.greet ??= {})[S.t] ??= Math.floor(Math.random() * lines.length)) : -1;
     const H = div('hp tr-head'); H.style.setProperty('--tc', t.color);
     const big = div('pt big'); big.appendChild(traderPortrait(S.t)); H.appendChild(big);
-    H.appendChild(div('tr-txt', `<div class="nm">${esc(t.name).toUpperCase()}</div><div class="ti">${esc(t.title).toUpperCase()}</div><p>${esc(t.desc)}</p>
+    H.appendChild(div('tr-txt', `<div class="nm">${esc(t.name).toUpperCase()}</div><div class="ti">${esc(t.title).toUpperCase()}</div>${gi >= 0 ? `<p class="tr-say" style="color:var(--tc)">"${esc(lines[gi % lines.length])}"</p>` : ''}<p class="tr-desc">${esc(t.desc)}</p>
       <div class="dimc small">STOCK REFRESHES IN <b class="cream">${Eco.restockIn(p)}</b> RAID${Eco.restockIn(p) > 1 ? 'S' : ''} · BUYS ${t.buys === 'all' ? 'ANYTHING' : t.buys.map(x => (TYPE_LABEL[x] || x).toUpperCase() + 'S').join(', ')}</div>`));
     main.appendChild(H);
     const modes = div('subtabs');
@@ -1238,13 +1245,13 @@ export class Hub {
     if (junk.length) {
       const tot = junk.reduce((a, s) => a + Eco.unitSellPrice(s) * s.qty, 0);
       L.body.appendChild(div('sell-bulk')).appendChild(btn(`SELL ALL VALUABLES & TRINKETS (${junk.length}) · ${fmt(tot)}`, 'sm', async () => {
-        if (!(await this.confirmBox('SELL VALUABLES', `<p>Sell <b>${junk.length}</b> stacks of valuables and trinkets for <b class="yellow">${fmt(tot)}</b> Scrip?</p><p class="dimc">Some valuables are needed for Scrappie and bench upgrades - check before selling.</p>`, 'SELL ALL'))) return;
+        if (!(await this.confirmBox('SELL VALUABLES', `<p>Sell <b>${junk.length}</b> stacks of valuables and trinkets for <b class="yellow">${fmt(tot)}</b> Scrip?</p><p class="dimc">Some valuables are needed for Nugget and bench upgrades - check before selling.</p>`, 'SELL ALL'))) return;
         let sum = 0; for (const s of [...junk]) { const r = Eco.sell(p, tid, s.uid); if (r.ok) sum += r.coins; }
         this.commit({ ok: true, msg: `Sold valuables for ${fmt(sum)} Scrip` }, 'ui_sell');
       }));
     }
     const list = div('sell-list scroll'); list.dataset.scroll = 'sell-' + tid;
-    if (!items.length) list.appendChild(div('st-empty', `NOTHING IN YOUR STASH THAT ${esc(t.name).toUpperCase()} BUYS`));
+    if (!items.length) list.appendChild(div('st-empty', t.noSale ? `${esc(t.name).toUpperCase()}: "${esc(t.noSale)}"` : `NOTHING IN YOUR STASH THAT ${esc(t.name).toUpperCase()} BUYS`));
     for (const s of items) {
       const d = ITEMS[s.id], u = Eco.unitSellPrice(s);
       const row = div('rc-row sell' + (S.sel === s.uid ? ' sel' : '') + (s.free ? ' known' : ''));
@@ -1403,7 +1410,7 @@ export class Hub {
       L.body.appendChild(t);
       if (S.showDone) for (const d of done) { const it = div('q-it done' + (S.sel === d.id ? ' on' : ''), `<div class="nm">${esc(d.name)}</div>`); it.style.setProperty('--tc', TRADERS[d.giver]?.color); it.addEventListener('click', () => { S.sel = d.id; this.render(); }); L.body.appendChild(it); }
     }
-    if (!active.length && !avail.length) L.body.appendChild(div('st-empty', 'NO JOBS RIGHT NOW'));
+    if (!active.length && !avail.length) L.body.appendChild(div('st-empty', 'NO JOBS RIGHT NOW. ENJOY THE UNPAID LEAVE.'));
     wrap.appendChild(L.root);
     const D = this.panel('JOB DETAILS', 'q-det');
     const d = Q.QUEST_BY_ID[S.sel];
@@ -1526,9 +1533,11 @@ export class Hub {
     sb.appendChild(btn('IMPORT SAVE...', '', () => file.click()));
     sb.appendChild(btn('WIPE SAVE', 'danger', async () => {
       if (!(await this.confirmBox('WIPE SAVE', `<p>Delete <b>${esc(p.name)}</b> and start over from level 1? This clears browser storage and cookies.</p><p class="red">This cannot be undone unless you exported your save.</p>`, 'WIPE EVERYTHING', true))) return;
-      P.wipe(); this.app.profile = P.newProfile(p.name); this.st.loadout.sel = null; this.prepareProfile(); this.commit({ ok: true, msg: 'Save wiped - welcome to Speranzia' }, 'ui_back');
+      P.wipe(); this.app.profile = P.newProfile(p.name); this.st.loadout.sel = null; this.prepareProfile(); this.commit({ ok: true, msg: 'Save wiped - welcome (back) to Desperanza' }, 'ui_back');
     }));
     C.body.appendChild(sb);
+    C.body.appendChild(div('lbl', 'ABOUT'));
+    C.body.appendChild(div('dimc rd-about', `<p>${esc(DISCLAIMER)}</p><p>ARK: Autonomous Repossession Konglomerate. The K was a branding decision.</p>`));
     wrap.appendChild(C.root);
     body.appendChild(wrap);
   }

@@ -12,6 +12,7 @@ import { SR, rng, peak, rms } from './dsp.js';
 import { SFX, PREWARM } from './sfx.js';
 import { MusicEngine, MUSIC_STATES, MAPS } from './music.js';
 import { SONGS } from './songs.js';
+import { Muzak } from './muzak.js';
 
 const NOOP = Object.freeze({ stop() {}, setPos() {}, setVol() {}, setPitch() {}, setOccluded() {}, playing: false });
 const MAX_VOICES = 48, MAX_LOOPS = 32;
@@ -322,12 +323,15 @@ export class AudioSystem {
   duck(amount = 0.5, time = 1) { if (this.ctx) try { this.mus.duck(amount, time); } catch (e) { this._err('duck', e); } }
   muffle(on = true, freq) { if (this.ctx) try { this.mus.muffle(on, freq); } catch (e) { this._err('muffle', e); } }
   stopMusic(fade = 1.5) { if (this.ctx) this.mus.stop(fade); this.pendingMusic = null; }
+  // cargo-elevator muzak, called every frame per elevator with its replicated state (see muzak.js)
+  muzak(x, o) { if (this.ctx && x) try { (this.mz ||= new Muzak(this)).update(x, o); } catch (e) { this._err('muzak', e); } }
 
   stopAll() {
     if (!this.ctx) return;
     for (const v of this.voices.slice()) this._stopVoice(v, 0.05);
     for (const L of [...this.loops]) this._stopLoop(L, 0.1);
     this.wloops = {};
+    this.mz?.stop(0.1);
     this.stopMusic(0.5);
   }
 

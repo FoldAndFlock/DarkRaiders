@@ -1,4 +1,5 @@
-// Speranzia workshop logic: benches, crafting, blueprints, recycling, weapon tiers + repair, Scrappie.
+// Desperanza workshop logic: benches, crafting, blueprints, recycling, weapon tiers + repair, and Nugget
+// the workshop rooster (internal id: scrappie / SCRAPPY - kept so saves keep working).
 // Pure logic on a profile object (no DOM). Every mutating call returns { ok, msg, ... }.
 // Materials are counted from stash + backpack + safe pocket + quick use (never equipped gear) and
 // consumed from the stash first, then the backpack (see profile.materialTake).
@@ -65,7 +66,7 @@ export function craft(p, r, times = 1) {
   if (st.status !== 'ok') return no(st.reason, { missing: st.missing });
   times = Math.max(1, Math.min(times, st.max));
   const out = r.qty * times;
-  if (!stashFits(p, [{ id: r.out, qty: out }])) return no('Stash is full');
+  if (!stashFits(p, [{ id: r.out, qty: out }])) return no('Stash is full - nowhere to put it');
   pay(p, r.in, times);
   putAll(p, [{ id: r.out, qty: out }]);
   bump(p, 'crafted', out);
@@ -140,7 +141,7 @@ export function upgradeState(p, stack) {
   const t = nextTier(stack);
   if (!t) return { next: null, ok: false, reason: ITEMS[stack?.id]?.weapon?.tiers?.length ? 'Maximum tier' : 'Cannot be upgraded', missing: {} };
   const need = t.level || 1, lvl = benchLevel(p, 'gunsmith');
-  if (lvl < need) return { next: t, ok: false, reason: `Requires Gunsmith ${['', 'I', 'II', 'III'][need]}`, missing: missingFor(p, t.cost) };
+  if (lvl < need) return { next: t, ok: false, reason: `Requires ${BENCHES.gunsmith?.name || 'Gun Garage'} ${['', 'I', 'II', 'III'][need]}`, missing: missingFor(p, t.cost) };
   const missing = missingFor(p, t.cost);
   if (Object.keys(missing).length) return { next: t, ok: false, reason: 'Missing materials', missing };
   return { next: t, ok: true, reason: '', missing };
@@ -188,7 +189,7 @@ export function repair(p, stack) {
   return ok(`${nm(stack.id)} repaired`);
 }
 
-// ---------------------------------------------------------------- Scrappie (the workshop rooster)
+// ---------------------------------------------------------------- Nugget (the workshop rooster; ids say scrappie)
 export function scrappie(p) {
   if (!p.scrappy || typeof p.scrappy !== 'object') p.scrappy = { level: 1, pending: [] };
   if (!Array.isArray(p.scrappy.pending)) p.scrappy.pending = [];
@@ -203,7 +204,7 @@ export function scrappieFull(p) { return scrappie(p).raids >= (SCRAPPY.capacityR
 // object ({ time } in seconds). Yields scale up to 15 min topside.
 export function scrappieOnRaidEnd(p, raid = 900, rng = Math.random) {
   const sc = scrappie(p);
-  if (scrappieFull(p)) return no('Scrappie\'s nest is full - collect his haul');
+  if (scrappieFull(p)) return no('Nugget\'s nest is full - he is on strike until you collect his haul');
   const secs = raid && typeof raid === 'object' ? (raid.time ?? raid.raidTime ?? 900) : raid;
   const f = Number.isFinite(+secs) ? Math.max(0, Math.min(1, +secs / 900)) : 1;
   const add = [];
@@ -216,11 +217,11 @@ export function scrappieOnRaidEnd(p, raid = 900, rng = Math.random) {
     add.push({ id, qty: q });
   }
   sc.raids++;
-  return ok('Scrappie brought back materials', { added: add });
+  return ok('Nugget brought back materials', { added: add });
 }
 export function scrappieCollect(p) {
   const sc = scrappie(p);
-  if (!sc.pending.length) return no('Nothing to collect yet');
+  if (!sc.pending.length) return no('Nothing to collect yet - Nugget is still out');
   const rest = [], got = [];
   for (const e of sc.pending) {
     let left = e.qty;
@@ -230,14 +231,14 @@ export function scrappieCollect(p) {
   }
   sc.pending = rest;
   if (!rest.length) sc.raids = 0;
-  if (!got.length) return no('Stash is full');
-  return ok(rest.length ? 'Stash full - some items are still waiting' : `Collected ${got.reduce((a, b) => a + b.qty, 0)} items from Scrappie`, { got });
+  if (!got.length) return no('Stash is full - Nugget refuses to leave it on the floor');
+  return ok(rest.length ? 'Stash full - some items are still waiting' : `Collected ${got.reduce((a, b) => a + b.qty, 0)} items from Nugget`, { got });
 }
 export function scrappieUpgrade(p) {
   const nx = scrappieNext(p);
-  if (!nx) return no('Scrappie is fully grown');
+  if (!nx) return no('Nugget is fully grown');
   if (!hasMaterials(p, nx.cost)) return no('Missing items', { missing: missingFor(p, nx.cost) });
   pay(p, nx.cost);
   scrappie(p).level = nx.level;
-  return ok(`Scrappie is now level ${nx.level}`);
+  return ok(`Nugget is now level ${nx.level}. He expects a raise.`);
 }

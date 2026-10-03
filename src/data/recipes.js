@@ -1,10 +1,10 @@
-// AUTO-AUTHORED CONTENT TABLE - DarkRaiders (patterned after ARC Raiders 1.0; names lightly tweaked).
-// Pure data: no imports, no DOM. See docs/ARCHITECTURE.md for the schema and docs/research/items_notes.md for sources.
+// DarkRaiders crafting recipes, grouped by bench (bench ids are internal; player-facing names live in benches.js).
+// Pure data: no imports, no DOM. See docs/ARCHITECTURE.md for the schema.
 
 // `blueprint: true` -> the matching `<item>_blueprint` item must be learned first.
 // `inRaid: true` -> can also be crafted from the inventory topside (in_raid_crafting).
 export const RECIPES = [
-  // ---- Workbench ----
+  // ---- workbench (Wobbly Table) ----
   { id: 'craft_ammo_energy', out: 'ammo_energy', qty: 5, bench: 'workbench', level: 1, blueprint: false, in: { advanced_ark_powercell: 1, battery: 2 } },
   { id: 'craft_ammo_heavy', out: 'ammo_heavy', qty: 10, bench: 'workbench', level: 1, blueprint: false, in: { metal_parts: 3, chemicals: 2 } },
   { id: 'craft_ammo_launcher', out: 'ammo_launcher', qty: 6, bench: 'workbench', level: 1, blueprint: false, in: { ark_motion_core: 1, crude_explosives: 2 } },
@@ -30,7 +30,7 @@ export const RECIPES = [
   { id: 'craft_hairpyn', out: 'hairpyn', qty: 1, bench: 'workbench', level: 1, blueprint: false, in: { metal_parts: 2, plastic_parts: 5 } },
   { id: 'craft_kettel', out: 'kettel', qty: 1, bench: 'workbench', level: 1, blueprint: false, in: { metal_parts: 6, rubber_parts: 8 } },
   { id: 'craft_stitchr', out: 'stitchr', qty: 1, bench: 'workbench', level: 1, blueprint: false, in: { metal_parts: 8, rubber_parts: 4 } },
-  // ---- Refiner ----
+  // ---- refiner (The Upcycler) ----
   { id: 'craft_crude_explosives', out: 'crude_explosives', qty: 1, bench: 'refiner', level: 1, blueprint: false, in: { chemicals: 6 } },
   { id: 'craft_durable_cloth', out: 'durable_cloth', qty: 1, bench: 'refiner', level: 1, blueprint: false, in: { fabric: 14 } },
   { id: 'craft_electrical_components', out: 'electrical_components', qty: 1, bench: 'refiner', level: 1, blueprint: false, in: { plastic_parts: 8, rubber_parts: 4 } },
@@ -48,7 +48,7 @@ export const RECIPES = [
   { id: 'craft_complex_gun_parts', out: 'complex_gun_parts', qty: 1, bench: 'refiner', level: 3, blueprint: true, in: { light_gun_parts: 2, medium_gun_parts: 2, heavy_gun_parts: 2 } },
   { id: 'craft_magnetic_accelerator', out: 'magnetic_accelerator', qty: 1, bench: 'refiner', level: 3, blueprint: false, in: { advanced_mechanical_components: 2, ark_motion_core: 2 } },
   { id: 'craft_power_rod', out: 'power_rod', qty: 1, bench: 'refiner', level: 3, blueprint: false, in: { advanced_electrical_components: 2, ark_circuitry: 2 } },
-  // ---- Gunsmith ----
+  // ---- gunsmith (Gun Garage) ----
   { id: 'craft_angled_grip_i', out: 'angled_grip_i', qty: 1, bench: 'gunsmith', level: 1, blueprint: false, in: { plastic_parts: 6, duct_tape: 1 } },
   { id: 'craft_compensator_i', out: 'compensator_i', qty: 1, bench: 'gunsmith', level: 1, blueprint: false, in: { metal_parts: 6, wires: 1 } },
   { id: 'craft_extended_barrel_i', out: 'extended_barrel_i', qty: 1, bench: 'gunsmith', level: 1, blueprint: false, in: { metal_parts: 6, wires: 3 } },
@@ -104,7 +104,7 @@ export const RECIPES = [
   { id: 'craft_renegayde', out: 'renegayde', qty: 1, bench: 'gunsmith', level: 3, blueprint: false, in: { advanced_mechanical_components: 2, medium_gun_parts: 3, oil: 5 } },
   { id: 'craft_tempesta', out: 'tempesta', qty: 1, bench: 'gunsmith', level: 3, blueprint: true, in: { magnetic_accelerator: 1, medium_gun_parts: 3, exodos_modules: 2 } },
   { id: 'craft_volcano', out: 'volcano', qty: 1, bench: 'gunsmith', level: 3, blueprint: true, in: { magnetic_accelerator: 1, heavy_gun_parts: 3, exodos_modules: 1 } },
-  // ---- Gear Bench ----
+  // ---- gear_bench (Sewing Circle) ----
   { id: 'craft_combat_mk_1', out: 'combat_mk_1', qty: 1, bench: 'gear_bench', level: 1, blueprint: false, in: { rubber_parts: 6, plastic_parts: 6 } },
   { id: 'craft_tactical_mk_1', out: 'tactical_mk_1', qty: 1, bench: 'gear_bench', level: 1, blueprint: false, in: { rubber_parts: 6, plastic_parts: 6 } },
   { id: 'craft_combat_mk_2', out: 'combat_mk_2', qty: 1, bench: 'gear_bench', level: 2, blueprint: false, in: { electrical_components: 2, magnet: 3 } },
@@ -121,7 +121,7 @@ export const RECIPES = [
   { id: 'craft_tactical_mk_3_healing', out: 'tactical_mk_3_healing', qty: 1, bench: 'gear_bench', level: 3, blueprint: true, in: { advanced_electrical_components: 2, processor: 3 } },
   { id: 'craft_tactical_mk_3_revival', out: 'tactical_mk_3_revival', qty: 1, bench: 'gear_bench', level: 3, blueprint: true, in: { advanced_electrical_components: 2, processor: 3 } },
   { id: 'craft_tactical_mk_3_smoke', out: 'tactical_mk_3_smoke', qty: 1, bench: 'gear_bench', level: 3, blueprint: true, in: { advanced_electrical_components: 2, processor: 3 } },
-  // ---- Medical Lab ----
+  // ---- medical_lab (Medicine Cabinet) ----
   { id: 'craft_adrenaline_shot', out: 'adrenaline_shot', qty: 1, bench: 'medical_lab', level: 1, blueprint: false, in: { chemicals: 3, plastic_parts: 3 }, inRaid: true },
   { id: 'craft_herbal_bandage', out: 'herbal_bandage', qty: 1, bench: 'medical_lab', level: 1, blueprint: false, in: { durable_cloth: 1, great_mullein: 1 } },
   { id: 'craft_white_flag', out: 'white_flag', qty: 1, bench: 'medical_lab', level: 1, blueprint: true, in: { fabric: 10, plastic_parts: 3 } },
@@ -130,7 +130,7 @@ export const RECIPES = [
   { id: 'craft_surge_shield_recharger', out: 'surge_shield_recharger', qty: 1, bench: 'medical_lab', level: 2, blueprint: false, in: { electrical_components: 1, advanced_ark_powercell: 1 } },
   { id: 'craft_vyta_shot', out: 'vyta_shot', qty: 1, bench: 'medical_lab', level: 3, blueprint: true, in: { antiseptic: 2, syringe: 1 } },
   { id: 'craft_vyta_spray', out: 'vyta_spray', qty: 1, bench: 'medical_lab', level: 3, blueprint: true, in: { antiseptic: 3, canister: 1, tikk_pod: 1 } },
-  // ---- Explosives Station ----
+  // ---- explosives_station (Bad Idea Bench) ----
   { id: 'craft_gas_grenade', out: 'gas_grenade', qty: 1, bench: 'explosives_station', level: 1, blueprint: false, in: { chemicals: 4, rubber_parts: 2 } },
   { id: 'craft_seeker_grenade', out: 'seeker_grenade', qty: 1, bench: 'explosives_station', level: 1, blueprint: true, in: { crude_explosives: 1, ark_alloy: 2 } },
   { id: 'craft_gas_mine', out: 'gas_mine', qty: 1, bench: 'explosives_station', level: 1, blueprint: true, in: { chemicals: 4, rubber_parts: 2 } },
@@ -148,7 +148,7 @@ export const RECIPES = [
   { id: 'craft_wulfpack', out: 'wulfpack', qty: 1, bench: 'explosives_station', level: 3, blueprint: true, in: { explosive_compound: 1, ark_motion_core: 2, rocketier_driver: 1 } },
   { id: 'craft_dedline', out: 'dedline', qty: 1, bench: 'explosives_station', level: 3, blueprint: true, in: { komet_igniter: 1, explosive_compound: 3, ark_circuitry: 2 } },
   { id: 'craft_explosive_mine', out: 'explosive_mine', qty: 1, bench: 'explosives_station', level: 3, blueprint: true, in: { explosive_compound: 1, sensors: 1 } },
-  // ---- Utility Station ----
+  // ---- utility_station (Junk Drawer) ----
   { id: 'craft_barricade_kit', out: 'barricade_kit', qty: 1, bench: 'utility_station', level: 1, blueprint: true, in: { mechanical_components: 1 } },
   { id: 'craft_binoculars', out: 'binoculars', qty: 1, bench: 'utility_station', level: 1, blueprint: false, in: { plastic_parts: 8, rubber_parts: 4 } },
   { id: 'craft_door_blocker', out: 'door_blocker', qty: 1, bench: 'utility_station', level: 1, blueprint: false, in: { metal_parts: 3, rubber_parts: 3 } },

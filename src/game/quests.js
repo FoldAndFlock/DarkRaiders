@@ -82,10 +82,12 @@ export function abandonQuest(p, id) {
 
 // ---------------------------------------------------------------- step text + progress
 const arkName = (t) => t === 'any' ? 'ARK' : (ARK[t]?.name || ARK[ARK_ALIAS[t]]?.name || title(t));
+// container kinds whose player-facing name differs from their id
+const CONTAINER_NAMES = { field_depot: 'Supply Shack', arc_crate: 'ARK Crate', arc_husk: 'ARK Husk' };
 const containerName = (c) => {
   if (Array.isArray(c)) return c.map(containerName).join(' / ');
   if (c === 'any') return 'containers';
-  return ARK_HUSKS?.[c]?.name || title(c);
+  return ARK_HUSKS?.[c]?.name || CONTAINER_NAMES[c] || title(c);
 };
 export function poiName(map, poi) { return (QUEST_POIS[map]?.[poi]?.name || title(poi)).replace(/\s*\(any\)/i, ''); }
 const withName = (w) => w === 'grenade' ? 'grenades' : Array.isArray(w) ? w.map(nm).join(' / ') : nm(w);

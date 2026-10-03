@@ -1,6 +1,6 @@
 // Green Gate custom voxel props (all kinds prefixed `gg_`). Registered on import.
-// Built procedurally and deterministically (local seeded hash, never Math.random) so every
-// co-op client builds identical geometry. Local axes: x right, y up, z toward camera (+z = south).
+// Built procedurally and deterministically (local seeded hash, never Math.random) so every co-op client builds
+// identical geometry. Local axes: x right, y up, z toward camera (+z = south). Signs use a 3x5 pixel font and face south.
 import { Vox, registerProp } from '../engine/models.js';
 
 const C = {
@@ -46,74 +46,109 @@ function shadeRock(v, seed) {
   }
 }
 
-// ------------------------------------------------------------------ THE GATE
-// Gate pylon: 8 x 8 m footprint, 24 m tall concrete tower with green steel bands + beacon.
-P('gg_gatepylon', () => {
-  const v = new Vox(16, 49, 16, 0.5, [8, 0, 8]);
-  v.box(0, 0, 0, 15, 3, 15, C.concD);
-  v.box(1, 4, 1, 14, 44, 14, (x, y, z) => ((x === 1 || x === 14 || z === 1 || z === 14) && (x + z) % 4 === 0 ? C.conc2 : C.conc));
-  hazardBand(v, 0, 3, 0, 15, 4, 15, 2);
-  for (const y of [16, 30, 40]) v.box(0, y, 0, 15, y + 2, 15, (x, yy, z) => (yy === y + 1 && (x + z) % 3 === 0 ? C.greenD : C.green));
-  v.box(3, 33, 15, 12, 37, 15, C.greenL);              // panel
-  for (let x = 4; x < 12; x += 2) v.set(x, 35, 15, C.gY);
-  v.box(0, 45, 0, 15, 46, 15, C.concD); v.box(2, 47, 2, 13, 47, 13, C.steelD);
-  v.box(7, 48, 7, 8, 48, 8, C.gR);
-  for (const [x, z] of [[0, 0], [15, 0], [0, 15], [15, 15]]) v.box(x, 44, z, x, 46, z, C.gR);
-  v.glow(C.gR).glow(C.gY);
-  return v.build();
-}, { solid: [4, 4, 24] });
-// Gate wall: 24 m long (x) x 12 m deep (z) x 15 m tall; concrete base, green steel faces, and the
-// row of heavy top beams that reads as stripes from above (as on the reference map).
-P('gg_gatewall', () => {
-  const v = new Vox(48, 31, 24, 0.5, [24, 0, 12]);
-  v.box(0, 0, 0, 47, 9, 23, (x, y, z) => (y % 4 === 0 ? C.concS : C.conc));
-  hazardBand(v, 0, 9, 0, 47, 9, 23, 2);
-  for (const [z0, z1] of [[0, 4], [19, 23]]) {
-    v.box(0, 10, z0, 47, 25, z1, C.green);
-    for (let x = 0; x < 48; x += 6) v.box(x, 10, z0, x, 25, z1, C.greenD);
-    for (const y of [14, 20]) v.box(0, y, z0, 47, y, z1, C.greenD);
+// ------------------------------------------------------------------ SIGNAGE (3x5 pixel font, faces +z / south)
+const FONT = {
+  A: '010101111101101', B: '110101110101110', C: '011100100100011', D: '110101101101110', E: '111100110100111', F: '111100110100100',
+  G: '011100101101011', H: '101101111101101', I: '111010010010111', J: '001001001101010', K: '101101110101101', L: '100100100100111',
+  M: '101111111101101', N: '110101101101101', O: '010101101101010', P: '110101110100100', Q: '010101101110011', R: '110101110101101',
+  S: '011100010001110', T: '111010010010010', U: '101101101101111', V: '101101101101010', W: '101101111111101', X: '101101010101101',
+  Y: '101101010010010', Z: '111001010100111', 0: '111101101101111', 1: '010110010010111', 2: '110001010100111', 3: '110001010001110',
+  4: '101101111001001', 5: '111100110001110', 6: '011100111101111', 7: '111001010010010', 8: '111101111101111', 9: '111101111001110',
+  '.': '000000000000010', '-': '000000111000000', '!': '010010010000010', '?': '110001010000010', ':': '000010000010000',
+  '(': '001010010010001', ')': '100010010010100', '&': '010101010101011', '%': '101001010100101', '/': '001001010100100', "'": '010010000000000', '#': '101111101111101', ' ': '000000000000000',
+};
+// draw text into v on the plane z = zf (front face), top-left at (x0, yTop); returns width in voxels
+function drawText(v, text, x0, yTop, zf, c) {
+  let x = x0;
+  for (const ch of text.toUpperCase()) {
+    const g = FONT[ch] || FONT[' '];
+    for (let r = 0; r < 5; r++) for (let k = 0; k < 3; k++) if (g[r * 3 + k] === '1') v.set(x + k, yTop - r, zf, c);
+    x += 4;
   }
-  v.box(0, 10, 5, 47, 22, 18, C.concS);
-  v.box(0, 26, 0, 47, 26, 23, C.steelD);
-  for (const z of [1, 6, 11, 16, 21]) v.box(0, 27, z - 1, 47, 29, z + 1, (x, y) => (y === 29 ? C.steelL : C.steel));
-  for (let x = 2; x < 48; x += 8) { v.box(x, 23, 23, x + 1, 23, 23, C.gY); v.box(x, 23, 0, x + 1, 23, 0, C.gY); }
-  v.glow(C.gY);
+  return x - x0;
+}
+const textW = (t) => t.length * 4 - 1;
+// billboard on two posts: lines of text, board facing south; s = metres per voxel, post = board bottom height (m)
+function billboard(lines, { bg = C.navy, fg = C.white, trim = C.haz, s = 0.2, post = 3.2, glow = false } = {}) {
+  const tw = Math.max(...lines.map(textW)), bw = tw + 6, bh = lines.length * 7 + 3, ph = Math.round(post / s);
+  const v = new Vox(bw, ph + bh, 4, s, [bw / 2, 0, 2]);
+  for (const x of [3, bw - 4]) v.box(x, 0, 1, x + 1, ph + 1, 2, C.steelD);
+  v.box(0, ph, 1, bw - 1, ph + bh - 1, 2, bg);
+  v.box(0, ph, 3, bw - 1, ph, 3, trim); v.box(0, ph + bh - 1, 3, bw - 1, ph + bh - 1, 3, trim);
+  v.box(0, ph, 3, 0, ph + bh - 1, 3, trim); v.box(bw - 1, ph, 3, bw - 1, ph + bh - 1, 3, trim);
+  lines.forEach((t, i) => drawText(v, t, Math.round((bw - textW(t)) / 2), ph + bh - 3 - i * 7, 3, fg));
+  if (glow) v.glow(fg);
   return v.build();
-}, { solid: [12, 6, 15] });
-// Gate leaf: sliding green steel door 16 x 2 x 12 m.
+}
+// flat painted lettering (lies on the ground / a roof; reads from the south)
+function flatText(text, c = 0xd8d4c4, s = 0.3) {
+  const v = new Vox(textW(text) + 2, 1, 7, s, [(textW(text) + 2) / 2, 0, 3.5]);
+  let x = 1;
+  for (const ch of text.toUpperCase()) { const g = FONT[ch] || FONT[' ']; for (let r = 0; r < 5; r++) for (let k = 0; k < 3; k++) if (g[r * 3 + k] === '1') v.set(x + k, 0, 1 + r, c); x += 4; }
+  return v.build();
+}
+P('gg_bb_gate', () => billboard(['GATEKEEPING DEPARTMENT', 'YOUR CALL IS IMPORTANT'], { bg: C.greenD, fg: C.white, post: 1.0 }), {});
+P('gg_bb_toll', () => billboard(['NOW SERVING: 7', 'YOUR NUMBER: 9,412'], { bg: C.black, fg: C.gY, trim: C.red, post: 0.4, glow: true }), {});
+P('gg_bb_cloud', () => billboard(['THE CLOUD', '(BASEMENT)'], { bg: 0x2a4a6a, fg: C.white, post: 2.4 }), { solid: [0.3, 0.3, 3] });
+P('gg_bb_estates', () => billboard(['COMING SOON', 'LUXURY LIVING - PHASE 2'], { bg: C.cream, fg: C.navy, trim: C.green, post: 2.4 }), { solid: [0.3, 0.3, 3] });
+P('gg_bb_retreat', () => billboard(['PEAK PERFORMANCE', 'RETREAT & SYNERGY SPA'], { bg: C.white, fg: C.greenD, trim: C.greenL, post: 2.2 }), { solid: [0.3, 0.3, 3] });
+P('gg_bb_fulfil', () => billboard(['UNFULFILLMENT CENTER', 'ORDERS SHIP: EVENTUALLY'], { bg: 0x6a3a1a, fg: C.cream, trim: C.haz, post: 0.6 }), {});
+P('gg_bb_village', () => billboard(['LOWER FORECLOSURE', 'PLEASE DRIVE CAREFULLY'], { bg: C.woodD, fg: C.cream, trim: C.woodL, s: 0.15, post: 1.6 }), { solid: [0.3, 0.3, 2] });
+P('gg_bb_quarry', () => billboard(['QUARTERLY QUARRY', 'TARGETS: MISSED'], { bg: C.haz, fg: C.black, trim: C.black, s: 0.15, post: 1.6 }), { solid: [0.3, 0.3, 2] });
+P('gg_bb_fort', () => billboard(['FORT KNOCKS', 'NOBODY ANSWERS'], { bg: 0x5a4a32, fg: C.cream, trim: 0x8a7a56, s: 0.15, post: 1.4 }), { solid: [0.3, 0.3, 2] });
+P('gg_bb_squat', () => billboard(['NO TRESPASSING', '(EXCEPT US)'], { bg: C.woodL, fg: C.red, trim: C.woodD, s: 0.12, post: 0.8 }), { solid: [0.2, 0.2, 1.6] });
+P('gg_bb_trial', () => billboard(['FREE TRIAL', 'AUTO-RENEWS'], { bg: C.woodL, fg: C.black, trim: C.woodD, s: 0.12, post: 0.8 }), { solid: [0.2, 0.2, 1.6] });
+P('gg_bb_lake', () => billboard(['LAKE ESCROW', 'NO SWIMMING UNTIL CLOSING'], { bg: 0x2a5a7a, fg: C.white, trim: C.white, s: 0.15, post: 1.4 }), { solid: [0.3, 0.3, 2] });
+P('gg_bb_bridge', () => billboard(['BRIDGE OUT', 'INFRASTRUCTURE WEEK'], { bg: 0xe86a20, fg: C.black, trim: C.black, s: 0.15, post: 1.2 }), { solid: [0.3, 0.3, 2] });
+P('gg_bb_saw', () => billboard(['DOWNSIZING SAWMILL', 'NOW HIRING (NOT)'], { bg: C.woodD, fg: C.haz, trim: C.woodL, s: 0.15, post: 1.6 }), { solid: [0.3, 0.3, 2] });
+P('gg_bb_olive', () => billboard(['OLIVE BRANCH OFFICE', 'EXTRA VIRGIN SINCE NEVER'], { bg: C.oliveD, fg: C.cream, trim: C.oliveL, s: 0.15, post: 1.2 }), { solid: [0.3, 0.3, 2] });
+P('gg_txt_slow', () => flatText('SLOW'), { cast: false });
+P('gg_txt_wait', () => flatText('WAIT HERE'), { cast: false });
+P('gg_txt_hold', () => flatText('PLEASE HOLD', C.gY), { cast: false });
+P('gg_txt_h', () => { const v = new Vox(30, 1, 30, 0.2, [15, 0, 15]); for (let z = 0; z < 30; z++) for (let x = 0; x < 30; x++) { const d = Math.hypot(x - 14.5, z - 14.5); if (d > 13 && d < 14.6) v.set(x, 0, z, C.white); } v.box(9, 0, 7, 11, 0, 22, C.white); v.box(18, 0, 7, 20, 0, 22, C.white); v.box(12, 0, 13, 17, 0, 15, C.white); return v.build(); }, { cast: false });
+
+// ------------------------------------------------------------------ THE GATE (Gatekeeping Department)
+// Sliding gate leaf: 7 m long (local x) x 1 m x 5.6 m; green X-braced panels, hazard foot, wheels, beacon.
 P('gg_gateleaf', () => {
-  const v = new Vox(32, 24, 4, 0.5, [16, 0, 2]);
-  v.box(0, 0, 0, 31, 23, 3, (x, y, z) => (x % 4 === 0 ? C.greenD : (y % 6 === 0 ? C.greenX : C.green)));
-  hazardBand(v, 0, 0, 0, 31, 1, 3, 2);
-  v.box(15, 0, 0, 16, 23, 3, C.steelD);
-  v.box(0, 22, 0, 31, 23, 3, C.steel);
-  for (let x = 3; x < 31; x += 7) v.set(x, 19, 3, C.gY);
-  v.glow(C.gY);
+  const v = new Vox(70, 58, 10, 0.1, [35, 0, 5]);
+  v.box(0, 2, 2, 69, 55, 7, C.green);
+  for (let x = 0; x < 70; x++) for (let y = 2; y < 56; y++) {
+    const px = x % 23, t = (y - 2) / 53 * 22;
+    if (Math.abs(px - t) < 1.2 || Math.abs(px - (22 - t)) < 1.2) v.box(x, y, 1, x, y, 8, C.greenD);
+  }
+  for (const x of [0, 23, 46, 69]) v.box(x, 2, 1, Math.min(69, x + 1), 55, 8, C.steelD);
+  v.box(0, 54, 1, 69, 55, 8, C.steel); v.box(0, 2, 1, 69, 3, 8, C.steel);
+  hazardBand(v, 0, 4, 0, 69, 9, 9, 3);
+  for (const x of [6, 34, 62]) v.box(x, 0, 3, x + 3, 2, 6, C.black);
+  v.box(33, 56, 4, 36, 57, 5, C.gO); v.glow(C.gO);
   return v.build();
-}, { solid: [8, 1, 12] });
-// overhead gantry with a green highway sign
-P('gg_gantry', () => {
-  const v = new Vox(64, 36, 4, 0.25, [32, 0, 2]);
-  v.box(0, 0, 1, 1, 33, 2, C.steelD); v.box(62, 0, 1, 63, 33, 2, C.steelD);
-  v.box(0, 30, 0, 63, 31, 3, C.steel);
-  v.box(10, 22, 3, 53, 29, 3, C.green); v.box(10, 22, 3, 53, 22, 3, C.white); v.box(10, 29, 3, 53, 29, 3, C.white);
-  const txt = [14, 15, 17, 19, 20, 23, 25, 26, 28, 31, 33, 34, 36, 39, 41, 42, 44, 47, 48];
-  for (const x of txt) v.box(x, 25, 3, x, 27, 3, C.white);
-  v.box(46, 24, 3, 50, 27, 3, C.white);
-  return v.build();
-}, { solid: [0.3, 0.3, 8] });
-P('gg_portal', () => {   // tunnel portal facade: 22 m wide, 10 m tall, 3 m deep; opening 14 m
-  const v = new Vox(44, 20, 6, 0.5, [22, 0, 3]);
-  v.box(0, 0, 0, 43, 19, 5, C.conc);
-  v.box(8, 0, 0, 35, 13, 5, -1);                        // opening
-  for (let x = 8; x <= 35; x++) { const t = Math.abs(x - 21.5) / 14; const yy = 13 + Math.round(3 * (1 - t * t)); v.box(x, 13, 0, x, yy, 5, -1); }
-  hazardBand(v, 7, 0, 5, 7, 16, 5, 2); hazardBand(v, 36, 0, 5, 36, 16, 5, 2);
-  v.box(0, 18, 0, 43, 19, 5, C.concD);
-  for (let x = 10; x < 34; x += 4) v.set(x, 17, 5, C.gY);
-  v.box(2, 4, 5, 5, 8, 5, C.green); v.box(38, 4, 5, 41, 8, 5, C.green);
+}, { solid: [3.5, 0.5, 5.6] });
+// Tunnel portal headwall: 34 m wide (local x), opening 26 x 5.4 m, parapet 7.2 m; front face +z.
+P('gg_portal', () => {
+  const v = new Vox(136, 29, 10, 0.25, [68, 0, 5]);
+  v.box(0, 0, 0, 135, 28, 7, (x, y) => (y % 8 === 0 ? C.concS : (x % 16 === 0 ? C.conc2 : C.conc)));
+  v.box(16, 0, 0, 119, 21, 9, -1);
+  for (let x = 16; x <= 119; x++) { const t = Math.abs(x - 67.5) / 52; v.box(x, 21, 0, x, 21 + Math.round(2 * (1 - t * t)), 7, -1); }
+  hazardBand(v, 14, 0, 8, 15, 22, 9, 2); hazardBand(v, 120, 0, 8, 121, 22, 9, 2);
+  v.box(0, 27, 0, 135, 28, 9, C.concD);
+  v.box(20, 24, 8, 115, 26, 9, C.green);
+  for (let x = 22; x < 114; x += 6) v.set(x, 25, 9, C.gY);
   v.glow(C.gY);
   return v.build();
 }, {});
+// overhead lane gantry over the gate apron (signal heads, no text)
+P('gg_gantry', () => {
+  const v = new Vox(80, 36, 4, 0.25, [40, 0, 2]);
+  v.box(0, 0, 1, 1, 33, 2, C.steelD); v.box(78, 0, 1, 79, 33, 2, C.steelD);
+  v.box(0, 30, 0, 79, 32, 3, C.steel);
+  for (let x = 8; x < 74; x += 12) { v.box(x, 25, 1, x + 4, 29, 3, C.black); v.set(x + 1, 27, 3, C.gR); v.set(x + 3, 27, 3, C.gG); }
+  v.glow(C.gR).glow(C.gG);
+  return v.build();
+}, { solid: [0.3, 0.3, 8] });
+// "take a number" ticket dispenser
+P('gg_ticket', () => { const v = new Vox(6, 16, 6, 0.1, [3, 0, 3]); v.box(2, 0, 2, 3, 10, 3, C.steelD); v.box(0, 10, 0, 5, 15, 5, C.red); v.box(1, 12, 5, 4, 14, 5, C.white); v.set(2, 11, 5, C.gY); v.glow(C.gY); return v.build(); }, { solid: [0.25, 0.25, 1.5] });
+// pedestrian turnstile
+P('gg_turnstile', () => { const v = new Vox(12, 11, 10, 0.1, [6, 0, 5]); v.box(0, 0, 0, 1, 10, 9, C.steel); v.box(10, 0, 0, 11, 10, 9, C.steel); v.cyl(6, 5, 0, 8, 1.2, C.steelD); for (let a = 0; a < 3; a++) { const an = a * 2.094; for (let t = 1; t < 5; t++) v.set(6 + Math.cos(an) * t, 7, 5 + Math.sin(an) * t, C.steelL); } return v.build(); }, { solid: [0.6, 0.5, 1.0] });
 P('gg_rubble', () => {
   const v = new Vox(32, 14, 24, 0.25, [16, 0, 12]); const r = hrng(77);
   for (let i = 0; i < 26; i++) {
@@ -261,7 +296,7 @@ P('gg_transformer', () => {
   v.box(1, 8, 11, 6, 11, 11, C.haz);
   return v.build();
 }, { solid: [0.8, 0.6, 1.6] });
-P('gg_dish', () => {        // satellite dish (church roof quest + comms)
+P('gg_dish', () => {        // satellite dish (chapel roof quest + comms)
   const v = new Vox(24, 26, 16, 0.1, [12, 0, 8]);
   v.box(10, 0, 6, 13, 10, 9, C.steelD);
   for (let y = 0; y < 26; y++) for (let x = 0; x < 24; x++) {
@@ -387,7 +422,7 @@ P('gg_scree', () => {
   return v.build();
 }, { cast: false });
 
-// ------------------------------------------------------------------ WRECKAGE (Adorned Wreckage, Broken Earth)
+// ------------------------------------------------------------------ WRECKAGE (Feng Shui Crash Site, Market Correction)
 P('gg_wreck_ring', () => {   // giant fuselage ring lying on its side, adorned with cloth + string lights
   const v = new Vox(38, 36, 22, 0.25, [19, 0, 11]); const r = hrng(12);
   for (let y = 0; y < 36; y++) for (let x = 0; x < 38; x++) {
@@ -416,7 +451,7 @@ P('gg_wreck_fin', () => {
   for (let y = 4; y < 26; y += 5) v.box(1, y, 14, 1, y + 2, 16, C.cloth1);
   return v.build();
 }, { solid: [0.6, 3.2, 6] });
-P('gg_husk_big', () => {    // felled heavy ARK walker (Deforestr / Broken Earth set dressing)
+P('gg_husk_big', () => {    // felled heavy ARK walker (Hedge Fund / Market Correction set dressing)
   const v = new Vox(40, 18, 40, 0.25, [20, 0, 20]); const r = hrng(51);
   v.box(10, 2, 12, 29, 12, 29, 0x34363a); v.box(12, 12, 14, 27, 14, 27, 0x4a4e54); v.box(16, 14, 17, 23, 16, 24, 0x2a2c30);
   v.box(17, 7, 30, 22, 10, 33, 0x4a4e54); v.box(18, 8, 34, 21, 9, 34, C.rustD);
@@ -588,17 +623,6 @@ P('gg_printer', () => {        // field printer that spits the Locked Gate secur
   v.box(1, 3, 7 - 1, 3, 4, 6, C.gG); v.box(6, 8, 6, 8, 8, 6, C.gR); v.glow(C.gG).glow(C.gR);
   return v.build();
 }, { solid: [0.5, 0.35, 1.0] });
-P('gg_gatebalcony', () => {      // steel sentry balcony cantilevered off the gate face; deck top 8.0 m, back edge at local z = -1.75
-  const v = new Vox(16, 36, 14, 0.25, [8, 0, 7]);
-  v.box(0, 30, 0, 15, 31, 13, C.steelD); v.box(0, 31, 0, 15, 31, 13, (x, y, z) => ((x + z) % 4 === 0 ? C.steel : C.steelD));
-  for (let i = 0; i < 16; i++) if (i % 3 !== 1) { v.box(i, 32, 13, i, 35, 13, C.steel); }
-  for (let i = 0; i < 14; i++) if (i % 3 !== 1) { v.box(0, 32, i, 0, 35, i, C.steel); v.box(15, 32, i, 15, 35, i, C.steel); }
-  v.box(0, 35, 0, 0, 35, 13, C.haz); v.box(15, 35, 0, 15, 35, 13, C.haz); v.box(0, 35, 13, 15, 35, 13, C.haz);
-  for (const x of [1, 14]) for (let t = 0; t <= 12; t++) v.box(x, 18 + t, Math.round(t), x, 18 + t, Math.round(t), C.steelD);   // diagonal struts into the wall
-  v.box(0, 17, 0, 15, 18, 1, C.steelD);
-  v.box(14, 32, 1, 15, 34, 2, C.steelD); v.set(15, 34, 2, C.gW); v.glow(C.gW);
-  return v.build();
-}, {});
 P('gg_venthouse', () => {     // small ventilation housing next to an airshaft head: louvred box + duct
   const v = new Vox(16, 12, 12, 0.15, [8, 0, 6]);
   v.box(0, 0, 0, 15, 1, 11, C.concD);
@@ -608,3 +632,126 @@ P('gg_venthouse', () => {     // small ventilation housing next to an airshaft h
   v.box(0, 4, 4, 0, 7, 7, C.haz);
   return v.build();
 }, { solid: [1.2, 0.9, 1.7] });
+
+// ------------------------------------------------------------------ SET DRESSING (lake, quarry, sawmill, retreat, shelf, farms)
+P('gg_scope', () => {        // coin-operated binoculars (the Scenic Overlook's premium tier)
+  const v = new Vox(8, 16, 8, 0.1, [4, 0, 4]);
+  v.box(3, 0, 3, 4, 9, 4, C.steelD); v.box(1, 0, 1, 6, 0, 6, C.concD);
+  v.box(1, 10, 2, 6, 13, 5, C.green); v.box(1, 11, 6, 2, 12, 7, C.black); v.box(5, 11, 6, 6, 12, 7, C.black);
+  v.box(3, 14, 3, 4, 14, 4, C.haz);
+  return v.build();
+}, { solid: [0.3, 0.3, 1.4] });
+P('gg_tank', () => {         // round settling / water tank, 6 m across, 3 m tall, rail on top
+  const v = new Vox(30, 16, 30, 0.2, [15, 0, 15]);
+  for (let y = 0; y < 14; y++) for (let z = 0; z < 30; z++) for (let x = 0; x < 30; x++) {
+    const d = Math.hypot(x - 14.5, z - 14.5);
+    if (d < 14.5 && (d > 13.2 || y === 0)) v.set(x, y, z, y % 4 === 0 ? C.concS : C.concL);
+    else if (d <= 13.2 && y === 11) v.set(x, y, z, (x + z) % 9 === 0 ? 0x4a7a5a : 0x3a6a5e);
+  }
+  for (let a = 0; a < 40; a++) { const an = a / 40 * Math.PI * 2; v.set(14.5 + Math.cos(an) * 14, 15, 14.5 + Math.sin(an) * 14, C.haz); }
+  v.box(14, 12, 2, 15, 12, 27, C.steel);
+  return v.build();
+}, { solid: [3, 3, 2.9] });
+P('gg_crane', () => {        // quarry derrick: mast + lattice boom + hook
+  const v = new Vox(60, 70, 12, 0.25, [6, 0, 6]);
+  v.box(2, 0, 2, 9, 2, 9, C.concD);
+  for (let y = 3; y < 62; y++) { v.set(4, y, 4, C.haz); v.set(7, y, 4, C.haz); v.set(4, y, 7, C.haz); v.set(7, y, 7, C.haz); if (y % 6 === 0) v.box(4, y, 4, 7, y, 7, C.steelD); }
+  for (let x = 8; x < 60; x++) { const y = 58 + Math.round((x - 8) * 0.12); v.set(x, y, 5, C.haz); v.set(x, y, 6, C.haz); if (x % 4 === 0) v.box(x, y - 2, 5, x, y, 6, C.steelD); v.set(x, y - 2, 5, C.haz); }
+  v.box(56, 20, 5, 56, 63, 6, C.black); v.box(54, 18, 4, 58, 20, 7, C.steelD);
+  v.box(3, 55, 3, 8, 61, 8, C.steelD); v.box(4, 57, 9, 7, 59, 9, C.glass);
+  return v.build();
+}, { solid: [1.2, 1.2, 15] });
+P('gg_crusher', () => {      // rock crusher: hopper on legs over a belt
+  const v = new Vox(30, 30, 24, 0.2, [15, 0, 12]);
+  for (const [x, z] of [[2, 2], [26, 2], [2, 20], [26, 20]]) v.box(x, 0, z, x + 1, 16, z + 1, C.steelD);
+  v.box(1, 16, 1, 28, 18, 22, C.steel);
+  for (let y = 19; y < 30; y++) { const i = Math.round((y - 19) * 0.6); v.box(4 - i, y, 4 - i, 25 + i, y, 19 + i, (x, yy, z) => (x === 4 - i || x === 25 + i || z === 4 - i || z === 19 + i ? C.haz : -1)); }
+  v.box(8, 2, 6, 21, 10, 17, C.rustD); v.box(10, 8, 17, 19, 9, 23, C.black);
+  for (let i = 0; i < 20; i++) v.set(6 + (i * 7) % 18, 29, 6 + (i * 5) % 12, C.rockL);
+  return v.build();
+}, { solid: [2.8, 2.2, 5.5] });
+P('gg_conveyor', () => {     // inclined belt, 12 m (local x), rising to +x
+  const v = new Vox(60, 30, 8, 0.2, [0, 0, 4]);
+  for (let x = 0; x < 60; x++) { const y = Math.round(x * 0.45); v.box(x, y, 1, x, y + 1, 6, x % 5 === 0 ? C.steelD : C.black); v.set(x, y + 2, 1, C.haz); v.set(x, y + 2, 6, C.haz); if (x % 12 === 6) v.box(x, 0, 2, x, y, 5, C.steelD); if (x % 3 === 0) v.set(x, y + 2, 3 + (x % 2), C.rockL); }
+  return v.build();
+}, {});
+P('gg_saw', () => {          // sawmill bench with a big circular blade and a half-cut log
+  const v = new Vox(60, 22, 20, 0.12, [30, 0, 10]);
+  v.box(0, 0, 4, 59, 7, 15, C.steelD); v.box(0, 8, 4, 59, 8, 15, C.steel);
+  for (let y = 0; y < 22; y++) for (let x = 20; x < 40; x++) { const d = Math.hypot(x - 29.5, y - 8); if (d < 9.5) v.set(x, y, 9, d > 8.5 ? ((x + y) % 2 ? C.steelL : C.white) : C.steel); }
+  for (let x = 0; x < 20; x++) for (let y = 9; y < 15; y++) for (let z = 6; z < 14; z++) if ((y - 12) ** 2 + (z - 10) ** 2 < 10) v.set(x, y, z, x === 19 ? 0xb89868 : C.barkO);
+  return v.build();
+}, { solid: [3.5, 1.2, 1.0] });
+P('gg_boat', () => {         // rowboat (long axis z)
+  const v = new Vox(14, 6, 34, 0.12, [7, 0, 17]);
+  for (let z = 0; z < 34; z++) { const t = Math.abs(z - 16.5) / 17, hw = Math.round(6.5 * Math.sqrt(1 - t * t)); if (hw < 1) continue; v.box(7 - hw, 0, z, 6 + hw, 0, z, C.woodD); v.box(7 - hw, 1, z, 7 - hw, 4, z, C.wood); v.box(6 + hw, 1, z, 6 + hw, 4, z, C.wood); }
+  for (const z of [10, 22]) v.box(2, 3, z, 11, 3, z + 1, C.woodL);
+  v.box(1, 4, 15, 12, 4, 15, C.woodD);
+  return v.build();
+}, { solid: [0.8, 2, 0.6] });
+P('gg_firevent', () => {     // floor vent: grate over a glowing burner (the Hedge Fund's fire vents)
+  const v = new Vox(16, 3, 16, 0.12, [8, 0, 8]);
+  v.box(0, 0, 0, 15, 1, 15, C.steelD); v.box(2, 0, 2, 13, 1, 13, C.gO);
+  for (let x = 2; x < 14; x += 2) v.box(x, 2, 1, x, 2, 14, C.black);
+  v.box(0, 2, 0, 15, 2, 0, C.haz); v.box(0, 2, 15, 15, 2, 15, C.haz);
+  v.glow(C.gO);
+  return v.build();
+}, { cast: false });
+P('gg_rack', () => {         // trapper's drying rack with pelts
+  const v = new Vox(30, 18, 6, 0.1, [15, 0, 3]);
+  for (const x of [0, 29]) v.box(x, 0, 2, x, 17, 3, C.woodD);
+  v.box(0, 16, 2, 29, 16, 3, C.wood);
+  for (let i = 0; i < 4; i++) { const x = 3 + i * 7; v.box(x, 7, 2, x + 4, 15, 3, [0x7a5a3a, 0x9a7a52, 0x5a4030, 0xa88a60][i]); }
+  return v.build();
+}, { solid: [1.5, 0.2, 1.7] });
+P('gg_trap', () => { const v = new Vox(8, 2, 8, 0.1, [4, 0, 4]); for (let a = 0; a < 16; a++) { const an = a / 16 * 6.28; v.set(4 + Math.cos(an) * 3.4, 0, 4 + Math.sin(an) * 3.4, C.steelD); if (a % 2) v.set(4 + Math.cos(an) * 3.4, 1, 4 + Math.sin(an) * 3.4, C.steelL); } v.box(3, 0, 3, 4, 0, 4, C.rust); return v.build(); }, { cast: false });
+P('gg_silo', () => {         // farm silo, 4.4 m across, 10 m
+  const v = new Vox(22, 52, 22, 0.2, [11, 0, 11]);
+  for (let y = 0; y < 46; y++) v.cyl(11, 11, y, y, 10.5, (y % 6 === 0) ? C.steelD : (y > 40 ? C.rust : C.steelL));
+  for (let y = 46; y < 52; y++) v.cyl(11, 11, y, y, 10.5 - (y - 45) * 1.7, C.steelD);
+  for (let y = 2; y < 46; y += 2) v.set(11, y, 21, C.black);
+  return v.build();
+}, { solid: [2.1, 2.1, 10] });
+P('gg_hottub', () => {       // the Synergy Spa's hot tub
+  const v = new Vox(24, 6, 24, 0.12, [12, 0, 12]);
+  for (let z = 0; z < 24; z++) for (let x = 0; x < 24; x++) { const d = Math.hypot(x - 11.5, z - 11.5); if (d < 11.5) { v.box(x, 0, z, x, d > 9.5 ? 5 : 3, z, d > 9.5 ? C.woodL : 0x58b0c8); } }
+  v.glow(0x58b0c8);
+  return v.build();
+}, { solid: [1.3, 1.3, 0.6] });
+P('gg_coolers', () => {      // rooftop / pad chiller unit with twin fans (the Cloud's cooling)
+  const v = new Vox(30, 12, 14, 0.15, [15, 0, 7]);
+  v.box(0, 0, 0, 29, 9, 13, (x, y) => (y % 3 === 0 ? C.steelD : 0x9aa2a6));
+  for (const cx of [7, 22]) for (let z = 0; z < 14; z++) for (let x = 0; x < 30; x++) { const d = Math.hypot(x - cx, z - 6.5); if (d < 5.5) v.set(x, 10, z, d > 4.6 ? C.steelD : ((Math.atan2(z - 6.5, x - cx) * 3 / Math.PI + 6 | 0) % 2 ? C.black : C.steel)); }
+  v.box(1, 3, 13, 4, 5, 13, C.gB); v.glow(C.gB);
+  return v.build();
+}, { solid: [2.2, 1.0, 1.5] });
+P('gg_bigfan', () => {       // horizontal exhaust fan in a round collar (the Head Office's lungs)
+  const v = new Vox(30, 8, 30, 0.2, [15, 0, 15]);
+  for (let z = 0; z < 30; z++) for (let x = 0; x < 30; x++) { const d = Math.hypot(x - 14.5, z - 14.5), a = Math.atan2(z - 14.5, x - 14.5);
+    if (d < 14.5 && d > 12.6) v.box(x, 0, z, x, 7, z, (xx, y) => (y === 7 ? C.haz : C.concL));
+    else if (d <= 12.6) { v.set(x, 0, z, C.black); if (d > 2 && (a * 4 / Math.PI + 8 | 0) % 2) v.set(x, 5, z, C.steelL); if (d <= 2) v.box(x, 0, z, x, 6, z, C.steelD); if (Math.abs(x - 14.5) < 0.6 || Math.abs(z - 14.5) < 0.6) v.set(x, 6, z, C.steel); } }
+  return v.build();
+}, { solid: [2.9, 2.9, 1.5] });
+P('gg_hull', () => {         // long crashed ARK hull section half-buried on its side, ribbed, dressed with cloth
+  const v = new Vox(80, 26, 36, 0.25, [40, 0, 18]); const r = hrng(91);
+  for (let x = 0; x < 80; x++) {
+    const taper = x > 64 ? (x - 64) / 16 : 0, R = 16 * (1 - taper * 0.55);
+    for (let y = 0; y < 26; y++) for (let z = 0; z < 36; z++) {
+      const d = Math.hypot(y + 4, z - 17.5);
+      if (d < R && d > R - 1.6) v.set(x, y, z, x % 9 === 0 ? C.steelD : ((x + z) % 13 === 0 ? C.rust : 0xc8c2b4));
+      else if (d < R - 1.6 && x < 2) v.set(x, y, z, C.black);
+    }
+  }
+  for (let i = 0; i < 26; i++) { const x = 4 + r() * 70 | 0, z = 4 + r() * 28 | 0; let y = 25; while (y > 0 && !v.solid(x, y, z)) y--; v.set(x, y + 1, z, [C.cloth1, C.cloth2, C.cloth3, C.cloth4][i % 4]); v.set(x, y + 1, z + 1, [C.cloth1, C.cloth2, C.cloth3, C.cloth4][i % 4]); }
+  for (let i = 0; i < 18; i++) { const x = 3 + i * 4; let y = 25; while (y > 0 && !v.solid(x, y, 17)) y--; if (i % 2) v.set(x, y + 1, 17, C.gY); }
+  v.glow(C.gY);
+  return v.build();
+}, { solid: [10, 3.5, 3.6] });
+P('gg_pump', () => {         // lake intake pump housing with pipe stub
+  const v = new Vox(18, 14, 12, 0.15, [9, 0, 6]);
+  v.box(0, 0, 0, 17, 1, 11, C.concD); v.box(2, 2, 2, 15, 10, 9, (x, y) => (y % 3 ? 0x5a7a8a : 0x4a6a7a));
+  v.box(1, 11, 1, 16, 11, 10, C.steelD); v.cyl(9, 11, 2, 6, 2.5, C.steelL); v.box(7, 4, 10, 11, 7, 11, C.haz);
+  return v.build();
+}, { solid: [1.3, 0.9, 1.7] });
+P('gg_mailbox', () => { const v = new Vox(4, 12, 6, 0.1, [2, 0, 3]); v.box(1, 0, 2, 2, 8, 3, C.woodD); v.box(0, 8, 0, 3, 11, 5, C.red); v.box(3, 10, 1, 3, 11, 1, C.haz); return v.build(); }, { solid: [0.15, 0.15, 1.1] });
+P('gg_forsale', () => { const v = new Vox(12, 16, 3, 0.1, [6, 0, 1.5]); v.box(1, 0, 1, 1, 15, 1, C.white); v.box(1, 15, 1, 11, 15, 1, C.white); v.box(3, 7, 1, 11, 13, 1, C.red); v.box(4, 9, 2, 10, 11, 2, C.white); return v.build(); }, { solid: [0.1, 0.1, 1.5] });

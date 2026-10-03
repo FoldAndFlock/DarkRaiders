@@ -156,3 +156,17 @@ html.touchui .cell.wide img { width: calc(var(--px) * 52px); }
 .touch .tq { position: absolute; }
 .touch .tq.down { box-shadow: inset 0 0 0 calc(var(--tk) * 2px) var(--yellow); background: rgba(240, 192, 48, 0.25); }
 .touch .tq.hidden { display: none; }
+
+/* title screen: logo sized by width and height (phones in landscape), tagline, parody disclaimer
+   pinned to the bottom (inside #ui, so it clears the safe areas) */
+.title-screen { padding-bottom: calc(clamp(8px, var(--fs-s), 16px) * 1.3 + var(--px) * 8px); }
+.title-logo { image-rendering: pixelated; width: min(80vw, 1100px, 120vh); height: auto; flex: none; }
+.title-tag { align-items: center; text-align: center; gap: calc(var(--px) * 2px); max-width: 94vw; }
+.title-tag .title-joke { color: #d8cfb6; }
+.title-legal { position: absolute; left: 0; right: 0; bottom: 0; padding: calc(var(--px) * 3px) 16px calc(var(--px) * 4px); text-align: center;
+  font-family: 'DRSmall', monospace; font-size: clamp(8px, var(--fs-s), 16px); line-height: 1.3; color: #e0d8c0; text-shadow: 1px 1px 0 #000;
+  background: linear-gradient(rgba(6, 6, 8, 0), rgba(6, 6, 8, 0.8) 45%); pointer-events: none; }
+/* raid loading screen tip */
+.load-tip { display: flex; flex-direction: column; align-items: center; gap: calc(var(--px) * 3px); margin-top: calc(var(--px) * 16px);
+  max-width: min(64vw, calc(var(--px) * 340px)); text-align: center; }
+.load-tip-t { line-height: 1.35; min-height: calc(var(--fs) * 2.8); }

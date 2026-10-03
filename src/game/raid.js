@@ -67,7 +67,7 @@ export class RaidGame {
     for (const l of this.world.lamps) this.L.addStatic(l);
     this.cones = new VisionCones(this.R.scene, 64, (x, z, y) => this.world.grid.floorAt(x, z, y ?? 1e9));
     await tick();
-    onProgress(0.7, 'Waking the ARK');
+    onProgress(0.7, 'Waking the ARK (they were on lunch)');
     // gameplay state
     if (this.isHost) {
       this.sim = new Sim(this.world, map, { seed: o.seed, condition: this.cond, raidLen: Math.round((o.raidLen || 1800) * (this.cond?.effects?.durationMul || 1)) });
@@ -117,7 +117,7 @@ export class RaidGame {
     this.audio?.music?.('raid_calm', { map: map.id });
     this.audio?.weather?.({ rain: this.L.weather.rain || 0, wind: Math.min(1, (this.L.weather.wind || 0) / 3), storm: !!this.L.weather.lightning });
     this.audio?.play?.('raid_start');
-    this.banner(map.name.toUpperCase(), '#e8e0c8', `${(this.cond?.name || 'Standard conditions')}  -  ${this.timeOfDay.toUpperCase()} ${this.weather.toUpperCase()}`, 5);
+    this.banner(map.name.toUpperCase(), '#e8e0c8', `${(this.cond?.name || 'Business As Usual')}  -  ${this.timeOfDay.toUpperCase()} ${this.weather.toUpperCase()}`, 5);
     onProgress(1, 'Deploying');
     this.last = performance.now(); this.acc = 0;
     this.running = true;
@@ -212,7 +212,7 @@ export class RaidGame {
       // re-fire 'visit' while inside so "repair X at POI" steps complete once the parts are carried in
       this.visitT = (this.visitT || 0) - 0.5;
       if (cur && this.visitT <= 0) { this.visitT = 3; this.questEvent('visit', { poi: cur.id, aliases: cur.aliases || [], loadout: this.pc?.lo }); }
-      if (me.cold && !this.coldWarned) { this.coldWarned = true; this.banner('FREEZING', '#58c8f0', 'Get indoors to warm up', 3); }
+      if (me.cold && !this.coldWarned) { this.coldWarned = true; this.banner('FREEZING', '#58c8f0', 'Get indoors - the surface is giving you the cold shoulder', 3); }
       if (!me.cold) this.coldWarned = false;
     }
     if (this.showFps) { this.fpsAcc = (this.fpsAcc || 0) * 0.95 + dt * 0.05; const c = this.hud.x; c.fillStyle = '#000'; c.fillRect(this.hud.W - 60, 2, 58, 10); c.fillStyle = '#68e088'; c.font = '8px monospace'; c.fillText(`${(1 / this.fpsAcc).toFixed(0)} FPS ${this.R.lw}x${this.R.lh}`, this.hud.W - 58, 10); }
@@ -316,13 +316,13 @@ export class RaidGame {
       case 'hatch': {
         const x = this.extractsData[it.ref];
         if (x?.state === 'open') return;
-        if (this.extractsData.some(h => h.kind === 'hatch' && h.state === 'open')) { this.hudMsg('ANOTHER HATCH IS OPEN', '#e84a30'); return; }
-        // the map's needsKey (an item id or a key room such as 'raider_hatch'), any raider hatch key otherwise
+        if (this.extractsData.some(h => h.kind === 'hatch' && h.state === 'open')) { this.hudMsg('ANOTHER DOGGY DOOR IS OPEN', '#e84a30'); return; }
+        // the map's needsKey (an item id or a key room such as 'raider_hatch'), any Doggy Door Key otherwise
         const want = x?.needsKey || 'raider_hatch_key';
         const k = Object.keys(ITEMS).find(id => (id === want || id === 'raider_hatch_key' || (ITEMS[id].key && (ITEMS[id].key.room === want || ITEMS[id].key.room === 'raider_hatch'))) && countLoadout(lo, id) > 0);
-        if (!k) { this.hudMsg('REQUIRES A RAIDER HATCH KEY', '#e84a30'); return; }
+        if (!k) { this.hudMsg('REQUIRES A DOGGY DOOR KEY', '#e84a30'); return; }
         takeFrom([lo.backpack, lo.safe, lo.quick], k, 1);
-        this.hudMsg('HATCH OPEN - STEP IN (15S)', '#68e088');
+        this.hudMsg('DOGGY DOOR OPEN - IN YOU GO (15S)', '#68e088');
         this.session.hatch(it.ref);
         break;
       }
@@ -367,7 +367,7 @@ export class RaidGame {
   onHitMarker(r) { this.hitMark = { r, t: 0.18 }; }
   onAlert(ev) { if (this.me && Math.hypot(ev.x - this.me.x, ev.z - this.me.z) < 40) { this.audio?.music?.('combat'); this.combatT = 12; } }
   onDowned(ev) {
-    if (ev.id === this.meId) { this.banner('DOWNED', '#e84a30', this.squadAlive() ? 'Crawl to cover - your squad can revive you  [R] give up' : 'Bleeding out...  [R] give up', 4); this.audio?.music?.('raid_tense'); }
+    if (ev.id === this.meId) { this.banner('DOWNED', '#e84a30', this.squadAlive() ? 'Crawl to cover - your squad can revive you  [R] give up' : 'Bleeding out. Builds character.  [R] give up', 4); this.audio?.music?.('raid_tense'); }
     else this.feed(`${this.view.nameOf(ev.id)} is DOWN`, '#e84a30');
   }
   onKilled(ev) {
@@ -391,7 +391,7 @@ export class RaidGame {
   }
   onExtractOpen(ev) {
     const x = this.extractsData[ev.i]; if (!x) return;
-    if (x.kind === 'hatch') { if (this.near(x, 25)) this.banner('RAIDER HATCH OPEN', '#68e088', 'Step onto it - it seals in 15s', 3); return; }
+    if (x.kind === 'hatch') { if (this.near(x, 25)) this.banner('DOGGY DOOR OPEN', '#68e088', 'Step onto it - it seals in 15s. Good raider.', 3); return; }
     if (this.near(x, 70)) this.banner(extractNoun(x.kind) + ' OPEN', '#68e088', `Get inside and pull the departure lever - it leaves on its own in ${Math.round(ev.t || 90)}s`, 4);
   }
   onExtractClose(ev) { const x = this.extractsData[ev.i]; if (x && this.near(x, 70)) this.banner('DOORS CLOSING', '#e84a30', `${x.name} departs in ${Math.round(ev.t || 8)}s - get inside!`, 3); }
@@ -410,13 +410,13 @@ export class RaidGame {
     // everything except the safe pocket drops for others to loot
     const drop = [lo.augment, lo.shield, ...lo.weapons, ...lo.backpack, ...lo.quick].filter(Boolean);
     if (drop.length) this.session.dropItems(drop.map(s => ({ ...s })), this.o.name);
-    this.banner('YOU DIED', '#e84a30', 'Everything but your safe pocket is lost to the surface', 5);
+    this.banner('YOU DIED', '#e84a30', 'Repossessed. Only your safe pocket made it home.', 5);
     this.audio?.music?.('death');
     this.finish('dead');
   }
   onLocalExtract() {
     if (this.localDone) return; this.localDone = 'extracted';
-    this.banner('EXTRACTED', '#68e088', 'Welcome back to Speranzia', 5);
+    this.banner('EXTRACTED', '#68e088', 'Welcome back to Desperanza', 5);
     this.addXP(250, 'Extraction');
     this.audio?.music?.('extracted');
     this.questEvent('extract', {});
@@ -582,7 +582,7 @@ export class RaidGame {
 }
 
 function tick() { return new Promise(r => setTimeout(r, 0)); }
-export function extractNoun(kind) { return kind === 'metro' ? 'METRO' : kind === 'airshaft' ? 'DROPSHIP' : kind === 'hatch' ? 'RAIDER HATCH' : 'ELEVATOR'; }
+export function extractNoun(kind) { return kind === 'metro' ? 'METRO' : kind === 'airshaft' ? 'DROPSHIP' : kind === 'hatch' ? 'DOGGY DOOR' : 'ELEVATOR'; }
 
 // Condition-driven world additions, deterministic from the raid seed so every peer agrees.
 function applyConditionToWorld(w, cond, seed) {
@@ -604,11 +604,11 @@ function applyConditionToWorld(w, cond, seed) {
     return [w.w / 2, w.h / 2];
   };
   const add = (kind, n, tier = 2, label = null) => { for (let i = 0; i < n; i++) { const [x, z] = spot(); w.container(kind, x, z, r() * 6, { tier, label }); } };
-  if (fx.cacheMul) add('raider_cache', Math.round(6 * fx.cacheMul), 3, 'Uncovered Cache');
+  if (fx.cacheMul) add('raider_cache', Math.round(6 * fx.cacheMul), 3, 'Clearance Cache');
   if (fx.huskMul) add('arc_husk', Math.round(10 * fx.huskMul), 2, 'ARK Husk');
-  if (fx.probeMul) add('arc_crate', Math.round(4 * fx.probeMul), 3, 'Prospecting Probe');
+  if (fx.probeMul) add('arc_crate', Math.round(4 * fx.probeMul), 3, 'Customer Survey');
   if (fx.natureLootMul) add('plant', Math.round(20 * fx.natureLootMul), 1);
-  if (fx.firstWaveCaches) add('raider_cache', fx.firstWaveCaches, 3, 'First Wave Cache');
+  if (fx.firstWaveCaches) add('raider_cache', fx.firstWaveCaches, 3, 'Beta Test Cache');
   for (const [kind, mn, mx] of fx.spawnGroups || []) { const n = mn + Math.floor(r() * (mx - mn + 1)); for (let i = 0; i < n; i++) { const [x, z] = spot(40); w.arkSpawn(kind, x, z, { count: 1 }); } }
 }
 function rarityHex(r) { return UI.rarity[r] || UI.cream; }

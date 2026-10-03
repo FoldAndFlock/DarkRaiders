@@ -163,7 +163,7 @@ export class PlayerController {
       if (ex && DOWNED_OK.has(ex.kind)) { this.updateInteract(dt, input, ex); return; }
       if (this.selfRevives > 0) {
         this.interact = { kind: 'selfrevive', ref: e.id, x: e.x, z: e.z, time: 3, label: `SELF-REVIVE (${this.selfRevives} LEFT)` };
-        if (input.is('interact')) { this.holdFor = 'self'; this.holdT += dt; if (this.holdT >= 3) { this.holdT = 0; this.holdFor = null; this.selfRevives--; g.session.reviveNow(e.id); g.feed('BACK ON YER FEET', '#68e088'); } }
+        if (input.is('interact')) { this.holdFor = 'self'; this.holdT += dt; if (this.holdT >= 3) { this.holdT = 0; this.holdFor = null; this.selfRevives--; g.session.reviveNow(e.id); g.feed('NEVER CALLS IN SICK - BACK ON YOUR FEET', '#68e088'); } }
         else { this.holdT = 0; this.holdFor = null; }
       } else this.interact = null;
       return;
@@ -319,7 +319,7 @@ export class PlayerController {
       if (!this.semiLatch) { g.audio?.play('dry_fire'); this.semiLatch = true; this.startReload(); }
       return;
     }
-    if ((w.dur ?? 1) <= 0) { if (!this.semiLatch) { g.hudMsg('WEAPON BROKEN - REPAIR AT GUNSMITH', '#e84a30'); this.semiLatch = true; } return; }
+    if ((w.dur ?? 1) <= 0) { if (!this.semiLatch) { g.hudMsg('WEAPON BROKEN - REPAIR IT IN THE WORKSHOP', '#e84a30'); this.semiLatch = true; } return; }
     this.semiLatch = true;
     if (ws.mode === 'burst') { this.burst = (ws.burst || 3) - 1; this.burstT = 60 / ws.rpm; this.shoot(ws, w, 1); return; }
     this.fireT = 60 / ws.rpm;

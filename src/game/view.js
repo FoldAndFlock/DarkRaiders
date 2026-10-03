@@ -204,6 +204,7 @@ export class View {
         const s = Math.ceil(xv.m.timeLeft);
         if (s >= 1 && s <= 5 && s !== xv.tick) { xv.tick = s; A?.play('extract_countdown_tick', { x: x.x, z: x.z }); }
       } else xv.tick = null;
+      if (x.kind === 'elevator') A?.muzak?.(x, { st, tl: xv.m.timeLeft, y: xv.y, me, done: !!g.localDone });   // hold music while it comes
     }
   }
 
@@ -523,7 +524,7 @@ export class View {
       case 'xgone': break;
       case 'xidle': A?.play(this.extractVis[ev.i]?.x.kind === 'hatch' ? 'hatch_close' : 'extract_ready', this.extractCallPos(ev.i)); break;
       case 'xoffline': { const x = this.extractVis[ev.i]?.x; if (x && ev.why === 'used') g.feed(`${x.name.toUpperCase()} CLOSED FOR THE RAID`, '#9a9484'); break; }
-      case 'hatchbusy': if (ev.by === g.meId) g.hudMsg('ANOTHER HATCH IS OPEN', '#e84a30'); break;
+      case 'hatchbusy': if (ev.by === g.meId) g.hudMsg('ANOTHER DOGGY DOOR IS OPEN', '#e84a30'); break;
       case 'throw': A?.play('grenade_pin', this.posOf(ev.by)); break;
       case 'bounce': A?.play('grenade_bounce', { x: ev.x, z: ev.z }); break;
       case 'pop': A?.play(ev.k === 'smoke' ? 'smoke_pop' : ev.k === 'gas' ? 'gas_hiss' : 'smoke_pop', { x: ev.x, z: ev.z }); break;
@@ -533,10 +534,10 @@ export class View {
       case 'warn': g.banner(ev.msg, '#e84a30', null, 4); A?.play('raid_warning'); break;
       case 'raidover': A?.play('raid_end_siren'); break;
       case 'leap': { const gy = this.floorNear(ev.x, ev.z, ev.y); fx.rings.add(ev.x, gy, ev.z, 3.5, 0xff4020, ev.T + 0.2, 1); A?.play(ARK[this.vis.get(ev.id)?.e?.kind]?.model === 'tick' ? 'tikk_leap' : 'leapr_jump', this.posOf(ev.id)); break; }
-      case 'latch': if (ev.tgt === g.meId) g.hudMsg('TIKK LATCHED! DODGE ROLL TO SHAKE IT', '#e84a30'); break;
+      case 'latch': if (ev.tgt === g.meId) g.hudMsg('LATE FEE LATCHED! DODGE ROLL TO SHAKE IT', '#e84a30'); break;
       case 'mortar': { const gy = this.floorNear(ev.x, ev.z, ev.y); fx.rings.add(ev.x, gy, ev.z, 4, 0xff2010, ev.t, 1); A?.play('bombadier_mortar', this.posOf(ev.id)); A?.play('mortar_whistle', { x: ev.x, z: ev.z, delay: Math.max(0, (ev.t || 2.4) - 1.12) }); break; }
       case 'rockets': A?.play('rocket_launch', this.posOf(ev.id)); break;
-      case 'alarm': A?.play('snytch_alarm', { x: ev.x, z: ev.z }); g.feed('SNYTCH RAISED THE ALARM - REINFORCEMENTS INBOUND', '#e84a30'); break;
+      case 'alarm': A?.play('snytch_alarm', { x: ev.x, z: ev.z }); g.feed('A NARC CALLED IT IN - REINFORCEMENTS INBOUND', '#e84a30'); break;
       case 'flame': { const fv = this.vis.get(ev.id); if (fv) fv.flameAt = performance.now(); }   // drives the burner loop in arkAudio()
         if (Math.random() < 0.5) { const v = this.vis.get(ev.id); if (v) for (let i = 0; i < 4; i++) { const a = v.e.f + (Math.random() - .5) * 0.8, s = 6 + Math.random() * 4; fx.glow.emit({ x: v.px, y: v.py + 0.5, z: v.pz, vx: Math.sin(a) * s, vy: 0.5, vz: Math.cos(a) * s, life: 0.45, size: 6, size1: 12, color: 0xffd060, color1: 0xc02000, shape: 1, drag: 2 }); } } break;
       case 'reload': A?.play(reloadSoundFor(this.vis.get(ev.id)?.e?.wid), this.posOf(ev.id)); break;
@@ -655,10 +656,10 @@ export class View {
       if (x.kind === 'hatch') {
         if (dc > (P.callR || 2.4)) continue;
         const dh = Math.max(0, dc - 0.6);       // the hatch is big: its prompt reaches past the usual 2.1 m
-        if (st === 'offline') consider({ ...at, kind: 'offline', time: 999, label: 'HATCH OFFLINE (MAP CONDITION)' }, dh);
-        else if (st === 'open') consider({ ...at, kind: 'info', time: 999, label: `HATCH OPEN - STEP IN (${Math.ceil(x.t || 0)}S)` }, dh);
-        else if (g.extractsData.some(h => h.kind === 'hatch' && h.state === 'open')) consider({ ...at, kind: 'info', time: 999, label: 'ANOTHER HATCH IS OPEN' }, dh);
-        else consider({ ...at, kind: 'hatch', time: 2.5, label: 'OPEN RAIDER HATCH (KEY)' }, dh);
+        if (st === 'offline') consider({ ...at, kind: 'offline', time: 999, label: 'DOGGY DOOR OFFLINE (MAP CONDITION)' }, dh);
+        else if (st === 'open') consider({ ...at, kind: 'info', time: 999, label: `DOGGY DOOR OPEN - IN YOU GO (${Math.ceil(x.t || 0)}S)` }, dh);
+        else if (g.extractsData.some(h => h.kind === 'hatch' && h.state === 'open')) consider({ ...at, kind: 'info', time: 999, label: 'ANOTHER DOGGY DOOR IS OPEN' }, dh);
+        else consider({ ...at, kind: 'hatch', time: 2.5, label: 'OPEN DOGGY DOOR (KEY)' }, dh);
         continue;
       }
       if (dc < (P.callR || 1.8)) {
@@ -694,9 +695,9 @@ export class View {
   }
 }
 export function containerLabel(kind) {
-  return ({ locker: 'Locker', crate: 'Crate', weapon_case: 'Weapon Case', ammo_box: 'Ammo Box', medical_bag: 'Medical Bag', toolbox: 'Toolbox', electronics: 'Electronics', cabinet: 'Cabinet', desk: 'Desk', safe: 'Safe', trash: 'Trash', car_trunk: 'Car Trunk', fridge: 'Fridge', suitcase: 'Suitcase', backpack: 'Backpack', arc_crate: 'ARK Crate', arc_husk: 'ARK Husk', barron_husk: 'Barron Husk', deforestr_husk: 'Deforestr Husk', raider_cache: 'Raider Cache', field_depot: 'Field Depot', plant: 'Plant', basket: 'Basket', security_locker: 'Security Locker', bag: 'Bag' })[kind] || kind;
+  return ({ locker: 'Locker', crate: 'Crate', weapon_case: 'Weapon Case', ammo_box: 'Ammo Box', medical_bag: 'Medical Bag', toolbox: 'Toolbox', electronics: 'Electronics', cabinet: 'Cabinet', desk: 'Desk', safe: 'Safe', trash: 'Trash', car_trunk: 'Car Trunk', fridge: 'Fridge', suitcase: 'Suitcase', backpack: 'Backpack', arc_crate: 'ARK Crate', arc_husk: 'ARK Husk', barron_husk: 'Legacy System', deforestr_husk: 'Hedge Fund', raider_cache: 'Raider Cache', field_depot: 'Supply Shack', plant: 'Plant', basket: 'Basket', security_locker: 'Security Locker', bag: 'Bag' })[kind] || kind;
 }
-function extractNoun(kind) { return kind === 'metro' ? 'METRO' : kind === 'airshaft' ? 'DROPSHIP' : kind === 'hatch' ? 'RAIDER HATCH' : 'ELEVATOR'; }
+function extractNoun(kind) { return kind === 'metro' ? 'METRO' : kind === 'airshaft' ? 'DROPSHIP' : kind === 'hatch' ? 'DOGGY DOOR' : 'ELEVATOR'; }
 function distToSeg(px, pz, ax, az, bx, bz) {
   const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1;
   const t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / l2));

@@ -1,11 +1,20 @@
-// AUTO-AUTHORED CONTENT TABLE - DarkRaiders (patterned after ARC Raiders 1.0; names lightly tweaked).
-// Pure data: no imports, no DOM. See docs/ARCHITECTURE.md for the schema and docs/research/items_notes.md for sources.
+// Traders of Desperanza (pure data: no imports, no DOM). See docs/ARCHITECTURE.md for the schema.
 // Prices are coins (Scrip) per single unit, ~3x item value; `stock` = units available per restock.
+// Flavour (shown in the hub's Traders tab): `greet` = lines the trader says when you visit (one is
+// picked at random), `noSale` = what they say when nothing in your stash is something they buy.
 
 export const TRADERS = {
   celesta: {
-    name: 'Celesta', title: 'Raider Leader', color: '#e8a040',
-    desc: 'The charismatic heart of Speranzia. Hands out jobs, buys anything, and keeps the basics flowing.',
+    name: 'Auntie Synergy', title: 'Raider Leader (Self-Appointed)', color: '#e8a040',
+    desc: 'Runs Desperanza like a startup that never shipped. Hands out jobs, buys literally anything, and sells the basics. We\'re a family here.',
+    greet: [
+      'Love the energy! Let\'s circle back once you\'ve looted something.',
+      'We\'re a family here. Families pay market rate.',
+      'Quick sync: the planet got repossessed, but our culture has never been stronger.',
+      'I\'m not your boss. I\'m your Raider Leader. Self-appointed, but still.',
+      'Let\'s take this offline. By offline I mean topside. Go.',
+    ],
+    noSale: 'Your stash is empty. Bold strategy. Let\'s ideate on going topside.',
     sells: [
       { item: 'metal_parts', price: 220, stock: 60 },
       { item: 'plastic_parts', price: 180, stock: 60 },
@@ -37,8 +46,16 @@ export const TRADERS = {
     buys: 'all',
   },
   shanni: {
-    name: 'Shanni', title: 'Head of Security', color: '#4aa0f0',
-    desc: 'Speranzia\'s paranoid ARK expert. Deals in shields, augments and anything that keeps Raiders breathing.',
+    name: 'Sergeant Shaky', title: 'Head of Security (and Conspiracies)', color: '#4aa0f0',
+    desc: 'Desperanza\'s ARK expert and full-time conspiracy theorist. Sells shields, augments, keys and gadgets. Thinks the ARK are watching. They are.',
+    greet: [
+      'Keep your voice down. The lamps are listening.',
+      'Shields first, questions never. Questions get you tracked.',
+      'I\'ve seen what a Narc does with a phone number. Buy the shield.',
+      'Those aren\'t drones. That\'s middle management with rotors. Wake up.',
+      'You were followed. Everybody\'s followed. Browse quietly.',
+    ],
+    noSale: 'Nothing in there I can use. Which is exactly what they\'d want you to think.',
     sells: [
       { item: 'light_shield', price: 1900, stock: 5 },
       { item: 'medium_shield', price: 6000, stock: 3 },
@@ -68,8 +85,16 @@ export const TRADERS = {
     buys: ['augment', 'shield', 'gadget', 'key', 'mod', 'blueprint'],
   },
   tien_wen: {
-    name: 'Tien Wen', title: 'Gunsmith', color: '#c84a30',
-    desc: 'Reclusive gun crafter with a soft spot for broken things. Sells ammo, guns and mods.',
+    name: 'Wen Ever', title: 'Gunsmith, Eventually', color: '#c84a30',
+    desc: 'Reclusive gunsmith with a soft spot for broken things. Sells ammo, guns and mods today. Everything else: whenever.',
+    greet: [
+      'Leave it on the bench. I\'ll get to it. Eventually.',
+      'Every broken gun has a story. Yours is mostly "dropped it".',
+      'Ammo is in the crate. The crate is in the other crate. Help yourself.',
+      'I don\'t do rush jobs. I barely do jobs.',
+      'Don\'t name your gun. You\'ll only lose it topside.',
+    ],
+    noSale: 'Nothing here I\'d take. Come back with something broken. I like broken.',
     sells: [
       { item: 'ammo_light', price: 12, stock: 400 },
       { item: 'ammo_medium', price: 18, stock: 300 },
@@ -110,8 +135,16 @@ export const TRADERS = {
     buys: ['weapon', 'ammo', 'mod', 'material'],
   },
   apolo: {
-    name: 'Apolo', title: 'Travelling Mechanic', color: '#f0d040',
-    desc: 'Wandering tinkerer and amateur flautist. Sells explosives, traps and clever gadgets.',
+    name: 'Kaboomer', title: 'Travelling Mechanic & Unlicensed Flautist', color: '#f0d040',
+    desc: 'Wandering tinkerer, flute enthusiast, licensed in neither. Sells explosives, traps and gadgets that go boom like they did in his day.',
+    greet: [
+      'Back in my day, grenades had character. And a much shorter fuse.',
+      'Mind the crate. No, the other crate. Not that one either.',
+      'Want to hear a song on the flute? No? Want to buy a mine?',
+      'They don\'t make explosions like they used to. So I make them.',
+      'Speak up! My ears went the same way as my eyebrows.',
+    ],
+    noSale: 'Nothing that goes boom, nothing that goes click. What am I supposed to do with that?',
     sells: [
       { item: 'blue_light_stick', price: 450, stock: 10 },
       { item: 'green_light_stick', price: 450, stock: 10 },
@@ -144,8 +177,16 @@ export const TRADERS = {
     buys: ['grenade', 'trap', 'gadget', 'material', 'valuable'],
   },
   lantz: {
-    name: 'Lantz', title: 'Field Medic', color: '#5cc860',
-    desc: 'A bubbly android medic with no memory of his past. Can cure anything but the common cold.',
+    name: 'Doc Reboot', title: 'Field Medic (Warranty Expired)', color: '#5cc860',
+    desc: 'Cheerful android medic with no memory and a habit of rebooting mid-sentence. Sells healing, shield charges and herbs. Cannot cure the common cold.',
+    greet: [
+      'Hello! I am Doc Reboot, your friendly field medic and - rebooting - Hello! I am Doc Reboot!',
+      'Apply the bandage to the bleeding part. Not the other part. Medicine!',
+      'My warranty expired before the Beta Test. I feel fantastic!',
+      'Rest, fluids and a defibrillator. Mostly the defibrillator.',
+      'Have we met? Please do not answer. I will forget either way!',
+    ],
+    noSale: 'Scanning stash... nothing medical detected. Scanning again... still nothing. Scanning ag-',
     sells: [
       { item: 'bandage', price: 750, stock: 20 },
       { item: 'herbal_bandage', price: 2700, stock: 10 },

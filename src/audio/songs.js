@@ -38,7 +38,7 @@ const menu = {
   ] },
 };
 
-// ===================================================================== HUB – "Speranzia"
+// ===================================================================== HUB – "Desperanza (Sewer Suites Mix)"
 // F major, 96 bpm, light swing, 32 bars (~80 s). Warm EP melody, bouncy bass, plucked offbeat
 // comping and market-chatter kalimba; the second half trades the tune for a bell counter-line.
 const HUB_CH = 'Fmaj7 Am7 Bbmaj7 C | Fmaj7 Am7 Gm7 Csus4 | Dm7 Am7 Bbmaj7 F/A | Gm7 Am7 Bbmaj7 Csus4:8 C:8';

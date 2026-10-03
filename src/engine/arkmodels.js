@@ -9,10 +9,11 @@
 //     sim.js: name_0..name_3 in the order (+x,+z) (+x,-z) (-x,+z) (-x,-z) (sim frame).
 //   * Walkers, rollers and static emplacements: origin = ground point under the machine's centre.
 //   * Flyers (def.flying): origin = HULL CENTRE (the game places it at the hover altitude).
-//   * Hover units (def.hover, e.g. Shreddr): origin = ground point; the hull floats above it.
+//   * Hover units (def.hover, e.g. shreddr): origin = ground point; the hull floats above it.
 //   * Size: every model key is authored at the size of its base def (wazp, leapr, ...) and the
-//     whole rig is scaled uniformly by def.radius / base radius, so variants (Komet, Spottr,
-//     Vaporiser, Matriark ...) match their defs. Shreddr and ARK Turbyne get dedicated rigs.
+//     whole rig is scaled uniformly by def.radius / base radius, so variants (komet, spottr,
+//     vaporiser, matriark ...) match their defs. shreddr and turbyne get dedicated rigs.
+//   * Variants are picked from def.behavior / def.variant, never from the display name.
 //
 // Update state s (all optional):
 //   { moving, speed (m/s), alert 0..1, tele 0..1 (attack telegraph / charge), gaze (radians,
@@ -30,28 +31,41 @@
 //
 // Breakable parts: setBroken(zoneKey) hides / darkens / swaps-in a charred stub for the part that
 // sits nearest that hitzone (keys come from def.hitzones exactly as sim.js expands them; unknown
-// keys fall back to name + index, so it never throws). Model notes (weak points in CAPS):
-//   wasp       quad rotors in guard rings (ROTORS hide on break, hull lists towards them)
-//   hornet     light armour slab + flush visor at the front, armoured front rotors, BARE GLOWING
-//              REAR ROTORS; Fyrefly variant: flamer + yellow FUEL TANK whose cover opens on attack
-//   snitch     big searchlight (turns to gaze, amber -> red on alert), alarm beacon; Spottr: laser pod
-//   tick       six IK legs (tripod gait), amber pod, beeping eye; tucks legs when leaping/latching
-//   pop        rolling bomb: yellow band + glowing slot over a non-rolling eye core; Komet splits
-//   fireball   rolling armoured ball; stops, hinges its top shell open -> white-hot CORE + flame
-//   shredder   (fireball key, behavior 'shredder') hover orb, spinning shrapnel ring, BLUE THRUSTERS
-//   turret     hazard base, yawing head + pitching twin barrels (alternating recoil), GLOWING REAR PACK
-//   sentinel   lattice mast, yawing sniper head (4 yellow converge emitters), CANISTER behind the mast
-//   surveyor   rolling plated ball; when stopped the top plate opens and the blue CORE + antenna rise
-//   rocketeer  gunship: 4 ducted fans (THRUSTERS), rocket pods, EYEBROW over the scanner, BACK
-//              CANISTER; Vaporiser: laser pods + BELLY PANEL over the core; Turbyne: own rig
-//   leaper     4 IK legs with glowing YELLOW KNEES, eye + visor plate, iris over the top CORE (opens
-//              while stunned after landing), crouches on telegraph, tucks legs mid-leap
-//   bastion    sloped front armour with eye row, 2 gatlings (spin when firing), YELLOW KNEES,
-//              GLOWING REAR CANISTER that reveals the red REAR CORE
-//   bombardier mortar (recoils), shell magazine, uplink dish, YELLOW KNEES, REAR CANISTER
-//   queen      4 colossal IK legs (YELLOW KNEES), 4 armour PLATES, head + sweep laser (gaze),
-//              red reactor CORE in a top well (swells as plates fall); Matriark adds MISSILE PODS
-// Triangle budget (visible): small/medium ARK 1.7k-14k, heavies <= ~15.5k, Queene/Matriark ~43k.
+// keys fall back to name + index, so it never throws). Model notes by model key (weak points in CAPS;
+// display names from data/arc.js in brackets):
+//   wasp       [Buzzkill] quad rotors in guard rings (ROTORS hide on break, hull lists towards them),
+//              slit visor, white racing stripes
+//   hornet     [Middle Manager] light armour slab with a two-lens visor and a necktie, armoured front
+//              rotors, BARE GLOWING REAR ROTORS; flamer variant [Burnout]: flamer + yellow FUEL TANK
+//              whose cover opens on attack, hazard brow, low-battery strip
+//   snitch     [Narc] big searchlight (turns to gaze, amber -> red on alert), spinning two-tone light
+//              bar; spotter variant [Plus One]: laser pod + party hat
+//   tick       [Late Fee] six IK legs (tripod gait), amber pod, slit-visor eye; tucks legs when leaping
+//   pop        [Pop-Up Ad] rolling bomb: yellow band + glowing slot over a non-rolling eye core, red
+//              notification dot on the right hub; komet variant [Rolling Blackout] splits, caution rings
+//   fireball   [Hot Take] rolling armoured ball, hazard rim + steam vent; stops, hinges its top shell
+//              open -> white-hot CORE + flame
+//   shredder   [Close Talker] (fireball key, behavior 'shredder') hover orb, two staring eyes,
+//              spinning shrapnel ring, BLUE THRUSTERS
+//   turret     [Wallflower] hazard base, slit eye, yawing head + pitching twin barrels (alternating
+//              recoil), GLOWING REAR PACK
+//   sentinel   [Neighborhood Watch] lattice mast with a watch sign, yawing sniper head (4 yellow
+//              converge emitters), CANISTER behind the mast
+//   surveyor   [Data Miner] rolling plated ball with barcoded plates; when stopped the top plate opens
+//              and the blue CORE + antenna rise
+//   rocketeer  [Rocket Surgeon] gunship: 4 ducted fans (THRUSTERS), rocket pods, EYEBROW over the
+//              scanner, BACK CANISTER, first-aid decal; laser variant [Vape Lord]: laser pods + BELLY
+//              PANEL over the core, teal trim; turbine variant [Cloud Service]: own rig
+//   leaper     [Parkour Dad] 4 IK legs with glowing YELLOW KNEES, eye + cap-red visor plate, sweatband,
+//              iris over the top CORE (opens while stunned after landing), crouches on telegraph
+//   bastion    [HOA President] sloped front armour with eye row, 2 gatlings (spin when firing), YELLOW
+//              KNEES, GLOWING REAR CANISTER that reveals the red REAR CORE, posted notice, picket trim
+//   bombardier [Shell Company] mortar (recoils), shell magazine, uplink dish, slit eye under a barcode
+//              brow, YELLOW KNEES, REAR CANISTER
+//   queen      [The Landlady] 4 colossal IK legs (YELLOW KNEES), 4 armour PLATES, head + sweep laser
+//              (gaze) + pearls, red reactor CORE in a top well (swells as plates fall); matriarch
+//              variant [Helicopter Mom] adds MISSILE PODS and a propeller beanie
+// Triangle budget (visible): small/medium ARK 1.7k-14k, heavies <= ~15.5k, queene/matriark ~43k.
 // tools/arkgallery.html renders every model (zoom / state / rear / broken params) for review.
 import * as THREE from '../../vendor/three.module.js';
 import { Vox } from './voxel.js';
@@ -64,6 +78,7 @@ export const AK = {
   r0: 0x40261a, r1: 0x6a3920, r2: 0x8f5126,
   y0: 0xe6a21c, y1: 0xd06c18, y2: 0x8e5a1a, bk: 0x15161a,
   cer: 0xb6b2a5, cer2: 0x9a968b, cer3: 0xcdc9bc, cu: 0xad6a30,
+  tie: 0x7a2428, cap: 0x8e3a2c, tl: 0x2c8a84,   // accents: Middle Manager necktie, Parkour Dad cap, Vape Lord trim
   // glowing (emissive) colours
   EYE: 0xff7424, EYE2: 0xffd2a8,          // pulsing sensor eyes        -> eyeMat
   HOT: 0xffa018, HOT2: 0xffe486, HOTR: 0xff4416,  // pulsing weak points / cores -> hotMat
@@ -105,6 +120,9 @@ function mixc(a, b, t) {
 const haz = (w = 2, a = K.y0, b = K.bk) => (X, Y, Z, i, j, k) => ((Math.floor((i + j + k) / w) & 1) ? b : a);
 // every n-th voxel line along an axis -> seam colour (panel lines)
 const seam = (n, axis, col, off = 0) => (X, Y, Z, i, j, k) => (((axis === 'x' ? i : axis === 'y' ? j : k) + off) % n === 0 ? col : undefined);
+// stencilled inventory barcode (the repossession paperwork): fixed irregular bar pattern along an axis
+const BAR = [1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1];
+const barcode = (axis, light = K.cer3, dark = K.bk, off = 0) => (X, Y, Z, i, j, k) => (BAR[((axis === 'x' ? i : axis === 'y' ? j : k) + off) % BAR.length] ? dark : light);
 
 // ----------------------------------------------------------------------------- voxel builder (metres)
 // Shapes take metre coordinates relative to the part pivot; a voxel is filled when its centre lies
@@ -587,7 +605,7 @@ function flyerTilt(R, hull, rotors, dt, s, t, k = 1, spin = 30) {
   hull.rotation.z = damp(hull.rotation.z, (-bx * 0.22 + Math.sin(t * 2.1) * 0.045 * steady) * k, 3.5, dt);
 }
 
-// ----------------------------------------------------------------------------- WAZP (wasp): quad-rotor gun drone
+// ----------------------------------------------------------------------------- BUZZKILL (wazp, key 'wasp'): quad-rotor gun drone
 BASE_R.wasp = 0.6;
 MODELS.wasp = (R) => {
   const s = 0.05;
@@ -609,6 +627,7 @@ MODELS.wasp = (R) => {
     v.box(-0.12, 0.1, -0.25, 0.12, 0.15, 0.2, K.g4, { ch: 1 });                        // top armour
     v.paintBox(-0.12, 0.1, -0.25, 0.12, 0.15, 0.2, seam(3, 'z', K.g3, 1));
     v.paintBox(-0.12, 0.1, -0.25, 0.12, 0.15, 0.2, (X, Y, Z, i, j, k) => (Math.abs(X) > 0.08 && k % 3 === 0 ? K.st : undefined));
+    v.paintBox(-0.12, 0.1, -0.25, 0.12, 0.15, 0.1, (X, Y, Z) => (Math.abs(X) > 0.05 ? K.st2 : undefined));   // twin racing stripes
     v.box(-0.05, 0.15, -0.2, 0.05, 0.2, 0.05, K.g3);                                  // spine
     v.box(-0.12, 0.1, 0.1, 0.12, 0.17, 0.15, K.y1); v.box(-0.05, 0.12, 0.1, 0.0, 0.17, 0.15, K.bk);   // orange band
     v.box(-0.17, -0.06, -0.2, 0.17, 0.06, 0.1, K.g3); v.paintBox(-0.18, -0.06, -0.2, 0.18, 0.06, 0.1, seam(2, 'z', K.g1));   // side plates
@@ -616,8 +635,8 @@ MODELS.wasp = (R) => {
     v.box(-0.1, -0.1, 0.25, 0.1, 0.1, 0.4, K.g3, { ch: 1, cht: 1 });
     v.box(-0.1, 0.1, 0.25, 0.1, 0.15, 0.35, K.g4, { ch: 1 });
     v.paintBox(-0.1, -0.1, 0.35, 0.1, 0.1, 0.4, K.g1);
-    v.box(-0.05, -0.05, 0.4, 0.05, 0.05, 0.45, K.EYE); v.box(0, 0, 0.4, 0.05, 0.05, 0.45, K.EYE2);
-    v.box(-0.1, 0.0, 0.38, -0.05, 0.05, 0.43, K.EYE); v.box(0.05, 0.0, 0.38, 0.1, 0.05, 0.43, K.EYE);
+    v.box(-0.1, -0.05, 0.38, 0.1, 0.0, 0.45, K.g0);                                    // slit visor: dark lid
+    v.box(-0.1, 0.0, 0.38, 0.1, 0.05, 0.45, K.EYE); v.box(-0.05, 0.0, 0.4, 0.05, 0.05, 0.45, K.EYE2);
     v.seg(0.06, 0.15, -0.15, 0.12, 0.32, -0.22, 0.02, K.st); v.box(0.1, 0.3, -0.25, 0.15, 0.35, -0.2, K.RED);   // antenna
     // tail: vents + tail light
     v.box(-0.1, -0.07, -0.42, 0.1, 0.07, -0.3, K.g2, { ch: 1 });
@@ -648,7 +667,7 @@ MODELS.wasp = (R) => {
   };
 };
 
-// ----------------------------------------------------------------------------- HORNETT (hornet): armoured stun drone (+ Fyrefly flamer variant)
+// ----------------------------------------------------------------------------- MIDDLE MANAGER (hornett, key 'hornet'): armoured stun drone (+ Burnout / fyrefly flamer variant)
 BASE_R.hornet = 0.75;
 MODELS.hornet = (R, def) => {
   const s = 0.05, flamer = def.variant === 'flamer';
@@ -681,20 +700,23 @@ MODELS.hornet = (R, def) => {
       const zf = zfF(X, Y);
       return Math.abs(X) < 0.52 && Y >= -0.18 && Y < 0.24 && Z < zf && Z >= zf - 0.1 && !(Math.abs(X) > 0.42 && Y > 0.14);
     }, (X, Y, Z, i, j, k) => {
-      const outer = Z >= zfF(X, Y) - s;
-      if (outer && Math.abs(X) < 0.15 && Y >= 0 && Y < 0.05) return K.EYE;
-      if (outer && Math.abs(X) < 0.2 && Y >= -0.05 && Y < 0.1) return K.g0;
-      if (Y >= 0.14) return K.y1;
+      const outer = Z >= zfF(X, Y) - s, ax = Math.abs(X);
+      if (outer && ax < 0.15 && Y >= 0 && Y < 0.05) return ax < 0.05 ? K.g0 : K.EYE;      // two-lens visor ("reading glasses")
+      if (outer && ax < 0.2 && Y >= -0.05 && Y < 0.1) return K.g0;
+      if (!flamer && outer && Y < -0.05 && ax < (Y < -0.15 ? 0.1 : 0.05)) return K.tie;     // the necktie
+      if (Y >= 0.14) return flamer ? haz(2, K.y1, K.bk)(X, Y, Z, i, j, k) : K.y1;
       if (Math.abs(X) > 0.4) return haz(2)(X, Y, Z, i, j, k);
       if (Math.abs(Math.abs(X) - 0.27) < 0.025) return K.g3;
       return K.g5;
     });
-    v.paintBox(-0.05, 0, 0.4, 0.0, 0.05, 0.75, (X, Y, Z, i, j, k, c) => (c === K.EYE ? K.EYE2 : undefined));
+    v.paintBox(-0.1, 0, 0.4, -0.05, 0.05, 0.75, (X, Y, Z, i, j, k, c) => (c === K.EYE ? K.EYE2 : undefined));
+    v.paintBox(0.05, 0, 0.4, 0.1, 0.05, 0.75, (X, Y, Z, i, j, k, c) => (c === K.EYE ? K.EYE2 : undefined));
     v.paintBox(-0.52, -0.18, 0.4, 0.52, 0.14, 0.75, (X, Y, Z, i, j, k, c) => (c === K.g5 && Math.abs(X) > 0.3 && (j % 3 === 1) && (i % 4 === 1) ? K.st : undefined));
     v.seg(-0.18, 0.05, 0.3, -0.25, 0.05, 0.5, 0.04, K.g2); v.seg(0.18, 0.05, 0.3, 0.25, 0.05, 0.5, 0.04, K.g2);   // plate brackets
     // armoured cowls over the front rotors
     for (const sx of [-1, 1]) v.fillIf(sx * 0.82, 0.12, 0.2, sx * 0.28, 0.17, 0.8, (X, Y, Z) => Math.hypot(X - sx * 0.55, Z - 0.5) < 0.28 && Z > 0.48, (X, Y, Z) => (Math.hypot(X - sx * 0.55, Z - 0.5) > 0.22 ? K.g3 : K.g4));
     if (flamer) v.box(-0.15, 0.2, -0.55, 0.15, 0.25, -0.3, K.g1);
+    if (flamer) { v.box(-0.1, 0.15, 0.16, 0.1, 0.2, 0.26, K.g0); v.box(-0.1, 0.15, 0.2, -0.05, 0.21, 0.25, K.EXH); }   // low-battery strip: one cell left
     return v.weather({ seed: 31, rust: 0.12 });
   });
   const gun = gset(vk + 'gun', () => {
@@ -743,7 +765,7 @@ MODELS.hornet = (R, def) => {
   };
 };
 
-// ----------------------------------------------------------------------------- SNYTCH (snitch): scout drone with a big searchlight (+ Spottr)
+// ----------------------------------------------------------------------------- NARC (snytch, key 'snitch'): scout drone with a big searchlight (+ Plus One / spottr)
 BASE_R.snitch = 0.5;
 MODELS.snitch = (R, def) => {
   const s = 0.05, spot = def.behavior === 'spotter';
@@ -766,6 +788,7 @@ MODELS.snitch = (R, def) => {
     v.seg(-0.08, 0.14, -0.1, -0.12, 0.4, -0.16, 0.022, K.st); v.box(-0.15, 0.4, -0.2, -0.1, 0.45, -0.15, K.RED);    // antennae
     v.seg(0.08, 0.14, -0.12, 0.1, 0.3, -0.2, 0.022, K.st);
     if (spot) { v.box(-0.05, -0.18, 0.05, 0.05, -0.1, 0.3, K.g1); v.box(-0.025, -0.15, 0.3, 0.025, -0.1, 0.34, K.RED); v.cylY(0, -0.05, 0.12, 0.16, 0.06, K.y0); }
+    if (spot) v.cylY(0, -0.05, 0.16, 0.34, 0.07, (X, Y, Z, i, j, k) => (Y > 0.29 ? K.st2 : j % 2 ? K.y0 : K.st2), 0, 0.012);   // party hat
     return v.weather({ seed: 41, rust: 0.1 });
   });
   const lamp = gset('snitch.lamp', () => {
@@ -776,9 +799,11 @@ MODELS.snitch = (R, def) => {
     for (const x of [-0.2, 0.15]) v.box(x, -0.05, -0.05, x + 0.05, 0.05, 0.1, K.g1);
     return v.weather({ seed: 2 });
   });
-  const siren = gset('snitch.siren', () => {
+  const siren = gset(spot ? 'snitch.siren.s' : 'snitch.siren', () => {
     const v = new VB(s, -0.1, 0, -0.1, 0.1, 0.15, 0.1);
-    v.box(-0.05, 0, -0.05, 0.05, 0.05, 0.05, K.g1); v.box(-0.05, 0.05, -0.05, 0.0, 0.1, 0.0, K.EYE);
+    v.box(-0.05, 0, -0.05, 0.05, 0.05, 0.05, K.g1);
+    if (spot) v.box(-0.05, 0.05, -0.05, 0.0, 0.1, 0.0, K.EYE);
+    else { v.box(-0.1, 0.05, -0.05, 0.0, 0.1, 0.0, K.EYE); v.box(0.0, 0.05, -0.05, 0.1, 0.1, 0.0, K.BLUE); }   // two-tone light bar
     return v;
   });
   const kit = { guard: () => guardGS('snitch.guard', s, 0.19, K.g3, K.g3, 3), blades: bladesGS('blades', s, 0.16, 2), stub: stubGS('', s, 0.08) };
@@ -797,7 +822,7 @@ MODELS.snitch = (R, def) => {
   };
 };
 
-// ----------------------------------------------------------------------------- TIKK (tick): six-legged latcher
+// ----------------------------------------------------------------------------- LATE FEE (tikk, key 'tick'): six-legged latcher
 BASE_R.tick = 0.3;
 MODELS.tick = (R) => {
   const s = 0.04;
@@ -806,10 +831,10 @@ MODELS.tick = (R) => {
     const v = new VB(s, -0.2, -0.16, -0.28, 0.2, 0.2, 0.28);
     v.ell(0, 0.0, -0.02, 0.12, 0.08, 0.15, K.g1);
     v.ell(0, 0.04, -0.04, 0.135, 0.09, 0.17, (X, Y, Z, i, j, k) => (k % 3 === 0 ? K.g2 : Math.abs(X) < 0.04 ? K.g5 : K.g4));
-    v.paintBox(-0.2, -0.02, -0.25, 0.2, 0.02, 0.25, (X, Y, Z, i, j, k) => (k % 2 ? K.y1 : K.bk));
+    v.paintBox(-0.2, -0.02, -0.25, 0.2, 0.02, 0.25, barcode('z', K.y1, K.bk));        // barcoded band
     v.ell(0, 0.02, 0.12, 0.08, 0.065, 0.07, K.g2);
-    v.box(-0.04, 0.0, 0.16, 0.04, 0.08, 0.2, K.EYE); v.box(0.0, 0.04, 0.17, 0.04, 0.08, 0.21, K.EYE2);
-    v.box(-0.08, 0.04, 0.14, -0.04, 0.08, 0.18, K.EYE); v.box(0.04, 0.04, 0.14, 0.08, 0.08, 0.18, K.EYE);
+    v.box(-0.08, 0.0, 0.12, 0.08, 0.04, 0.2, K.g0);                                    // slit visor: dark lid
+    v.box(-0.08, 0.04, 0.12, 0.08, 0.08, 0.2, K.EYE); v.box(-0.04, 0.04, 0.16, 0.04, 0.08, 0.24, K.EYE2);
     v.seg(-0.03, -0.02, 0.16, -0.02, -0.08, 0.23, 0.022, K.st); v.seg(0.03, -0.02, 0.16, 0.02, -0.08, 0.23, 0.022, K.st);
     v.cylZ(0, 0.11, -0.18, -0.04, 0.045, K.HOT); v.cylZ(0, 0.11, -0.2, -0.18, 0.05, K.g1); v.cylZ(0, 0.11, -0.04, -0.02, 0.05, K.g1);   // tikk pod
     v.box(-0.06, 0.08, -0.12, -0.02, 0.12, -0.08, K.g1); v.box(0.02, 0.08, -0.12, 0.06, 0.12, -0.08, K.g1);
@@ -835,7 +860,7 @@ MODELS.tick = (R) => {
   };
 };
 
-// ----------------------------------------------------------------------------- POPP (pop): rolling proximity bomb (+ Komet)
+// ----------------------------------------------------------------------------- POP-UP AD (popp, key 'pop'): rolling proximity bomb (+ Rolling Blackout / komet)
 BASE_R.pop = 0.35;
 MODELS.pop = (R, def) => {
   const s = 0.04, komet = def.variant === 'komet', Rb = 0.34, vk = komet ? 'pop.k.' : 'pop.';
@@ -852,7 +877,8 @@ MODELS.pop = (R, def) => {
         if (ax < 0.2) return q % 2 ? K.y1 : K.y0;
         return q % 2 ? K.g3 : K.g4;
       });
-    if (komet) v.paint((X, Y, Z, i, j, k, c) => (Math.abs(Math.abs(X) - 0.12) < 0.02 && Math.hypot(Y, Z) > 0.3 ? K.g1 : undefined));
+    if (komet) v.paint((X, Y, Z, i, j, k, c) => (Math.abs(Math.abs(X) - 0.12) < 0.02 && Math.hypot(Y, Z) > 0.3 ? ((Math.floor((Math.atan2(Y, Z) + Math.PI) * 2.5) & 1) ? K.y0 : K.bk) : undefined));   // caution-tape rings
+    if (!komet && side > 0) v.paint((X, Y, Z) => (X > 0.28 && Math.hypot(Y, Z) < 0.075 ? K.RED : undefined));   // notification dot (1 unread)
     return v.weather({ seed: komet ? 62 : 61, rust: komet ? 0.22 : 0.06, edge: 0.18 });
   });
   const core = gset('pop.core', () => {
@@ -875,17 +901,17 @@ MODELS.pop = (R, def) => {
   };
 };
 
-// ----------------------------------------------------------------------------- FYREBALL (fireball): armoured roller that opens to flame
+// ----------------------------------------------------------------------------- HOT TAKE (fyreball, key 'fireball'): armoured roller that opens to flame
 BASE_R.fireball = 0.45;
 MODELS.fireball = (R) => {
   const s = 0.05, Rb = 0.44;
   R.refSpeed = 5;
   const shell = (top) => gset('fireball.shell' + (top ? 'T' : 'B'), () => {
-    const v = new VB(s, -0.45, -0.45, -0.45, 0.45, 0.45, 0.45);
+    const v = new VB(s, -0.45, -0.45, -0.45, 0.45, top ? 0.55 : 0.45, 0.45);
     v.fillIf(-0.45, -0.45, -0.45, 0.45, 0.45, 0.45, (X, Y, Z) => { const r = Math.hypot(X, Y, Z); return r <= Rb && r >= 0.31 && (top ? Y >= 0 : Y < 0); },
       (X, Y, Z, i, j, k) => {
         const lon = Math.atan2(X, Z), lat = Math.abs(Y) / Rb, sl = Math.abs(Math.sin(lon * 2));
-        if (lat < 0.13) return K.y1;                                                // rim band
+        if (lat < 0.13) return haz(2, K.y1, K.g1)(X, Y, Z, i, j, k);              // hazard-striped rim band
         if (sl < 0.1 && lat < 0.86) return K.g0;                                    // plate seams (carved below)
         if (top && lat > 0.42 && lat < 0.6 && sl > 0.35 && sl < 0.75 && (j % 2 === 0)) return K.EXH;   // heat vents
         if (lat > 0.86) return Math.abs(lat - 0.93) < 0.03 ? K.st : K.g5;
@@ -893,7 +919,7 @@ MODELS.fireball = (R) => {
       });
     v.paint((X, Y, Z, i, j, k, c) => (c === K.g0 && Math.hypot(X, Y, Z) > Rb - 0.04 ? -1 : undefined));
     v.paint((X, Y, Z, i, j, k, c) => { const lon = Math.atan2(X, Z), lat = Math.abs(Y) / Rb; return (Math.abs(Math.sin(lon * 2)) < 0.3 && Math.abs(lat - 0.72) < 0.06 && (c === K.g3 || c === K.g4)) ? K.st : undefined; });
-    v.paint((X, Y, Z, i, j, k, c) => (c === K.y1 && Math.abs(Math.sin(Math.atan2(X, Z) * 8)) < 0.2 ? K.g1 : undefined));
+    if (top) { v.cylY(0, 0, 0.38, 0.5, 0.06, K.g1); v.cylY(0, 0, 0.47, 0.5, 0.03, K.EXH); }   // steam vent on the crown
     return v.weather({ seed: top ? 71 : 72, rust: 0.12, rustScale: 6, edge: 0.18 });
   });
   const core = gset('fireball.core', () => {
@@ -928,7 +954,7 @@ MODELS.fireball = (R) => {
   };
 };
 
-// ----------------------------------------------------------------------------- SHREDDR: hovering shrapnel orb (fireball key, behavior 'shredder')
+// ----------------------------------------------------------------------------- CLOSE TALKER (shreddr): hovering shrapnel orb (fireball key, behavior 'shredder')
 BASE_R.shredder = 0.9;
 MODELS.shredder = (R) => {
   const s = 0.07, hullY = 1.25;
@@ -946,7 +972,7 @@ MODELS.shredder = (R) => {
     // armoured head (front) with a wide red visor
     v.box(-0.32, -0.18, 0.42, 0.32, 0.28, 0.84, K.g3, { ch: 2, cht: 2 });
     v.box(-0.25, -0.04, 0.77, 0.25, 0.14, 0.84, K.g0);
-    v.box(-0.21, 0.0, 0.84, 0.21, 0.07, 0.91, K.EYE); v.box(-0.07, 0.0, 0.84, 0.0, 0.07, 0.91, K.EYE2);
+    for (const sx of [-1, 1]) { v.box(sx * 0.07, 0.0, 0.84, sx * 0.21, 0.14, 0.91, K.EYE); v.box(sx * 0.07, 0.07, 0.84, sx * 0.14, 0.14, 0.91, K.EYE2); }   // two staring eyes
     v.box(-0.18, -0.25, 0.63, 0.18, -0.11, 0.91, K.g1); v.cylZ(0, -0.18, 0.84, 0.98, 0.05, K.st);   // blast emitter
     // rear thruster bells (blue = weak spot), visible from above
     for (const sx of [-1, 1]) {
@@ -969,6 +995,7 @@ MODELS.shredder = (R) => {
     v.box(-0.35, 0.21, 0.42, 0.35, 0.35, 0.84, K.g4, { ch: 1, cht: 1 });
     v.box(-0.35, 0.21, 0.7, 0.35, 0.36, 0.84, K.y1, { ch: 1 }); v.box(-0.07, 0.21, 0.7, 0.07, 0.37, 0.84, K.bk);
     v.box(-0.28, 0.35, 0.49, 0.28, 0.42, 0.63, K.g3);
+    v.paintBox(-0.42, 0.28, 0.42, 0.42, 0.43, 0.7, (X) => (Math.abs(Math.abs(X) - 0.175) < 0.03 ? K.st2 : undefined));   // racing stripes
     return v.weather({ seed: 5, chip: 0.15 });
   });
   const glow = gset('shred.glow', () => { const v = new VB(s, -0.6, -0.1, -0.6, 0.6, 0.1, 0.6); v.cylY(0, 0, -0.07, 0.0, 0.42, K.BLUE, 0.28); v.cylY(0, 0, -0.07, 0.0, 0.2, K.BLUE2); return v; });
@@ -997,7 +1024,7 @@ MODELS.shredder = (R) => {
   };
 };
 
-// ----------------------------------------------------------------------------- TURRETT (turret): gun emplacement
+// ----------------------------------------------------------------------------- WALLFLOWER (turrett, key 'turret'): gun emplacement
 BASE_R.turret = 0.5;
 MODELS.turret = (R) => {
   const s = 0.05;
@@ -1022,9 +1049,10 @@ MODELS.turret = (R) => {
     v.box(-0.15, 0.1, 0.2, -0.05, 0.2, 0.45, -1); v.box(0.05, 0.1, 0.2, 0.15, 0.2, 0.45, -1);
     // scanner eye cluster on the brow
     v.box(-0.15, 0.3, 0.12, 0.15, 0.5, 0.27, K.g1, { ch: 1 });
-    v.box(-0.1, 0.35, 0.27, 0.1, 0.45, 0.32, K.EYE); v.box(0.0, 0.4, 0.27, 0.05, 0.45, 0.32, K.EYE2);
+    v.box(-0.1, 0.35, 0.27, 0.1, 0.4, 0.32, K.g0); v.box(-0.1, 0.4, 0.27, 0.1, 0.45, 0.32, K.EYE); v.box(-0.05, 0.4, 0.27, 0.05, 0.45, 0.32, K.EYE2);   // shy slit eye
     v.box(0.1, 0.45, 0.22, 0.15, 0.5, 0.27, K.YEL);
     v.box(-0.22, 0.0, -0.33, 0.22, 0.05, -0.3, K.g1);
+    v.paintBox(0.0, 0.35, -0.2, 0.15, 0.4, -0.05, (X, Y, Z) => { const dx = Math.abs(X - 0.075), dz = Math.abs(Z + 0.125); return dx + dz < 0.01 ? K.y0 : dx + dz < 0.06 ? K.cer3 : undefined; });   // a little flower decal
     return v.weather({ seed: 92, rust: 0.16 });
   });
   const rear = gset('turret.rear', () => {
@@ -1058,7 +1086,7 @@ MODELS.turret = (R) => {
   };
 };
 
-// ----------------------------------------------------------------------------- SENTINAL (sentinel): rooftop sniper mast
+// ----------------------------------------------------------------------------- NEIGHBORHOOD WATCH (sentinal, key 'sentinel'): rooftop sniper mast
 BASE_R.sentinel = 0.6;
 MODELS.sentinel = (R) => {
   const s = 0.05, mastH = 3.0;
@@ -1083,6 +1111,9 @@ MODELS.sentinel = (R) => {
     v.box(-0.12, 1.4, -0.12, 0.12, 1.5, 0.12, K.y1);
     v.seg(0, 2.5, -0.05, -0.25, 2.5, -0.42, 0.04, K.g3); v.seg(0, 2.1, -0.05, -0.25, 2.25, -0.42, 0.03, K.g2);   // canister bracket
     v.cylY(0, 0, mastH - 0.12, mastH + 0.12, 0.17, K.g4); v.cylY(0, 0, mastH - 0.06, mastH + 0.06, 0.2, K.y1);
+    // "we are watching" sign bolted to the mast: yellow plate, dark rim, one dark eye
+    v.box(0.06, 1.8, -0.06, 0.12, 1.92, 0.0, K.st);
+    v.box(0.12, 1.74, -0.06, 0.42, 1.98, 0.0, (X, Y, Z) => (Y < 1.8 || Y > 1.92 || X < 0.18 || X > 0.36 ? K.bk : Math.abs(X - 0.27) < 0.04 ? K.g0 : K.y0));
     return v.weather({ seed: 101, rust: 0.18 });
   });
   const canister = gset('sent.can', () => {
@@ -1125,7 +1156,7 @@ MODELS.sentinel = (R) => {
   };
 };
 
-// ----------------------------------------------------------------------------- SURVEYR (surveyor): armoured rolling scanner
+// ----------------------------------------------------------------------------- DATA MINER (surveyr, key 'surveyor'): armoured rolling scanner
 BASE_R.surveyor = 0.9;
 MODELS.surveyor = (R) => {
   const s = 0.07, Rb = 0.86, cy = 0.88, rIn = 0.62;
@@ -1145,6 +1176,7 @@ MODELS.surveyor = (R) => {
       if (a > 0.42) return K.y1;
       const along = (which === 'top' || which === 'bottom') ? Math.abs(Z) : Math.abs(Y);
       if (along < 0.05) return K.g4;
+      if (a < 0.25 && along > 0.12 && along < 0.3) return barcode('x', K.cer3, K.bk)(X, Y, Z, i, j, k);   // inventory barcode
       return a < 0.07 ? K.cer2 : K.cer;
     });
     if (which !== 'sideL' && which !== 'sideR') v.paint((X, Y, Z, i, j, k, c) => (c === K.cer && Math.abs(X) > 0.3 && (i + j + k) % 4 === 0 ? K.cer2 : undefined));
@@ -1190,7 +1222,7 @@ MODELS.surveyor = (R) => {
   };
 };
 
-// ----------------------------------------------------------------------------- ROCKETIER (rocketeer): heavy rocket gunship (+ Vaporiser)
+// ----------------------------------------------------------------------------- ROCKET SURGEON (rocketier, key 'rocketeer'): heavy rocket gunship (+ Vape Lord / vaporiser)
 BASE_R.rocketeer = 1.6;
 MODELS.rocketeer = (R, def) => {
   const s = 0.08, laser = def.variant === 'laser', vk = laser ? 'rkt.l.' : 'rkt.';
@@ -1204,7 +1236,8 @@ MODELS.rocketeer = (R, def) => {
     v.paintBox(-0.56, 0.4, -0.8, 0.56, 0.6, 0.64, (X, Y, Z, i, j, k, c) => (c === K.g4 && Math.abs(X) > 0.4 && k % 4 === 0 ? K.st : undefined));
     v.box(-0.16, 0.56, -0.72, 0.16, 0.64, 0.24, K.g3);                          // spine vent
     v.paintBox(-0.16, 0.56, -0.72, 0.16, 0.65, 0.24, seam(2, 'z', K.g1));
-    v.box(-0.56, 0.4, 0.48, -0.4, 0.58, 0.64, K.y1); v.box(0.4, 0.4, 0.48, 0.56, 0.58, 0.64, K.y1);
+    v.box(-0.56, 0.4, 0.48, -0.4, 0.58, 0.64, laser ? K.tl : K.y1); v.box(0.4, 0.4, 0.48, 0.56, 0.58, 0.64, laser ? K.tl : K.y1);
+    if (!laser) v.paintBox(0.24, 0.48, -0.48, 0.48, 0.58, -0.24, (X, Y, Z) => (Math.abs(X - 0.36) < 0.05 || Math.abs(Z + 0.36) < 0.05 ? K.cer3 : K.g1));   // first-aid decal
     for (const sx of [-1, 1]) { v.box(sx > 0 ? 0.72 : -0.8, -0.32, -0.72, sx > 0 ? 0.8 : -0.72, 0.24, 0.56, K.g3); }
     v.paintBox(-0.81, -0.32, -0.72, 0.81, 0.24, 0.56, seam(3, 'z', K.g1));
     // scanner face under the brow: big red eye, four yellow laser emitters
@@ -1230,7 +1263,7 @@ MODELS.rocketeer = (R, def) => {
       v.box(-0.2, -0.2, -0.48, 0.2, 0.2, 0.24, K.g2, { ch: 1 });
       v.cylZ(0, 0, 0.2, 0.72, 0.08, K.st); for (let z = 0.24; z < 0.56; z += 0.16) v.cylZ(0, 0, z, z + 0.08, 0.15, K.cu);
       v.cylZ(0, 0, 0.6, 0.76, 0.1, K.g1, 0.05); v.cylZ(0, 0, 0.64, 0.76, 0.05, K.RED);
-      v.box(-0.2, 0.2, -0.48, 0.2, 0.24, 0.24, K.y1);
+      v.box(-0.2, 0.2, -0.48, 0.2, 0.24, 0.24, K.tl);
     } else {
       v.box(-0.24, -0.24, -0.48, 0.24, 0.24, 0.64, K.g3, { ch: 1 });
       v.box(-0.24, 0.16, -0.48, 0.24, 0.26, 0.64, K.g4, { ch: 1 }); v.paintBox(-0.25, 0.16, -0.48, 0.25, 0.27, 0.4, seam(3, 'z', K.g3));
@@ -1279,7 +1312,7 @@ MODELS.rocketeer = (R, def) => {
     thr.push(o);
   }
   if (laser) {
-    const panel = gset('rkt.panel', () => { const v = new VB(s, -0.4, 0, -0.4, 0.4, 0.16, 0.4); v.box(-0.32, 0, -0.32, 0.32, 0.08, 0.32, K.g4, { ch: 1 }); v.box(-0.32, 0, -0.32, 0.32, 0.09, -0.16, K.y1); v.box(-0.08, 0.08, -0.08, 0.08, 0.12, 0.08, K.g1); return v.weather({ seed: 4 }); });
+    const panel = gset('rkt.panel', () => { const v = new VB(s, -0.4, 0, -0.4, 0.4, 0.16, 0.4); v.box(-0.32, 0, -0.32, 0.32, 0.08, 0.32, K.g4, { ch: 1 }); v.box(-0.32, 0, -0.32, 0.32, 0.09, -0.16, K.tl); v.box(-0.08, 0.08, -0.08, 0.08, 0.12, 0.08, K.g1); return v.weather({ seed: 4 }); });
     const lcore = gset('rkt.lcore', () => { const v = new VB(s, -0.32, -0.24, -0.32, 0.32, 0.24, 0.32); v.ell(0, 0, 0, 0.26, 0.15, 0.28, K.HOT); v.ell(0, 0.04, 0, 0.16, 0.12, 0.16, K.HOT2); for (const x of [-0.16, 0.08]) v.box(x, -0.2, -0.32, x + 0.08, 0.16, 0.32, K.g1); return v; });
     const pp = R.pm(panel, hull, 0, 0.66, -0.04);
     R.pm(lcore, hull, 0, 0.5, -0.04);
@@ -1292,7 +1325,7 @@ MODELS.rocketeer = (R, def) => {
   };
 };
 
-// ----------------------------------------------------------------------------- ARK TURBYNE: armoured sky-engine (rocketeer key, variant 'turbine')
+// ----------------------------------------------------------------------------- CLOUD SERVICE (turbyne): armoured sky-engine (rocketeer key, variant 'turbine')
 BASE_R.turbine = 2.8;
 MODELS.turbine = (R) => {
   const s = 0.12;
@@ -1303,7 +1336,11 @@ MODELS.turbine = (R) => {
     const ring = (y0, y1, r0, r1, fn) => v.fillIf(-r1, y0, -r1, r1, y1, r1, (X, Y, Z) => { const r = Math.hypot(X, Z); return Y >= y0 && Y < y1 && r < r1 && r >= r0; }, fn);
     ring(-0.84, 0.0, 1.08, 2.4, (X, Y, Z, i, j, k) => { const a = Math.atan2(X, Z); if (Y > -0.36 && Y < -0.12) return (Math.floor((a + Math.PI) / (Math.PI * 2) * 48) & 1) ? K.y0 : K.bk; return Math.abs(Math.sin(a * 6)) < 0.1 ? K.g1 : Math.cos(a * 6) > 0 ? K.g3 : K.g2; });
     ring(0.0, 0.36, 1.08, 2.16, (X, Y, Z, i, j, k) => { const a = Math.atan2(X, Z); return Math.abs(Math.sin(a * 6)) < 0.08 ? K.g2 : (Math.abs(Math.sin(a * 6)) < 0.3 && Math.hypot(X, Z) > 1.95 ? K.st : K.g4); });
-    ring(0.36, 0.6, 1.08, 1.68, (X, Y, Z) => (Math.hypot(X, Z) < 1.3 ? K.y1 : K.g3));
+    ring(0.36, 0.6, 1.08, 1.68, (X, Y, Z, i, j, k) => {
+      const a = Math.atan2(X, Z);
+      if (Math.hypot(X, Z) < 1.3) return (Math.floor((a + Math.PI) / (Math.PI * 2) * 12 + 0.5) % 3) ? K.y1 : K.g1;   // loading-spinner hub ring
+      return Math.abs(a) < 0.42 && Y > 0.48 ? barcode('x', K.cer3, K.bk)(X, Y, Z, i, j, k) : K.g3;                   // service tag at the front
+    });
     v.cylY(0, 0, -0.72, -0.48, 1.08, K.g1);
     v.cylY(0, 0, -0.48, -0.24, 0.3, K.g2); v.cylY(0, 0, -0.24, -0.12, 0.18, K.EXH);
     for (const [x, z] of gearXZ) { v.cylY(x, z, -1.32, 0.6, 0.5, -1); v.cylY(x, z, 0.24, 0.48, 0.62, K.g2, 0.5); v.cylY(x, z, -0.84, -0.6, 0.6, K.g1, 0.5); }
@@ -1333,7 +1370,7 @@ MODELS.turbine = (R) => {
   };
 };
 
-// ----------------------------------------------------------------------------- LEAPR (leaper): four-legged leaping brute
+// ----------------------------------------------------------------------------- PARKOUR DAD (leapr, key 'leaper'): four-legged leaping brute
 BASE_R.leaper = 1.8;
 MODELS.leaper = (R) => {
   const s = 0.08, bodyY = 1.45;
@@ -1356,12 +1393,13 @@ MODELS.leaper = (R) => {
     v.box(-0.36, -0.12, 1.2, -0.28, -0.04, 1.32, K.EYE); v.box(0.28, -0.12, 1.2, 0.36, -0.04, 1.32, K.EYE);
     for (const sx of [-1, 1]) v.seg(sx * 0.16, -0.24, 1.16, sx * 0.12, -0.5, 1.4, 0.05, K.st);   // pulse prongs
     v.paintBox(-0.37, 0.16, 0.64, 0.37, 0.25, 1.0, seam(2, 'z', K.g2));
+    v.paintBox(-0.37, -0.29, 0.88, 0.37, 0.25, 0.96, K.st2);                          // sweatband
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) v.cylY(sx * 0.5, sz * 0.5, -0.24, 0.2, 0.2, K.g3);
     return v.weather({ seed: 151, rust: 0.16 });
   });
   const plate = gset('leap.eyeplate', () => {
     const v = new VB(s, -0.4, -0.08, -0.16, 0.4, 0.32, 0.32);
-    v.fillIf(-0.4, 0, -0.16, 0.4, 0.32, 0.32, (X, Y, Z) => Math.abs(X) < 0.34 - Y * 0.2 && Z < 0.24 - Y * 0.5 && Z > -0.12, (X, Y, Z) => (Math.abs(X) > 0.2 ? K.y1 : K.g5));
+    v.fillIf(-0.4, 0, -0.16, 0.4, 0.32, 0.32, (X, Y, Z) => Math.abs(X) < 0.34 - Y * 0.2 && Z < 0.24 - Y * 0.5 && Z > -0.12, (X, Y, Z) => (Math.abs(X) > 0.2 ? K.y1 : K.cap));   // dad-cap red brim
     return v.weather({ seed: 8, chip: 0.2 });
   });
   const core = gset('leap.core', () => { const v = new VB(s, -0.4, -0.2, -0.4, 0.4, 0.2, 0.4); v.cylY(0, 0, -0.16, 0.08, 0.34, K.HOT); v.cylY(0, 0, -0.16, 0.12, 0.2, K.HOT2); v.cylY(0, 0, 0.08, 0.16, 0.08, K.g1); return v; });
@@ -1402,7 +1440,7 @@ MODELS.leaper = (R) => {
   };
 };
 
-// ----------------------------------------------------------------------------- BASTIAN (bastion): armoured gatling fortress
+// ----------------------------------------------------------------------------- HOA PRESIDENT (bastian, key 'bastion'): armoured gatling fortress
 BASE_R.bastion = 2.2;
 MODELS.bastion = (R) => {
   const s = 0.12, bodyY = 2.5;
@@ -1419,7 +1457,7 @@ MODELS.bastion = (R) => {
     v.box(-0.84, 0.72, 0.6, 0.84, 1.0, 0.84, K.y1); v.box(-0.12, 0.72, 0.6, 0.12, 1.01, 0.84, K.bk);
     v.seg(0.54, 0.96, -0.66, 0.6, 1.4, -0.78, 0.05, K.st); v.box(0.48, 1.32, -0.84, 0.6, 1.44, -0.72, K.RED);
     for (const sx of [-1, 1]) v.box(sx > 0 ? 0.96 : -1.08, -0.48, -0.96, sx > 0 ? 1.08 : -0.96, 0.48, 0.84, K.g3);      // side skirts
-    v.paintBox(-1.09, 0.36, -0.96, 1.09, 0.48, 0.84, K.y1);
+    v.paintBox(-1.09, 0.36, -0.96, 1.09, 0.48, 0.84, (X, Y, Z, i, j, k) => (k % 2 ? K.cer3 : K.g1));   // picket-fence trim
     v.paintBox(-1.09, -0.48, -0.96, 1.09, 0.36, 0.84, seam(4, 'z', K.g1));
     // massive sloped front armour with a flush row of red eyes
     v.fillIf(-1.2, -0.96, 0.84, 1.2, 1.08, 1.68, (X, Y, Z) => { const zf = zfA(X, Y); return Z < zf && Z >= zf - 0.36 && Math.abs(X) < 1.2 - Math.max(0, Y - 0.72) * 0.8; },
@@ -1435,6 +1473,8 @@ MODELS.bastion = (R) => {
     v.box(-0.48, -0.36, -1.32, 0.48, 0.36, -1.2, K.g0);                                   // rear core recess
     v.box(-0.6, -0.48, -1.44, -0.48, 0.6, -1.2, K.g3); v.box(0.48, -0.48, -1.44, 0.6, 0.6, -1.2, K.g3);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) v.box(sx * 0.7 - 0.24, -0.84, sz * 0.6 - 0.24, sx * 0.7 + 0.24, -0.48, sz * 0.6 + 0.24, K.g3, { ch: 1 });
+    // violation notice posted on the deck: red header, two lines of small print, a signature
+    v.paintBox(0.36, 0.84, -0.48, 0.72, 0.97, 0.0, (X, Y, Z) => (Z < -0.36 ? K.tie : (Z < -0.12 && X < 0.6) || (Z > -0.12 && X < 0.48) ? K.g2 : K.cer3));
     return v.weather({ seed: 161, rust: 0.18 });
   });
   const canister = gset('bast.can', () => {
@@ -1491,7 +1531,7 @@ MODELS.bastion = (R) => {
   };
 };
 
-// ----------------------------------------------------------------------------- BOMBARDEER (bombardier): artillery walker
+// ----------------------------------------------------------------------------- SHELL COMPANY (bombardeer, key 'bombardier'): artillery walker
 BASE_R.bombardier = 2.2;
 MODELS.bombardier = (R) => {
   const s = 0.12, bodyY = 2.0;
@@ -1508,8 +1548,8 @@ MODELS.bombardier = (R) => {
     v.cylY(-0.72, -0.6, 0.48, 0.84, 0.06, K.st); v.cylY(-0.72, -0.6, 0.84, 0.96, 0.3, K.g4, 0.18); v.box(-0.78, 0.96, -0.66, -0.66, 1.08, -0.54, K.RED);   // spotter uplink dish
     v.box(-0.6, -0.36, 0.96, 0.6, 0.36, 1.2, K.g3, { ch: 2 });                                // sensor face
     v.box(-0.48, -0.12, 1.08, 0.48, 0.24, 1.2, K.g0);
-    v.box(-0.36, 0.0, 1.2, -0.12, 0.12, 1.32, K.EYE); v.box(0.12, 0.0, 1.2, 0.36, 0.12, 1.32, K.EYE); v.box(-0.06, 0.0, 1.2, 0.06, 0.12, 1.32, K.EYE2);
-    v.box(-0.6, 0.24, 0.96, 0.6, 0.37, 1.2, K.y1);
+    v.box(-0.36, 0.0, 1.2, 0.36, 0.12, 1.32, K.EYE); v.box(-0.12, 0.0, 1.2, 0.12, 0.12, 1.32, K.EYE2);   // one long slit eye
+    v.box(-0.6, 0.24, 0.96, 0.6, 0.37, 1.2, barcode('x', K.cer3, K.bk));                          // barcoded brow
     v.box(-0.6, -0.48, -1.32, -0.48, 0.36, -1.08, K.g3); v.box(0.48, -0.48, -1.32, 0.6, 0.36, -1.08, K.g3);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) v.box(sx * 0.74 - 0.24, -0.84, sz * 0.74 - 0.24, sx * 0.74 + 0.24, -0.48, sz * 0.74 + 0.24, K.g3, { ch: 1 });
     v.paintBox(-0.97, -0.6, -1.08, 0.97, -0.36, 0.96, K.y1);
@@ -1566,10 +1606,10 @@ MODELS.bombardier = (R) => {
   };
 };
 
-// ----------------------------------------------------------------------------- QUEENE (queen): colossal walker boss (+ Matriark)
+// ----------------------------------------------------------------------------- THE LANDLADY (queene, key 'queen'): colossal walker boss (+ Helicopter Mom / matriark)
 BASE_R.queen = 4.5;
 MODELS.queen = (R, def) => {
-  const s = 0.15, matri = def.behavior === 'matriarch' || /matri/i.test(def.name || ''), bodyY = 6.0;
+  const s = 0.15, matri = def.behavior === 'matriarch' || def.variant === 'matriarch', bodyY = 6.0;
   R.refSpeed = 1.4;
   const vk = matri ? 'queen.m.' : 'queen.';
   const hull = gset(vk + 'hull', () => {
@@ -1619,6 +1659,10 @@ MODELS.queen = (R, def) => {
     for (const sx of [-1, 1]) v.box(sx * 0.48 - 0.08, 0.0, 1.13, sx * 0.48 + 0.08, 0.15, 1.35, K.EYE);
     v.cylZ(0, -0.45, 1.0, 1.8, 0.12, K.st); v.cylZ(0, -0.45, 1.65, 1.8, 0.17, K.g1); v.cylZ(0, -0.45, 1.75, 1.88, 0.08, K.YEL);   // sweep laser
     for (const sx of [-1, 1]) v.seg(sx * 0.6, -0.5, 1.0, sx * 0.4, -0.85, 1.6, 0.11, K.g3);   // mandibles
+    if (!matri) for (const sx of [-1, 1]) {                                                   // string of pearls round the jaw
+      for (const x of [0.225, 0.525]) v.box(sx * x - 0.07, -0.6, 1.2, sx * x + 0.07, -0.45, 1.35, K.cer3);
+      for (const z of [0.525, 0.825]) v.box(sx * 0.825 - 0.07, -0.6, z - 0.07, sx * 0.825 + 0.07, -0.45, z + 0.07, K.cer3);
+    }
     return v.weather({ seed: 183, rust: 0.14 });
   });
   const upper = limbGS(vk + 'up', s, 3.4, 0.48, 0.48, 0.4, 0.4, { band: 0.75, seed: 10, rust: 0.16 });
@@ -1649,6 +1693,12 @@ MODELS.queen = (R, def) => {
       R.zone('missile_pod', sx * 1.45, -2.35, { hide: [pg.g], show: [R.pm(stubGS('', s, 0.5), hullG, sx * 1.45, 1.3, -1.8).g] });
     }
   }
+  let prop = null;
+  if (matri) {   // propeller beanie on a short mast at the back
+    const mast = gset('queen.m.mast', () => { const v = new VB(s, -0.2, 0, -0.2, 0.2, 1.05, 0.2); v.cylY(0, 0, 0, 0.9, 0.08, K.st); v.cylY(0, 0, 0.75, 1.05, 0.16, K.y0); return v.weather({ seed: 2 }); });
+    R.pm(mast, hullG, -0.6, 1.5, -1.3);
+    prop = R.pm(bladesGS('mprop', s, 0.66, 4, K.g5, K.y0), hullG, -0.6, 2.5, -1.3).g;
+  }
   const headYaw = R.g(hullG, 0, -0.3, 2.85);
   R.pm(head, headYaw);
   const legs = [];
@@ -1667,6 +1717,7 @@ MODELS.queen = (R, def) => {
     headYaw.rotation.x = damp(headYaw.rotation.x, s.pitch ?? (0.12 + R.al * 0.1), 2, dt);
     const nb = plates.filter(p => p.broken).length;
     cg.g.scale.setScalar(1 + nb * 0.06 + Math.sin(t * 3) * 0.02);
+    if (prop) prop.rotation.y += dt * (s.stunned ? 0.5 : 2.5 + R.al * 6);   // spins faster when she's worried
   };
 };
 

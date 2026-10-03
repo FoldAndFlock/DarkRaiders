@@ -512,7 +512,7 @@ export class Sim {
 
   // ---- extraction flow: idle -> called (40 s) -> open (doors, auto-departs after 90 s) -> closing (8 s,
   // after a raider in the cabin pulls the departure lever or the 90 s ran out) -> everyone inside the cabin
-  // extracts -> gone (cooldown 75 s -> idle; a metro station closes for the rest of the raid). Raider hatch:
+  // extracts -> gone (cooldown 75 s -> idle; a metro station closes for the rest of the raid). Doggy Door (hatch):
   // a key opens it for 15 s, anyone stepping onto it extracts, one open hatch per map.
   callExtract(x, by) {
     if (x.state !== 'idle' || x.kind === 'hatch' || this.raidEnded || this.timeLeft <= 0) return false;
@@ -635,7 +635,7 @@ export class Sim {
   }
   _timer() {
     const tl = this.timeLeft;
-    for (const [mark, msg] of [[600, '10 MINUTES REMAIN'], [300, '5 MINUTES REMAIN'], [120, 'ARK SWARM INBOUND - 2 MINUTES'], [60, '60 SECONDS']]) {
+    for (const [mark, msg] of [[600, '10 MINUTES REMAIN'], [300, '5 MINUTES REMAIN'], [120, 'REPO SWARM INBOUND - 2 MINUTES'], [60, '60 SECONDS - FINAL NOTICE']]) {
       if (tl <= mark && !this.warned[mark]) { this.warned[mark] = true; this.emit({ e: 'warn', msg, t: mark }); }
     }
     if (tl <= 0 && !this.raidEnded) {

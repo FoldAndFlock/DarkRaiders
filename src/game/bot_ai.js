@@ -5,8 +5,11 @@ import { botLoadout } from './loot.js';
 import { weaponStats, gunModelFor, gunSoundFor, ITEMS } from './items.js';
 import { wrapAngle } from './sim.js';
 
-const SAYS_NEUTRAL = ["DON'T SHOOT!", 'FRIENDLY!', 'NOT LOOKING FOR TROUBLE', 'EASY THERE', 'JUST LOOTING'];
-const SAYS_HOSTILE = ['CONTACT!', 'RAIDERS HERE', 'LIGHT THEM UP', 'YOUR LOOT IS MINE'];
+// barks (speech bubbles over bot raiders)
+const SAYS_NEUTRAL = ["DON'T SHOOT!", "DON'T SHOOT!", 'FRIENDLY! EXTREMELY FRIENDLY!', 'JUST HERE FOR THE TOASTERS', "WE'RE ALL BEHIND ON PAYMENTS",
+  'NOT LOOKING FOR TROUBLE', 'EASY THERE, PARTNER', "DON'T SHOOT! I HAVE A FAMILY! OF RUSTED GEARS!"];
+const SAYS_HOSTILE = ['CONTACT!', 'RAIDERS HERE', 'LIGHT THEM UP', 'YOUR LOOT IS MINE', 'NICE BACKPACK. MINE NOW.', 'THAT LOOKS VALUABLE'];
+const SAYS_PROVOKED = ['YOU ASKED FOR IT', 'DIPLOMACY HAS FAILED', 'OKAY, NOW WE SHOOT', 'THAT WAS OUR 12%'];
 
 export class BotBrain {
   constructor(sim, e, squad) {
@@ -37,7 +40,7 @@ export class BotBrain {
     if (src.type === 'raider' && src.team !== this.e.team) {
       // provoke the whole squad
       for (const id of this.squad.members) { const m = this.sim.entities.get(id); if (m?.brain) { m.brain.hostileTeams.add(src.team); if (!m.brain.target) m.brain.target = src.id; } }
-      if (this.squad.temper === 'neutral') this.say('YOU ASKED FOR IT');
+      if (this.squad.temper === 'neutral') this.say(SAYS_PROVOKED[Math.floor(this.sim.rng() * SAYS_PROVOKED.length)]);
     }
     if (!this.target || this.sim.rng() < 0.4) this.target = src.id;
   }

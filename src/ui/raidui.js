@@ -33,10 +33,10 @@ export class RaidUI {
   showIntro() {
     const p = el('div', 'panel col'); p.style.cssText = 'position:absolute;left:calc(var(--px)*8px);top:calc(var(--px)*64px);max-width:calc(var(--px)*190px);pointer-events:none';
     p.innerHTML = `<h2 class="yellow">FIRST DROP</h2>
-      <div>Loot what you can, then <span class="green">EXTRACT</span> at an elevator, metro or hatch before the timer runs out.</div>
+      <div>Loot what you can, then <span class="green">EXTRACT</span> at an elevator, metro or Doggy Door before the timer runs out.</div>
       <div class="label">ARK GAZE: <span style="color:#c8dcff">WHITE</span> PATROLLING - <span class="yellow">YELLOW</span>/<span style="color:var(--orange)">ORANGE</span> SUSPICIOUS - <span class="red">RED</span> SPOTTED YOU, ATTACKING. STAY OUT OF THE LIGHT OR BREAK LINE OF SIGHT.</div>
       <div class="label">${touchEnabled() ? 'LEFT THUMB MOVES (PUSH PAST THE RING TO SPRINT) - RIGHT STICK AIMS, PAST HALFWAY FIRES - HOLD USE TO SEARCH - TAP THE QUICK SLOTS TO HEAL' : 'E SEARCH / INTERACT - TAB INVENTORY - M MAP - 1-6 QUICK USE - SPACE ROLL - C CROUCH - F FLASHLIGHT'}</div>
-      <div class="label">DIE AND YOU LOSE EVERYTHING EXCEPT YOUR SAFE POCKET.</div>`;
+      <div class="label">DIE AND EVERYTHING EXCEPT YOUR SAFE POCKET GETS REPOSSESSED.</div>`;
     this.wrap.appendChild(p);
     const kill = () => { p.remove(); removeEventListener('keydown', kill); removeEventListener('pointerdown', kill); };
     setTimeout(() => { addEventListener('keydown', kill); addEventListener('pointerdown', kill); }, 1500); setTimeout(kill, 16000);
@@ -67,7 +67,7 @@ export class RaidUI {
   // ------------------------------------------------------------------ inventory + loot
   openLoot(it, items) {
     this.lootRef = it; this.lootItems = items;
-    // first search reveals items one by one (ARC Raiders style)
+    // first search reveals items one by one
     const key = it.kind + ':' + it.ref; this.revealed = this.revealed || new Set();
     if (!this.revealed.has(key) && items.length) {
       this.revealed.add(key);
@@ -272,7 +272,7 @@ export class RaidUI {
     const p = el('div', 'panel col has-x'); p.style.minWidth = 'min(calc(var(--px) * 180px), 96vw)'; p.style.maxWidth = 'calc(var(--px) * 300px)';
     p.appendChild(el('h2', '', 'PAUSED'));
     p.appendChild(closeBtn(() => this.closePause()));
-    p.appendChild(el('div', 'label', g.net ? 'THE RAID CONTINUES - SQUAD MODE' : 'SOLO - THE WORLD IS FROZEN'));
+    p.appendChild(el('div', 'label', g.net ? 'THE RAID CONTINUES - SQUAD MODE. THE ARK DO NOT PAUSE.' : 'SOLO - THE WORLD IS FROZEN. THE ARK ARE ON HOLD.'));
     const resume = el('button', 'primary', 'RESUME'); resume.onclick = () => this.closePause(); p.appendChild(resume);
     const vol = el('div', 'col');
     for (const [k, label] of [['master', 'MASTER'], ['music', 'MUSIC'], ['sfx', 'SFX']]) {

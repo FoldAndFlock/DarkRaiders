@@ -1,13 +1,15 @@
-// AUTO-AUTHORED CONTENT TABLE - DarkRaiders (patterned after ARC Raiders 1.0; names lightly tweaked).
-// Pure data: no imports, no DOM. See docs/ARCHITECTURE.md for the schema and docs/research/items_notes.md for sources.
+// DarkRaiders workshop: the crafting benches in Desperanza (upgrade costs per level) and Nugget, the workshop rooster.
+// Pure data: no imports, no DOM. See docs/ARCHITECTURE.md for the schema. Names and flavour text are our own (parody tone).
 
 export const BENCHES = {
   workbench: {
-    name: 'Workbench', desc: 'Free basic bench. Crafts starter weapons, ammo, bandages and light shields.',
+    name: 'Wobbly Table',
+    desc: 'Free basic bench for starter weapons, ammo, bandages and light shields. One leg is shorter; we made peace with it.',
     levels: [{ level: 1, cost: {} }],
   },
   gunsmith: {
-    name: 'Gunsmith', desc: 'Builds and upgrades weapons and weapon mods.',
+    name: 'Gun Garage',
+    desc: 'Builds and upgrades weapons and weapon mods. Half the guns in here are "projects" that will be finished any day now.',
     levels: [
       { level: 1, cost: { metal_parts: 20, rubber_parts: 30 } },
       { level: 2, cost: { rusted_tools: 3, mechanical_components: 5, wazp_driver: 8 } },
@@ -15,7 +17,7 @@ export const BENCHES = {
     ],
   },
   gear_bench: {
-    name: 'Gear Bench', desc: 'Crafts augments and shields.',
+    name: 'Sewing Circle', desc: 'Crafts augments and shields. Gossip is the main output; the gear is a happy by-product.',
     levels: [
       { level: 1, cost: { plastic_parts: 25, fabric: 30 } },
       { level: 2, cost: { power_cable: 3, electrical_components: 5, hornett_driver: 5 } },
@@ -23,7 +25,8 @@ export const BENCHES = {
     ],
   },
   medical_lab: {
-    name: 'Medical Lab', desc: 'Crafts bandages, shots, rechargers and defibrillators.',
+    name: 'Medicine Cabinet',
+    desc: 'Crafts bandages, shots, shield rechargers and defibrillators. Everything is expired, but beautifully organised.',
     levels: [
       { level: 1, cost: { fabric: 50, ark_alloy: 6 } },
       { level: 2, cost: { cracked_bioscanner: 2, durable_cloth: 5, tikk_pod: 8 } },
@@ -31,7 +34,8 @@ export const BENCHES = {
     ],
   },
   explosives_station: {
-    name: 'Explosives Station', desc: 'Crafts grenades, mines and other ordnance.',
+    name: 'Bad Idea Bench',
+    desc: 'Crafts grenades, mines and other ordnance. Most great stories in Desperanza start here. Some of them end here too.',
     levels: [
       { level: 1, cost: { chemicals: 50, ark_alloy: 6 } },
       { level: 2, cost: { synthesized_fuel: 3, crude_explosives: 5, popp_trigger: 5 } },
@@ -39,7 +43,8 @@ export const BENCHES = {
     ],
   },
   utility_station: {
-    name: 'Utility Station', desc: 'Crafts gadgets, utility throwables and traversal tools.',
+    name: 'Junk Drawer',
+    desc: 'Crafts gadgets, utility throwables and traversal tools. Nobody knows what half of it does, the bench included.',
     levels: [
       { level: 1, cost: { plastic_parts: 50, ark_alloy: 6 } },
       { level: 2, cost: { damaged_heat_sink: 2, electrical_components: 5, snytch_scanner: 6 } },
@@ -47,7 +52,8 @@ export const BENCHES = {
     ],
   },
   refiner: {
-    name: 'Refiner', desc: 'Refines basic materials into components, gun parts and advanced parts.',
+    name: 'The Upcycler',
+    desc: 'Refines basic materials into components, gun parts and advanced parts. Turns trash into slightly fancier trash.',
     levels: [
       { level: 1, cost: { metal_parts: 60, ark_powercell: 5 } },
       { level: 2, cost: { toaster: 3, ark_motion_core: 5, fyreball_burner: 8 } },
@@ -56,10 +62,12 @@ export const BENCHES = {
   },
 };
 
-// Scrappie: yields = [itemId, min, max] per collection (min = short raid, max = 15+ min raid).
+// Nugget, the workshop rooster (export keeps its old SCRAPPY id for saves and code).
+// yields = [itemId, min, max] per collection (min = short raid, max = 15+ min raid).
 export const SCRAPPY = {
-  name: 'Scrappie',
-  desc: 'The workshop rooster. Brings back dubiously sourced materials after every raid; yields scale with time spent topside (max at 15 min) and stop after 5 uncollected raids.',
+  name: 'Nugget',
+  desc: 'Brings back dubiously sourced materials after every raid. Yields grow with your time topside (max at 15 min), and he '
+    + 'downs tools after 5 uncollected raids: union rules. Nugget does not accept feedback.',
   capacityRaids: 5,
   levels: [
     {

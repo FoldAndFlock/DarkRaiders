@@ -39,7 +39,7 @@ export function newProfile(name = 'Raider') {
   st('metal_parts', 30); st('plastic_parts', 20); st('rubber_parts', 20); st('fabric', 15); st('chemicals', 10);
   st('ammo_medium', 60); st('ammo_light', 80); st('bandage', 4); st('rattlr', 1); st('stitchr', 1);
   st('free_loadout_augment', 1); st('combat_mk_1', 1);
-  // the first Celesta quests are active from the start
+  // the first Auntie Synergy (celesta) quests are active from the start
   return p;
 }
 

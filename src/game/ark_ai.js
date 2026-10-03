@@ -132,7 +132,7 @@ export class ArkBrain {
     let best = null, bestScore = 0;
     const range = v.range * (this.blind ? 0.3 : 1) * (this.sim.condEffects.visionMul || 1);
     this.sim.near(e.x, e.z, range * 1.2, (t) => {
-      if (t.type !== 'raider' || t.st !== 'alive') return;     // downed raiders are ignored (as in ARC Raiders)
+      if (t.type !== 'raider' || t.st !== 'alive') return;     // downed raiders are ignored
       if (t.buffs?.cloak) return;
       if (t.grace > this.sim.t) return;                        // just inserted: a few seconds to get bearings
       const dx = t.x - e.x, dz = t.z - e.z, d = Math.hypot(dx, dz);

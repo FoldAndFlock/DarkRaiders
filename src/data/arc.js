@@ -1,5 +1,7 @@
-// ARK machine definitions (pure data). Patterned on the ARC Raiders 1.x bestiary
-// (arcraiders.wiki /wiki/ARC + per-machine pages), adapted for a top-down camera.
+// ARK machine definitions (pure data): every hostile machine of the Autonomous Repossession
+// Konglomerate, plus the static wrecks / landers players can breach. Tuned for a top-down camera.
+// Ids are internal and never change (saves, co-op, quests, loot); `name` / `desc` / ability names
+// are player-facing.
 //
 // Schema: see docs/ARCHITECTURE.md ("arc.js"). Fields beyond the base schema are optional
 // hints the engine may use or ignore:
@@ -14,7 +16,7 @@
 //                        (m/s, default 4.5 small / 3 big). Flyers with radius <= 0.8 may follow a raider
 //                        indoors through an open doorway; bigger ones only look for an angle from outside.
 //   explosiveMul         multiplier on explosive damage taken.  turnRate: body yaw speed (deg/s).
-//   static: true         fixed emplacement that never moves (Turrett, Sentinal).
+//   static: true         fixed emplacement that never moves (turrett, sentinal).
 //   color                minimap / UI tint.  threat: 1 (nuisance) .. 10 (boss).
 //   vision.sweep         { arc, speed } idle scan sweep (deg, deg/s) for fixed/scanning units.
 //   vision.lose          seconds before an alerted ARK drops back from red to yellow.
@@ -28,7 +30,7 @@
 //   onDeath              { fire?: {radius,dur,dps}, explode?: {radius,dmg} }
 //   spawn                { group: [min,max], maps: [...], habitat: 'indoor'|'outdoor'|'any',
 //                          escorts?: [[arkId, count]], conditionOnly?: conditionId, event?: true }
-//   calls                (Snytch) reinforcement waves it summons.
+//   calls                (snytch) reinforcement waves it summons.
 //   xpLoot / xpPart      XP for scavenging the wreck / each lootable detached part.
 //
 // Hitzones (local frame: x = right, z = forward, metres; y optional height):
@@ -45,12 +47,12 @@
 //   lootOnBreak    loot rows dropped when the part breaks off.
 //
 // Loot rows: [itemId, chance 0..1, min, max]. Item ids follow items.js naming
-// (ARC -> ARK: ark_alloy, ark_powercell, ...; unique parts e.g. wazp_driver).
+// (ark_alloy, ark_powercell, ...; unique parts e.g. wazp_driver).
 
 export const ARK = {
   // ------------------------------------------------------------------ small fry
   tikk: {
-    name: 'Tikk', model: 'tick', modelScale: 1,
+    name: 'Late Fee', model: 'tick', modelScale: 1,
     hp: 15, armor: 0, flying: false, height: 0.4, radius: 0.3, speed: 6.5, turnRate: 540,
     size: { radius: 0.3, height: 0.4 },
     behavior: 'tick', climbs: true, meleeOneHit: true,
@@ -62,11 +64,11 @@ export const ARK = {
             ['ark_flex_rubber', 0.1, 1, 1], ['ark_thermo_lining', 0.08, 1, 1] ],
     xp: 50, xpLoot: 100, threat: 1, color: '#c8c2b0',
     spawn: { group: [1, 4], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'indoor' },
-    desc: 'Spider-sized ARK that skitters in rafters and leaps at your head, latching on to drain health and shield. Shake it off, then one swing of the Raider tool finishes it.',
+    desc: 'Small, sudden and always attached. Drops from the rafters, latches on and drains health and shield; shake it off, then one Bonk Stick swing settles the account.',
   },
 
   popp: {
-    name: 'Popp', model: 'pop', modelScale: 1,
+    name: 'Pop-Up Ad', model: 'pop', modelScale: 1,
     hp: 20, armor: 0, flying: false, height: 0.7, radius: 0.35, speed: 7.5, turnRate: 360,
     size: { radius: 0.35, height: 0.7 },
     behavior: 'pop',
@@ -77,11 +79,11 @@ export const ARK = {
             ['popp_trigger', 0.4, 1, 1], ['ark_coolant', 0.1, 1, 1], ['ark_thermo_lining', 0.08, 1, 1] ],
     xp: 50, xpLoot: 100, threat: 1, color: '#e8d860',
     spawn: { group: [2, 5], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'indoor' },
-    desc: 'Rolling proximity bomb. Beeps faster and faster as it closes in. Shoot it early or dodge-roll over it to bait the blast.',
+    desc: 'Rolls up uninvited, beeping faster the closer it gets. Shoot it early or dodge-roll over it to bait the blast. There is no \'skip ad\' button.',
   },
 
   fyreball: {
-    name: 'Fyreball', model: 'fireball', modelScale: 1,
+    name: 'Hot Take', model: 'fireball', modelScale: 1,
     hp: 60, armor: 0.75, flying: false, height: 0.9, radius: 0.45, speed: 5, turnRate: 300,
     size: { radius: 0.45, height: 0.9 },
     behavior: 'fireball',
@@ -97,11 +99,11 @@ export const ARK = {
             ['fyreball_burner', 0.4, 1, 1], ['ark_coolant', 0.1, 1, 1], ['ark_thermo_lining', 0.08, 1, 1] ],
     xp: 100, xpLoot: 200, threat: 2, color: '#ff7a20',
     spawn: { group: [1, 3], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'indoor' },
-    desc: 'Armoured rolling sphere. Light rounds bounce off the shell; when it pops open to flame you, its white-hot core is exposed from the front.',
+    desc: 'Armoured ball that light rounds bounce off, until it stops and pops open to share its opinion as fire. Shoot the white-hot core from the front while it\'s open.',
   },
 
   komet: {
-    name: 'Komet', model: 'pop', modelScale: 1.8,
+    name: 'Rolling Blackout', model: 'pop', modelScale: 1.8,
     hp: 150, armor: 0.75, explosiveMul: 1.3, flying: false, height: 1.3, radius: 0.7, speed: 8, turnRate: 240,
     size: { radius: 0.7, height: 1.3 },
     behavior: 'pop', variant: 'komet',
@@ -117,12 +119,12 @@ export const ARK = {
             ['komet_igniter', 0.6, 1, 1] ],
     xp: 100, xpLoot: 200, threat: 3, color: '#ffb040',
     spawn: { group: [1, 2], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor', escorts: [] },
-    desc: 'Big armoured roller that charges groups of Raiders and detonates in a seismic blast. It splits its shell right before it blows: shoot the core then and it dies quietly (keeping its Igniter intact).',
+    desc: 'Big armoured roller that charges groups and detonates in a seismic blast. The shell splits just before it blows: hit the core then and it shuts down quietly, igniter intact.',
   },
 
   // ------------------------------------------------------------------ drones
   wazp: {
-    name: 'Wazp', model: 'wasp', modelScale: 1,
+    name: 'Buzzkill', model: 'wasp', modelScale: 1,
     hp: 110, armor: 0, flying: true, height: 2.4, radius: 0.6, speed: 5.5, turnRate: 240,
     size: { radius: 0.6, height: 0.5 },
     behavior: 'drone_gunner',
@@ -139,11 +141,11 @@ export const ARK = {
             ['ark_thermo_lining', 0.1, 1, 1], ['wazp_driver', 0.4, 1, 1] ],
     xp: 100, xpLoot: 200, threat: 2, color: '#e0a030',
     spawn: { group: [2, 4], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor' },
-    desc: 'Agile quad-rotor gun drone that paints you with a red laser, hovers to steady itself, then hoses you down. Knock out two rotors and it spirals into the dirt.',
+    desc: 'Quad-rotor gun drone. Paints you with a red laser, hovers to steady itself, then hoses you down. Shoot out two rotors and it retires early, into the dirt.',
   },
 
   hornett: {
-    name: 'Hornett', model: 'hornet', modelScale: 1,
+    name: 'Middle Manager', model: 'hornet', modelScale: 1,
     hp: 200, armor: 0.25, flying: true, height: 2.8, radius: 0.75, speed: 4.5, turnRate: 200,
     size: { radius: 0.75, height: 0.6 },
     behavior: 'drone_heavy',
@@ -162,11 +164,11 @@ export const ARK = {
             ['ark_synthetic_resin', 0.12, 1, 1], ['hornett_driver', 0.4, 1, 1] ],
     xp: 150, xpLoot: 250, threat: 3, color: '#d06a20',
     spawn: { group: [1, 2], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor' },
-    desc: 'Armoured support drone that fires slow stun rounds which drain shields. Its front is a slab of plate — flank it and shoot the bare rear rotors. Dodge-roll when it sounds off.',
+    desc: 'Armoured drone whose slow stun rounds drain shields. All plate up front, no listening skills: flank it and shoot the glowing rear rotors. Dodge-roll when it sounds off.',
   },
 
   fyrefly: {
-    name: 'Fyrefly', model: 'hornet', modelScale: 1.1,
+    name: 'Burnout', model: 'hornet', modelScale: 1.1,
     hp: 200, armor: 0.55, flying: true, height: 2.4, radius: 0.7, speed: 4.6, turnRate: 200,
     size: { radius: 0.7, height: 0.6 },
     behavior: 'drone_gunner', variant: 'flamer',
@@ -185,11 +187,11 @@ export const ARK = {
             ['synthesized_fuel', 0.15, 1, 1], ['fyrefly_burner', 0.4, 1, 1] ],
     xp: 150, xpLoot: 250, threat: 4, color: '#ff5a10',
     spawn: { group: [1, 2], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor' },
-    desc: 'Heavily armoured flame drone escorting Wazp swarms. When it extends its flamethrower the yellow fuel tank on its back is exposed — hit it and it drops like a stone.',
+    desc: 'Heavily armoured flame drone running on fumes. When it extends its flamer, the yellow fuel tank on its back is exposed; hit that and it drops like a stone.',
   },
 
   snytch: {
-    name: 'Snytch', model: 'snitch', modelScale: 1,
+    name: 'Narc', model: 'snitch', modelScale: 1,
     hp: 150, armor: 0, flying: true, height: 4, radius: 0.5, speed: 4.5, turnRate: 160,
     size: { radius: 0.5, height: 0.5 },
     behavior: 'snitch', flees: true,
@@ -206,11 +208,11 @@ export const ARK = {
             ['ark_synthetic_resin', 0.1, 1, 1], ['ark_thermo_lining', 0.1, 1, 1], ['sensors', 0.12, 1, 1] ],
     xp: 100, xpLoot: 200, threat: 2, color: '#ffd030',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor' },
-    desc: 'Unarmed scout with a sweeping spotlight. Spot you and it shrieks three times, then drops reinforcements from orbit — Wazps, a Fyrefly/Hornett pair, or worse. Kill it before the third call.',
+    desc: 'Unarmed scout with a sweeping spotlight. Spot you and it calls three times, then reinforcements drop in. The Narc has more friends than you: kill it before the third call.',
   },
 
   spottr: {
-    name: 'Spottr', model: 'snitch', modelScale: 0.9,
+    name: 'Plus One', model: 'snitch', modelScale: 0.9,
     hp: 80, armor: 0, flying: true, height: 6, radius: 0.45, speed: 5.5, turnRate: 180,
     size: { radius: 0.45, height: 0.5 },
     behavior: 'spotter',
@@ -226,12 +228,12 @@ export const ARK = {
             ['ark_synthetic_resin', 0.1, 1, 1], ['ark_thermo_lining', 0.1, 1, 1], ['sensors', 0.12, 1, 1] ],
     xp: 100, xpLoot: 200, threat: 2, color: '#80d0ff',
     spawn: { group: [2, 2], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor' },
-    desc: 'Harmless on its own: holds a marking laser on you so its Bombardeer can drop shells even behind cover. Break line of sight or shoot it down (a fresh pair arrives eventually).',
+    desc: 'Harmless alone: it holds a marking laser on you so its Shell Company can shell you, even behind cover. Break line of sight or shoot it down. It always brings a friend.',
   },
 
   // ------------------------------------------------------------------ fixed emplacements
   turrett: {
-    name: 'Turrett', model: 'turret', modelScale: 1, static: true,
+    name: 'Wallflower', model: 'turret', modelScale: 1, static: true,
     hp: 80, armor: 0.1, flying: false, height: 1.2, radius: 0.5, speed: 0, turnRate: 120,
     size: { radius: 0.5, height: 1.2 },
     behavior: 'turret',
@@ -247,11 +249,11 @@ export const ARK = {
             ['simple_gun_parts', 0.3, 1, 1], ['ark_synthetic_resin', 0.1, 1, 1], ['ark_thermo_lining', 0.1, 1, 1] ],
     xp: 100, xpLoot: 200, threat: 2, color: '#b0b4bc',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'indoor' },
-    desc: 'Crude wall-mounted gun with a thin sweeping scanner beam. Stay out of the beam, or get around it — the rear housing pops in a couple of shots.',
+    desc: 'Wall-mounted gun that never leaves the edge of the room. Stay out of its thin scanner beam or get around it; the glowing rear housing pops in a couple of shots.',
   },
 
   sentinal: {
-    name: 'Sentinal', model: 'sentinel', modelScale: 1, static: true,
+    name: 'Neighborhood Watch', model: 'sentinel', modelScale: 1, static: true,
     hp: 300, armor: 0.25, flying: false, height: 4, radius: 0.6, speed: 0, turnRate: 70,
     size: { radius: 0.6, height: 4 },
     behavior: 'sentinel',
@@ -269,12 +271,12 @@ export const ARK = {
             ['medium_gun_parts', 0.15, 1, 1], ['sentinal_firing_core', 0.4, 1, 1] ],
     xp: 200, xpLoot: 300, threat: 4, color: '#ff9030',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor' },
-    desc: 'Long-range sniper emplacement on rooftops and ledges. A narrow sweeping beam finds you, four yellow lasers converge, then a heavy round lands. Its weak canister hangs off the back of the arm.',
+    desc: 'Rooftop sniper with strong opinions about your lawn. A sweeping beam finds you, four yellow lasers converge, then a heavy round lands. Shoot the canister behind the mast.',
   },
 
   // ------------------------------------------------------------------ mid-tier
   surveyr: {
-    name: 'Surveyr', model: 'surveyor', modelScale: 1,
+    name: 'Data Miner', model: 'surveyor', modelScale: 1,
     hp: 260, armor: 0.6, explosiveMul: 1.5, flying: false, height: 1.8, radius: 0.9, speed: 9, turnRate: 300,
     size: { radius: 0.9, height: 1.8 },
     behavior: 'surveyor', flees: true,
@@ -293,11 +295,11 @@ export const ARK = {
             ['surveyr_vault', 0.45, 1, 1] ],
     xp: 200, xpLoot: 300, xpPart: 100, threat: 3, color: '#f0ece0',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor' },
-    desc: 'Armoured rolling scanner that beams data into orbit with its core exposed. It hears you coming, slams shut and rolls off faster than you can sprint. Stun it or ambush it mid-transmission.',
+    desc: 'Armoured rolling scanner that stops to upload your personal data, core exposed. It hears you coming, slams shut and outruns your sprint. Stun it or ambush it mid-upload.',
   },
 
   shreddr: {
-    name: 'Shreddr', model: 'fireball', modelScale: 2.0,
+    name: 'Close Talker', model: 'fireball', modelScale: 2.0,
     hp: 400, armor: 0.65, explosiveMul: 1.5, flying: false, hover: true, height: 2.2, radius: 0.9, speed: 4.2, turnRate: 220,
     size: { radius: 0.9, height: 2.2 },
     behavior: 'shredder',
@@ -305,7 +307,7 @@ export const ARK = {
     attack: { kind: 'bullets', dmg: 6, pellets: 10, spread: 360, burst: 3, range: 9, projSpeed: 40,
               windup: 0.4, cooldown: 2.2 },
     abilities: [
-      { name: 'charged_blast', kind: 'explode', dmg: 40, radius: 7, cone: 120, windup: 1.6, cooldown: 9, telegraph: 'screech' },
+      { name: 'personal_space_violation', kind: 'explode', dmg: 40, radius: 7, cone: 120, windup: 1.6, cooldown: 9, telegraph: 'screech' },
     ],
     hitzones: [
       { name: 'thruster', x: 0.45, z: -0.65, r: 0.3, mul: 2.2, hp: 90, mirrorX: true, arc: 160, dir: 180, onBreak: 'stagger' },
@@ -318,12 +320,12 @@ export const ARK = {
             ['ark_synthetic_resin', 0.12, 1, 1], ['ark_thermo_lining', 0.12, 1, 1], ['shreddr_gyro', 0.45, 1, 1] ],
     xp: 200, xpLoot: 250, threat: 5, color: '#9aa0ff',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'indoor' },
-    desc: 'Hovering close-quarters horror that sprays shrapnel in every direction and charges a cone blast. Corners and doorways are your friend; its blue rear thrusters are the weak spot.',
+    desc: 'Hovers into your personal space, sprays shrapnel everywhere and charges a cone blast. Fight it round corners and doorways; its blue rear thrusters are the weak spot.',
   },
 
   // ------------------------------------------------------------------ heavies
   rocketier: {
-    name: 'Rocketier', model: 'rocketeer', modelScale: 1,
+    name: 'Rocket Surgeon', model: 'rocketeer', modelScale: 1,
     hp: 1100, armor: 0.55, explosiveMul: 1.3, flying: true, height: 5, radius: 1.6, speed: 3.2, turnRate: 90,
     size: { radius: 1.6, height: 1.6, length: 3.0, width: 3.0 },
     behavior: 'rocketeer',
@@ -345,11 +347,11 @@ export const ARK = {
             ['heavy_gun_parts', 0.2, 1, 1], ['ammo_launcher', 0.2, 2, 4], ['rocketier_driver', 0.55, 1, 1] ],
     xp: 500, xpLoot: 600, xpPart: 500, threat: 6, color: '#e04a30',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor' },
-    desc: 'Heavy rocket gunship guarding high-value ground. Four yellow lasers line up, turn red, and a salvo follows — get behind real cover. Shoot out two thrusters and it falls; strip the "eyebrow" to reach the scanner.',
+    desc: 'Rocket gunship, no medical licence. When its four yellow lasers turn red a salvo follows: find real cover. Two thrusters down and it falls; crack the brow plate to hit the scanner.',
   },
 
   vaporiser: {
-    name: 'Vaporiser', model: 'rocketeer', modelScale: 1.15,
+    name: 'Vape Lord', model: 'rocketeer', modelScale: 1.15,
     hp: 1500, armor: 0.4, flying: true, height: 5, radius: 1.7, speed: 3.2, turnRate: 80,
     size: { radius: 1.7, height: 1.6, length: 3.2, width: 3.2 },
     behavior: 'rocketeer', variant: 'laser',
@@ -357,7 +359,7 @@ export const ARK = {
     attack: { kind: 'laser', dmg: 22, range: 36, dur: 2.5, windup: 1.2, cooldown: 5, beam: true,
               telegraph: 'laser', leavesFire: { dps: 6, dur: 6, radius: 1.2 } },
     abilities: [
-      { name: 'energy_shield', kind: 'shield', dur: 6, cooldown: 18, radius: 2.5, trigger: 'thrown_object', blocks: 'projectiles' },
+      { name: 'cloud_cover', kind: 'shield', dur: 6, cooldown: 18, radius: 2.5, trigger: 'thrown_object', blocks: 'projectiles' },
     ],
     hitzones: [
       { name: 'thruster', x: 1.2, z: 1.0, r: 0.4, mul: 1.5, armor: 0.2, hp: 260, mirrorX: true, mirrorZ: true, onBreak: 'stagger' },
@@ -371,11 +373,11 @@ export const ARK = {
             ['ammo_energy', 0.3, 2, 5], ['heavy_gun_parts', 0.2, 1, 1], ['vaporiser_regulator', 0.55, 1, 1] ],
     xp: 500, xpLoot: 600, xpPart: 500, threat: 7, color: '#60f0ff',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor' },
-    desc: 'Laser gunship whose beam leaves the ground burning. Throw anything at it and it raises an energy shield — bait the shield, then unload during the cooldown. Knock off the belly panel to reach the core.',
+    desc: 'Laser gunship that leaves the ground burning. Throw anything at it and it hides in a shield cloud: bait the shield, unload during the cooldown, pop the belly panel for the core.',
   },
 
   leapr: {
-    name: 'Leapr', model: 'leaper', modelScale: 1,
+    name: 'Parkour Dad', model: 'leaper', modelScale: 1,
     hp: 1100, armor: 0.4, explosiveMul: 1.6, flying: false, height: 2.6, radius: 1.8, speed: 3.4, turnRate: 140,
     size: { radius: 1.8, height: 2.6, length: 3.6, width: 3.6 },
     behavior: 'leaper',
@@ -383,7 +385,7 @@ export const ARK = {
     attack: { kind: 'leap', dmg: 55, radius: 3.5, range: 18, windup: 0.9, cooldown: 4.5, airTime: 0.9,
               tracking: 0.8, exposedAfter: 1.5 },
     abilities: [
-      { name: 'pulse', kind: 'shock', dmg: 20, radius: 5, windup: 0.8, cooldown: 6, knockback: 6, when: 'close' },
+      { name: 'dad_stomp', kind: 'shock', dmg: 20, radius: 5, windup: 0.8, cooldown: 6, knockback: 6, when: 'close' },
     ],
     hitzones: [
       { name: 'leg', x: 1.35, z: 1.35, r: 0.45, mul: 1.6, armor: 0.2, hp: 160, mirrorX: true, mirrorZ: true,
@@ -400,11 +402,11 @@ export const ARK = {
     xp: 500, xpLoot: 600, xpPart: 500, threat: 7, color: '#ffb000',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor',
              escorts: [['wazp', 2], ['hornett', 1]] },
-    desc: 'Four-legged brute that leaps across astonishing distances to crush you and pulses anyone close. Break its leg joints to slow it (two and it can no longer leap); its core is open for a moment after every landing. It cannot fit through doorways.',
+    desc: 'Four-legged show-off that leaps onto you and pulses anyone close. Two broken leg joints end the leaping; the core opens briefly after each landing. Too wide for doorways.',
   },
 
   bastian: {
-    name: 'Bastian', model: 'bastion', modelScale: 1,
+    name: 'HOA President', model: 'bastion', modelScale: 1,
     hp: 2050, armor: 0.6, explosiveMul: 1.3, flying: false, height: 4, radius: 2.2, speed: 1.8, turnRate: 50, gunTurnRate: 160,
     size: { radius: 2.2, height: 4, length: 4.2, width: 4.0 },
     behavior: 'bastion',
@@ -427,11 +429,11 @@ export const ARK = {
     xp: 500, xpLoot: 250, xpPart: 250, threat: 8, color: '#a0a8b8',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor',
              escorts: [['wazp', 2], ['hornett', 1]] },
-    desc: 'A fortress on legs. Screeches, then rakes your last position with a gatling for three seconds. The front is near-impervious — circle to its rear canister (which peels back to reveal the real core) or shoot out the yellow knee joints.',
+    desc: 'Enforces bylaws with a gatling: screeches, then rakes your last position. The front shrugs off everything; flank to the rear canister (core underneath) or shoot the yellow knees.',
   },
 
   bombardeer: {
-    name: 'Bombardeer', model: 'bombardier', modelScale: 1,
+    name: 'Shell Company', model: 'bombardier', modelScale: 1,
     hp: 2600, armor: 0.4, explosiveMul: 1.3, flying: false, height: 4.5, radius: 2.2, speed: 1.6, turnRate: 45,
     size: { radius: 2.2, height: 4.5, length: 4.0, width: 4.0 },
     behavior: 'bombardier',
@@ -439,7 +441,7 @@ export const ARK = {
     attack: { kind: 'mortar', dmg: 50, radius: 4.5, burst: 3, range: 75, minRange: 10, flightTime: 2.2,
               windup: 2.0, cooldown: 6, telegraph: 'ground_marker', exposedAfter: 2.0 },
     abilities: [
-      { name: 'shockwave', kind: 'shock', dmg: 25, radius: 6, windup: 1.0, cooldown: 8, knockback: 7, when: 'close' },
+      { name: 'hostile_restructuring', kind: 'shock', dmg: 25, radius: 6, windup: 1.0, cooldown: 8, knockback: 7, when: 'close' },
     ],
     hitzones: [
       { name: 'leg_joint', x: 1.3, z: 1.3, r: 0.4, mul: 2.0, hp: 240, mirrorX: true, mirrorZ: true, onBreak: 'slow',
@@ -455,20 +457,20 @@ export const ARK = {
     xp: 500, xpLoot: 300, xpPart: 300, threat: 8, color: '#c87840',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor',
              escorts: [['spottr', 2]] },
-    desc: 'Artillery walker. Its two Spottrs paint you; red rings bloom on the ground and three shells follow. Get under a roof, kill the Spottrs, then hit the rear canister and knee joints while it reloads.',
+    desc: 'Artillery walker that never shows up in person: its Plus Ones mark you, red rings appear, three shells land. Get under a roof, drop the spotters, then hit the canister and knees.',
   },
 
   turbyne: {
-    name: 'ARK Turbyne', model: 'rocketeer', modelScale: 2.2,
+    name: 'Cloud Service', model: 'rocketeer', modelScale: 2.2,
     hp: 4000, armor: 0.85, flying: true, height: 9, radius: 2.8, speed: 2.0, turnRate: 30,
     size: { radius: 2.8, height: 5 },
     behavior: 'rocketeer', variant: 'turbine',
     vision: { range: 40, fov: 360, hearing: 30, alertTime: 1.0, lose: 20 },
-    attack: { name: 'cluster_lightning', kind: 'rocket', dmg: 45, radius: 4, burst: 6, range: 50, projSpeed: 18,
+    attack: { name: 'scheduled_downtime', kind: 'rocket', dmg: 45, radius: 4, burst: 6, range: 50, projSpeed: 18,
               windup: 1.5, cooldown: 7, effect: { stun: 1.5 } },
     abilities: [
-      { name: 'minefield', kind: 'mine', count: 8, radius: 8, dmg: 35, cooldown: 60 },
-      { name: 'land', kind: 'land', dur: 25, cooldown: 70 },
+      { name: 'terms_and_conditions', kind: 'mine', count: 8, radius: 8, dmg: 35, cooldown: 60 },
+      { name: 'unplanned_outage', kind: 'land', dur: 25, cooldown: 70 },
     ],
     hitzones: [
       { name: 'gear_gap', x: 1.7, z: 1.7, r: 0.6, mul: 3.5, armor: 0, mirrorX: true, mirrorZ: true, exposedWhen: 'landed' },
@@ -481,23 +483,23 @@ export const ARK = {
             ['medium_gun_parts', 0.25, 1, 1], ['turbyne_compressor', 0.65, 1, 1] ],
     xp: 700, xpLoot: 700, xpPart: 200, threat: 9, color: '#7ab0ff',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor', event: true },
-    desc: 'Drifting armoured sky-engine that tumbles down mid-raid. Lightning cluster missiles stun on impact and it seeds minefields before landing. Only once landed do the spinning yellow tanks show through the landing-gear gaps.',
+    desc: 'Armoured sky-engine with great uptime until it crashes mid-raid. Stun missiles, a minefield, then a landing: only then do its spinning yellow tanks show through the gear gaps.',
   },
 
   // ------------------------------------------------------------------ bosses
   queene: {
-    name: 'Queene', model: 'queen', modelScale: 1,
+    name: 'The Landlady', model: 'queen', modelScale: 1,
     hp: 15000, armor: 0.5, flying: false, height: 9, radius: 4.5, speed: 1.4, turnRate: 30,
     size: { radius: 4.5, height: 9, length: 9, width: 9 },
     behavior: 'queen',
     vision: { range: 45, fov: 140, hearing: 40, alertTime: 1.0, lose: 30 },
-    attack: { name: 'fire_mortars', kind: 'mortar', dmg: 40, radius: 4, burst: [2, 5], range: 70, flightTime: 2,
+    attack: { name: 'eviction_notice', kind: 'mortar', dmg: 40, radius: 4, burst: [2, 5], range: 70, flightTime: 2,
               fuse: 2, windup: 1.6, cooldown: 7, telegraph: 'ground_marker', leavesFire: { dps: 8, dur: 6, radius: 3 } },
     abilities: [
-      { name: 'sweep_laser', kind: 'laser', dmg: 30, range: 50, dur: 2, windup: 1.5, cooldown: 10, beam: true,
+      { name: 'property_line', kind: 'laser', dmg: 30, range: 50, dur: 2, windup: 1.5, cooldown: 10, beam: true,
         leavesFire: { dps: 6, dur: 5, radius: 1.2 } },
-      { name: 'ground_slam', kind: 'melee', dmg: 60, radius: 7, windup: 1.2, cooldown: 8, knockback: 8, when: 'close' },
-      { name: 'emp_pulse', kind: 'shock', dmg: 10, radius: 10, windup: 1.0, cooldown: 12, when: 'close',
+      { name: 'rent_increase', kind: 'melee', dmg: 60, radius: 7, windup: 1.2, cooldown: 8, knockback: 8, when: 'close' },
+      { name: 'utilities_shutoff', kind: 'shock', dmg: 10, radius: 10, windup: 1.0, cooldown: 12, when: 'close',
         effect: { stun: 1.5, shieldDrain: 100 } },
     ],
     hitzones: [
@@ -517,23 +519,23 @@ export const ARK = {
             ['magnetic_accelerator', 0.45, 1, 1], ['queene_reactor', 0.55, 1, 1] ],
     xp: 1000, xpLoot: 1000, xpPart: 500, threat: 10, color: '#ff3040',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate'], habitat: 'outdoor', conditionOnly: 'harvester' },
-    desc: 'Colossal walker that guards the Harvester. Lobs fire mortars, sweeps a scorching laser, slams or EMP-pulses anyone underfoot. Shoot off two armour plates to bare the red core; the yellow knee joints slow her.',
+    desc: 'Colossal walker guarding the Juicer, here about the rent. Fire mortars, a sweep laser, slams and EMP underfoot. Break two armour plates to bare the red core; yellow knees slow her.',
   },
 
   matriark: {
-    name: 'Matriark', model: 'queen', modelScale: 1.15,
+    name: 'Helicopter Mom', model: 'queen', modelScale: 1.15,
     hp: 18000, armor: 0.55, flying: false, height: 10, radius: 5, speed: 1.2, turnRate: 25,
     size: { radius: 5, height: 10, length: 10, width: 10 },
     behavior: 'matriarch',
     vision: { range: 45, fov: 150, hearing: 40, alertTime: 1.0, lose: 30 },
-    attack: { name: 'missile_swarm', kind: 'rocket', dmg: 32, radius: 3, burst: [3, 6], range: 70, projSpeed: 16,
+    attack: { name: 'unsolicited_advice', kind: 'rocket', dmg: 32, radius: 3, burst: [3, 6], range: 70, projSpeed: 16,
               homing: 0.6, windup: 1.4, cooldown: 7, firesAtLastKnown: 6 },
     abilities: [
-      { name: 'gas_capsule', kind: 'gas', radius: 6, dur: 10, range: 45, cooldown: 14, effect: { staminaDrain: 25 } },
-      { name: 'flash_capsule', kind: 'stun', radius: 8, range: 45, fuse: 1.2, cooldown: 16, effect: { blind: 2.5 } },
-      { name: 'energy_shield', kind: 'shield', radius: 9, dur: 20, cooldown: 60, blocks: 'outside_projectiles' },
-      { name: 'summon', kind: 'summon', cooldown: 45, groups: [ [['wazp', 3]], [['hornett', 2], ['fyrefly', 1]], [['rocketier', 1]], [['leapr', 1]] ] },
-      { name: 'leg_stomp', kind: 'melee', dmg: 45, radius: 4, windup: 0.8, cooldown: 5, when: 'close', effect: { knockdown: 2 } },
+      { name: 'guilt_trip', kind: 'gas', radius: 6, dur: 10, range: 45, cooldown: 14, effect: { staminaDrain: 25 } },
+      { name: 'family_photo', kind: 'stun', radius: 8, range: 45, fuse: 1.2, cooldown: 16, effect: { blind: 2.5 } },
+      { name: 'smother_dome', kind: 'shield', radius: 9, dur: 20, cooldown: 60, blocks: 'outside_projectiles' },
+      { name: 'carpool', kind: 'summon', cooldown: 45, groups: [ [['wazp', 3]], [['hornett', 2], ['fyrefly', 1]], [['rocketier', 1]], [['leapr', 1]] ] },
+      { name: 'because_i_said_so', kind: 'melee', dmg: 45, radius: 4, windup: 0.8, cooldown: 5, when: 'close', effect: { knockdown: 2 } },
     ],
     hitzones: [
       { name: 'plate_front', x: 0, z: 3.4, r: 1.4, armor: 0.8, hp: 1000, lootOnBreak: [['ark_alloy', 0.8, 1, 3]] },
@@ -553,7 +555,7 @@ export const ARK = {
             ['magnetic_accelerator', 0.45, 1, 1], ['matriark_reactor', 0.55, 1, 1] ],
     xp: 1000, xpLoot: 1000, xpPart: 500, threat: 10, color: '#d020ff',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate'], habitat: 'outdoor', conditionOnly: 'matriarch' },
-    desc: 'Makes the Queene look friendly. Homing missile swarms, gas and flash capsules, a projectile-eating energy dome (only shots fired from inside it land) and endless summoned children. Strip plates, then pour fire into the core.',
+    desc: 'Not angry, just disappointed. And armed. Homing missiles, gas and flash capsules, a dome only shots from inside can pierce, endless kids. Strip two plates, then hit the core.',
   },
 };
 
@@ -562,24 +564,24 @@ export const ARK = {
 // chance to shock the looter during the Husk Graveyard condition.
 export const ARK_HUSKS = {
   wazp_husk: {
-    name: 'Wazp Husk', model: 'wasp', modelScale: 1, radius: 0.7, height: 0.6, color: '#7a6a50',
+    name: 'Buzzkill Husk', model: 'wasp', modelScale: 1, radius: 0.7, height: 0.6, color: '#7a6a50',
     breach: { time: 3, noise: 30 }, electrified: 0.25, xp: 400,
     loot: [ ['ark_alloy', 0.7, 1, 2], ['ark_powercell', 0.5, 1, 2], ['advanced_ark_powercell', 0.1, 1, 1],
             ['ark_circuitry', 0.15, 1, 1], ['ark_coolant', 0.15, 1, 1], ['ark_flex_rubber', 0.12, 1, 1],
             ['ark_performance_steel', 0.12, 1, 1], ['ark_thermo_lining', 0.12, 1, 1],
             ['damaged_wazp_driver', 0.35, 1, 1], ['ammo_light', 0.6, 10, 30], ['wazp_driver', 0.2, 1, 1] ],
-    desc: 'Burnt-out Wazp from an old skirmish. Pry it open for parts.',
+    desc: 'A Buzzkill that finally killed its own buzz. Pry it open for parts; during Mass Layoffs, mind the sparks.',
   },
   rocketier_husk: {
-    name: 'Rocketier Husk', model: 'rocketeer', modelScale: 1, radius: 1.6, height: 1.4, color: '#7a5040',
+    name: 'Rocket Surgeon Husk', model: 'rocketeer', modelScale: 1, radius: 1.6, height: 1.4, color: '#7a5040',
     breach: { time: 5, noise: 40 }, electrified: 0.25, xp: 700,
     loot: [ ['advanced_ark_powercell', 0.25, 1, 1], ['ark_alloy', 0.8, 1, 3], ['ark_coolant', 0.3, 1, 2],
             ['ark_powercell', 0.5, 1, 2], ['ark_thermo_lining', 0.2, 1, 1], ['damaged_rocketier_driver', 0.35, 1, 1],
             ['ammo_launcher', 0.4, 1, 5], ['rocketier_driver', 0.2, 1, 1] ],
-    desc: 'Downed Rocketier hull, pods still half-full.',
+    desc: 'Downed Rocket Surgeon, malpractice confirmed. The pods are still half full.',
   },
   barron_husk: {
-    name: 'Barron Husk', model: 'bastion', modelScale: 1.6, radius: 3.5, height: 5, color: '#6a6a70',
+    name: 'Legacy System', model: 'bastion', modelScale: 1.6, radius: 3.5, height: 5, color: '#6a6a70',
     breach: { time: 6, noise: 45 }, electrified: 0.4, xp: 500,
     loot: [ ['advanced_ark_powercell', 0.3, 1, 1], ['ark_alloy', 0.9, 2, 10], ['ark_circuitry', 0.35, 1, 2],
             ['ark_coolant', 0.4, 1, 3], ['ark_flex_rubber', 0.3, 1, 2], ['ark_motion_core', 0.25, 1, 1],
@@ -587,18 +589,18 @@ export const ARK_HUSKS = {
             ['ark_thermo_lining', 0.3, 1, 2], ['burned_ark_circuitry', 0.4, 1, 2], ['damaged_ark_motion_core', 0.3, 1, 1],
             ['damaged_ark_powercell', 0.4, 1, 2], ['degraded_ark_rubber', 0.4, 1, 2], ['dried_out_ark_resin', 0.4, 1, 2],
             ['impure_ark_coolant', 0.4, 1, 2], ['rusty_ark_steel', 0.4, 1, 2], ['tattered_ark_lining', 0.4, 2, 3] ],
-    desc: 'Towering First-Wave war machine, long dead. Its guts are a scrapper\'s paradise.',
+    desc: 'Towering war machine from the Beta Test, long dead and never decommissioned. Its guts are a scrapper\'s paradise.',
   },
   ark_probe: {
-    name: 'ARK Probe', model: 'sentinel', modelScale: 0.7, radius: 1.0, height: 2.5, color: '#40c0ff',
+    name: 'Customer Survey', model: 'sentinel', modelScale: 0.7, radius: 1.0, height: 2.5, color: '#40c0ff',
     breach: { time: 8, noise: 60, alarm: { radius: 45, waves: [ [['wazp', 2]], [['hornett', 1], ['wazp', 1]] ] } },
     panels: 3, crashedPanels: 1, xp: 700,
     loot: [ ['ark_powercell', 0.7, 1, 2], ['ark_alloy', 0.7, 1, 3], ['ark_circuitry', 0.35, 1, 2],
             ['ark_motion_core', 0.3, 1, 1], ['ark_synthetic_resin', 0.3, 1, 1] ],
-    desc: 'Sample-collecting lander. Breaching it makes it scream for help; three panels open when it powers down.',
+    desc: 'Sample-collecting lander. Breach it and it screams for help; three panels open when it powers down. Your feedback is important to it.',
   },
   ark_courier: {
-    name: 'ARK Courier', model: 'surveyor', modelScale: 1.2, radius: 1.1, height: 1.6, color: '#40e0c0',
+    name: 'Next-Day Delivery', model: 'surveyor', modelScale: 1.2, radius: 1.1, height: 1.6, color: '#40e0c0',
     breach: { time: 6, noise: 45 }, electrified: 0.25, xp: 700,
     loot: [ ['advanced_ark_powercell', 0.25, 1, 1], ['ark_alloy', 0.7, 1, 2], ['ark_circuitry', 0.35, 1, 1],
             ['ark_motion_core', 0.3, 1, 1], ['ark_powercell', 0.6, 1, 2], ['burned_ark_circuitry', 0.3, 1, 1],
@@ -606,10 +608,10 @@ export const ARK_HUSKS = {
             ['fyreball_burner', 0.15, 1, 1], ['hornett_driver', 0.15, 1, 1], ['popp_trigger', 0.15, 1, 1],
             ['sentinal_firing_core', 0.15, 1, 2], ['spottr_relay', 0.15, 1, 2], ['surveyr_vault', 0.12, 1, 1],
             ['vaporiser_regulator', 0.06, 1, 1] ],
-    desc: 'Parts-ferry that hauls broken ARK pieces away and brings fresh ones back. Usually stuffed with unique cores.',
+    desc: 'Parts courier hauling broken ARK bits out and fresh ones in, usually stuffed with unique cores. Nobody was home to sign for it.',
   },
   ark_assessor: {
-    name: 'ARK Assessr', model: 'sentinel', modelScale: 1.0, radius: 2.0, height: 3, color: '#ffe040',
+    name: 'Tax Assessor', model: 'sentinel', modelScale: 1.0, radius: 2.0, height: 3, color: '#ffe040',
     breach: { time: 10, noise: 70, pylons: 4, ejectAfter: 300,
               alarm: { radius: 50, waves: [ [['vaporiser', 1]], [['rocketier', 1]], [['fyrefly', 2]], [['hornett', 2], ['wazp', 2]] ] } },
     xp: 200,
@@ -617,17 +619,17 @@ export const ARK_HUSKS = {
             ['advanced_electrical_components', 0.25, 1, 1], ['ark_circuitry', 0.3, 1, 2], ['ark_coolant', 0.3, 1, 2],
             ['ark_flex_rubber', 0.25, 1, 1], ['ark_motion_core', 0.25, 1, 1], ['ark_performance_steel', 0.3, 1, 2],
             ['ark_synthetic_resin', 0.25, 1, 1], ['ark_thermo_lining', 0.25, 1, 1], ['assessr_matrix', 0.5, 1, 1] ],
-    desc: 'Close Scrutiny lander with four pumping pylons. Breach a pylon while its platform is out — and brace for the squadron it calls down.',
+    desc: 'Audit Season lander with four pumping pylons. Breach a pylon while its platform is out, then brace for the squadron it bills you for.',
   },
   deforestr_husk: {
-    name: 'Deforestr Husk', model: 'bastion', modelScale: 1.8, radius: 4, height: 5, color: '#5a7050',
+    name: 'Hedge Fund', model: 'bastion', modelScale: 1.8, radius: 4, height: 5, color: '#5a7050',
     breach: { time: 0, puzzle: 'powercells', powercells: 2, noise: 20 }, xp: 200,
     maps: ['green_gate'],
     loot: [ ['advanced_ark_powercell', 0.4, 1, 1], ['advanced_electrical_components', 0.5, 1, 3],
             ['advanced_mechanical_components', 0.45, 1, 2], ['ark_circuitry', 0.6, 3, 4], ['ark_coolant', 0.5, 2, 3],
             ['ark_flex_rubber', 0.3, 1, 2], ['ark_motion_core', 0.3, 1, 1], ['ark_performance_steel', 0.35, 1, 2],
             ['ark_powercell', 0.6, 1, 4], ['ark_synthetic_resin', 0.3, 1, 2], ['impure_ark_coolant', 0.4, 2, 3] ],
-    desc: 'Felled forest-clearing giant near Green Gate. Feed two ARK Powercells into it and time your way past the fire vents to reach the loot chamber.',
+    desc: 'Felled forest-clearing giant near Green Gate; it cut every hedge and kept the money. Feed it two powercells and time your way past the fire vents to the loot chamber.',
   },
 };
 
@@ -641,8 +643,8 @@ export const ARK_GROUPS = {
   bosses: ['queene', 'matriark'],
 };
 
-// Internal (never player-facing) aliases: real-game / model-builder keys -> ARK ids above, so map
-// code and engine/models.js keys like 'wasp' or 'sentinel' resolve to the tweaked defs.
+// Internal (never player-facing) aliases: archetype / model-builder keys -> ARK ids above, so map
+// code and engine keys like 'wasp' or 'sentinel' resolve to the defs here.
 export const ARK_ALIAS = {
   tick: 'tikk', pop: 'popp', fireball: 'fyreball', comet: 'komet', wasp: 'wazp', hornet: 'hornett',
   firefly: 'fyrefly', snitch: 'snytch', spotter: 'spottr', turret: 'turrett', sentinel: 'sentinal',

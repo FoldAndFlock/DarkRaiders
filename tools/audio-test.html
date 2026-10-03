@@ -56,6 +56,22 @@
       <div class="row" id="jingles"></div>
     </section>
     <section>
+      <h2>Elevator muzak <span style="color:var(--dim)">("Please Hold": a called cargo elevator's door speaker, src/audio/muzak.js)</span></h2>
+      <div class="row">
+        <button id="mzcall">call elevator (40 s)</button>
+        <button id="mzlast">skip to last 6 s</button>
+        <button id="mzopen">doors open now</button>
+        <button id="mzclose">closing (8 s, inside)</button>
+        <button id="mzcancel">gone / cancel</button>
+        <button id="mzlevel">level vs klaxon</button>
+      </div>
+      <div class="row">
+        <label>speaker distance <input id="mzdist" type="range" min="0" max="40" step="0.5" value="4"> <span id="mzdistv">4 m</span></label>
+        <label><input type="checkbox" id="mzklax" checked> with the klaxon / rise / arrival sounds</label>
+      </div>
+      <div id="mzstat" style="color:var(--dim);white-space:pre"></div>
+    </section>
+    <section>
       <h2>Weapons <span style="color:var(--dim)">(per-weapon fire, distance layers at 30 m / 80 m, reloads)</span></h2>
       <div id="weapons"></div>
     </section>
@@ -123,6 +139,43 @@ let muffled = false;
 $('muffle').onclick = (e) => { muffled = !muffled; audio.muffle(muffled); e.target.classList.toggle('on', muffled); };
 $('duck').onclick = () => audio.duck(0.7, 1);
 $('musicoff').onclick = () => { audio.music('off'); curBtn?.classList.remove('on'); };
+
+// ---------------------------------------------------------------- elevator muzak
+// A fake cargo elevator north of the listener, driven through the same per-frame call the raid view makes
+// (audio.muzak(x, { st, tl, y, me, done })) with a local idle -> called 40 s -> open -> closing 8 s -> gone timeline.
+const MZ = { name: 'Lab Lift', kind: 'elevator', x: 50, z: 50, face: 0, callDur: 40 }, mzSim = { st: 'idle', tl: 0, cue: new Set() };
+const mzPlace = () => { const d = +$('mzdist').value; MZ.x = 50; MZ.z = 50 - d - 2.6; $('mzdistv').textContent = d + ' m'; };   // door speaker `d` m north
+$('mzdist').oninput = mzPlace; mzPlace();
+const mzSet = (st, tl) => { if (!audio.ready) $('init').click(); mzSim.st = st; mzSim.tl = tl; mzSim.cue.clear(); if (st === 'called') MZ.callDur = 40; };
+$('mzcall').onclick = () => { mzSet('called', 40); if ($('mzklax').checked) audio.play('extract_call', { x: MZ.x, z: MZ.z }); };
+$('mzlast').onclick = () => { if (mzSim.st === 'called') mzSim.tl = Math.min(mzSim.tl, 6); };
+$('mzopen').onclick = () => mzSet('open', 90);
+$('mzclose').onclick = () => { mzSet('closing', 8); $('mzdist').value = 0; mzPlace(); MZ.z = 50; };
+$('mzcancel').onclick = () => mzSet('gone', 75);
+$('mzlevel').onclick = async () => {
+  const { renderMuzakOffline } = await import('../src/audio/muzak.js');
+  const m = await renderMuzakOffline(8), k = await audio.renderOffline({ sfx: 'extract_klaxon', raw: true }, 4.2);
+  log(`muzak loop (pre-speaker) rms ${m.rms.toFixed(3)} peak ${m.peak.toFixed(2)} | klaxon sample x vol rms ${k.rms.toFixed(3)} peak ${k.peak.toFixed(2)}`, 'ok');
+};
+let mzT = performance.now();
+function mzTick(now) {
+  const dt = Math.min(0.1, (now - mzT) / 1000); mzT = now;
+  const S = mzSim, klax = $('mzklax').checked, at = { x: MZ.x, z: MZ.z }, once = (k, n) => { if (klax && !S.cue.has(k)) { S.cue.add(k); audio.play(n, at); } };
+  if (S.st !== 'idle') S.tl = Math.max(0, S.tl - dt);
+  if (S.st === 'called') {
+    if (S.tl > 6.3) once('klax' + Math.floor((40 - S.tl) / 4), 'extract_klaxon'); else once('rise', 'elevator_rise');
+    if (S.tl <= 0) { mzSet('open', 90); once('arrive', 'elevator_arrive'); }
+  } else if (S.st === 'open' && S.tl <= 0) mzSet('closing', 8);
+  else if (S.st === 'closing') { once('close', 'extract_close_seq'); if (S.tl <= 0) { mzSet('gone', 75); once('drop', 'elevator_depart'); } }
+  else if (S.st === 'gone' && S.tl <= 0) mzSet('idle', 0);
+  if (audio.ready) {
+    audio.muzak(MZ, { st: S.st, tl: S.tl, y: 0, me: { x: 50, y: 0, z: 50 }, done: false });
+    const d = audio.mz?.debug?.() || {};
+    $('mzstat').textContent = `state ${S.st} ${S.tl.toFixed(1)} s | muzak ${d.mode || 'off'}${d.mode ? ` · ${d.song} step ${d.step} · ${d.bpm?.toFixed(1)} bpm · dist ${d.d?.toFixed(1)} m · gain ${d.g?.toFixed(3)} · lp ${Math.round(d.lp || 0)} Hz · voices ${d.voices}${d.combat ? ' · combat duck' : ''}` : ''}`;
+  }
+  requestAnimationFrame(mzTick);
+}
+requestAnimationFrame(mzTick);
 
 // ---------------------------------------------------------------- sfx
 // per-weapon rows: name (ARC Raiders counterpart) + fire / far / reload / charge buttons
@@ -262,6 +315,11 @@ window.selfTest = async function selfTest() {
   for (const j of names.jingles) try { audio.jingle(j); } catch (e) { res.thrown.push('jingle ' + j + ': ' + e.message); }
   try { audio.weather({ rain: 0.8, wind: 0.5, storm: true }); audio.thunder(); audio.duck(0.5, 0.5); audio.weather({ rain: 0, wind: 0, storm: false }); }
   catch (e) { res.thrown.push('weather: ' + e.message); }
+  try {
+    const X = { name: 'selftest lift', kind: 'elevator', x: LX, z: LZ - 5, face: 0, callDur: 40 }, me = { x: LX, y: 0, z: LZ };
+    for (const [st, tl] of [['called', 30], ['called', 0.5], ['open', 90], ['closing', 7], ['gone', 75]]) audio.muzak(X, { st, tl, y: 0, me, done: false });
+    audio.mz?.stop(0.05); res.muzakOk = 1;
+  } catch (e) { res.thrown.push('muzak: ' + e.message); }
   audio.music('off');
   res.errors = audio.errors.slice(before);
   log(`self-test: sfx ${res.sfxOk}/${names.sfx.length}, loops ${res.loopsOk}/${names.loops.length}, music ${res.musicOk}, thrown ${res.thrown.length}, errors ${res.errors.length}`,

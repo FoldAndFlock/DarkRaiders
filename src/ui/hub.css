@@ -1,4 +1,4 @@
-/* Speranzia hub - retro-futurist menu look (ARC-Raiders-inspired) in the game's pixel style.
+/* Desperanza hub - retro-futurist menu look in the game's pixel style.
    All sizes scale with --px (UI scale set by main.js): 1u = --px CSS pixels. */
 .hub {
   --u: calc(var(--px) * 1px);
@@ -259,7 +259,7 @@
 .nav-it { padding: calc(var(--u) * 3) calc(var(--u) * 5); border-left: calc(var(--u) * 2) solid transparent; cursor: pointer; background: rgba(255, 255, 255, 0.015); }
 .nav-it:hover { background: #1f1e22; border-left-color: var(--ln2); }
 .nav-it.on { background: linear-gradient(90deg, rgba(240, 192, 48, 0.14), rgba(240, 192, 48, 0.02)); border-left-color: var(--yellow); }
-.nav-it .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-it .nm { overflow-wrap: break-word; }   /* long bench / trader names wrap instead of truncating */
 .nav-it.on .nm { color: var(--yellow); }
 .nav-it.off .nm { color: var(--dim); }
 .nav-it .sub { font-family: 'DRSmall', monospace; font-size: var(--fs-s); color: var(--dim); margin-top: var(--u); }
@@ -305,6 +305,9 @@
 .nav-it.trader.on { border-left-color: var(--tc); background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 22%, transparent), transparent); }
 .nav-it.trader.on .nm { color: var(--tc); }
 .nav-it.trader .tx { min-width: 0; }
+/* short windows (phones in landscape): the trader's greeting stays, the longer blurb goes, so the stock list keeps its room */
+.hub.hub-short .tr-txt .tr-desc { display: none; }
+.hub.hub-short .tr-txt .tr-say { font-family: 'DRSmall', monospace; font-size: var(--fs-s); }
 .hub .pt { width: calc(var(--u) * 32); height: calc(var(--u) * 32); flex: none; border: var(--u) solid var(--tc, var(--ln2)); background: #000; }
 .hub .pt canvas { width: 100%; height: 100%; }
 .hub .pt.big { width: calc(var(--u) * 66); height: calc(var(--u) * 66); box-shadow: 0 0 0 var(--u) #000, calc(var(--u) * 3) calc(var(--u) * 3) 0 color-mix(in srgb, var(--tc) 35%, transparent); }

@@ -1,4 +1,4 @@
-// Screen router: title -> hub (Speranzia) -> lobby (solo / host / join) -> loading -> raid -> results.
+// Screen router: title -> hub (Desperanza) -> lobby (solo / host / join) -> loading -> raid -> results.
 import { el, cell, Tooltip } from './itemui.js';
 import { MAP_LIST } from '../maps/index.js';
 import { MAP_CONDITIONS, CONDITIONS } from '../data/conditions.js';
@@ -10,20 +10,52 @@ import { Net } from '../net/net.js';
 import { drawText } from './pixelfont.js';
 import { settingsRows, syncProfile, touchEnabled, capPx } from './settings.js';
 
-const TIPS = [
-  'ARK vision cones are lit on the ground - stay out of the light, or break line of sight behind cover.',
-  'Hornetts are armoured at the front. Flank them and shoot the rotors.',
-  'A Bastian\'s rear canister exposes its core. Get behind it.',
-  'Calling an elevator is loud. Every ARK nearby will come to see.',
-  'Neutral raiders shout "DON\'T SHOOT!". Shoot first and their whole squad turns on you.',
-  'Your safe pocket survives death. Put your best find in it.',
-  'Crouching makes you harder to spot and quieter. Sprinting is loud.',
-  'Dodge-roll to shake off a latched Tikk.',
-  'Smoke grenades block ARK and raider vision alike.',
-  'Bring blueprints home to learn them permanently at the Workshop.',
-  'Night raids are darker for the ARK too - but your flashlight gives you away.',
-  'Leapr cores are exposed for a moment after they land.',
+// loading-screen tips (one shown at random, rotating while the raid loads): real advice, wrapped in a joke
+export const TIPS = [
+  "Shouting 'Don't shoot!' works 12% of the time, every time.",
+  'Your safe pocket is the only thing in this economy that is actually safe. Put your best find in it.',
+  "'Free Loadout' is free the way a timeshare presentation is free. Still beats deploying with harsh language.",
+  'The ARK are not angry. They are just disappointed. And armed. Their vision cones are lit on the ground - stay out of the light.',
+  "If you hear beeping, it's either a Pop-Up Ad or your stash being full. Only one of them is rolling toward you.",
+  "Every item is worth keeping. That's how they get you. Sell your duplicates.",
+  'Crawling to extraction while downed builds character. And knee calluses. Your squad can revive you on the way.',
+  'Extraction calls attract ARK. So does standing still. So does existing. Hold the area or hide nearby.',
+  'The Narc has more friends than you. Shoot it before it calls all of them.',
+  'Middle Managers are armoured at the front, like all middle management. Flank them and shoot the rotors.',
+  "The HOA President's weak spot is the canister on its back. Get behind it and file a complaint.",
+  'A Late Fee latched on? Dodge-roll to shake it off before it drains you dry.',
+  "Parkour Dad's core is exposed for a moment after every landing. He will not stop talking about the landing.",
+  'Crouching makes you quieter and harder to spot. Sprinting announces you like a ringtone in a library.',
+  'Smoke grenades block ARK and raider vision alike. Great for exits. Terrible for barbecues.',
+  'Bring blueprints home and learn them at the Workshop. Reading them topside does not count.',
+  "On the Night Shift your flashlight is basically a sign that says 'please shoot here'.",
+  'Nugget the rooster brings back materials after every raid. Nugget does not accept feedback.',
+  'Neutral raiders beg you not to shoot. Shoot one anyway and the whole squad files a grievance. With bullets.',
+  "Doggy Doors need a key and seal 15 seconds after opening. Who's a good emergency exit? You are.",
+  'Calling a cargo elevator is loud. Enjoy the elevator music while everything nearby comes to say hi.',
+  'Guns wear out. Repair them at the Gun Garage before they break mid-argument.',
+  'Overweight means slower and hungrier for stamina. Nobody needs forty Rusted Gears. Nobody.',
+  'Recycling junk turns it into crafting materials. Hoarding it turns it into a personality.',
+  'Electric Boogaloo lightning glows blue on the ground before it strikes. Move your feet.',
+  'Cold Shoulder raids hurt outdoors. Get inside, keep healing, and stop texting the surface.',
+  'ARK stands for Autonomous Repossession Konglomerate. The K was a branding decision.',
+  'Humanity is behind on its payments and the ARK are here to collect. Do not answer the door.',
+  'Extracting with nothing but a toaster still counts as a good run. Technically.',
+  'Bosses have health bars the size of a mortgage. Bring explosives, friends, or a very good excuse.',
+  'Destroyed ARK can be searched for parts. Check the wreck before you walk off looking cool.',
+  "Hear gunfire? That's someone else's loot changing owners. Go and have a look. Carefully.",
+  'Every raid has a timer. When the repo swarm arrives, be in an elevator, not a conversation.',
 ];
+// title-screen taglines (one at random per visit) + the parody disclaimer (always visible)
+const TAGLINES = [
+  'THE ARK ARE HERE TO REPOSSESS THE PLANET. YOU ARE THREE PAYMENTS BEHIND.',
+  'ARK: AUTONOMOUS REPOSSESSION KONGLOMERATE. THE K WAS A BRANDING DECISION.',
+  "EXTRACT WITH A TOASTER AND CALL IT A GOOD RUN. WE WON'T JUDGE.",
+  'YOUR SAFE POCKET IS THE ONLY THING IN THIS ECONOMY THAT IS ACTUALLY SAFE.',
+  'NOW WITH BOSS HEALTH BARS THE SIZE OF A MORTGAGE.',
+];
+export const DISCLAIMER = 'An unofficial parody of ARC Raiders. Not affiliated with or endorsed by Embark Studios.';
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
 export class Screens {
   constructor(app) {
@@ -42,8 +74,10 @@ export class Screens {
     const w = el('div', 'overlay title-screen'); w.style.background = 'none'; w.style.flexDirection = 'column';
     const bg = el('canvas'); bg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;z-index:-1';
     w.appendChild(bg); this.startBg(bg);
-    const logo = el('canvas'); logo.style.cssText = 'image-rendering:pixelated;width:min(80vw,1100px)'; this.drawLogo(logo); w.appendChild(logo);
-    w.appendChild(el('div', 'label', 'A TOP-DOWN EXTRACTION ROGUELITE  -  ENLIST.  RAID.  EXTRACT.'));
+    const logo = el('canvas', 'title-logo'); this.drawLogo(logo); w.appendChild(logo);
+    const tag = el('div', 'col title-tag');
+    tag.append(el('div', 'label', 'A TOP-DOWN EXTRACTION ROGUELITE  -  RAID.  LOOT.  LOSE IT ALL.  REPEAT.'), el('div', 'label title-joke', pick(TAGLINES)));
+    w.appendChild(tag);
     const box = el('div', 'col'); box.style.marginTop = 'calc(var(--px)*16px)'; box.style.minWidth = 'calc(var(--px)*150px)';
     const cont = el('button', 'primary', `CONTINUE  -  ${p.name.toUpperCase()}  LV${p.level}`); cont.onclick = () => { this.sfx('ui_click'); this.hubScreen(); };
     const nw = el('button', '', 'NEW RAIDER'); nw.onclick = () => this.newRaider();
@@ -52,6 +86,7 @@ export class Screens {
     box.append(cont, nw, join, setB);
     w.appendChild(box);
     w.appendChild(el('div', 'label title-keys', touchEnabled() ? 'LEFT THUMB MOVE - RIGHT STICK AIM + FIRE - HOLD USE TO SEARCH - BAG / MAP AT THE TOP' : 'WASD MOVE - MOUSE AIM - LMB FIRE - RMB AIM - E INTERACT - TAB INVENTORY - M MAP'));
+    w.appendChild(el('div', 'title-legal', DISCLAIMER));
     this.root.appendChild(w);
     window.__ready = true;
   }
@@ -74,7 +109,7 @@ export class Screens {
     c.width = 360; c.height = 70; const x = c.getContext('2d');
     x.imageSmoothingEnabled = false;
     drawText(x, 'DARKRAIDERS', 180, 8, { font: 'big', scale: 3, color: '#f0c030', align: 'center', shadow: '#5a2a10', spacing: 1 });
-    drawText(x, 'SURFACE  OPERATIONS', 180, 54, { font: 'small', scale: 1, color: '#e8e0c8', align: 'center', spacing: 2 });
+    drawText(x, 'REPOSSESSION  SEASON', 180, 54, { font: 'small', scale: 1, color: '#e8e0c8', align: 'center', spacing: 2 });
   }
   startBg(c) {
     // parallax ruined skyline + drifting embers + slow ARK searchlights
@@ -124,7 +159,7 @@ export class Screens {
     } catch (e) {
       console.warn('hub unavailable, using fallback', e);
       const w = el('div', 'overlay'); const p = el('div', 'panel col');
-      p.appendChild(el('h2', '', 'SPERANZIA')); p.appendChild(el('div', 'label', 'The hub is still being built.'));
+      p.appendChild(el('h2', '', 'DESPERANZA')); p.appendChild(el('div', 'label', 'The hub is still being built. Nugget is supervising.'));
       const b = el('button', 'primary', 'DEPLOY'); b.onclick = () => this.lobby(); p.appendChild(b);
       w.appendChild(p); this.root.appendChild(w);
     }
@@ -157,7 +192,7 @@ export class Screens {
         const card = el('div', 'panel row'); card.style.cursor = (!net || net.isHost) ? 'pointer' : 'default';
         card.style.borderColor = sel ? 'var(--yellow)' : 'var(--line)';
         const fc = this.forecast(m.id);
-        card.innerHTML = `<div class="col" style="flex:1"><span class="bold" style="color:${sel ? 'var(--yellow)' : 'var(--cream)'}">${m.name.toUpperCase()}</span><span class="label">${m.desc}</span></div><div class="col" style="text-align:right"><span class="small ${fc.cond ? 'yellow' : 'dimc'}">${(fc.cond ? CONDITIONS[fc.cond]?.name || fc.cond : 'NORMAL CONDITIONS').toUpperCase()}</span><span class="label">${fc.time.toUpperCase()} - ${fc.weather.toUpperCase()}</span></div>`;
+        card.innerHTML = `<div class="col" style="flex:1"><span class="bold" style="color:${sel ? 'var(--yellow)' : 'var(--cream)'}">${m.name.toUpperCase()}</span><span class="label">${m.desc}</span></div><div class="col" style="text-align:right"><span class="small ${fc.cond ? 'yellow' : 'dimc'}">${(fc.cond ? CONDITIONS[fc.cond]?.name || fc.cond : CONDITIONS.normal?.name || 'Business As Usual').toUpperCase()}</span><span class="label">${fc.time.toUpperCase()} - ${fc.weather.toUpperCase()}</span></div>`;
         card.onclick = () => { if (net && !net.isHost) return; this.lobbyMap = m.id; this.sfx('ui_click'); if (net) net.setMap(m.id); render(); };
         maps.appendChild(card);
       }
@@ -171,11 +206,11 @@ export class Screens {
         img.onerror = () => { img.style.display = 'none'; };
         const info = el('div', 'col'); info.style.flex = '1';
         info.appendChild(el('div', 'label', 'TOPSIDE FORECAST'));
-        info.appendChild(el('div', 'bold', `<span style="color:${cd?.color || 'var(--cream)'}">${(cd?.name || 'Calm Skies').toUpperCase()}</span>`));
+        info.appendChild(el('div', 'bold', `<span style="color:${cd?.color || 'var(--cream)'}">${(cd?.name || 'Business As Usual').toUpperCase()}</span>`));
         info.appendChild(el('div', '', cd?.desc || ''));
         for (const bl of cd?.bullets || []) info.appendChild(el('div', 'label', '- ' + bl));
         info.appendChild(el('div', 'label', `${fc.time.toUpperCase()} - ${fc.weather.toUpperCase()}`));
-        info.appendChild(el('div', 'label', '<span class="green">&#9632;</span> LIFTS / METRO / AIRSHAFTS  <span class="yellow">&#9632;</span> RAIDER HATCHES (KEY)'));
+        info.appendChild(el('div', 'label', '<span class="green">&#9632;</span> LIFTS / METRO / AIRSHAFTS  <span class="yellow">&#9632;</span> DOGGY DOORS (KEY)'));
         pv.append(img, info);
         left.appendChild(pv);
       }
@@ -190,10 +225,10 @@ export class Screens {
       sum.appendChild(row);
       const value = allStacks(lo).reduce((a, s) => a + stackValue(s), 0);
       sum.appendChild(el('div', 'label', `RISKING ${value} SCRIP  -  SAFE POCKET: ${lo.safe.filter(Boolean).map(s => ITEMS[s.id]?.name).join(', ') || 'EMPTY'}`));
-      if (!lo.weapons.some(Boolean)) sum.appendChild(el('div', 'red', 'NO WEAPON EQUIPPED - get a Free Loadout in the hub or bring a gun.'));
+      if (!lo.weapons.some(Boolean)) sum.appendChild(el('div', 'red', 'NO WEAPON EQUIPPED - grab a Free Loadout in the hub or bring a gun. Harsh language is not a weapon.'));
       left.appendChild(sum);
       const btns = el('div', 'row'); btns.style.marginTop = 'auto';
-      const back = el('button', '', '< SPERANZIA'); back.onclick = () => { this.hubScreen(); };
+      const back = el('button', '', '< DESPERANZA'); back.onclick = () => { this.hubScreen(); };
       btns.appendChild(back);
       if (!net) {
         const go = el('button', 'primary', 'DEPLOY SOLO'); go.onclick = () => this.launch({ mapId: this.lobbyMap, ...this.forecast(this.lobbyMap), seed: Math.floor(Math.random() * 1e9) });
@@ -293,16 +328,7 @@ export class Screens {
   async launch(opts) {
     const app = this.app, p = app.profile;
     this.clear(); this.inRaid = true;
-    const map = MAP_LIST.find(m => m.id === opts.mapId);
-    const w = el('div', 'overlay'); w.style.flexDirection = 'column'; w.style.background = '#0a0a0c';
-    w.appendChild(el('h1', 'yellow', (map?.name || opts.mapId).toUpperCase()));
-    const cond = opts.condition ? CONDITIONS[opts.condition] : null;
-    w.appendChild(el('div', 'label', `${cond ? cond.name.toUpperCase() + '  -  ' : ''}${(opts.time || 'noon').toUpperCase()}  ${(opts.weather || 'clear').toUpperCase()}`));
-    const bar = el('div', 'bar'); bar.style.width = '40vw'; const fill = el('i'); fill.style.width = '0%'; bar.appendChild(fill); w.appendChild(bar);
-    const msg = el('div', 'label', 'PREPARING DROP'); w.appendChild(msg);
-    const tip = el('div', '', TIPS[Math.floor(Math.random() * TIPS.length)]); tip.style.maxWidth = '50vw'; tip.style.textAlign = 'center'; tip.style.marginTop = 'calc(var(--px)*20px)'; w.appendChild(tip);
-    this.root.appendChild(w);
-    app.onLoadProgress = (f, m) => { fill.style.width = Math.round(f * 100) + '%'; msg.textContent = m.toUpperCase(); if (f >= 1) setTimeout(() => w.remove(), 300); };
+    loadingScreen(app, this.root, opts);
     this.gl.style.visibility = 'visible'; this.hudC.style.visibility = 'visible';
     // hand the loadout to the raid (a copy is kept so a crash can't eat the stash)
     p.stats.raids++;
@@ -357,8 +383,8 @@ export class Screens {
     save(p);
     const ex = res.outcome === 'extracted';
     const ov = el('div', 'overlay scroll-ov results'), w = el('div', 'col'); w.style.alignItems = 'center'; ov.appendChild(w);
-    w.appendChild(el('h1', ex ? 'green' : 'red', ex ? 'EXTRACTED' : 'LOST TO THE SURFACE'));
-    w.appendChild(el('div', 'label', ex ? 'YOU MADE IT BACK TO SPERANZIA' : 'EVERYTHING BUT YOUR SAFE POCKET STAYS TOPSIDE'));
+    w.appendChild(el('h1', ex ? 'green' : 'red', ex ? 'EXTRACTED' : 'REPOSSESSED'));
+    w.appendChild(el('div', 'label', ex ? pick(EXTRACT_LINES) : pick(DEATH_LINES)));
     const panel = el('div', 'panel col'); panel.style.minWidth = 'min(40vw, 100%)'; panel.style.maxWidth = 'calc(100vw - var(--px) * 16px)';
     const st = res.stats || {};
     panel.appendChild(el('div', 'row', `<span class="label">XP EARNED</span><span class="yellow" style="margin-left:auto">+${res.xp || 0}</span>`));
@@ -378,11 +404,46 @@ export class Screens {
       panel.appendChild(el('div', 'row', `<span class="label">HAUL VALUE</span><span class="yellow" style="margin-left:auto">${v} SCRIP</span>`));
     }
     w.appendChild(panel);
-    const b = el('button', 'primary', this.net ? 'RETURN TO SQUAD LOBBY' : 'RETURN TO SPERANZIA');
+    const b = el('button', 'primary', this.net ? 'RETURN TO SQUAD LOBBY' : 'RETURN TO DESPERANZA');
     b.onclick = () => { this.sfx('ui_click'); if (this.net) this.lobby(); else this.hubScreen(); };
     w.appendChild(b);
     this.root.appendChild(ov);
     window.__ready = true;
   }
 }
+// Raid loading screen: map + forecast, progress bar and rotating tips. Sets app.onLoadProgress and
+// removes itself when loading reaches 100 % (`linger` ms later). Also used by the ?raid= dev shortcut.
+export function loadingScreen(app, root, { mapId, condition = null, time = null, weather = null }, linger = 300) {
+  const map = MAP_LIST.find(m => m.id === mapId);
+  const w = el('div', 'overlay load-screen'); w.style.flexDirection = 'column'; w.style.background = '#0a0a0c'; w.style.pointerEvents = 'none';
+  w.appendChild(el('h1', 'yellow', (map?.name || String(mapId).replace(/_/g, ' ')).toUpperCase()));
+  const cond = condition ? CONDITIONS[condition] : null;
+  w.appendChild(el('div', 'label', `${cond ? cond.name.toUpperCase() + '  -  ' : ''}${(time || 'noon').toUpperCase()}  ${(weather || 'clear').toUpperCase()}`));
+  const bar = el('div', 'bar'); bar.style.width = '40vw'; const fill = el('i'); fill.style.width = '0%'; bar.appendChild(fill); w.appendChild(bar);
+  const msg = el('div', 'label', 'PREPARING DROP'); w.appendChild(msg);
+  // loading tips: a random one, then the next every few seconds while the raid builds
+  const tipBox = el('div', 'load-tip'), tip = el('div', 'load-tip-t');
+  tipBox.append(el('div', 'label yellow', 'RAIDER TIP'), tip); w.appendChild(tipBox);
+  let ti = Math.floor(Math.random() * TIPS.length);
+  const showTip = () => { tip.textContent = TIPS[ti % TIPS.length]; ti++; };
+  showTip();
+  const tipT = setInterval(() => { if (!w.isConnected) { clearInterval(tipT); return; } showTip(); }, 6500);
+  root.appendChild(w);
+  const done = () => { clearInterval(tipT); w.remove(); };
+  app.onLoadProgress = (f, m) => { fill.style.width = Math.round(f * 100) + '%'; msg.textContent = String(m || '').toUpperCase(); if (f >= 1) { if (linger > 0) setTimeout(done, linger); else done(); } };
+  return w;
+}
+// results-screen subtitles
+const EXTRACT_LINES = [
+  'YOU MADE IT BACK TO DESPERANZA. THE ARK WILL SEND ANOTHER LETTER.',
+  'BACK IN DESPERANZA WITH YOUR LOOT AND MOST OF YOUR DIGNITY',
+  'SAFE IN THE SEWER SUITES. YOUR STASH IS ABOUT TO HAVE OPINIONS.',
+  'EXTRACTED. AUNTIE SYNERGY CALLS THIS A WIN FOR THE WHOLE FAMILY.',
+];
+const DEATH_LINES = [
+  'EVERYTHING BUT YOUR SAFE POCKET NOW BELONGS TO THE ARK',
+  'THE ARK THANK YOU FOR YOUR PAYMENT. YOUR SAFE POCKET SURVIVED.',
+  'YOUR GEAR NOW BELONGS TO THE SURFACE. YOUR SAFE POCKET CAME HOME.',
+  'LOST TO THE SURFACE. ONLY THE SAFE POCKET MADE IT. AS USUAL.',
+];
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
