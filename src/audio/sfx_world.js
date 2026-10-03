@@ -78,6 +78,20 @@ export const WORLD = {
     layer(out, clack(R, 1200, 0.05), 0.25, 0.38);
     return snes(out, { bits: 8, p: 0.65 });
   }, { vol: 0.6, dist: 18, max: 2, pj: 0.06 }),
+  // the Hatchet Job: a short heavy swing, then a wet "thock" (meat / dirt) or a chopping clang (metal)
+  axe_swing: def((R) => {
+    const out = buf(0.4);
+    layer(out, whoosh(R, 0.22, 500, 2600, 1.6), 0.9);
+    layer(out, rustle(R, 0.12, 2200), 0.3, 0.02);
+    return snes(out, { bits: 8, p: 0.65 });
+  }, { vol: 0.6, dist: 16, max: 3, pj: 0.08 }),
+  axe_hit: def((R) => {
+    const out = buf(0.45);
+    layer(out, thump(R, 160, 70, 0.12, 0.03), 0.9);
+    layer(out, clack(R, R.r(900, 1200), 0.07), 0.7);
+    const r = osc(0.3, { wave: 'tri', f: R.r(1900, 2300), f1: 1700 }); ad(r, 0.001, 0.25); layer(out, r, 0.22, 0.005);   // steel ring
+    return snes(out, { drv: 1.4, bits: 8, p: 0.7 });
+  }, { vol: 0.75, dist: 24, max: 3, pj: 0.06 }),
   jump_land: def((R) => {
     const out = buf(0.35);
     layer(out, thump(R, 120, 50, 0.18, 0.06), 0.9);

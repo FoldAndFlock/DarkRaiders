@@ -167,10 +167,17 @@ export class HUD {
     c.fillStyle = UI.rarity[w.rarity] || UI.cream; c.fillRect(x + 1, y + 1, 2, 36);
     this.text(w.name.toUpperCase(), x + 7, y + 4, { color: UI.cream });
     this.text(w.tier || '', x + 129, y + 4, { color: UI.rarity[w.rarity], align: 'right' });
-    this.text(String(w.mag), x + 7, y + 15, { font: 'big', color: w.mag === 0 ? UI.red : UI.cream });
-    this.text('/ ' + w.reserve, x + 9 + textWidth(String(w.mag), 'big'), y + 20, { color: UI.dim });
-    this.text(w.mode || 'AUTO', x + 129, y + 22, { color: UI.dim, align: 'right' });
-    if (w.alt) this.text((this.touch ? '' : `[${st.swapKey || 'Q'}] `) + w.alt, x + 7, y + 30, { color: UI.dim });
+    if (w.melee) { this.text('SWING', x + 7, y + 15, { font: 'big', color: UI.yellow }); this.text(w.note || '', x + 9 + textWidth('SWING', 'big'), y + 20, { color: UI.red }); }
+    else {
+      this.text(String(w.mag), x + 7, y + 15, { font: 'big', color: w.mag === 0 ? UI.red : UI.cream });
+      this.text('/ ' + w.reserve, x + 9 + textWidth(String(w.mag), 'big'), y + 20, { color: UI.dim });
+    }
+    if (!w.melee) this.text(w.mode || 'AUTO', x + 129, y + 22, { color: UI.dim, align: 'right' });
+    if (w.alt) {   // the other weapons, cut to the panel
+      let t = (this.touch ? '' : `[${st.swapKey || 'Q'}] `) + w.alt;
+      while (t.length > 4 && textWidth(t) > 122) t = t.slice(0, -2).trimEnd() + '.';
+      this.text(t, x + 7, y + 30, { color: UI.dim });
+    }
     // quick use slots: right-aligned over the weapon panel (centred over it with touch controls)
     const q0 = this.touch ? Math.round(x + 67 - qw / 2) : Math.min(x, W - 6 - qw);
     qs.forEach((q, i) => {

@@ -86,7 +86,7 @@ export const SKILL_TREE = {
       effects: [ { stat: 'scrap_yield', per: 0.25 } ], capstone: false },
     effortless_swingin: {
       name: 'Firm Handshake', branch: 'conditioning', row: 4, col: 4, ranks: 5, requires: ['unbothered_roll'], branchPoints: 0,
-      desc: 'You judge people by their grip, and so does your Bonk Stick: +{v}% melee damage per rank.',
+      desc: 'You judge people by their grip, and so does your Hatchet Job: +{v}% melee damage per rank.',
       effects: [ { stat: 'melee_damage', per: 0.08 } ], capstone: false },
     tortoise_crawl: {
       name: 'Floor Is Comfy', branch: 'conditioning', row: 5, col: 0, ranks: 5, requires: ['down_but_determined'], branchPoints: 0,

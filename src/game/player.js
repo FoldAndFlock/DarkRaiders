@@ -11,6 +11,7 @@ import { safeSpot } from './unstuck.js';
 const DOWNED_OK = new Set(['extract', 'depart', 'hatch', 'info', 'offline']);
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const AXE_MUL = 1.4, AXE_CD = 0.6;   // Hatchet Job: melee damage x1.4 (28 -> ~39 base), a swing every 0.6 s
 // distance (px) from (px, py) along the unit direction (dx, dy) to the screen rect inset by m
 function edgeDist(px, py, dx, dy, W, H, m) {
   let t = Infinity;
@@ -56,7 +57,7 @@ export class PlayerController {
   }
   get weapon() { return this.lo.weapons[this.slot] || null; }
   get wstats() { const w = this.weapon; return w ? weaponStats(w) : null; }
-  applyWeaponVisual() { const w = this.weapon; this.e.wid = w?.id || null; this.e.wk = w ? gunModelFor(w.id) : null; this.g.session.state({ wid: this.e.wid, wk: this.e.wk }); }
+  applyWeaponVisual() { const w = this.weapon, axe = !!this.axeShown; this.e.wid = axe ? 'axe' : w?.id || null; this.e.wk = axe ? null : w ? gunModelFor(w.id) : null; this.g.session.state({ wid: this.e.wid, wk: this.e.wk }); }
   recalc() { this.caps = capacities(this.lo, this.stats); }
   weight() { return loadoutWeight(this.lo); }
 
@@ -196,12 +197,7 @@ export class PlayerController {
     if (input.hit('weapon3')) this.selectWeapon(2);
     if (input.hit('reload')) this.startReload();
     this.meleeCD -= dt;
-    if (input.hit('melee') && this.meleeCD <= 0 && !this.useItem) {
-      this.meleeCD = 0.75; this.fireT = Math.max(this.fireT, 0.4);
-      g.session.melee(this.aim.a, this.stats.melee_damage, !!g.stats0?.unlocks?.has?.('one_hit_drones'));
-      g.view.vis.get(e.id)?.model?.kick(1.2);
-      g.audio?.play('dodge_roll', { x: e.x, z: e.z, pitch: 1.6 });
-    }
+    if (input.hit('melee') && this.meleeCD <= 0 && !this.useItem) this.swingAxe();
     this.updateWeapon(dt, input);
     // --- quick use
     for (let i = 0; i < 6; i++) if (input.hit('quick' + (i + 1))) this.startUse(i);
@@ -349,6 +345,20 @@ export class PlayerController {
     this.applyWeaponVisual(); this.g.audio?.play('weapon_switch');
   }
   ammoCount(id) { return countLoadout(this.lo, id); }
+  // the Hatchet Job: every raider's axe, never lost. Out when the gun in hand can't fire (dry with no reserve
+  // ammo, broken, or no gun at all); the melee key always swings it
+  axeOut() {
+    const w = this.weapon, ws = this.wstats;
+    if (!w || !ws || (w.dur ?? 1) <= 0) return true;
+    return (w.ammo || 0) <= 0 && !(this.reloadT > 0) && this.ammoCount(ws.ammo) <= 0;
+  }
+  swingAxe() {
+    const e = this.e, g = this.g;
+    this.meleeCD = AXE_CD; this.fireT = Math.max(this.fireT, 0.3);
+    g.session.melee(this.aim.a, this.stats.melee_damage * AXE_MUL, !!g.stats0?.unlocks?.has?.('one_hit_drones'));
+    g.view.vis.get(e.id)?.model?.kick(1.2);
+    g.audio?.play('axe_swing', { x: e.x, z: e.z });
+  }
   startReload() {
     const w = this.weapon, ws = this.wstats; if (!w || this.reloadT > 0) return;
     if ((w.ammo || 0) >= ws.mag) return;
@@ -360,6 +370,15 @@ export class PlayerController {
   updateWeapon(dt, input) {
     const w = this.weapon, ws = this.wstats, e = this.e, g = this.g;
     this.fireT -= dt; this.bloom = Math.max(0, this.bloom - dt * 7);
+    // out of ammo (or no gun, or a broken one): the Hatchet Job comes out and the fire button swings it;
+    // picking up ammo for the gun puts it away again
+    const axe = this.axeOut();
+    if (axe !== !!this.axeShown) { this.axeShown = axe; this.applyWeaponVisual(); if (axe && w) g.hudMsg('OUT OF AMMO - THE HATCHET JOB COMES OUT', '#f0c030'); }
+    if (axe) {
+      this.charge = 0; this.burst = 0;
+      if (input.fire() && !g.uiBlocking && !e.sprint && !this.useItem && this.dodgeT <= 0 && this.meleeCD <= 0) this.swingAxe();
+      return;
+    }
     if (!w || !ws) return;
     if (this.reloadT > 0) {
       if (this.reloadFor !== w.uid) { this.reloadT = 0; return; }

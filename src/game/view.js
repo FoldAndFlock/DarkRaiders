@@ -555,7 +555,7 @@ export class View {
         g.audio?.thunder?.(); A?.play('explosion_big', { x: ev.x, z: ev.z });
         break;
       }
-      case 'melee': { const v = this.vis.get(ev.id); if (v?.model && ev.id !== g.meId) v.model.kick(1.2); if (ev.hit) A?.play('hit_metal', this.posOf(ev.id)); break; }
+      case 'melee': { const v = this.vis.get(ev.id); if (v?.model && ev.id !== g.meId) { v.model.kick(1.2); A?.play('axe_swing', this.posOf(ev.id)); } if (ev.hit) A?.play('axe_hit', this.posOf(ev.id)); break; }
       case 'chat': g.onChat?.(ev); break;
       case 'ping': fx.rings.add(ev.x, this.floorNear(ev.x, ev.z, ev.y), ev.z, 1.2, ev.col || 0xf0c030, 6, 0, 'ping' + ev.by); g.onPing?.(ev); A?.play('ui_quest', { x: ev.x, z: ev.z }); break;
     }

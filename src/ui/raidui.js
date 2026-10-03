@@ -67,15 +67,15 @@ export class RaidUI {
   // ------------------------------------------------------------------ inventory + loot
   openLoot(it, items) {
     this.lootRef = it; this.lootItems = items;
-    // first search reveals items one by one
-    const key = it.kind + ':' + it.ref; this.revealed = this.revealed || new Set();
-    if (!this.revealed.has(key) && items.length) {
-      this.revealed.add(key);
-      this.revealN = 0; this.revealAt = performance.now();
+    // the search reveals items one by one; progress is kept per container, so closing and reopening it
+    // carries on where it stopped instead of showing everything
+    const key = it.kind + ':' + it.ref; this.searched = this.searched || new Map(); this.lootKey = key;
+    const found = this.searched.get(key) ?? 0;
+    if (found < items.length) {
+      this.revealN = found; this.revealAt = performance.now();
       const step = 320 / (this.g.stats0?.search_reveal || 1);
-      const tick = () => { if (this.lootRef !== it) return; this.revealN++; this.g.audio?.play('ui_hover'); this.renderInv(); if (this.revealN < items.length) setTimeout(tick, step); };
+      const tick = () => { if (this.lootRef !== it) return; this.revealN++; this.searched.set(key, this.revealN); this.g.audio?.play('ui_hover'); this.renderInv(); if (this.revealN < items.length) setTimeout(tick, step); else this.searched.set(key, 1e9); };
       setTimeout(tick, step);
-      this.revealN = 0;
     } else this.revealN = 1e9;
     this.openInv();
   }
@@ -136,7 +136,8 @@ export class RaidUI {
       this.lootItems.forEach((s, i) => { if (i < (this.revealN ?? 1e9)) grid.appendChild(cell(s, { c: 'loot', i })); else { const c = cell(null, { c: 'loot-hidden', i }); c.innerHTML = '<span class="label">...</span>'; grid.appendChild(c); } });
       for (let k = this.lootItems.length; k < Math.max(6, this.lootItems.length); k++) grid.appendChild(cell(null, { c: 'loot', i: k }));
       right.appendChild(grid);
-      const all = el('button', 'primary', 'TAKE ALL'); all.onclick = () => this.takeAll(); right.appendChild(all);
+      const searching = (this.revealN ?? 1e9) < this.lootItems.length;   // nothing can be taken before it's been found
+      const all = el('button', 'primary', searching ? 'SEARCHING...' : 'TAKE ALL'); all.disabled = searching; all.onclick = () => this.takeAll(); right.appendChild(all);
       right.appendChild(el('div', 'label', touch ? 'TAP TO TAKE' : 'CLICK TO TAKE'));
       box.appendChild(right);
     }
@@ -188,8 +189,16 @@ export class RaidUI {
     const cn = el('button', '', 'CANCEL'); cn.onclick = () => { this.tsel = null; Tooltip.hide(); this.renderInv(); }; box.appendChild(cn);
     return box;
   }
-  async take(i) { const s = this.lootItems?.[i]; if (!s) return; const ok = await this.g.takeItem(this.lootRef.kind, this.lootRef.ref, s); if (ok) this.lootItems.splice(this.lootItems.indexOf(s), 1); this.renderInv(); }
-  async takeAll() { for (const s of [...(this.lootItems || [])]) { const ok = await this.g.takeItem(this.lootRef.kind, this.lootRef.ref, s); if (ok) this.lootItems.splice(this.lootItems.indexOf(s), 1); } this.renderInv(); }
+  // only items the search has revealed can be taken; taking one mid-search keeps the rest hidden (the reveal
+  // count is by position, so it steps back with the list)
+  revealedCount() { return Math.min(this.lootItems?.length || 0, this.revealN ?? 1e9); }
+  takenAt(idx) { if (idx >= 0) { this.lootItems.splice(idx, 1); if (this.revealN != null && this.revealN < 1e9 && idx < this.revealN) { this.revealN--; this.searched?.set(this.lootKey, this.revealN); } } }
+  async take(i) { const s = this.lootItems?.[i]; if (!s || i >= this.revealedCount()) return; const ok = await this.g.takeItem(this.lootRef.kind, this.lootRef.ref, s); if (ok) this.takenAt(this.lootItems.indexOf(s)); this.renderInv(); }
+  async takeAll() {
+    if (!this.lootItems || this.revealedCount() < this.lootItems.length) return;
+    for (const s of [...this.lootItems]) { const ok = await this.g.takeItem(this.lootRef.kind, this.lootRef.ref, s); if (ok) this.takenAt(this.lootItems.indexOf(s)); }
+    this.renderInv();
+  }
   putToLoot(ref) {
     const lo = this.g.pc.lo, s = getSlot(lo, ref); if (!s) return;
     setSlot(lo, ref, null); this.g.session.put(this.lootRef.kind, this.lootRef.ref, s); this.lootItems.push(s); this.renderInv();

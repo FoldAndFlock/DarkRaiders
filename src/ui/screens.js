@@ -14,6 +14,7 @@ import { settingsRows, syncProfile, touchEnabled, capPx } from './settings.js';
 export const TIPS = [
   "Shouting 'Don't shoot!' works 12% of the time, every time.",
   "Wedged in a ditch? Keep pushing into a low ledge to climb it, or open the pause menu and call a tow. Drivers accept tips.",
+  "Out of ammo is not out of options. The Hatchet Job comes out on its own, and V swings it any time. It has never once jammed.",
   'Your safe pocket is the only thing in this economy that is actually safe. Put your best find in it.',
   "'Free Loadout' is free the way a timeshare presentation is free. Still beats deploying with harsh language.",
   'The ARK are not angry. They are just disappointed. And armed. Their vision cones are lit on the ground - stay out of the light.',

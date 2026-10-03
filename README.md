@@ -31,7 +31,7 @@ npx http-server -p 8080 .        # or: python3 -m http.server 8080
 | Move / aim | `WASD` / mouse |
 | Fire / aim down sights | `LMB` / `RMB` |
 | Sprint / crouch / dodge-roll | `Shift` / `C` (toggle) / `Space` |
-| Reload / swap weapon / melee with the Bonk Stick | `R` / `Q` or wheel / `V` |
+| Reload / swap weapon / swing the Hatchet Job (your axe) | `R` / `Q` or wheel / `V` |
 | Interact (hold to search, revive, call elevators) | `E` |
 | Quick-use slots / throw grenade | `1`–`6` / `G` |
 | Flashlight | `F` |
@@ -84,6 +84,8 @@ touch controls. On a phone, "Add to Home Screen" runs it full-screen without bro
   **ARK vision cones are real light** – a spotlight traced against walls, trees, rocks and terrain, whose
   colour follows the machine's mood: cool white while patrolling, yellow → orange when suspicious, red once it
   has spotted you. Edge-of-screen chevrons warn of nearby machines.
+* **The Hatchet Job**: every raider carries an axe that can't be lost. Run dry with no reserve ammo (or break your
+  gun) and it comes out on the fire button; `V` swings it any time.
 * **Bot raider squads** with mixed temperament: some hunt you, others shout *"DON'T SHOOT!"* and keep their
   distance – until someone uses up the 12%.
 * **488 items**: 24 weapons with tiers I–IV and mods (the Teapot, the Maraca, the Cha-Cha-Cha burst rifle, the

@@ -64,7 +64,7 @@ export const ARK = {
             ['ark_flex_rubber', 0.1, 1, 1], ['ark_thermo_lining', 0.08, 1, 1] ],
     xp: 50, xpLoot: 100, threat: 1, color: '#c8c2b0',
     spawn: { group: [1, 4], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'indoor' },
-    desc: 'Small, sudden and always attached. Drops from the rafters, latches on and drains health and shield; shake it off, then one Bonk Stick swing settles the account.',
+    desc: 'Small, sudden and always attached. Drops from the rafters, latches on and drains health and shield; shake it off, then one swing of the Hatchet Job settles the account.',
   },
 
   popp: {

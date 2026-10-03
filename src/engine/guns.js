@@ -197,6 +197,12 @@ export const GUN_MODELS = {
     '....g...m.........',
     '...g..............',
   ] },
+  axe: { grip: [3, 2], rows: [ // the Hatchet Job: red-wrapped haft, steel head with a bright edge (melee)
+    '.........lle',
+    '........llle',
+    'RRRwwwwwwllle',
+    '.........ll..',
+  ] },
 };
 export const GUN_MODEL_IDS = Object.keys(GUN_MODELS);
 
