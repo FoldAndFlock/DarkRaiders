@@ -1624,7 +1624,7 @@ MODELS.queen = (R, def) => {
     for (let n = 0; n < 8; n++) { const a = n * Math.PI / 4 + 0.39; v.box(Math.sin(a) * 1.12 - 0.08, 0.6, Math.cos(a) * 1.12 - 0.08, Math.sin(a) * 1.12 + 0.08, 1.5, Math.cos(a) * 1.12 + 0.08, K.g2); }
     // under-plate machinery (visible once plates are shot off)
     for (const [x, z] of [[0, 2.5], [0, -2.5], [2.3, 0], [-2.3, 0]]) { v.box(x - 0.6, -0.75, z - 0.6, x + 0.6, 0.3, z + 0.6, K.g1); v.box(x - 0.3, -0.45, z - 0.3, x + 0.3, 0.0, z + 0.3, K.EXH); }
-    // mortar racks on the back (the Matriark carries missile pods there instead)
+    // mortar racks on the back (Helicopter Mom / matriark carries missile pods there instead)
     if (!matri) for (const sx of [-1, 1]) {
       v.box(sx * 1.2 - 0.6, 1.05, -2.25, sx * 1.2 + 0.6, 1.8, -1.2, K.g3, { ch: 1 });
       for (let a = 0; a < 3; a++) for (let b = 0; b < 2; b++) { v.cylY(sx * 1.2 - 0.38 + a * 0.38, -1.95 + b * 0.45, 1.65, 1.95, 0.15, K.g0); v.cylY(sx * 1.2 - 0.38 + a * 0.38, -1.95 + b * 0.45, 1.65, 1.8, 0.08, K.EXH); }

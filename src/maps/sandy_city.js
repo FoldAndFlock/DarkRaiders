@@ -2363,6 +2363,6 @@ export default {
     streetClutter(ctx); mark('clutter');
     birdCity(ctx);
     markers(ctx); mark('markers');
-    if (typeof window === 'undefined') this._ctx = ctx;   // node-side debug hook for map tools only
+    if (typeof window === 'undefined' || globalThis.__mapDebug) this._ctx = ctx;   // debug hook for map tools only
   },
 };

@@ -79,7 +79,7 @@ export const ARK = {
             ['popp_trigger', 0.4, 1, 1], ['ark_coolant', 0.1, 1, 1], ['ark_thermo_lining', 0.08, 1, 1] ],
     xp: 50, xpLoot: 100, threat: 1, color: '#e8d860',
     spawn: { group: [2, 5], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'indoor' },
-    desc: 'Rolls up uninvited, beeping faster the closer it gets. Shoot it early or dodge-roll over it to bait the blast. There is no \'skip ad\' button.',
+    desc: 'Rolls up uninvited, beeping faster the closer it gets. Pop it at range, or roll through it and let it explode behind you. There is no \'skip ad\' button.',
   },
 
   fyreball: {
@@ -164,7 +164,7 @@ export const ARK = {
             ['ark_synthetic_resin', 0.12, 1, 1], ['hornett_driver', 0.4, 1, 1] ],
     xp: 150, xpLoot: 250, threat: 3, color: '#d06a20',
     spawn: { group: [1, 2], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor' },
-    desc: 'Armoured drone whose slow stun rounds drain shields. All plate up front, no listening skills: flank it and shoot the glowing rear rotors. Dodge-roll when it sounds off.',
+    desc: 'Armoured drone whose slow stun rounds drain shields. All plate up front, no listening skills: flank it and shoot the glowing rear rotors. When it chirps, roll: the meeting has been moved to your face.',
   },
 
   fyrefly: {
@@ -208,7 +208,7 @@ export const ARK = {
             ['ark_synthetic_resin', 0.1, 1, 1], ['ark_thermo_lining', 0.1, 1, 1], ['sensors', 0.12, 1, 1] ],
     xp: 100, xpLoot: 200, threat: 2, color: '#ffd030',
     spawn: { group: [1, 1], maps: ['damn_grounds', 'green_gate', 'sandy_city'], habitat: 'outdoor' },
-    desc: 'Unarmed scout with a sweeping spotlight. Spot you and it calls three times, then reinforcements drop in. The Narc has more friends than you: kill it before the third call.',
+    desc: 'No gun, just a flashlight and a big mouth. Once it sees you it calls three times, then reinforcements drop in. The Narc has more friends than you: kill it before the third call.',
   },
 
   spottr: {
@@ -589,7 +589,7 @@ export const ARK_HUSKS = {
             ['ark_thermo_lining', 0.3, 1, 2], ['burned_ark_circuitry', 0.4, 1, 2], ['damaged_ark_motion_core', 0.3, 1, 1],
             ['damaged_ark_powercell', 0.4, 1, 2], ['degraded_ark_rubber', 0.4, 1, 2], ['dried_out_ark_resin', 0.4, 1, 2],
             ['impure_ark_coolant', 0.4, 1, 2], ['rusty_ark_steel', 0.4, 1, 2], ['tattered_ark_lining', 0.4, 2, 3] ],
-    desc: 'Towering war machine from the Beta Test, long dead and never decommissioned. Its guts are a scrapper\'s paradise.',
+    desc: 'Towering war machine from the Beta Test, long dead and never decommissioned. Pry it open: the parts inside were never written off.',
   },
   ark_probe: {
     name: 'Customer Survey', model: 'sentinel', modelScale: 0.7, radius: 1.0, height: 2.5, color: '#40c0ff',
