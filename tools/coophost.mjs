@@ -116,8 +116,11 @@ const buddy = "[...window.app.game.sim.entities.values()].find(e => e.type === '
 // ---------------------------------------------------------------- 2) host hidden, then gone
 {
   const { ctx, A, B } = await squad();
-  // the guest picks up a known item, gets hurt, opens a crate and takes one thing; a bag lies next to it; an ARK
-  // with a broken part is in view
+  // the guest walks up to a crate (the host reports the loot within 60 m of each guest), picks up a known item,
+  // gets hurt, opens the crate and takes one thing; a bag lies next to it; a hurt ARK is in view
+  const ci = await nearestContainer(B);
+  await B.evaluate((i) => { const g = window.app.game, c = g.containersData[i], me = g.me; me.x = c.x + 1.2; me.z = c.z; me.y = g.world.grid.floorAt(me.x, me.z, (c.y ?? me.y) + 0.5); g.pc.vy = 0; g.session.state({ x: me.x, y: me.y, z: me.z }); }, ci);
+  ok(await until(A, ([bq, i]) => { const b = eval(bq), c = window.app.game.sim.containers[i]; return Math.hypot(b.x - c.x, b.z - c.z) < 2; }, 20000, [buddy, ci]), 'the guest is at the crate');
   const before = await B.evaluate(() => {
     const g = window.app.game, me = g.me, lo = g.pc.lo, i = lo.backpack.findIndex(s => !s);
     lo.backpack[i] = { id: 'rope', qty: 3, uid: 'rope-test' };
@@ -128,7 +131,6 @@ const buddy = "[...window.app.game.sim.entities.values()].find(e => e.type === '
     sim.dropLoot(bud.x + 1.5, bud.z, [{ id: 'battery', qty: 2, uid: 'bag-battery' }, { id: 'wires', qty: 1, uid: 'bag-wires' }], 'bag', 'Test Bag', bud.y);
     const k = sim.spawnArk('tikk', bud.x + 9, bud.z + 3, { baseY: bud.y }); k.hp = k.maxHp * 0.5; if (k.brain) k.brain.update = () => {}; window.__k = k.id;
   }, buddy);
-  const ci = await nearestContainer(B);
   const crate = await B.evaluate(async (i) => { const g = window.app.game, items = await g.session.open('container', i); const s = items.length ? await g.session.take('container', i, items[0].uid) : null; return { i, n: items.length, took: s?.id || null }; }, ci);
   await hide(A);     // the host tabs away for a while: nothing should break
   await wait(12000);
