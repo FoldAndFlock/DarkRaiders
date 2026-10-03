@@ -9,6 +9,8 @@ const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const NET_VERSION = 1;
 // the deployed build (each deploy lives under v/<sha>/): host and client must run the same one
 export const BUILD = (import.meta.url.match(/\/v\/([0-9a-f]{6,})\//) || [])[1] || 'dev';
+// this browser tab: sent with every hello so the host can tell a repeated join from a new raider
+const CLIENT_ID = Math.random().toString(36).slice(2, 10);
 export function makeCode(n = 5) { let s = ''; for (let i = 0; i < n; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]; return s; }
 
 // ------------------------------------------------------------------ transports
@@ -38,6 +40,7 @@ class PeerTransport {
   join(code) {
     return new Promise((res, rej) => {
       if (typeof Peer === 'undefined') return rej(new Error('PeerJS failed to load (are you offline?)'));
+      try { this.peer?.destroy(); } catch (e) { /* */ }   // never keep a second connection to the host alive
       this.peer = new Peer(undefined, peerOptions());
       this.peer.on('error', (e) => { rej(e); this.emit('error', e); });
       this.peer.on('open', () => {
@@ -54,11 +57,12 @@ class PeerTransport {
     const ready = () => { this.emit('connect', id); };
     if (c.open) ready(); else c.on('open', ready);
     c.on('data', (d) => this.emit('message', id, d));
-    c.on('close', () => { this.conns.delete(id); this.emit('disconnect', id); });
+    c.on('close', () => { if (this.conns.get(id) !== c) return; this.conns.delete(id); this.emit('disconnect', id); });   // a replaced / dropped connection closes silently
     c.on('error', () => { /* surfaced via close */ });
   }
   send(id, msg) { const c = this.conns.get(id); if (c && c.open) { try { c.send(msg); } catch (e) { /* closed */ } } }
   broadcast(msg, except = null) { for (const [id, c] of this.conns) if (id !== except && c.open) { try { c.send(msg); } catch (e) { /* */ } } }
+  drop(id) { const c = this.conns.get(id); this.conns.delete(id); try { c?.close(); } catch (e) { /* */ } }   // no 'disconnect' event
   close() { try { this.peer?.destroy(); } catch (e) { /* */ } this.conns.clear(); }
   get myId() { return this.peer?.id; }
 }
@@ -81,6 +85,7 @@ class LocalTransport {
   }
   send(id, msg) { this.bc.postMessage({ to: this.isHost ? id : 'host', from: this.isHost ? 'host' : this.id, msg }); }
   broadcast(msg, except = null) { if (!this.isHost) return this.send('host', msg); for (const id of this.conns.keys()) if (id !== except) this.send(id, msg); }
+  drop(id) { this.conns.delete(id); }
   close() { this.bc?.close(); }
   get myId() { return this.isHost ? 'host' : this.id; }
 }
@@ -89,6 +94,7 @@ class LocalTransport {
 export class Net {
   constructor(app, { local = false } = {}) {
     this.app = app;
+    this.cid = CLIENT_ID;
     this.t = local ? new LocalTransport() : new PeerTransport();
     this.isHost = false; this.code = null;
     this.members = [];          // [{pid, name, outfit, level, ready, slot}]
@@ -118,7 +124,7 @@ export class Net {
   async join(code) {
     this.isHost = false; this.code = code.toUpperCase().trim();
     await this.t.join(this.code);
-    this.t.send('host', { k: 'hello', v: NET_VERSION, build: BUILD, ...this.me() });
+    this.t.send('host', { k: 'hello', v: NET_VERSION, build: BUILD, cid: this.cid, ...this.me() });
   }
   leave() { this.t.close(); this.members = []; this.emit('closed'); }
   lobbyState() { return { code: this.code, members: this.members, map: this.map, host: this.isHost }; }
@@ -166,10 +172,20 @@ export class Net {
     switch (m.k) {
       case 'hello': {
         if ((m.build && m.build !== BUILD && BUILD !== 'dev' && m.build !== 'dev') || (m.v && m.v !== NET_VERSION)) { this.t.send(from, { k: 'oldver' }); return; }
-        if (this.members.length >= 4) { this.t.send(from, { k: 'full' }); return; }
         if (this.game) { this.t.send(from, { k: 'busy' }); return; }
+        // the same raider again (a repeated hello, or a second connection from the same join - e.g. JOIN tapped
+        // twice): one member, on the newest connection; the older connection is dropped quietly
+        const prev = this.members.find(x => x.pid !== 'host' && (x.pid === from || (m.cid && x.cid === m.cid)));
+        if (prev) {
+          if (prev.pid !== from) { this.t.drop?.(prev.pid); prev.pid = from; }
+          Object.assign(prev, { name: (m.name || 'Raider').slice(0, 16), outfit: m.outfit, level: m.level, cid: m.cid });
+          this.t.send(from, { k: 'welcome', slot: prev.slot });
+          this.broadcastLobby();
+          break;
+        }
+        if (this.members.length >= 4) { this.t.send(from, { k: 'full' }); return; }
         const used = new Set(this.members.map(x => x.slot)); let slot = 1; while (used.has(slot)) slot++;
-        this.members.push({ pid: from, name: (m.name || 'Raider').slice(0, 16), outfit: m.outfit, level: m.level, ready: false, slot });
+        this.members.push({ pid: from, cid: m.cid, name: (m.name || 'Raider').slice(0, 16), outfit: m.outfit, level: m.level, ready: false, slot });
         this.t.send(from, { k: 'welcome', slot });
         this.emit('chat', { from: 'SYSTEM', text: `${m.name} joined the squad`, slot: 0 });
         this.broadcastLobby();

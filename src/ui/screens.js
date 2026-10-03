@@ -250,10 +250,10 @@ export class Screens {
       right.appendChild(el('h2', '', 'SQUAD'));
       if (!net) {
         right.appendChild(el('div', 'label', 'RAID WITH UP TO 3 FRIENDS. THE HOST RUNS THE RAID IN THEIR BROWSER.'));
-        const h = el('button', 'primary', 'HOST A SQUAD'); h.onclick = () => this.hostSquad(render);
+        const h = el('button', 'primary', this.connecting === 'host' ? 'OPENING THE SQUAD...' : 'HOST A SQUAD'); h.onclick = () => this.hostSquad(render); h.disabled = !!this.connecting;
         right.appendChild(h);
-        const jr = el('div', 'row'); const inp = el('input'); inp.type = 'text'; inp.placeholder = 'INVITE CODE'; inp.maxLength = 6; inp.style.textTransform = 'uppercase';
-        const j = el('button', '', 'JOIN'); j.onclick = () => this.joinSquad(inp.value, render);
+        const jr = el('div', 'row'); const inp = el('input'); inp.type = 'text'; inp.placeholder = 'INVITE CODE'; inp.maxLength = 6; inp.style.textTransform = 'uppercase'; inp.value = this.joinCode || ''; inp.oninput = () => { this.joinCode = inp.value; };
+        const j = el('button', '', this.connecting === 'join' ? 'CONNECTING...' : 'JOIN'); j.onclick = () => this.joinSquad(inp.value, render); j.disabled = !!this.connecting;
         inp.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Enter') j.onclick(); };
         jr.append(inp, j); right.appendChild(jr);
         if (mode === 'join') setTimeout(() => inp.focus(), 50);
@@ -297,32 +297,40 @@ export class Screens {
     }
     return this.fc[mapId];
   }
+  // one squad connection at a time: a second tap on HOST / JOIN while the first is still connecting is
+  // ignored (two connections made the host list the same raider twice and spawn a mirrored double)
   async hostSquad(render) {
-    this.netError = null;
+    if (this.connecting) return;
+    this.netError = null; this.connecting = 'host'; render();
+    let net = null;
     try {
-      const net = new Net(this.app, { local: new URLSearchParams(location.search).get('net') === 'local' });
+      net = new Net(this.app, { local: new URLSearchParams(location.search).get('net') === 'local' });
       this.bindNet(net);
       await net.host(); this.net = net; net.setMap(this.lobbyMap);
-    } catch (e) { this.netError = 'Could not host: ' + (e.message || e.type || e); this.net = null; }
-    render();
+    } catch (e) { this.netError = 'Could not host: ' + (e.message || e.type || e); this.net = null; try { net?.leave(); } catch (x) { /* */ } }
+    this.connecting = null; render();
   }
   async joinSquad(code, render) {
+    if (this.connecting) return;
     this.netError = null;
     if (!code || code.length < 4) { this.netError = 'Enter the 5-letter invite code from your host.'; render(); return; }
+    this.connecting = 'join'; render();
+    let net = null;
     try {
-      const net = new Net(this.app, { local: new URLSearchParams(location.search).get('net') === 'local' });
+      net = new Net(this.app, { local: new URLSearchParams(location.search).get('net') === 'local' });
       this.bindNet(net);
       await net.join(code); this.net = net;
-    } catch (e) { this.netError = 'Could not join: ' + (e.message || e.type || e); this.net = null; }
-    render();
+    } catch (e) { this.netError = 'Could not join: ' + (e.message || e.type || e); this.net = null; try { net?.leave(); } catch (x) { /* */ } }
+    this.connecting = null; render();
   }
   bindNet(net) {
     this.lobbyChat = [];
-    net.on('lobby', (s) => { if (s.map) this.lobbyMap = s.map; if (!this.inRaid) this.renderLobby?.(); });
-    net.on('chat', (m) => { this.lobbyChat.push(m); if (!this.inRaid) this.renderLobby?.(); });
-    net.on('error', (e) => { this.netError = String(e.message || e.type || e); if (!this.inRaid) this.renderLobby?.(); });
-    net.on('hostlost', () => { this.netError = 'Lost connection to the squad host.'; this.net = null; if (!this.inRaid) this.lobby(); });
-    net.on('start', (opts) => this.launch({ ...opts, net }));
+    const stale = () => this.net && this.net !== net;   // events from a squad connection we've moved on from
+    net.on('lobby', (s) => { if (stale()) return; if (s.map) this.lobbyMap = s.map; if (!this.inRaid) this.renderLobby?.(); });
+    net.on('chat', (m) => { if (stale()) return; this.lobbyChat.push(m); if (!this.inRaid) this.renderLobby?.(); });
+    net.on('error', (e) => { if (stale()) return; this.netError = String(e.message || e.type || e); if (!this.inRaid) this.renderLobby?.(); });
+    net.on('hostlost', () => { if (stale()) return; this.netError = 'Lost connection to the squad host.'; this.net = null; if (!this.inRaid) this.lobby(); });
+    net.on('start', (opts) => { if (stale() || this.inRaid) return; this.launch({ ...opts, net }); });
   }
 
   // ------------------------------------------------------------------ raid
