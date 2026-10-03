@@ -5,7 +5,7 @@
 import * as THREE from '../../vendor/three.module.js';
 
 const RAYS = 44, SEG = 6;
-// ARC Raiders-style alert colours: calm searchlight → yellow/orange when suspicious → red when attacking
+// Alert colours: calm searchlight → yellow/orange when suspicious → red when attacking
 export const CONE_COLORS = {
   idle: new THREE.Color(0.68, 0.85, 1.0),     // cool white searchlight: patrolling, unaware
   suspicious: new THREE.Color(1.0, 0.86, 0.2), // yellow: noticed something

@@ -18,11 +18,10 @@ because every co-op client rebuilds the same world from the seed.
 ## Projection & scale
 * 1 unit = 1 m. x → east, z → south, y up. The camera is an oblique SNES 3/4 view (south walls
   visible, roofs fade when the player goes inside). The visible area is ~40 × 22 m at 1080p.
-* Raids last 25–30 minutes; maps are close to the real game's scale: **Dam Grounds 1100 × 825 m,
-  Green Gate 1100 × 825 m, Sandy City 900 × 900 m**. Map the reference image's playable area onto
-  `[0,W]×[0,H]` (north up). Keep layouts faithful; only change things the top-down perspective forces
-  (no snap-hook verticality, no walkable upper floors: buildings are single walkable floor + visual
-  storeys; tall multi-level structures become plateaus/decks with ramps/stairs).
+* Raids last 25–30 minutes: **Dam Grounds 1100 × 825 m, Green Gate 1100 × 825 m, Sandy City 900 × 900 m**
+  (north up). Layouts are our own designs — never trace, mirror or rotate another game's map; each map
+  has a design note in `docs/maps/<id>.md` (concept, regions, POIs, extractions, key rooms, condition
+  features). Keep that note in sync when you move things.
 * Character ≈ 2 m tall, doors ≈ 1.6–2.4 m wide, rooms ≥ 3 m, corridors ≥ 2 m. Keep interiors roomy
   enough for top-down combat.
 
@@ -100,11 +99,12 @@ reach the ground; the fixture's own post never shadows it.
 `raisePoly(pts, h, 0)` (blend 0) takes a fast scanline path.
 
 Gameplay markers (consumed by the game – be generous and thoughtful):
-* `poi(id, name, x, z, r, { tier, aliases })` — every named location from the reference. `id` = snake_case
-  of the (lightly tweaked) display name; put the snake_case of the ORIGINAL ARC Raiders name in `aliases`.
+* `poi(id, name, x, z, r, { tier, aliases })` — every named location. `name` is the (joke) display name;
+  `id` is internal and stable — quests (`src/data/quests.js`) target POIs by id, so never rename an id a
+  quest uses. `aliases` lists extra ids that should also satisfy a quest step (e.g. several depots).
 * `extract(id, name, x, z, { kind, face, callTime, needsKey, structure })` — kind: `elevator` (Cargo
-  Elevator / lifts), `hatch` (Raider Hatch, needs a hatch key), `metro` (metro station), `airshaft` (Green
-  Gate airshafts). Use the reference positions. `face` (radians) turns the rig so its doors face the
+  Elevator / lifts), `hatch` (Doggy Door, needs a Doggy Door Key), `metro` (metro station), `airshaft` (Green
+  Gate airshafts). Spread them fairly around the map. `face` (radians) turns the rig so its doors face the
   approach; `callTime` overrides the countdown (default 40 s). The rig (engine/extracts.js)
   brings its own model, collision, call point and departure lever, so don't place pads, frames or signs on
   the spot. Footprints: elevator ~7.5 × 7.5 m plus the call post at its front-right corner, with a clear
@@ -119,7 +119,7 @@ Gameplay markers (consumed by the game – be generous and thoughtful):
   can call, board and pull the lever too). Elevators and
   airshafts come back after 75 s; a metro station closes for the raid once used; a hatch opens a silent
   15 s window (one open hatch per map).
-* `spawnPoint(x, z)` — player/squad insertion points (reference "player spawn" icons).
+* `spawnPoint(x, z)` — player/squad insertion points, spread around the map edges.
 * `container(kind, x, z, rot, { tier: 1..3, room })` — loot. Kinds: `locker crate weapon_case ammo_box
   medical_bag toolbox electronics cabinet desk safe trash car_trunk fridge suitcase backpack arc_crate
   arc_husk barron_husk deforestr_husk raider_cache field_depot plant basket security_locker`. Put them where they make sense
@@ -127,7 +127,7 @@ Gameplay markers (consumed by the game – be generous and thoughtful):
   nature areas…). Tier 3 = key rooms / landmark loot. Aim for 400–800 containers per map.
 * `arkSpawn(archetype, x, z, { count, radius, patrol: [[x,z],…] })` — archetypes: `wasp hornet tick pop
   fireball snitch surveyor sentinel turret rocketeer leaper bastion bombardier spotter shredder`. Sentinels
-  and turrets sit on rooftops/towers (use reference Sentinel icons). Heavier ARK (leaper, bastion,
+  and turrets sit on rooftops/towers. Heavier ARK (leaper, bastion,
   bombardier, rocketeer) roam open areas. 60–120 spawn groups per map; give drones patrol loops.
   Perches: static ARK take `y` (metres above ground) or `yAbs` (absolute height) to sit on roofs, towers
   (`f` = initial facing / sweep centre in radians; observers above roof level can't see into buildings)
@@ -135,8 +135,8 @@ Gameplay markers (consumed by the game – be generous and thoughtful):
   escorts); `notCondition` suppresses it. Mark boss arenas with `poi(..., { bossPoi: true | [kinds] })` —
   condition bosses (`spawnBoss`) pick one of those instead of a random POI. `container`, `prop` and `lamp`
   accept the same `condition` / `notCondition` options (e.g. Hurricane caches, Husk Graveyard wrecks).
-* `keyRoom(roomId, x0,z0,x1,z1, null, { name })` + doors with `locked: roomId` — key rooms from the
-  reference (e.g. Dam: control_tower, staff_room, surveillance, testing_annex, controlled_access_zone;
+* `keyRoom(roomId, x0,z0,x1,z1, null, { name })` + doors with `locked: roomId` — key rooms; each key item
+  in items.js opens a room id, so keep these ids (Dam: control_tower, staff_room, surveillance, testing_annex, controlled_access_zone;
   Sandy City: hospital, town_hall, residential (several), space_travel; Green Gate: village, cellar,
   communication_tower). Fill them with tier-3 containers.
 * `zone(name, poly, { tier })` — loot tier areas (1 outskirts, 2 normal POI, 3 high-value).
@@ -146,7 +146,7 @@ Gameplay markers (consumed by the game – be generous and thoughtful):
 Every POI needs: buildings with interior walls/rooms/doors/windows, furniture props + containers inside,
 clutter outside (vehicles, barrels, crates, pipes, fences, sandbags, debris, husks), lighting, terrain
 paint variation (paths, gravel, mud, concrete pads), vegetation framing. Open areas need rocks, bushes,
-dead trees, ARK husks, wrecks. Use roads/paths to connect POIs as in the reference.
+dead trees, ARK husks, wrecks. Use roads/paths to connect POIs.
 
 ## Performance budget
 ≤ 300 buildings, ≤ 30 000 props (trees/rocks/debris count), ≤ 900 containers, build time < 6 s in
@@ -157,8 +157,8 @@ A static server is usually running at http://localhost:8123 (if not, start one:
 `cd /home/user/DarkRaiders && npx http-server -p 81xx -s -c-1 . &`). Screenshot with
 `node tools/shot.mjs "<url>" out.png [w] [h]` (waits for `window.__ready`; prints console errors) and look
 at the PNG with the Read tool. Tool pages:
-* `tools/mapview.html?map=<id>&mode=overview&ppm=1` — whole-map top-down + markers (compare side by side
-  with the reference image in `docs/ref/`). Use ppm=2 and the `x/z` crop idea by cropping with python PIL
+* `tools/mapview.html?map=<id>&mode=overview&ppm=1` — whole-map top-down + markers (compare with the
+  map's design note in `docs/maps/`). Use ppm=2 and the `x/z` crop idea by cropping with python PIL
   (installed) for detail checks.
 * `tools/mapview.html?map=<id>&mode=view&x=..&z=..&time=noon|dusk|night|dawn&weather=clear|rain|fog|sandstorm`
   — in-game camera at a spot (1920×1080 screenshot) to check detail/readability.

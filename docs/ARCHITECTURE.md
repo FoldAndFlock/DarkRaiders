@@ -1,6 +1,6 @@
 # DarkRaiders – architecture & content schema
 
-Top-down 2.5D extraction roguelite in the browser, patterned after ARC Raiders 1.0.
+Top-down 2.5D extraction roguelite in the browser — an unofficial parody of ARC Raiders.
 Pure ES modules, **no build step**. Three.js (vendored in `/vendor`) renders a pixel-3D voxel
 world at low resolution (≈640×360) in an oblique SNES-style 3/4 projection; post-process quantises
 to 15-bit colour with ordered dithering. PeerJS (vendored) provides host-authoritative co-op.
@@ -20,22 +20,25 @@ src/net/              PeerJS transport, lobby + raid protocol
 src/ui/               HUD (canvas), menus/hub screens (DOM), pixel font, icons
 src/audio/            WebAudio music sequencer + synthesized SFX
 vendor/               three.module.js, three.core.js, peerjs.min.js
-docs/                 this file, research notes
+docs/                 this file, the map-building guide, per-map design notes (docs/maps/)
 ```
 
-## Naming policy (IMPORTANT for all content)
+## Naming & writing policy (IMPORTANT for all content)
 
-The user wants **lightly tweaked names everywhere** – recognisable nods to ARC Raiders, never the
-exact proper noun. Rules:
-* Proper nouns / brand-like names get a light spelling tweak that keeps first letter + rhythm:
-  `Rattler→Rattlr`, `Kettle→Kettel`, `Ferro→Ferrox`, `Stitcher→Stitchr`, `Il Toro→El Torro`,
-  `Vulcano→Volcano`, `Equalizer→Equaliser`, `Wasp→Wazp`, `Leaper→Leapr`, `Bastion→Bastian`,
-  `Celeste→Celesta`, `Speranza→Speranzia`. Pick one tweak per name and use it consistently.
-* The machines themselves: `ARC → ARK` in all player-facing text.
-* Plain generic English item names stay as they are (Bandage, Metal Parts, Wires, Battery, Fabric).
-* Maps: **Dam Grounds** (Dam Battlegrounds), **Green Gate** (The Blue Gate), **Sandy City** (Buried City).
-  POI names inside maps get the same light-tweak treatment (`Ruby Residence→Rubie Residence`).
-* Internal ids are `snake_case` of the tweaked name (`rattlr`, `wazp`, `shield_recharger`).
+DarkRaiders is a **parody**: it evokes ARC Raiders and pokes fun at it and at extraction shooters in
+general, but its expressive content is its own. Rules for anything a player can read or see:
+* Coined / proper names are **jokes, never misspellings** of the original (`Desperanza` the hub, the
+  `Narc` drone that calls reinforcements, the `Teapot` rifle, `Auntie Synergy` the trader). A pun that
+  winks at the original is fine as long as it is clearly a joke.
+* Flavour text is written from scratch in the house voice: deadpan, PG-13, punching up at landlords,
+  corporations, the grind and our own gamer habits. Running gag: the ARK (*Autonomous Repossession
+  Konglomerate — the K was a branding decision*) are repossessing the planet. Descriptions stay short and
+  still carry the gameplay information (weak spots, what an item is for, what a skill does).
+* Plain generic English names stay plain where clarity matters (Bandage, Metal Parts, Wires, Silencer II).
+* Maps are our own layouts (see `docs/maps/`), never traced from reference images.
+* **Internal ids never change** once shipped (item, ARK, quest, trader, map, POI, condition and skill
+  ids) — saves and co-op depend on them. Several ids predate the parody pass and still spell the old
+  placeholder names (`wazp`, `kettel`, `damn_grounds`); they are internal only and must not be renamed.
 
 ## Coordinates & units
 
@@ -78,7 +81,7 @@ Type-specific blocks:
   * `mode`: `auto | semi | burst | bolt | pump | lever | beam | charge | launcher`
   * `range` = effective range (m) before damage falloff; `spread`/`adsSpread` degrees; `recoil` 0..3;
     `armorPen` 0..1 vs ARK armour; `noise` metres of hearing radius; `moveMul` speed while held.
-  * Weapons in ARC Raiders go up to tier IV; `tiers` lists upgrades II–IV.
+  * Weapons go up to tier IV; `tiers` lists upgrades II–IV.
 * **ammo**: `ammo: { per: 1 }` (stack ≈ 60–120).
 * **consumable**: `use: { time, heal?, healOverTime?: {amount, dur}, shield?, stamina?, effect?: 'adrenaline'|'cleanse'|'revive'|'cloak'|… , dur? }`
 * **grenade / trap / gadget**: `throw: { kind, fuse, radius, dmg, dur?, … }` where kind ∈
@@ -101,7 +104,7 @@ Type-specific blocks:
 Refiner recipes turn basic materials into refined ones.
 
 ### `benches.js` → `export const BENCHES = { [id]: { name, desc, levels: [ { level: 1, cost: {…} }, { level: 2, cost }, { level: 3, cost } ] } }`
-plus `export const SCRAPPY = { levels: [ { level, cost, yields: [[itemId, min, max], …] } ] }` (the rooster that scavenges between raids – tweak the name, e.g. "Scrappie").
+plus `export const SCRAPPY = { levels: [ { level, cost, yields: [[itemId, min, max], …] } ] }` (Nugget, the workshop rooster that scavenges between raids).
 
 ### `arc.js` → `export const ARK = { [id]: ArkDef }`
 ```js

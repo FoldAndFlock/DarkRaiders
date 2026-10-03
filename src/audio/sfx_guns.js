@@ -1,6 +1,6 @@
 // Per-weapon sounds: gun_<id> (fire), reload_<id> / reload_<id>_end (distinctive reloads),
 // charge_<id>, plus gun_far_* distance layers that audio.play() crossfades in for far shots.
-// Each design follows the real ARC Raiders counterpart's action type and calibre (see the
+// Each design follows the weapon's own action type and calibre (see the
 // comments); everything is original synthesis.
 import { buf, noise, osc, fm, ad, env, filt, filtFn, layer, mix, snes, am, comb, echo } from './dsp.js';
 import { def, gunshot, click, clack, thump, ping, sparks } from './sfx_lib.js';
@@ -114,18 +114,18 @@ const EV = { vol: 0.32 };                 // energy-cell reloads carry sustained
 
 export const GUNS = {
   // ================================================================ assault rifles
-  // Kettle: cheap semi-auto, light ammo – snappy, bright, light bolt return + brass
+  // Teapot: cheap semi-auto, light ammo – snappy, bright, light bolt return + brass
   gun_kettel: G((R) => compose(gunshot(R, { dur: 0.55, crackF: 3200, crackDec: 0.035, bodyF: 1250, bodyDec: 0.08, thumpF: 130, thumpF1: 55,
     thumpDec: 0.09, thumpG: 0.7, tailF: 900, tailDec: 0.4, tailG: 0.26, bits: 9 }), [[clack(R, 2400, 0.04), 0.22, 0.035], [brass(R), 0.1, 0.18]], 0.6),
   { vol: 0.8, dist: 85, far: 'gun_far_light' }),
-  // Rattler: budget full-auto medium – rattly, crunchy AK-ish bark with loose-part chatter
+  // Maraca: budget full-auto medium – rattly, crunchy AK-ish bark with loose-part chatter
   gun_rattlr: G((R) => {
     const parts = [];
     for (let k = 0; k < 3; k++) parts.push([click(R, R.r(1800, 3200), 0.015, 3), 0.18, 0.02 + R() * 0.05]);
     return compose(gunshot(R, { dur: 0.6, crackF: 2500, crackDec: 0.045, bodyF: 900, bodyDec: 0.11, thumpF: 110, thumpF1: 42,
       tailDec: 0.5, tailG: 0.3, drv: 2.6, bits: 8, hold: 2 }), parts, 0.6);
   }, { vol: 0.85, max: 10, dist: 100, far: 'gun_far_medium' }),
-  // Arpeggio: 3-round burst – tight, clean crack, short tail so bursts read "ta-ta-ta";
+  // Cha-Cha-Cha: 3-round burst – tight, clean crack, short tail so bursts read "ta-ta-ta";
   // a faint handguard ring on one of three triad pitches (variants) gives the burst a little arpeggio
   gun_arpeggo: G((R) => {
     const base = gunshot(R, { dur: 0.45, crackF: 2900, crackQ: 1.2, crackDec: 0.04, bodyF: 1000, bodyDec: 0.09, thumpF: 120, thumpF1: 46,
@@ -133,51 +133,51 @@ export const GUNS = {
     const r = fm(0.3, { f: R.pick([1320, 1663, 1976]), ratio: 2.0, index: 1.2, index1: 0.05 }); ad(r, 0.001, 0.28);
     return compose(base, [[r, 0.1, 0.004]], 0.45);
   }, { vol: 0.82, max: 9, dist: 100, far: 'gun_far_medium', v: 3 }),
-  // Tempest: refined full-auto medium – smooth, controlled, slightly deeper, cleaner bits
+  // Light Drizzle: refined full-auto medium – smooth, controlled, slightly deeper, cleaner bits
   gun_tempesta: G((R) => compose(gunshot(R, { dur: 0.55, crackF: 2700, crackDec: 0.042, bodyF: 1050, bodyDec: 0.1, thumpF: 115, thumpF1: 44,
     thumpG: 0.95, tailDec: 0.45, tailG: 0.28, drv: 2.0, bits: 10 }), [[clack(R, 1900, 0.035), 0.15, 0.03]], 0.55),
   { vol: 0.85, max: 10, dist: 100, far: 'gun_far_medium' }),
-  // Bettina: heavy-calibre AR – big low punch, heavy bolt clunk, long tail
+  // Big Betty: heavy-calibre AR – big low punch, heavy bolt clunk, long tail
   gun_betina: G((R) => compose(gunshot(R, { dur: 0.95, crackF: 2100, crackDec: 0.06, crackG: 0.9, bodyF: 700, bodyDec: 0.16,
     thumpF: 85, thumpF1: 32, thumpDec: 0.22, tailDec: 0.8, tailG: 0.4, slap: 0.18, slapG: 0.2, drv: 3, bits: 8 }),
   [[clack(R, 900, 0.07), 0.3, 0.05]], 0.95), { vol: 0.95, dist: 115, far: 'gun_far_heavy' }),
 
   // ================================================================ battle rifles
-  // Ferro: break-action single shot, heavy – one big BOOM with a long rolling tail
+  // One-Hit Wonder: break-action single shot, heavy – one big BOOM with a long rolling tail
   gun_ferrox: G((R) => gunshot(R, { dur: 1.8, crackF: 2300, crackDec: 0.07, crackG: 0.95, bodyF: 650, bodyDec: 0.2, thumpF: 72, thumpF1: 28,
     thumpDec: 0.32, tailF: 560, tailDec: 1.3, tailG: 0.45, slap: 0.3, slapG: 0.3, drv: 3.2, bits: 8 }),
   { vol: 1, max: 4, dist: 125, far: 'gun_far_heavy' }),
-  // Renegade: lever-action – crisp ringing western crack, then the "cha-chak" lever cycle
+  // Yeehaw: lever-action – crisp ringing western crack, then the "cha-chak" lever cycle
   gun_renegayde: G((R) => compose(gunshot(R, { dur: 0.95, crackF: 3000, crackDec: 0.05, bodyF: 850, bodyDec: 0.12, thumpF: 100, thumpF1: 38,
     thumpDec: 0.16, tailDec: 0.9, tailG: 0.38, slap: 0.25, slapG: 0.2, drv: 2.6, bits: 9 }), [[leverCycle(R), 0.42, 0.3]], 0.95),
   { vol: 0.95, max: 4, dist: 110, far: 'gun_far_medium' }),
-  // Aphelion: experimental energy battle rifle, 2-round burst of high-velocity bolts –
+  // Solar Flair: experimental energy battle rifle, 2-round burst of high-velocity bolts –
   // fast "tchew" FM sweep, electric crackle, accelerator ring
   gun_afelion: G((R) => energyShot(R, { dur: 0.8, f: 2600, f1: 280, sweep: 0.1, index: 5.5, ring: 1760, ringG: 0.22, thumpF: 115, tailG: 0.3 }),
     { vol: 0.85, max: 6, dist: 110, far: 'gun_far_energy' }),
 
   // ================================================================ SMGs
-  // Stitcher: light SMG – papery, snappy pops with mechanical chatter
+  // Sewing Machine: light SMG – papery, snappy pops with mechanical chatter
   gun_stitchr: G((R) => compose(gunshot(R, { dur: 0.3, crackF: 3500, crackDec: 0.025, bodyF: 1400, bodyDec: 0.055, thumpF: 150, thumpF1: 65,
     thumpDec: 0.06, thumpG: 0.6, tailDec: 0.2, tailG: 0.18, bits: 8, hold: 2 }), [[clack(R, 2800, 0.03), 0.2, 0.02]], 0.3),
   { vol: 0.7, max: 10, dist: 80, far: 'gun_far_light' }),
-  // Canto: medium SMG, blistering cycle rate – punchier body, more crack
+  // Karaoke: medium SMG, blistering cycle rate – punchier body, more crack
   gun_canta: G((R) => gunshot(R, { dur: 0.33, crackF: 3100, crackDec: 0.03, bodyF: 1150, bodyDec: 0.065, thumpF: 135, thumpF1: 55,
     thumpDec: 0.07, thumpG: 0.8, tailDec: 0.25, tailG: 0.22, drv: 2.6, bits: 8 }), { vol: 0.72, max: 12, dist: 85, far: 'gun_far_medium' }),
-  // Bobcat: extremely fast light SMG – very short tight transients that blur into a buzz-saw
+  // Zoomies: extremely fast light SMG – very short tight transients that blur into a buzz-saw
   gun_bobkat: G((R) => gunshot(R, { dur: 0.22, crackF: 3800, crackDec: 0.02, bodyF: 1600, bodyDec: 0.04, thumpF: 160, thumpF1: 80,
     thumpDec: 0.045, thumpG: 0.5, tailDec: 0.15, tailG: 0.15, bits: 8, hold: 2 }), { vol: 0.66, max: 12, dist: 80, far: 'gun_far_light' }),
 
   // ================================================================ shotguns
-  // Il Toro: pump-action – wide deep blast, then the pump rack
+  // Bull Market: pump-action – wide deep blast, then the pump rack
   gun_el_torro: G((R) => compose(gunshot(R, { dur: 1.2, crackF: 1700, crackQ: 0.5, crackDec: 0.08, bodyF: 1500, bodyDec: 0.25, bodyG: 1,
     thumpF: 78, thumpF1: 30, thumpDec: 0.3, tailF: 600, tailDec: 1.0, tailG: 0.45, slap: 0.22, slapG: 0.2, drv: 3.4, bits: 8, hold: 2 }),
   [[pumpRack(R), 0.45, 0.42]], 1.2), { vol: 1, max: 4, dist: 95, far: 'gun_far_shotgun' }),
-  // Vulcano: semi-auto shotgun – tighter, sharper blast with a semi-auto action clack
+  // Lava Lamp: semi-auto shotgun – tighter, sharper blast with a semi-auto action clack
   gun_volcano: G((R) => compose(gunshot(R, { dur: 0.9, crackF: 2000, crackQ: 0.6, crackDec: 0.06, bodyF: 1700, bodyDec: 0.18,
     thumpF: 90, thumpF1: 35, thumpDec: 0.22, tailDec: 0.75, tailG: 0.4, drv: 3, bits: 8 }), [[clack(R, 1300, 0.06), 0.3, 0.04]], 0.9),
   { vol: 0.95, max: 5, dist: 95, far: 'gun_far_shotgun' }),
-  // Dolabra: experimental energy shotgun – hot plasma "whoomph", descending zap, thermal crackle
+  // Hair Dryer: experimental energy shotgun – hot plasma "whoomph", descending zap, thermal crackle
   gun_dolabre: G((R) => {
     const out = buf(1.0);
     const h = noise(0.4, 'white', R); filt(h, 'lp', 3200, 500, 1.2, 0.3); ad(h, 0.002, 0.3); layer(out, h, 0.9);
@@ -196,7 +196,7 @@ export const GUNS = {
   }, { vol: 0.6, dist: 25, max: 2, pj: 0.02 }),
 
   // ================================================================ pistols / hand cannon
-  // Hairpin: integrated silencer + slide action – a soft "pft", firing-pin click, then the manual slide cycle
+  // Library Card: integrated silencer + slide action – a soft "pft", firing-pin click, then the manual slide cycle
   gun_hairpyn: G((R) => {
     const out = buf(0.5);
     const p = noise(0.1, 'white', R); filt(p, 'lp', 1300 * R.j(0.15), 500, 1.2); ad(p, 0.001, 0.07); layer(out, p, 0.9);
@@ -205,32 +205,32 @@ export const GUNS = {
     layer(out, slideRack(R, 2500), 0.55, 0.2);
     return snes(out, { drv: 1.4, bits: 9, p: 0.75 });
   }, { vol: 0.55, dist: 16, max: 4 }),
-  // Burletta: dependable semi pistol – crisp pop, slide clack, brass
+  // Old Reliable: dependable semi pistol – crisp pop, slide clack, brass
   gun_burleta: G((R) => compose(gunshot(R, { dur: 0.45, crackF: 3300, crackDec: 0.035, bodyF: 1300, bodyDec: 0.07, thumpF: 145, thumpF1: 60,
     thumpDec: 0.08, thumpG: 0.7, tailDec: 0.3, tailG: 0.22, mech: 0, bits: 9 }), [[clack(R, 2600, 0.04), 0.28, 0.02], [brass(R), 0.1, 0.16]], 0.45),
   { vol: 0.75, dist: 80, far: 'gun_far_light' }),
-  // Venator: two projectiles per pull – a doubled "ka-crack" transient, punchy medium calibre
+  // BOGO: two projectiles per pull – a doubled "ka-crack" transient, punchy medium calibre
   gun_venattor: G((R) => {
     const a = gunshot(R, { dur: 0.5, crackF: 2900, crackDec: 0.035, bodyF: 1100, bodyDec: 0.08, thumpF: 125, thumpF1: 50, thumpDec: 0.09,
       tailDec: 0.4, tailG: 0.28, bits: 9 });
     const c2 = noise(0.06, 'crunch', R, 1); filt(c2, 'bp', 3100, 1500, 0.9); ad(c2, 0.0004, 0.035);
     return compose(a, [[c2, 0.55, 0.011], [clack(R, 2300, 0.04), 0.25, 0.03]], 0.5);
   }, { vol: 0.82, dist: 95, far: 'gun_far_medium' }),
-  // Anvil: single-action hand cannon – huge boom, long tail, then the hammer being cocked
+  // Paperweight: single-action hand cannon – huge boom, long tail, then the hammer being cocked
   gun_anvill: G((R) => compose(gunshot(R, { dur: 1.4, crackF: 2400, crackDec: 0.06, crackG: 1, bodyF: 750, bodyDec: 0.17, thumpF: 80, thumpF1: 30,
     thumpDec: 0.3, tailDec: 1.1, tailG: 0.45, slap: 0.25, slapG: 0.25, drv: 3.3, bits: 8 }), [[hammerCock(R), 0.4, 0.38]], 1.4),
   { vol: 1, max: 4, dist: 115, far: 'gun_far_heavy' }),
 
   // ================================================================ LMG / snipers
-  // Torrente: belt-fed LMG – mid-heavy chug with belt-link rattle
+  // Firehose: belt-fed LMG – mid-heavy chug with belt-link rattle
   gun_torrento: G((R) => compose(gunshot(R, { dur: 0.5, crackF: 2400, crackDec: 0.04, bodyF: 850, bodyDec: 0.09, thumpF: 105, thumpF1: 42,
     thumpDec: 0.1, thumpG: 0.9, tailDec: 0.35, tailG: 0.28, drv: 2.8, bits: 8 }), [[linkRattle(R), 0.16, 0.03]], 0.5),
   { vol: 0.85, max: 12, dist: 115, far: 'gun_far_medium' }),
-  // Osprey: scoped bolt-action – sharp supersonic crack, long echo, then the bolt cycle
+  // Birdwatcher: scoped bolt-action – sharp supersonic crack, long echo, then the bolt cycle
   gun_ospray: G((R) => compose(gunshot(R, { dur: 1.6, crackF: 3400, crackDec: 0.06, crackG: 1, bodyF: 700, bodyDec: 0.13, thumpF: 90, thumpF1: 34,
     thumpDec: 0.22, tailF: 520, tailDec: 1.4, tailG: 0.45, slap: 0.3, slapG: 0.3, drv: 2.8, bits: 9 }), [[boltCycle(R), 0.4, 0.55]], 1.6),
   { vol: 1, max: 4, dist: 145, far: 'gun_far_heavy' }),
-  // Jupiter: experimental energy bolt-action – tiny pre-charge (its firing delay), a railgun "KZANG"
+  // Gas Giant: experimental energy bolt-action – tiny pre-charge (its firing delay), a railgun "KZANG"
   // with a metallic ring and sub hit, crackling tail, then a servo bolt cycle and capacitor recharge
   gun_jupitor: G((R) => {
     const out = buf(1.9);
@@ -248,7 +248,7 @@ export const GUNS = {
   }, { vol: 1, max: 3, dist: 150, far: 'gun_far_energy' }),
 
   // ================================================================ launchers / beam
-  // Rascal: break-action launcher – hollow tube "thoomp" and a projectile whoosh
+  // Party Popper: break-action launcher – hollow tube "thoomp" and a projectile whoosh
   gun_raskal: G((R) => {
     const out = buf(0.95);
     layer(out, tubePop(R, 180, 0.35), 0.8); layer(out, thump(R, 95, 45, 0.25, 0.07), 1);
@@ -256,7 +256,7 @@ export const GUNS = {
     const w = noise(0.6, 'white', R); filt(w, 'bp', 1600, 700, 1.4); env(w, [[0, 0], [0.04, 1], [0.6, 0]]); layer(out, w, 0.35, 0.03);
     return snes(out, { drv: 2.2, bits: 8, p: 0.92 });
   }, { vol: 0.9, max: 4, dist: 90, far: 'gun_far_launcher' }),
-  // Hullcracker: pump-action launcher – heavier thoomp + whoosh, then a heavy pump rack
+  // Can Opener: pump-action launcher – heavier thoomp + whoosh, then a heavy pump rack
   gun_hullkracker: G((R) => {
     const out = buf(1.15);
     layer(out, tubePop(R, 150, 0.4), 0.85); layer(out, thump(R, 80, 36, 0.32, 0.08), 1);
@@ -264,7 +264,7 @@ export const GUNS = {
     layer(out, pumpRack(R, 1.3), 0.5, 0.45);
     return snes(out, { drv: 2.4, bits: 8, p: 0.94 });
   }, { vol: 0.95, max: 4, dist: 95, far: 'gun_far_launcher' }),
-  // Equalizer: experimental beam rifle – each shot is a 0.2 s beam segment; at full-auto cadence the
+  // Hostile Takeover: experimental beam rifle – each shot is a 0.2 s beam segment; at full-auto cadence the
   // overlapping segments phase against each other into a wavering, buzzing beam
   gun_equaliser: G((R) => {
     const d = 0.22, out = buf(d);
@@ -336,16 +336,16 @@ export const GUNS = {
     layer(x, clack(R, 900, 0.1), 1, 0.3); layer(x, thump(R, 160, 90, 0.08, 0.03), 0.5, 0.3);
     return snes(x, { bits: 9, p: 0.75 });
   }),
-  // Renegade: rounds pushed through the loading gate one by one, finished with a lever cycle
+  // Yeehaw: rounds pushed through the loading gate one by one, finished with a lever cycle
   reload_renegayde: RL((R) => shellsIn(R, 4, 0.38, 0.9)),
   reload_renegayde_end: RL((R) => snes(leverCycle(R), { bits: 9, p: 0.75 })),
-  // Il Toro: shell by shell, then pump
+  // Bull Market: shell by shell, then pump
   reload_el_torro: RL((R) => shellsIn(R, 4, 0.45, 1.2)),
   reload_el_torro_end: RL((R) => snes(pumpRack(R), { bits: 8, p: 0.78 })),
-  // Vulcano: shells into the tube, bolt release
+  // Lava Lamp: shells into the tube, bolt release
   reload_volcano: RL((R) => shellsIn(R, 3, 0.4, 1.2)),
   reload_volcano_end: RL((R) => { const x = buf(0.3); layer(x, clack(R, 1200, 0.08), 1); layer(x, click(R, 2400, 0.02), 0.4, 0.08); return snes(x, { bits: 9, p: 0.75 }); }),
-  // Hullcracker: chunky launcher shells into the tube, heavy pump
+  // Can Opener: chunky launcher shells into the tube, heavy pump
   reload_hullkracker: RL((R) => shellsIn(R, 3, 0.55, 1.7)),
   reload_hullkracker_end: RL((R) => snes(pumpRack(R, 1.3), { bits: 8, p: 0.8 })),
   // Rascal (break-action launcher): open, pull the empty hollow shell
@@ -362,7 +362,7 @@ export const GUNS = {
     layer(x, clack(R, 800, 0.1), 1, 0.28);
     return snes(x, { bits: 9, p: 0.75 });
   }),
-  // Anvil: cylinder swings out, six cases cascade out / rounds in, cylinder snapped shut, hammer cocked
+  // Paperweight: cylinder swings out, six cases cascade out / rounds in, cylinder snapped shut, hammer cocked
   reload_anvill: RL((R) => {
     const x = buf(1.1);
     layer(x, click(R, 2800, 0.02), 0.6); layer(x, clack(R, 1500, 0.05), 0.6, 0.06);
@@ -376,14 +376,14 @@ export const GUNS = {
     layer(x, hammerCock(R), 0.7, 0.5);
     return snes(x, { bits: 9, p: 0.75 });
   }),
-  // Rattler: loads two rounds at a time – paired clicks
+  // Maraca: loads two rounds at a time – paired clicks
   reload_rattlr: RL((R) => {
     const x = buf(1.3);
     for (let k = 0; k < 3; k++) { const t = k * 0.4; layer(x, click(R, 2500, 0.02, 4), 0.6, t); layer(x, click(R, 2700, 0.02, 4), 0.55, t + 0.07); layer(x, clack(R, 1800, 0.04), 0.4, t + 0.14); }
     return snes(x, { bits: 9, p: 0.7 });
   }),
   reload_rattlr_end: RL((R) => { const x = buf(0.4); layer(x, clack(R, 1500, 0.06), 0.8); layer(x, clack(R, 1900, 0.05), 1, 0.16); return snes(x, { bits: 9, p: 0.75 }); }),
-  // Torrente: feed cover up, belt rattle / feed cover slam + charging handle
+  // Firehose: feed cover up, belt rattle / feed cover slam + charging handle
   reload_torrento: RL((R) => {
     const x = buf(1.2);
     layer(x, clack(R, 900, 0.1), 0.9);
@@ -395,7 +395,7 @@ export const GUNS = {
     layer(x, clack(R, 1500, 0.06), 0.7, 0.35); layer(x, clack(R, 1900, 0.05), 0.8, 0.48);
     return snes(x, { bits: 9, p: 0.78 });
   }),
-  // Osprey: bolt opens, magazine swapped / bolt closes
+  // Birdwatcher: bolt opens, magazine swapped / bolt closes
   reload_ospray: RL((R) => { const x = buf(0.9); layer(x, boltCycle(R, 1300).subarray(0, 0.24 * 32000), 0.9); layer(x, clack(R, 2000, 0.05), 0.6, 0.45); layer(x, click(R, 2600, 0.02), 0.5, 0.7); return snes(x, { bits: 9, p: 0.72 }); }),
   reload_ospray_end: RL((R) => { const x = buf(0.5); layer(x, clack(R, 1500, 0.06), 1); layer(x, click(R, 2300, 0.025), 0.6, 0.09); return snes(x, { bits: 9, p: 0.75 }); }),
   // energy weapons: clip/cell eject + power-down / insert + power-up chirp (pitched per weapon)
