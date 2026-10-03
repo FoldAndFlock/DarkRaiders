@@ -1470,28 +1470,28 @@ export const ITEMS = {
   // Keys
   // ======================================================================
   damn_grounds_control_tower_key: {
-    name: 'Damn Grounds Control Tower Key', type: 'key', rarity: 'epic', weight: 0.25, stack: 1, value: 100,
-    desc: 'Opens the locked top-floor room of the Control Tower on Damn Grounds.', icon: 'key', tags: ['key', 'damn_grounds'],
+    name: 'Dam Grounds Control Tower Key', type: 'key', rarity: 'epic', weight: 0.25, stack: 1, value: 100,
+    desc: 'Opens the locked top-floor room of the Control Tower on Dam Grounds.', icon: 'key', tags: ['key', 'damn_grounds'],
     key: { map: 'damn_grounds', room: 'control_tower' },
   },
   damn_grounds_controlled_access_zone_key: {
-    name: 'Damn Grounds Controlled Access Zone Key', type: 'key', rarity: 'rare', weight: 0.25, stack: 1, value: 100,
-    desc: 'Opens the locked building in the Controlled Access Zone on Damn Grounds.', icon: 'key', tags: ['key', 'damn_grounds'],
+    name: 'Dam Grounds Controlled Access Zone Key', type: 'key', rarity: 'rare', weight: 0.25, stack: 1, value: 100,
+    desc: 'Opens the locked building in the Controlled Access Zone on Dam Grounds.', icon: 'key', tags: ['key', 'damn_grounds'],
     key: { map: 'damn_grounds', room: 'controlled_access_zone' },
   },
   damn_grounds_staff_room_key: {
-    name: 'Damn Grounds Staff Room Key', type: 'key', rarity: 'uncommon', weight: 0.25, stack: 1, value: 100,
-    desc: 'Opens the staff room in the Research & Administration building on Damn Grounds.', icon: 'key', tags: ['key', 'damn_grounds'],
+    name: 'Dam Grounds Staff Room Key', type: 'key', rarity: 'uncommon', weight: 0.25, stack: 1, value: 100,
+    desc: 'Opens the staff room in the Research & Administration building on Dam Grounds.', icon: 'key', tags: ['key', 'damn_grounds'],
     key: { map: 'damn_grounds', room: 'staff_room' },
   },
   damn_grounds_surveillance_key: {
-    name: 'Damn Grounds Surveillance Key', type: 'key', rarity: 'uncommon', weight: 0.25, stack: 1, value: 100,
-    desc: 'Opens the surveillance room south of Water Treatment on Damn Grounds.', icon: 'key', tags: ['key', 'damn_grounds'],
+    name: 'Dam Grounds Surveillance Key', type: 'key', rarity: 'uncommon', weight: 0.25, stack: 1, value: 100,
+    desc: 'Opens the surveillance room south of Water Treatment on Dam Grounds.', icon: 'key', tags: ['key', 'damn_grounds'],
     key: { map: 'damn_grounds', room: 'surveillance' },
   },
   damn_grounds_testing_annex_key: {
-    name: 'Damn Grounds Testing Annex Key', type: 'key', rarity: 'rare', weight: 0.25, stack: 1, value: 100,
-    desc: 'Opens one of the locked doors inside the Testing Annex on Damn Grounds.', icon: 'key', tags: ['key', 'damn_grounds'],
+    name: 'Dam Grounds Testing Annex Key', type: 'key', rarity: 'rare', weight: 0.25, stack: 1, value: 100,
+    desc: 'Opens one of the locked doors inside the Testing Annex on Dam Grounds.', icon: 'key', tags: ['key', 'damn_grounds'],
     key: { map: 'damn_grounds', room: 'testing_annex' },
   },
   sandy_city_hospital_key: {

@@ -33,7 +33,7 @@ exact proper noun. Rules:
   `Celeste→Celesta`, `Speranza→Speranzia`. Pick one tweak per name and use it consistently.
 * The machines themselves: `ARC → ARK` in all player-facing text.
 * Plain generic English item names stay as they are (Bandage, Metal Parts, Wires, Battery, Fabric).
-* Maps: **Damn Grounds** (Dam Battlegrounds), **Green Gate** (The Blue Gate), **Sandy City** (Buried City).
+* Maps: **Dam Grounds** (Dam Battlegrounds), **Green Gate** (The Blue Gate), **Sandy City** (Buried City).
   POI names inside maps get the same light-tweak treatment (`Ruby Residence→Rubie Residence`).
 * Internal ids are `snake_case` of the tweaked name (`rattlr`, `wazp`, `shield_recharger`).
 

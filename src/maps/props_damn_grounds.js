@@ -1,4 +1,4 @@
-// Damn Grounds custom voxel props (prefix dg_). Imported for its side effects by damn_grounds.js.
+// Dam Grounds custom voxel props (prefix dg_). Imported for its side effects by damn_grounds.js.
 // Everything here is procedural + deterministic (no Math.random).
 import { registerProp, Vox } from '../engine/models.js';
 

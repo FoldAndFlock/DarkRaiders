@@ -106,7 +106,7 @@ SCENES.dam = () => {
   return {
     world: W, me, center: [47, 37], lights, pre,
     hud: {
-      raid: { map: 'Damn Grounds', time: 1243, condition: 'ELECTROMAGNETIC STORM', weather: 'DUSK  RAIN  WIND NE' },
+      raid: { map: 'Dam Grounds', time: 1243, condition: 'ELECTROMAGNETIC STORM', weather: 'DUSK  RAIN  WIND NE' },
       player: { name: 'NOVA', level: 14, hp: 82, hpMax: 100, shield: 34, shieldMax: 60, stamina: 0.7, weight: 18.4, weightMax: 30 },
       weapon: { name: 'Rattler', tier: 'II', rarity: 'common', mag: 18, reserve: 54, mode: 'AUTO', alt: 'Kettle' },
       quick: [{ icon: 'bandage', count: 3 }, { icon: 'shieldRecharger', count: 2, active: true }, { icon: 'grenade', count: 1 }, { icon: 'adrenaline', count: 1 }],

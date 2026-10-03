@@ -5,7 +5,7 @@ Maps are ES modules in `src/maps/<id>.js` that describe a level through the `Wor
 
 ```js
 export default {
-  id: 'damn_grounds', name: 'Damn Grounds', size: [W, H], seed: 1234,
+  id: 'damn_grounds', name: 'Dam Grounds', size: [W, H], seed: 1234,
   base: 'grass',            // default terrain texture
   cliff: 'rock',            // texture for steep slopes
   ambient: { music: 'damn_grounds', birds: true },
@@ -18,7 +18,7 @@ because every co-op client rebuilds the same world from the seed.
 ## Projection & scale
 * 1 unit = 1 m. x → east, z → south, y up. The camera is an oblique SNES 3/4 view (south walls
   visible, roofs fade when the player goes inside). The visible area is ~40 × 22 m at 1080p.
-* Raids last 25–30 minutes; maps are close to the real game's scale: **Damn Grounds 1100 × 825 m,
+* Raids last 25–30 minutes; maps are close to the real game's scale: **Dam Grounds 1100 × 825 m,
   Green Gate 1100 × 825 m, Sandy City 900 × 900 m**. Map the reference image's playable area onto
   `[0,W]×[0,H]` (north up). Keep layouts faithful; only change things the top-down perspective forces
   (no snap-hook verticality, no walkable upper floors: buildings are single walkable floor + visual
@@ -105,7 +105,7 @@ Gameplay markers (consumed by the game – be generous and thoughtful):
 * `extract(id, name, x, z, { kind, face, callTime, needsKey, structure })` — kind: `elevator` (Cargo
   Elevator / lifts), `hatch` (Raider Hatch, needs a hatch key), `metro` (metro station), `airshaft` (Green
   Gate airshafts). Use the reference positions. `face` (radians) turns the rig so its doors face the
-  approach; `callTime` fixes the countdown (default 30–45 s, airshaft 30–38 s). The rig (engine/extracts.js)
+  approach; `callTime` overrides the countdown (default 40 s). The rig (engine/extracts.js)
   brings its own model, collision, call point and departure lever, so don't place pads, frames or signs on
   the spot. Footprints: elevator ~7.5 × 7.5 m plus the call post at its front-right corner, with a clear
   approach in front and away from the map edge; airshaft ~4 × 4 m plus an outdoor console, open sky above
@@ -115,7 +115,8 @@ Gameplay markers (consumed by the game – be generous and thoughtful):
   the track auto-fits the hall (`metroFit`) and tunnel mouths sit on its end walls. Metro options:
   `trackZ` (3), `trackLen` (26), `platformLen` (16), `platformDepth` (2.75), `trainDir`.
   Flow in game: hold E at the call point (loud: ARK investigate) → countdown → doors open → board and hold
-  E on the lever (or it leaves by itself after 90 s) → 10 s closing → everyone inside extracts. Elevators and
+  E on the lever (or it leaves by itself after 90 s) → 8 s closing → everyone inside extracts (downed raiders
+  can call, board and pull the lever too). Elevators and
   airshafts come back after 75 s; a metro station closes for the raid once used; a hatch opens a silent
   15 s window (one open hatch per map).
 * `spawnPoint(x, z)` — player/squad insertion points (reference "player spawn" icons).

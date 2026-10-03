@@ -6,7 +6,7 @@ A gritty, pixel-voxel **top-down 2.5D extraction roguelite** for the browser, pa
 
 Raid the surface, dodge the ARK, loot, and **extract — or lose everything but your safe pocket.**
 
-![Damn Grounds mockup](mockups/01-damn-grounds-dusk-rain.png)
+![Dam Grounds mockup](mockups/01-damn-grounds-dusk-rain.png)
 
 ## Run it
 
@@ -41,7 +41,7 @@ Gamepads work too (twin-stick: left stick move, right stick aim, triggers ADS/fi
 
 ## What's in it
 
-* **Three maps** traced from the real game's layouts: **Damn Grounds** (Dam Battlegrounds, 1100×825 m),
+* **Three maps** traced from the real game's layouts: **Dam Grounds** (Dam Battlegrounds, 1100×825 m),
   **Green Gate** (The Blue Gate, 1100×825 m) and **Sandy City** (Buried City, 900×900 m), at near-real scale
   for 25–30 minute raids – POIs at their reference positions and angles, key rooms, cargo elevators,
   airshafts, metro stations, raider hatches, field depots, ~700–850 containers and 100+ ARK groups each,
@@ -49,8 +49,10 @@ Gamepads work too (twin-stick: left stick move, right stick aim, triggers ADS/fi
   upper floors, stairs, ladders and walkable roofs; towers, catwalks, bridges you can walk on and under,
   and underground tunnels and metro halls beneath the streets.
 * **Extraction like the real game**: hold E at the call point (the alarm draws nearby ARK), hold out
-  through a 30–45 s countdown, get in when the doors open and pull the departure lever (or it leaves by
-  itself after 90 s), then survive the 10 s door close. Concrete cargo-elevator bunkers, metro trains in
+  through a 40 s countdown, get in when the doors open and pull the departure lever (or it leaves by
+  itself after 90 s), then survive the 8 s door close. Downed raiders bleed out over 60 s (longer with
+  downed-health skills): just enough to crawl to an extraction, call it and ride out. ARC ignore downed
+  raiders; hostile raiders don't. Concrete cargo-elevator bunkers, metro trains in
   their underground stations (each station works once per raid), dropships over Green Gate's airshafts,
   and key-locked Raider Hatches with a silent 15 s window. A raid goes to overtime while an extraction is
   underway.

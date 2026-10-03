@@ -25,7 +25,7 @@ Totals: **488 items**, **156 recipes**, 7 benches + Scrappie, 5 traders.
 |---|---|
 | ARC (machines, in all player text) | ARK |
 | Speranza | Speranzia |
-| Dam Battlegrounds / Buried City / The Blue Gate | Damn Grounds / Sandy City / Green Gate (`damn_grounds`, `sandy_city`, `green_gate`) |
+| Dam Battlegrounds / Buried City / The Blue Gate | Dam Grounds / Sandy City / Green Gate (`damn_grounds`, `sandy_city`, `green_gate`) |
 | Celeste / Shani / Tian Wen / Apollo / Lance | Celesta / Shanni / Tien Wen / Apolo / Lantz (`celesta`, `shanni`, `tien_wen`, `apolo`, `lantz`) |
 | Scrappy | Scrappie |
 | J Kozma Ventures (JKV) building | "Space Travel" building |
@@ -81,11 +81,11 @@ unchanged. Every blueprint is named `<tweaked item> Blueprint`, id `<item id>_bl
 | Canto | Canta |
 | Celeste's Journal | Celesta's Journal |
 | Comet Igniter | Komet Igniter |
-| Dam Control Tower Key | Damn Grounds Control Tower Key |
-| Dam Controlled Access Zone Key | Damn Grounds Controlled Access Zone Key |
-| Dam Staff Room Key | Damn Grounds Staff Room Key |
-| Dam Surveillance Key | Damn Grounds Surveillance Key |
-| Dam Testing Annex Key | Damn Grounds Testing Annex Key |
+| Dam Control Tower Key | Dam Grounds Control Tower Key |
+| Dam Controlled Access Zone Key | Dam Grounds Controlled Access Zone Key |
+| Dam Staff Room Key | Dam Grounds Staff Room Key |
+| Dam Surveillance Key | Dam Grounds Surveillance Key |
+| Dam Testing Annex Key | Dam Grounds Testing Annex Key |
 | Damaged ARC Motion Core | Damaged ARK Motion Core |
 | Damaged ARC Powercell | Damaged ARK Powercell |
 | Damaged Fireball Burner | Damaged Fyreball Burner |

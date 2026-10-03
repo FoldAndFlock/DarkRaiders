@@ -18,7 +18,7 @@
 // Flow (sim.js owns it, timers in seconds):
 //   idle --hold E at the call button--> called (host picks 30-45 s, airshaft 30-38) --> open (doors open,
 //   cabin lit; auto-departs after 90 s) --a raider in the cabin holds E on the departure lever (or 90 s
-//   pass)--> closing (10 s: warning lights + buzzer, doors close) --> everyone inside the cabin extracts -->
+//   pass)--> closing (8 s: warning lights + buzzer, doors close) --> everyone inside the cabin extracts -->
 //   gone (the car leaves; cooldown 75 s -> idle; the metro station closes for the raid -> offline 'used').
 //   The cabin doors (elevator, airshaft) / platform gates (metro) are shut and solid in every state except open
 //   (from 0.8 s in) and closing until GATE_SHUT s before the end: nobody waits inside the cabin while it is on
@@ -407,8 +407,8 @@ const two = (n) => String(clamp(Math.ceil(n), 0, 99)).padStart(2, '0');
 // ----------------------------------------------------------------------------- doors / gates (shared timing)
 // The cabin doors (elevator, airshaft) and the metro platform gates are shut - and solid, see extractGates - in
 // every state except open (once the doors have parted, GATE_OPEN s in) and closing until GATE_SHUT s before the
-// car leaves. t = seconds left on the state's timer (open: 90 -> 0, closing: 10 -> 0).
-export const GATE_SHUT = 1.5, GATE_OPEN = 0.8;
+// car leaves. t = seconds left on the state's timer (open: 90 -> 0, closing: 8 -> 0).
+export const GATE_SHUT = 1.5, GATE_OPEN = 0.8, CLOSE_T = 8;   // CLOSE_T: closing state length (sim.js EXTRACT_CLOSE)
 export function extractGateClosed(st, t, kind = null) {
   if (kind === 'hatch') return false;
   if (st === 'open') return t != null && t > 90 - GATE_OPEN;
@@ -1058,7 +1058,7 @@ function animAirshaft(R, dt, st, t, el, ctx) {
   R.shipY = sy;
   // winch beam + line: lowered while it waits, brightening as it departs, the pull in the first 1.6 s of gone
   const hover = sx === 0 || (st === 'gone' && el < 1.6);
-  let ba = st === 'open' ? 0.45 : st === 'closing' ? 0.5 + 0.35 * (1 - t / 10) + (blink(3) ? 0.1 : 0) : st === 'gone' && el < 1.6 ? 0.95 * (1 - el / 1.6) : 0;
+  let ba = st === 'open' ? 0.45 : st === 'closing' ? 0.5 + 0.35 * (1 - t / CLOSE_T) + (blink(3) ? 0.1 : 0) : st === 'gone' && el < 1.6 ? 0.95 * (1 - el / 1.6) : 0;
   ba = R.follow('beam', hover ? ba : 0, dt, 6);
   R.beam.visible = ba > 0.02; R.beam.material.uniforms.uA.value = ba;
   R.beam.position.set(0, 0.1, 0); R.beam.scale.set(0.95, Math.max(0.1, sy - 0.9), 0.95);
@@ -1140,8 +1140,8 @@ class Rig {
     this.st = null; this.prev = null; this.age = 0; this.tl = 0; this.el = 0; this.time = Math.random() * 20;
     this.snap = true; this.loop = null;
   }
-  callDur() { return +this.x.callDur || +this.x.callTime || 38; }
-  dur(st) { return st === 'called' ? this.callDur() : st === 'open' ? (this.kind === 'hatch' ? 15 : 90) : st === 'closing' ? 10 : st === 'gone' ? (this.kind === 'metro' ? 9 : 75) : null; }
+  callDur() { return +this.x.callDur || +this.x.callTime || 40; }
+  dur(st) { return st === 'called' ? this.callDur() : st === 'open' ? (this.kind === 'hatch' ? 15 : 90) : st === 'closing' ? CLOSE_T : st === 'gone' ? (this.kind === 'metro' ? 9 : 75) : null; }
   addGroup(name, { cutaway = true, clip = false } = {}) {
     const U = { uFade: { value: 1 }, uCutY: { value: 999 }, uClipA: { value: new THREE.Vector4(0, 0, 1, 0) }, uClipX: { value: new THREE.Vector2(-1e9, 1e9) } };
     return (this.groups[name] = { U, cutaway, clip, mats: {} });
@@ -1230,7 +1230,7 @@ class Rig {
         if (st === 'open') { c = 0x3cff6e; a = 1.0; chase = 0.8; inner = 0.1; fill = t / 15; dim = 0.25; } else if (st !== 'offline') { c = 0xffc23c; a = 0.4; chase = 0.03; inner = 0; }
       } else if (st === 'called') { fill = 1 - t / this.callDur(); dim = 0.3; }
       else if (st === 'open') { fill = t / 90; dim = 0.35; }
-      else if (st === 'closing') { fill = t / 10; dim = 0.3; inner *= (this.time * 4) % 1 < 0.5 ? 1 : 0.3; }
+      else if (st === 'closing') { fill = t / CLOSE_T; dim = 0.3; inner *= (this.time * 4) % 1 < 0.5 ? 1 : 0.3; }
       else if (st === 'gone') a = 0.12 + 0.2 * (1 - sat(el / 10));
       d.userData.ph = (d.userData.ph + dt * chase) % 1;
       u.uCol.value.setHex(c); u.uA.value = a; u.uPh.value = d.userData.ph; u.uFill.value = fill; u.uDim.value = dim;

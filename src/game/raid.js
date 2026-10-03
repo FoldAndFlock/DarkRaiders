@@ -394,7 +394,7 @@ export class RaidGame {
     if (x.kind === 'hatch') { if (this.near(x, 25)) this.banner('RAIDER HATCH OPEN', '#68e088', 'Step onto it - it seals in 15s', 3); return; }
     if (this.near(x, 70)) this.banner(extractNoun(x.kind) + ' OPEN', '#68e088', `Get inside and pull the departure lever - it leaves on its own in ${Math.round(ev.t || 90)}s`, 4);
   }
-  onExtractClose(ev) { const x = this.extractsData[ev.i]; if (x && this.near(x, 70)) this.banner('DOORS CLOSING', '#e84a30', `${x.name} departs in 10s - get inside!`, 3); }
+  onExtractClose(ev) { const x = this.extractsData[ev.i]; if (x && this.near(x, 70)) this.banner('DOORS CLOSING', '#e84a30', `${x.name} departs in ${Math.round(ev.t || 8)}s - get inside!`, 3); }
   onEmote(ev) { this.emotes = this.emotes || new Map(); this.emotes.set(ev.id, { text: ev.text, ttl: 3 }); }
   onChat(ev) { this.chatLines.push({ from: ev.from, text: ev.text, ttl: 10, color: SQUAD_COLORS[(ev.slot ?? 0) % 4] }); if (this.chatLines.length > 30) this.chatLines.shift(); this.audio?.play('chat_msg'); }
   onPing(ev) { this.pings.set(ev.by, { x: ev.x, z: ev.z, t: 8, slot: ev.slot }); }
@@ -497,7 +497,7 @@ export class RaidGame {
     const caps = pc.caps;
     const st = {
       raid: { map: this.o.map.name, time: Math.max(0, this.timeLeft ?? 0), condition: (this.timeLeft ?? 1) <= 0 ? 'OVERTIME - EXTRACTION IN PROGRESS' : (this.cond?.name || '').toUpperCase(), weather: `${this.timeOfDay.toUpperCase()}  ${this.weather.toUpperCase()}`, where: this.whereLabel(me) },
-      player: { name: this.o.name, level: this.profile?.level, hp: me.st === 'downed' ? me.downHp : me.hp, hpMax: me.st === 'downed' ? 75 : me.maxHp, shield: me.sh, shieldMax: me.shMax, stamina: pc.stamina / pc.stats.max_stamina, weight: pc.weight(), weightMax: caps.weightLimit },
+      player: { name: this.o.name, level: this.profile?.level, hp: me.st === 'downed' ? me.downHp : me.hp, hpMax: me.st === 'downed' ? (pc.stats?.downed_hp || 75) : me.maxHp, shield: me.sh, shieldMax: me.shMax, stamina: pc.stamina / pc.stats.max_stamina, weight: pc.weight(), weightMax: caps.weightLimit },
       weapon: w ? { name: ITEMS[w.id].name, tier: ROMAN[w.tier || 1], rarity: ITEMS[w.id].rarity, mag: w.ammo || 0, reserve: countLoadout(lo, ws.ammo), mode: pc.reloadT > 0 ? 'RELOADING' : ((w.dur ?? 1) <= 0 ? 'BROKEN' : ws.mode.toUpperCase()), alt: lo.weapons.filter((x, i) => x && i !== pc.slot).map(x => ITEMS[x.id].name).join(' / ') } : { name: 'Unarmed', tier: '', rarity: 'common', mag: 0, reserve: 0, mode: '' },
       // slot labels follow the device: 1-6 on keyboard, d-pad arrows on a pad ('' on touch -> the HUD shows 1-6)
       quick: lo.quick.map((s, i) => { const key = this.quickLabel(i); return s ? { item: s.id, icon: ITEMS[s.id]?.icon, count: s.qty, active: pc.useSlot === i && pc.useItem, key } : { key }; }),
@@ -513,7 +513,7 @@ export class RaidGame {
     for (const e of this.ents.values()) if (e.type === 'raider' && !e.bot && e.team === this.myTeam && e.id !== this.meId) team.push({ name: e.name, color: SQUAD_COLORS[(e.slot ?? ++slot) % 4], hp: e.st === 'downed' ? 0 : e.hp / e.maxHp, downed: e.st === 'downed' });
     if (team.length) { st.team = team; st.chat.teamCount = team.length; }
     // interaction prompt
-    if (pc.interact && (me.st === 'alive' || pc.interact.kind === 'selfrevive')) st.prompt = { text: pc.interact.label, key: this.o.input.mode === 'touch' ? '>' : this.keyLabel('interact', 'E'), progress: pc.holdFor ? Math.min(1, pc.holdT / pc.interact.time) : null };
+    if (pc.interact && (me.st === 'alive' || me.st === 'downed')) st.prompt = { text: pc.interact.label, key: this.o.input.mode === 'touch' ? '>' : this.keyLabel('interact', 'E'), progress: pc.holdFor ? Math.min(1, pc.holdT / pc.interact.time) : null };
     else if (pc.useItem) st.prompt = { text: 'USING ' + ITEMS[pc.useItem].name.toUpperCase(), key: '-', progress: 1 - pc.useT / pc.useTotal };
     else if (pc.reloadT > 0) st.prompt = null;
     // quests

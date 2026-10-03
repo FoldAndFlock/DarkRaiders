@@ -7,7 +7,7 @@ export const MAPS = {
   test_range: () => import('./test_range.js'),
 };
 export const MAP_LIST = [
-  { id: 'damn_grounds', name: 'Damn Grounds', desc: 'A crumbling hydro dam above toxic swamps and research labs.' },
+  { id: 'damn_grounds', name: 'Dam Grounds', desc: 'A crumbling hydro dam above toxic swamps and research labs.' },
   { id: 'green_gate', name: 'Green Gate', desc: 'Forested mountain pass guarded by a colossal gate and its tunnels.' },
   { id: 'sandy_city', name: 'Sandy City', desc: 'An old town swallowed by desert dunes.' },
 ];

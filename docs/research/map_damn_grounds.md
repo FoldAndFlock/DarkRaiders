@@ -1,4 +1,4 @@
-# Damn Grounds (ARC Raiders: Dam Battlegrounds)
+# Dam Grounds (ARC Raiders: Dam Battlegrounds)
 
 Module: `src/maps/damn_grounds.js` (id `damn_grounds`, seed 4471, 1100 x 825 m, north up).
 Custom props: `src/maps/props_damn_grounds.js` (all kinds prefixed `dg_`).

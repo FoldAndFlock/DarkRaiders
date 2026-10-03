@@ -9,6 +9,11 @@ export { arkDefFor };
 import { BotBrain } from './bot_ai.js';
 import { extractWorldPoints, inCabin, extractGateClosed, inGateZone } from '../engine/extracts.js';
 
+// Downed: 75 downed health bleeds out in 60 s (skills / augments that add downed health stretch it).
+// Extraction: 40 s from the call to the doors opening, 8 s of closing after the lever - together just
+// enough for a downed raider at the call point to call it, crawl in and pull the lever.
+export const DOWN_DRAIN = 75 / 60, EXTRACT_CALL = 40, EXTRACT_CLOSE = 8;
+
 const HASH = 16;
 export const RAIDER_R = 0.35, RAIDER_H = 1.85, CROUCH_H = 1.2;
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -173,7 +178,7 @@ export class Sim {
         if (e.stepAcc > 0.5) { e.stepAcc = 0; this.noise(e.x, e.z, (e.sprint ? 11 : 6) * (e.stats?.footstep_mul || 1) * (e.stats?.noise_mul || 1), e); }
       }
     } else if (e.st === 'downed') {
-      e.downHp -= dt * (e.bot ? 8 : 2.4);
+      e.downHp -= dt * (e.bot ? 8 : DOWN_DRAIN);   // 75 downed health = 60 s; more downed health lasts longer
       if (e.reviveBy) {
         const r = this.entities.get(e.reviveBy);
         if (!r || r.st !== 'alive' || Math.hypot(r.x - e.x, r.z - e.z) > 2.2 || Math.abs(r.y - e.y) > 1.5) { e.reviveBy = null; e.reviveT = 0; }
@@ -505,14 +510,14 @@ export class Sim {
   }
   _doorBlock(d, closed) { this.world.setDoor(d.blk, closed); }
 
-  // ---- extraction flow: idle -> called (30-45 s) -> open (doors, auto-departs after 90 s) -> closing (10 s,
+  // ---- extraction flow: idle -> called (40 s) -> open (doors, auto-departs after 90 s) -> closing (8 s,
   // after a raider in the cabin pulls the departure lever or the 90 s ran out) -> everyone inside the cabin
   // extracts -> gone (cooldown 75 s -> idle; a metro station closes for the rest of the raid). Raider hatch:
   // a key opens it for 15 s, anyone stepping onto it extracts, one open hatch per map.
   callExtract(x, by) {
     if (x.state !== 'idle' || x.kind === 'hatch' || this.raidEnded || this.timeLeft <= 0) return false;
     if (by && !this._atPoint(by, x, x.pts.call, (x.pts.callR || 1.8) + 1.2)) return false;
-    const T = x.callTime || Math.round(x.kind === 'airshaft' ? 30 + this.rng() * 8 : 30 + this.rng() * 15);
+    const T = x.callTime || EXTRACT_CALL;
     x.state = 'called'; x.t = x.callDur = T;
     this.emit({ e: 'xcall', i: x.i, by: by?.id, t: T });
     // elevators + metro blare a zone-wide alarm; the airshaft dropship is only heard closer by
@@ -524,8 +529,8 @@ export class Sim {
   departExtract(x, by) {
     if (x.state !== 'open' || x.kind === 'hatch') return false;
     if (by && !inCabin(x, by.x, by.y, by.z)) return false;
-    x.state = 'closing'; x.t = 10;
-    this.emit({ e: 'xclose', i: x.i, by: by?.id, t: 10 });
+    x.state = 'closing'; x.t = EXTRACT_CLOSE;
+    this.emit({ e: 'xclose', i: x.i, by: by?.id, t: EXTRACT_CLOSE });
     this.noise(x.x, x.z, 25, by);
     return true;
   }
@@ -555,7 +560,7 @@ export class Sim {
         if (x.kind === 'hatch') {
           for (const e of this.cabinRaiders(x, false)) this.extractRaider(e, x);
           if (x.t <= 0) { x.state = 'idle'; x.t = 0; this.emit({ e: 'xidle', i: x.i }); }
-        } else if (x.t <= 0) { x.state = 'closing'; x.t = 10; this.emit({ e: 'xclose', i: x.i, t: 10, auto: true }); }
+        } else if (x.t <= 0) { x.state = 'closing'; x.t = EXTRACT_CLOSE; this.emit({ e: 'xclose', i: x.i, t: EXTRACT_CLOSE, auto: true }); }
       } else if (x.state === 'closing') {
         x.t -= dt;
         if (x.t <= 0) {

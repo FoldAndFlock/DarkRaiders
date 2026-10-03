@@ -50,7 +50,7 @@ function combatLayer(tr, map, hookOct = 0) {
   ];
 }
 
-// ------------------------------------------------------------------ Damn Grounds (D minor, swampy/industrial)
+// ------------------------------------------------------------------ Dam Grounds (D minor, swampy/industrial)
 const raid_damn_grounds = {
   bpm: 116, echo: { beats: 0.75, fb: 0.52, lp: 1900, mix: 0.6 }, rev: 0.6,
   layers: {

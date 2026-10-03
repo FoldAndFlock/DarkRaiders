@@ -132,7 +132,7 @@ export class ArkBrain {
     let best = null, bestScore = 0;
     const range = v.range * (this.blind ? 0.3 : 1) * (this.sim.condEffects.visionMul || 1);
     this.sim.near(e.x, e.z, range * 1.2, (t) => {
-      if (t.type !== 'raider' || (t.st !== 'alive' && t.st !== 'downed')) return;
+      if (t.type !== 'raider' || t.st !== 'alive') return;     // downed raiders are ignored (as in ARC Raiders)
       if (t.buffs?.cloak) return;
       if (t.grace > this.sim.t) return;                        // just inserted: a few seconds to get bearings
       const dx = t.x - e.x, dz = t.z - e.z, d = Math.hypot(dx, dz);
@@ -613,7 +613,7 @@ export class ArkBrain {
     const tgt = this.target ? sim.entities.get(this.target) : null;
     e.tgt = this.target || 0;
     if (e.st === 'alert') {
-      if (!tgt || (tgt.st !== 'alive' && tgt.st !== 'downed')) { this.target = null; this.seekP = this.holdP = null; e.st = 'search'; return; }
+      if (!tgt || tgt.st !== 'alive') { this.target = null; this.seekP = this.holdP = null; e.st = 'search'; return; }   // downed: lose interest
       if (!seen || seen.id !== tgt.id) { this.lostT += dt; if (this.lostT > (this.def.vision?.lose || 6)) { e.st = 'search'; this.goal = this.lastSeen; this.seekP = this.holdP = null; } }
       else this.lastSeen = [tgt.x, tgt.z, tgt.y];
       this.engage(tgt, dt, !!seen && seen.id === tgt.id);

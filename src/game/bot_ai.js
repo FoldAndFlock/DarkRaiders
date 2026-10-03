@@ -86,7 +86,9 @@ export class BotBrain {
     if (this.thinkT <= 0) { this.thinkT = 0.25; this.scan(); }
     if (this.reloadT > 0) { this.reloadT -= dt; if (this.reloadT <= 0) this.mag = this.w.mag; }
     const tgt = this.target ? sim.entities.get(this.target) : null;
-    if (tgt && (tgt.st === 'alive' || (tgt.type === 'ark' && tgt.st !== 'dead'))) { this.fight(tgt, dt); return; }
+    // hostile raiders finish off downed players (ARK ignore them; neutral bots only if that team attacked them)
+    const finish = tgt && tgt.type === 'raider' && tgt.st === 'downed' && this.hostileTo(tgt);
+    if (tgt && (tgt.st === 'alive' || finish || (tgt.type === 'ark' && tgt.st !== 'dead'))) { this.fight(tgt, dt); return; }
     this.target = null;
     // heal up when safe
     if (e.hp < 55 && this.heals > 0 && !this.healT) { this.healT = 2; }
@@ -126,7 +128,7 @@ export class BotBrain {
   fight(t, dt) {
     const e = this.e, sim = this.sim;
     const dx = t.x - e.x, dz = t.z - e.z, d = Math.hypot(dx, dz) || 1e-3, a = Math.atan2(dx, dz);   // same spot: no NaN
-    const ty = t.y + (t.alt || 0) + (t.type === 'raider' ? (t.crouch ? 0.8 : 1.2) : 0.6);
+    const ty = t.y + (t.alt || 0) + (t.type === 'raider' ? (t.st === 'downed' ? 0.4 : t.crouch ? 0.8 : 1.2) : 0.6);
     const vis = sim.grid.los(e.x, e.y + 1.4, e.z, t.x, ty, t.z) && !sim.smokeBetween(e.x, e.z, t.x, t.z);
     e.f += Math.max(-dt * 7, Math.min(dt * 7, wrapAngle(a - e.f)));
     if (!vis) { this.lostT += dt; if (this.lostT > 8) { this.target = null; return; } this.go(t.x, t.z, dt, 0.8, t.y); e.crouch = false; return; }

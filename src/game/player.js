@@ -6,6 +6,8 @@ import { OBLIQUE_K, PX_PER_M } from '../engine/renderer.js';
 import { wrapAngle } from './sim.js';
 import { SKILL_TREE } from '../data/skills.js';
 import { TRACER, TRACER_MOVE } from './view.js';
+// interactions a downed raider can still use (extraction controls; info prompts just show)
+const DOWNED_OK = new Set(['extract', 'depart', 'hatch', 'info', 'offline']);
 
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 // distance (px) from (px, py) along the unit direction (dx, dy) to the screen rect inset by m
@@ -103,7 +105,7 @@ export class PlayerController {
     if (e.buffs?.adrenaline) speed *= 1.12;
     if (e.buffs?.cloak) speed *= 0.75;
     speed *= 1 + this.cond('move_speed');
-    if (downed) speed = 0.9 * st.downed_crawl_speed;
+    if (downed) speed = 1.15 * st.downed_crawl_speed;   // just quick enough to reach an extraction lever before bleeding out
     const depth = g.world.grid.waterDepth(e.x, e.z);
     if (depth > 0.3) speed *= 0.72;
     // stamina
@@ -156,6 +158,9 @@ export class PlayerController {
     if (downed) {
       this.cancelUse();
       this.selfRevives = this.selfRevives ?? Math.floor(this.stats.self_revive || 0);
+      // a downed raider can still crawl to an extraction, call it, open a hatch and pull the lever
+      const ex = g.view.findInteractable(e, this);
+      if (ex && DOWNED_OK.has(ex.kind)) { this.updateInteract(dt, input, ex); return; }
       if (this.selfRevives > 0) {
         this.interact = { kind: 'selfrevive', ref: e.id, x: e.x, z: e.z, time: 3, label: `SELF-REVIVE (${this.selfRevives} LEFT)` };
         if (input.is('interact')) { this.holdFor = 'self'; this.holdT += dt; if (this.holdT >= 3) { this.holdT = 0; this.holdFor = null; this.selfRevives--; g.session.reviveNow(e.id); g.feed('BACK ON YER FEET', '#68e088'); } }
@@ -406,9 +411,9 @@ export class PlayerController {
   }
 
   // ---------------------------------------------------------------- interaction
-  updateInteract(dt, input) {
+  updateInteract(dt, input, pre) {
     const g = this.g, e = this.e;
-    const it = g.view.findInteractable(e, this);
+    const it = pre !== undefined ? pre : g.view.findInteractable(e, this);
     this.interact = it;
     if (!it) { this.holdT = 0; this.holdFor = null; return; }
     const key = it.kind + ':' + it.ref;

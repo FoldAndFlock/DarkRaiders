@@ -1,4 +1,4 @@
-// Damn Grounds — top-down adaptation of ARC Raiders' Dam Battlegrounds (1100 x 825 m, north up).
+// Dam Grounds — top-down adaptation of ARC Raiders' Dam Battlegrounds (1100 x 825 m, north up).
 // Reference: docs/ref/dam_annotated.jpg (POIs, extracts, spawns, key rooms, Sentinels, Baron husks,
 // depots), mapped as  X = px/2 - 90,  Z = py/2 - 18  (px,py in the 2400x1800 annotated image), and the
 // clean blank render for building footprints. See docs/research/map_damn_grounds.md.
@@ -127,7 +127,7 @@ const FLATS = [
 ];
 
 export default {
-  id: 'damn_grounds', name: 'Damn Grounds', size: [W, H], seed: 4471,
+  id: 'damn_grounds', name: 'Dam Grounds', size: [W, H], seed: 4471,
   base: 'grass', cliff: 'rock',
   ambient: { music: 'damn_grounds', birds: true, frogs: true, insects: true },
   conditions: ['night_raid', 'em_storm', 'lush_blooms', 'uncovered_caches', 'husk_graveyard', 'prospecting_probes', 'harvester', 'matriarch', 'cold_snap', 'hurricane', 'close_scrutiny'],

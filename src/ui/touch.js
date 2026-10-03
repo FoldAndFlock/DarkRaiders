@@ -263,7 +263,7 @@ export class TouchControls {
   // button states + quick-slot hit areas
   refresh() {
     const g = this.g, pc = g.pc, me = g.me; if (!pc) return;
-    const it = pc.interact && (me.st === 'alive' || pc.interact.kind === 'selfrevive') ? pc.interact : null;
+    const it = pc.interact && (me.st === 'alive' || me.st === 'downed') ? pc.interact : null;
     const ib = this.btn.interact;
     ib.classList.toggle('hot', !!it);
     const word = it ? (String(it.label || 'USE').split(/\s+/)[0] || 'USE').toUpperCase().slice(0, 7) : 'USE';

@@ -20,7 +20,7 @@ import { XP_REWARDS } from '../data/skills.js';
 
 export { QUESTS, QUEST_POIS };
 export const QUEST_BY_ID = Object.fromEntries(QUESTS.map(q => [q.id, q]));
-export const MAP_NAMES = { damn_grounds: 'Damn Grounds', green_gate: 'Green Gate', sandy_city: 'Sandy City', test_range: 'Test Range' };
+export const MAP_NAMES = { damn_grounds: 'Dam Grounds', green_gate: 'Green Gate', sandy_city: 'Sandy City', test_range: 'Test Range' };
 const ok = (msg, extra = {}) => ({ ok: true, msg, ...extra });
 const no = (msg, extra = {}) => ({ ok: false, msg, ...extra });
 const nm = (id) => ITEMS[id]?.name || id;

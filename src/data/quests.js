@@ -36,7 +36,7 @@ export const QUESTS = [
     rewards: { xp: 1500, coins: 800, items: { tactical_mk_1: 1, adrenaline_shot: 3 } } },
 
   { id: 'under_the_radar', giver: 'shanni', name: 'Under The Radar', requires: ['clearer_skys', 'trash_to_treasure'],
-    desc: 'Our Field Depots have gone quiet. Get up on a depot roof at the Damn Grounds and get its antenna talking again.',
+    desc: 'Our Field Depots have gone quiet. Get up on a depot roof at the Dam Grounds and get its antenna talking again.',
     grants: { remote_raider_flare: 2 },
     steps: [ { kind: 'visit', map: 'damn_grounds', poi: 'field_depot', label: 'Visit a Field Depot' },
              { kind: 'visit', map: 'damn_grounds', poi: 'field_depot', label: 'Repair the antenna on the Field Depot roof', use: { wires: 2 } } ],
@@ -225,7 +225,7 @@ export const QUESTS = [
     rewards: { xp: 4000, coins: 3000, items: { synthesized_fuel: 3, damn_grounds_staff_room_key: 1 } } },
 
   { id: 'powers_out', giver: 'celesta', name: "Power's Out", requires: ['prescriptions_past'],
-    desc: 'An engineer went to fix the Electrical Substation at the Damn Grounds and never came back. Find out why, then finish the job.',
+    desc: 'An engineer went to fix the Electrical Substation at the Dam Grounds and never came back. Find out why, then finish the job.',
     steps: [ { kind: 'visit', map: 'damn_grounds', poi: 'electrical_substation', label: 'Find any sign of the missing engineer' },
              { kind: 'visit', map: 'damn_grounds', poi: 'electrical_substation', label: 'Install the fuse and restore the power', use: { electrical_components: 1 } } ],
     rewards: { xp: 4000, coins: 3000, items: { wires: 5, explosive_compound: 5, oil: 5 } } },
@@ -452,7 +452,7 @@ export const QUESTS = [
     rewards: { xp: 4000, coins: 3000, items: { tagging_grenade: 3, vyta_spray: 1, yellow_light_stick: 5 } } },
 
   { id: 'the_toxic_trail', giver: 'shanni', name: 'The Toxic Trail', requires: ['life_of_the_pharmacist'],
-    desc: 'Lantz traced the poisoning to barrels dumped at the Damn Grounds. Somebody drove them there. Find the truck.',
+    desc: 'Lantz traced the poisoning to barrels dumped at the Dam Grounds. Somebody drove them there. Find the truck.',
     steps: [ { kind: 'visit', map: 'damn_grounds', poi: 'water_treatment_control', label: 'Return to the water intake below Water Treatment Control' },
              { kind: 'visit', map: 'damn_grounds', poi: 'small_creek', label: "Search the swamp for traces of the barrels' origin and photograph the barrel truck" },
              { kind: 'search', container: 'car_trunk', count: 1, map: 'damn_grounds', poi: 'small_creek' } ],
@@ -479,7 +479,7 @@ export const QUESTS = [
     rewards: { xp: 7000, coins: 6000, items: { heavy_gun_parts: 3, ammo_launcher: 12 } } },
 
   { id: 'our_presence_up_top', giver: 'shanni', name: 'Our Presence Up Top', requires: ['back_up_top'],
-    desc: 'The Pattern House roof is the best relay spot at the Damn Grounds. Get the power on and finish the antenna.',
+    desc: 'The Pattern House roof is the best relay spot at the Dam Grounds. Get the power on and finish the antenna.',
     steps: [ { kind: 'visit', map: 'damn_grounds', poi: 'pattern_house', label: 'Visit the Pattern House' },
              { kind: 'visit', map: 'damn_grounds', poi: 'pattern_house', label: 'Find and flip the power switch' },
              { kind: 'visit', map: 'damn_grounds', poi: 'pattern_house', label: 'Complete the antenna installation on the roof', use: { wires: 2, speaker_component: 1 } } ],

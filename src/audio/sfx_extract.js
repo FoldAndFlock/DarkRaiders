@@ -224,16 +224,17 @@ export const EXTRACT = {
   }, { ...X, vol: 0.65, dist: 30 }),
   // closing (10 s): departure buzzer pulsing faster, two-tone warning chime, door motor in the last 2 s
   extract_close_seq: def((R) => {
-    const d = 10.2, out = buf(d);
-    let t = 0.05, gap = 1.0;
-    while (t < 9.3) {
-      const z = osc(0.24, { wave: 'rawsq', f: 196 + (t / 9.3) * 60, pw: 0.5 }); filt(z, 'lp', 2600);
+    // 8 s closing: buzzer speeding up, two chimes, then the door motor as the doors shut (1.5 s early)
+    const d = 8.2, out = buf(d);
+    let t = 0.05, gap = 0.9;
+    while (t < 7.3) {
+      const z = osc(0.24, { wave: 'rawsq', f: 196 + (t / 7.3) * 60, pw: 0.5 }); filt(z, 'lp', 2600);
       env(z, [[0, 0], [0.01, 1], [0.22, 1], [0.24, 0]]); layer(out, z, 0.42, t);
-      t += gap; gap = Math.max(0.45, gap * 0.9);
+      t += gap; gap = Math.max(0.42, gap * 0.88);
     }
-    for (const t0 of [0.3, 5.3]) { layer(out, bell(R, N('B5'), 0.6), 0.28, t0); layer(out, bell(R, N('G5'), 0.7), 0.28, t0 + 0.25); }
-    const mo = osc(2.0, { wave: 'saw', f: 95, f1: 70 }); filt(mo, 'lp', 520); env(mo, [[0, 0], [0.2, 1], [1.8, 0.8], [2.0, 0]]); layer(out, mo, 0.3, 8.0);
-    layer(out, servo(R, 160, 1.6, 1.3), 0.18, 8.1);
+    for (const t0 of [0.3, 4.1]) { layer(out, bell(R, N('B5'), 0.6), 0.28, t0); layer(out, bell(R, N('G5'), 0.7), 0.28, t0 + 0.25); }
+    const mo = osc(2.0, { wave: 'saw', f: 95, f1: 70 }); filt(mo, 'lp', 520); env(mo, [[0, 0], [0.2, 1], [1.8, 0.8], [2.0, 0]]); layer(out, mo, 0.3, 5.0);
+    layer(out, servo(R, 160, 1.6, 1.3), 0.18, 5.1);
     return snes(out, { drv: 1.4, bits: 8, p: 0.8 });
   }, { ...X, vol: 0.62, dist: 55 }),
 
