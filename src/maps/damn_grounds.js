@@ -703,7 +703,21 @@ function terrain(C) {
     [164, 742, 206, 780, MARSH + 0.6, 3],  // pumping station
     [430, 588, 470, 612, null, 3],      // battlefield bunker
     [1010, 756, 1052, 794, null, 4],    // Total Write-Off
+    [404, 204, 470, 252, PLAT, 4],      // Ivory Tower plaza
+    [276, 210, 352, 272, PLAT, 4],      // Department of Synergy
+    [60, 200, 136, 280, null, 4],       // Shoebox Flats
+    [770, 226, 862, 298, PLAT, 4],      // the Paywall
+    [866, 250, 966, 334, PLAT, 4],      // Kale Bubble
+    [874, 172, 966, 234, null, 4],      // Impound Lot
+    [984, 192, 1056, 256, null, 4],     // Eastside Squat
+    [736, 202, 770, 228, PLAT, 3],      // floodgate control
   ]) w.raiseRect(x0, z0, x1, z1, h ?? C.avg(x0, z0, x1, z1), b, 'set');
+  // turned pads: the villa terrace and the Show Home cul-de-sac
+  { const a = Math.max(PLAT, C.avg(170, 96, 236, 146)); C.lshape(G_VILLA, 172, 94, 238, 146, () => a); }
+  { const a = C.avg(160, 352, 236, 410); C.lshape(G_SHOW, 160, 350, 234, 412, () => a); }
+  // the Bottleneck's island + the marina slipway down to the pier
+  w.raiseCircle(420, 112, 13, PLAT, 0.35, 'set');
+  C.rampLine([[309, 166], [309, 154]], 5, PLAT, 12.45, 1);
 
   // ---------------- roads (before the rivers so the crossings get bridges)
   for (const r of ROADS) w.road(r, 7, 'asphalt', { edge: 'gravel', edgeW: 1.2 });
@@ -766,8 +780,183 @@ function terrain(C) {
   for (const [x0, x1] of [[898, 908], [1042, 1062]]) { C.dropWalls([[x0, 440], [x0, 520]], 1, { tin: 0.4, tout: 0.8 }); C.dropWalls([[x1, 440], [x1, 520]], -1, { tin: 0.4, tout: 0.8 }); }
 }
 
-function undergrounds(C) {}
-function damAndGorge(C) {}
+// ==================================================================================== UNDERGROUND
+// Engine `under` halls (sunk floor, 1 m earth walls, a walkable lid flush with the surface); `stairs to: 'top'`
+// cut the lid. Built first so surface dressing placed over them later lands on the lid (C.hallAt in makeCtx).
+function undergrounds(C) {
+  const { w } = C;
+  const hall = C.hall = (o) => {
+    const bb = C.bld({ wall: 'concrete', floor: 'concrete', roof: o.lid || 'grass', blend: 0.5, ...o, under: o.depth, floorY: o.top });
+    C.halls.push({ poly: bb.poly, b: [bb.ax0, bb.az0, bb.ax1, bb.az1], top: o.top, bb });
+    // guard rails round every stairwell opening on the lid (open on the side you step off)
+    for (const st of o.stairs || []) {
+      const g = C.stairGeom(st, 3.2, o.depth, true), [x0, z0, x1, z1] = g.hole;
+      const sides = { n: [[x0, z0], [x1, z0]], s: [[x0, z1], [x1, z1]], w: [[x0, z0], [x0, z1]], e: [[x1, z0], [x1, z1]] };
+      for (const [sd, [[ax, az], [bx, bz]]] of Object.entries(sides)) {
+        if (sd === g.dir) continue;
+        const Ls = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(Ls / 2));
+        for (let i = 0; i < n; i++) { const t = (i + 0.5) / n; C.P(bb, 'dg_shaftrail', ax + (bx - ax) * t, az + (bz - az) * t, sd === 'n' || sd === 's' ? 0 : PI / 2, { yAbs: o.top, solid: true, scale: Ls / n / 2 }); }
+      }
+    }
+    return bb;
+  };
+  const tl = (bb, lx, lz, col = 0xffd8a0, i = 1.4, r = 11) => C.IL(bb, lx, lz, col, i, r, 2.6);
+  // ---------------- Floodgate Service Gallery: under the east plateau beside the spillway chute
+  const fg = C.B.fgal = hall({ x: 739, z: 230, w: 9, d: 56, depth: 5.5, top: w.groundAt(744, 258), name: 'Floodgate Service Gallery',
+    stairs: [{ x: 1.4, z: 3.4, w: 1.6, dir: 'n', to: 'top' }, { x: 6.0, z: 44.4, w: 1.6, dir: 's', to: 'top' }] });
+  for (let z = 15; z < 42; z += 8) C.P(fg, 'dg_bigpipe', 7.4, z, PI / 2, { solid: true, scale: 0.7 });
+  C.P(fg, 'dg_valve', 2.2, 24, 0, { solid: true }); C.P(fg, 'dg_valve', 2.2, 36, 0, { solid: true }); C.P(fg, 'dg_pump', 2.4, 30, PI / 2, { solid: true });
+  for (const [k, lx, lz, r, t] of [['locker', 1.6, 16, PI / 2, 1], ['toolbox', 2.0, 19.5, 0, 2], ['crate', 2.2, 41, 0, 1], ['electronics', 2.0, 33, 0, 2], ['raider_cache', 4.6, 50, 0, 2], ['ammo_box', 2.0, 45, 0, 1], ['crate', 7.0, 6, 0, 1]]) C.Cn(fg, k, lx, lz, r, { tier: t });
+  for (let z = 6; z < 56; z += 11) tl(fg, 4.5, z, 0xffd090, 1.3, 10);
+  // ---------------- Flood Access Tunnel under the Bottom Line Balcony
+  const fa = C.B.fat = hall({ x: 768, z: 401, w: 62, d: 9, depth: 5, top: PLAT + 0.1, name: 'Flood Access Tunnel',
+    stairs: [{ x: 2.6, z: 3.6, w: 1.6, dir: 'w', to: 'top' }, { x: 51.6, z: 3.6, w: 1.6, dir: 'e', to: 'top' }] });
+  C.P(fa, 'dg_pump', 18, 2.0, 0, { solid: true }); C.P(fa, 'dg_pump', 40, 7.0, PI, { solid: true });
+  C.P(fa, 'dg_valve', 24, 7.2, 0, { solid: true }); C.P(fa, 'dg_bed', 30, 7.0, PI / 2, { solid: true }); C.P(fa, 'dg_table', 33.5, 6.8, 0, { solid: true });
+  for (const [k, lx, lz, t] of [['raider_cache', 31.5, 2.0, 2], ['ammo_box', 27, 7.4, 1], ['crate', 14, 7.2, 1], ['medical_bag', 36, 7.4, 1], ['electronics', 44, 2.0, 2], ['desk', 35, 2.0, 1], ['toolbox', 21, 2.0, 1]]) C.Cn(fa, k, lx, lz, 0, { tier: t });
+  for (const lx of [8, 20, 32, 44, 55]) tl(fa, lx, 4.5, 0xffc070, 1.3, 10);
+  // ---------------- Cable Vault under the transformer yard (the switch at the foot of the stairs, a vent shaft above)
+  const cvTop = C.avg(630, 220, 666, 230);
+  const cv = C.B.cvault = hall({ x: 630, z: 220, w: 36, d: 9, depth: 4.6, top: cvTop, lid: 'gravel', name: 'Cable Vault',
+    stairs: [{ x: 2.6, z: 3.6, w: 1.6, dir: 'w', to: 'top' }, { x: 26.0, z: 3.6, w: 1.6, dir: 'e', to: 'top' }] });
+  C.P(cv, 'dg_switch', 11.0, 1.4, 0, { solid: true });                       // the power switch under the west stairs
+  C.P(cv, 'dg_fusebox', 15, 1.3, 0, { solid: true }); C.P(cv, 'dg_generator', 20, 6.4, 0, { solid: true, scale: 0.6 });
+  for (let x = 5; x < 33; x += 7) C.P(cv, 'dg_bigpipe', x, 7.7, 0, { solid: true, scale: 0.45 });
+  for (const [k, lx, lz, t] of [['electronics', 17.5, 1.6, 2], ['toolbox', 24, 1.6, 2], ['crate', 32, 2.0, 1], ['locker', 13, 7.6, 1]]) C.Cn(cv, k, lx, lz, 0, { tier: t });
+  for (const lx of [7, 18, 29]) tl(cv, lx, 4.5, 0xd8e8ff, 1.3, 10);
+  w.prop('dg_ventbox', 640, 217.5, 0, { solid: true }); w.prop('dg_ventbox', 655, 217.5, 0, { solid: true });   // ventilation shafts
+  // ---------------- Beta Test bunker beside Participation Trophy Hill
+  const bkTop = C.avg(432, 590, 468, 610);
+  const bk = C.B.bunker = hall({ x: 433, z: 591, w: 32, d: 10, depth: 4.4, top: bkTop, lid: 'dirt', name: 'Beta Test Bunker',
+    stairs: [{ x: 2.6, z: 4.2, w: 1.6, dir: 'w', to: 'top' }, { x: 22.4, z: 4.2, w: 1.6, dir: 'e', to: 'top' }] });
+  for (const lx of [12, 16, 20]) C.P(bk, 'dg_switch', lx, 1.3, 0, { solid: true });            // the three power switches
+  C.P(bk, 'dg_console', 16, 8.6, PI, { solid: true }); C.P(bk, 'dg_desk', 12, 8.4, PI, { solid: true });
+  for (const [k, lx, lz, t] of [['desk', 20, 8.5, 2], ['cabinet', 9.5, 8.6, 1], ['cabinet', 23.5, 1.4, 1], ['ammo_box', 26, 8.5, 1], ['weapon_case', 6.5, 8.5, 2], ['medical_bag', 8.5, 1.4, 1]]) C.Cn(bk, k, lx, lz, 0, { tier: t });
+  for (const lx of [8, 16, 24]) tl(bk, lx, 5, 0xffb070, 1.2, 9);
+}
+
+// ==================================================================================== THE DAM + THE GORGE
+function damAndGorge(C) {
+  const { w, rng } = C;
+  const CR = (t) => archPt(CREST_R, t);
+  // ---------------- The Damn Dam: the crest
+  // pilasters on the downstream face + a toll booth (the dam crest is a toll road; nobody has paid in years)
+  for (let k = -5; k <= 5; k++) {
+    const t = k * 0.13, [x, z] = archPt(ARCH.rIn - 1.6, t), g = w.groundAt(...archPt(ARCH.rIn - 4, t));
+    w.block(x - 1.2, z - 0.9, x + 1.2, z + 0.9, PLAT + 0.6 - g, 'damConcrete', { y0: g - 0.3, R: rotFrame(x, z, t) });
+  }
+  const toll = C.bld({ x: 582, z: 153.3, w: 6, d: 3.4, wall: 'concrete', floor: 'tiles', roof: 'metalPanel', roofTint: 0xd8a020, name: 'Crest Toll Booth', floorY: PLAT,
+    doors: [{ side: 'e', at: 0.8, w: 1.8, door: true }, { side: 'n', at: 0.6, w: 2.4, sill: 1.0 }, { side: 's', at: 0.6, w: 2.4, sill: 1.0 }, { side: 'w', at: 0.8, w: 1.8, sill: 1.0 }] });
+  C.Cn(toll, 'desk', 1.0, 1.7, PI / 2, { tier: 1 }); C.Cn(toll, 'cabinet', 4.6, 0.6, 0, { tier: 1 }); C.IL(toll, 3, 1.7, 0xfff0c0, 1.2, 7);
+  for (const t of [-0.07, 0.07]) { const [x, z] = archPt(CREST_R, t); w.prop('dg_barrier', x, z, -t + PI / 2, { solid: true }); }
+  // crest lights, beacons at the ends, wrecks and a barricade
+  for (let k = -9; k <= 9; k++) {
+    const t = k * 0.08, side = k % 2 ? ARCH.rIn + 1.6 : ARCH.rOut - 1.6, [x, z] = archPt(side, t);
+    C.flood(x, z, { rot: -t + (k % 2 ? PI : 0), i: 1.7 });
+  }
+  for (const t of [-ARCH.half - 0.02, ARCH.half + 0.02]) for (const r of [ARCH.rIn + 1, ARCH.rOut - 1]) C.beacon(...archPt(r, t));
+  for (const [t, k, dr] of [[-0.5, 'car', -2.4], [-0.32, 'dg_truck', 2.0], [0.24, 'car', 2.6], [0.42, 'husk', -1.6], [0.58, 'car', -2.2], [-0.62, 'dg_barrier', 2.4], [-0.61, 'dg_barrier', -2.6]])
+    w.prop(k, ...archPt(CREST_R + dr, t), -t + PI / 2 + (rng() - 0.5) * 0.4, { solid: true });
+  for (const t of [-0.45, 0.33]) w.container('car_trunk', ...archPt(CREST_R, t), -t, { tier: 1 });
+  C.sandbags([CR(0.16), CR(0.19)]); C.sandbags([CR(-0.2), CR(-0.17)]);
+  w.container('ammo_box', ...CR(0.175), 0, { tier: 1 }); w.container('arc_husk', ...archPt(CREST_R - 2, 0.43), 0, { tier: 2 });
+  // penstock intakes on the upstream face (grilles just above the water)
+  for (const t of [-0.12, -0.04, 0.04, 0.12]) w.prop('dg_spillgrate', ...archPt(ARCH.rOut + 0.6, t), -t + PI / 2, { yAbs: RES_WATER - 1.2 });
+
+  // ---------------- The Hamster Wheel (turbine hall at the foot of the dam) + its control wing
+  const fy = C.avg(533, 168, 617, 192);
+  const gh = C.B.gh = C.bld({ x: 553, z: 167, w: 64, d: 24, h: 11, floorY: fy, blend: 1, name: 'The Hamster Wheel', wall: 'concrete', floor: 'metalPanel', tint: 0xd8d0c0, roofTint: 0x8a8478,
+    doors: [{ side: 's', at: 4, w: 6 }, { side: 's', at: 54, w: 6 }, { side: 'e', at: 9, w: 3 }, { side: 'n', at: 30, w: 2.2, door: true }, { side: 'w', at: 15, w: 2.2, door: true },
+      ...[14, 22, 30, 38, 46].map(at => ({ side: 's', at, w: 3, sill: 2.4, top: 5.5 })), ...[6, 22, 38, 54].map(at => ({ side: 'n', at, w: 3, sill: 3.0, top: 6 }))],
+    roofExtras: [[6, 4, 18, 10, 1.4], [40, 14, 56, 20, 1.2]] });
+  for (const [i, lx] of [[0, 9], [1, 23], [2, 41], [3, 55]]) { C.P(gh, 'dg_turbine', lx, 11, i * 0.4, { solid: true }); C.P(gh, 'dg_generator', lx, 4.6, 0, { solid: true, scale: 0.7 }); }
+  C.P(gh, 'dg_gantry', 32, 12, 0, {}); C.P(gh, 'dg_console', 32, 21.6, PI, { solid: true }); C.P(gh, 'dg_console', 29, 21.6, PI, { solid: true }); C.P(gh, 'dg_fusebox', 63.3, 18, -PI / 2, { solid: true });
+  for (const [k, lx, lz, t] of [['toolbox', 3, 20, 2], ['electronics', 35, 21.4, 2], ['crate', 3, 3, 1], ['toolbox', 61, 3, 1], ['crate', 47, 21.3, 1], ['locker', 16, 21.4, 1]]) C.Cn(gh, k, lx, lz, 0, { tier: t });
+  for (const lx of [9, 23, 41, 55]) C.IL(gh, lx, 12, 0xffd090, 1.3, 12, 6);
+  const cw = C.B.ghw = C.bld({ x: 529, z: 172, w: 22, d: 24, storeys: 3, floorY: fy, blend: 1, name: 'Hamster Wheel Control Wing', wall: 'concrete', floor: 'tiles', tint: 0xe0d8c8,
+    doors: [{ side: 's', at: 4, w: 2.4, door: true }, { side: 'w', at: 16, w: 2.2, door: true }, { side: 'e', at: 15, w: 2.2 }, { side: 'n', at: 9, w: 3, sill: 1.1 }, { side: 's', at: 14, w: 3, sill: 1.1 }, { side: 'w', at: 5, w: 3, sill: 1.1 }],
+    inner: [[0, 12, 22, 12, [{ at: 9, w: 2 }]], [11, 12, 11, 24, [{ at: 5, w: 1.8 }]], [0, 12, 22, 12, [{ at: 9, w: 2 }], 1], [0, 12, 22, 12, [{ at: 9, w: 2 }], 2], [11, 0, 11, 12, [{ at: 4, w: 1.8 }], 2]],
+    stairs: [{ x: 19.2, z: 2.4, w: 1.8, dir: 's', from: 0, to: 1 }, { x: 1.2, z: 14.2, w: 1.8, dir: 'n', from: 1, to: 2 }], ladders: [{ x: 20.6, z: 21.5, from: 2, to: 'top', face: PI }] });
+  C.F(cw, 'control', 0, 0, 19, 12, { tier: 2 }); C.F(cw, 'workshop', 0, 12, 11, 24, { tier: 1 }); C.F(cw, 'storage', 11, 12, 22, 24, { tier: 1 });
+  C.F(cw, 'office', 0, 0, 22, 12, { tier: 2, storey: 1 }); C.F(cw, 'bunk', 4, 12, 22, 24, { tier: 1, storey: 1 });
+  C.F(cw, 'server', 0, 0, 11, 12, { tier: 2, storey: 2 }); C.F(cw, 'security', 11, 0, 22, 12, { tier: 2, storey: 2 }); C.F(cw, 'office', 0, 12, 22, 24, { tier: 2, storey: 2 });
+  C.P(cw, 'dg_satdish', 6, 6, 0.5, { yAbs: C.roofY(cw), solid: true }); C.P(cw, 'dg_antennamast', 3, 20, 0, { yAbs: C.roofY(cw), solid: true, scale: 0.7 });
+  // penstocks from the dam face into the hall's north wall
+  for (const lx of [9, 23, 41, 55]) { const [x, z] = C.Wp(gh, lx, -2.2); w.prop('dg_bigpipe', x, z, PI / 2, { solid: true, scale: 0.55 }); }
+  // tailrace: the catwalk over the basin and the outfall
+  w.bridge([[570, 204], [606, 204]], 2.4, w.groundAt(568, 204) + 0.25, 'metalPanel', { pillars: 0, thick: 0.35 });
+  for (const x of [578, 588, 598]) w.prop('dg_spillgrate', x, 194.6, 0, {});
+  // ---------------- transformer yard + switch house (east of the hall)
+  C.fenceRect(622, 181, 660, 215, [[622, 198], [641, 215]]);
+  for (let x = 628; x < 658; x += 8) for (let z = 187; z < 212; z += 8.5) w.prop('dg_transformer', x, z, 0, { solid: true });
+  w.prop('dg_gantry', 641, 184, 0, {});
+  for (const [x, z] of [[624, 183], [658, 213]]) C.flood(x, z, { color: 0xd0e0ff });
+  w.container('electronics', 655, 209, 0, { tier: 2 }); w.container('toolbox', 627, 210, 0, { tier: 1 });
+  const sh = C.bld({ x: 668, z: 200, w: 14, d: 10, wall: 'concrete', floor: 'concrete', roof: 'corrugated', name: 'Switch House',
+    doors: [{ side: 'w', at: 3, w: 2.2, door: true }, { side: 's', at: 8, w: 2.4 }, { side: 'n', at: 5, w: 3, sill: 1.1 }] });
+  C.F(sh, 'server', 0, 0, 14, 10, { tier: 2 });
+  C.fieldDepot(652, 238, 0);
+  // ---------------- maintenance shop (west of the hall, below the ledge road)
+  const ms = C.B.mshop = C.bld({ x: 496, z: 190, w: 28, d: 18, storeys: 2, name: 'Maintenance Shop', wall: 'corrugated', roof: 'corrugated', roofTint: 0x9a7a58, floor: 'concrete', tint: 0xc8c0b0,
+    doors: [{ side: 's', at: 4, w: 4 }, { side: 'e', at: 7, w: 2.2, door: true }, { side: 's', at: 20, w: 3, sill: 1.1 }, { side: 'n', at: 12, w: 3, sill: 1.2 }],
+    inner: [[16, 0, 16, 18, [{ at: 7, w: 2 }]], [16, 0, 16, 18, [{ at: 4, w: 1.8 }], 1]],
+    stairs: [{ x: 13.2, z: 1.8, w: 1.6, dir: 's', from: 0, to: 1 }] });
+  C.F(ms, 'industrial', 0, 0, 16, 18, { tier: 1, extra: [['toolbox', 1]] }); C.F(ms, 'workshop', 16, 0, 28, 18, { tier: 2 });
+  C.F(ms, 'storage', 0, 0, 16, 18, { tier: 1, storey: 1 }); C.F(ms, 'bunk', 16, 0, 28, 18, { tier: 1, storey: 1 });
+  // the Down Round (cargo elevator on the gorge floor)
+  C.lift('the_down_round', 'The Down Round', 538, 286, 0);
+  // ---------------- The Corporate Ladder: a stair house up the east wall (gorge floor -> plateau)
+  const lfy = C.avg(686, 244, 700, 258), lsh = (PLAT - lfy) / 3;
+  const lad = C.B.ladder = C.bld({ x: 686, z: 244, w: 14, d: 14, storeys: 4, storeyH: lsh, floorY: lfy, blend: 1, name: 'The Corporate Ladder', wall: 'concrete', floor: 'concrete', tint: 0xb8b4a8, upWin: false,
+    doors: [{ side: 'w', at: 5, w: 2.4, door: true }, { side: 's', at: 3, w: 2.2 }, { side: 'e', at: 5.8, w: 2.4, storey: 3 },
+      { side: 's', at: 8, w: 3, sill: 1.1, storey: 1 }, { side: 'w', at: 8, w: 3, sill: 1.1, storey: 2 }, { side: 's', at: 8, w: 3, sill: 1.1, storey: 3 }, { side: 'n', at: 4, w: 3, sill: 1.1, storey: 2 }],
+    stairs: [{ x: 1.2, z: 6.4, w: 1.6, dir: 'n', from: 0, to: 1 }, { x: 11.2, z: 1.6, w: 1.6, dir: 's', from: 1, to: 2 }, { x: 1.2, z: 6.4, w: 1.6, dir: 'n', from: 2, to: 3 }],
+    ladders: [{ x: 12.0, z: 12.6, from: 3, to: 'top', face: PI }] });
+  C.Cn(lad, 'locker', 7, 13.4, PI, { tier: 1 }); C.Cn(lad, 'crate', 7.5, 0.8, 0, { tier: 1, storey: 1 }); C.Cn(lad, 'cabinet', 7, 13.4, PI, { tier: 1, storey: 2 }); C.Cn(lad, 'toolbox', 5, 13.4, PI, { tier: 2, storey: 3 });
+  for (let k = 0; k < 4; k++) C.IL(lad, 7, 7, 0xfff0d0, 1.2, 8, 2.6, k);
+  w.bridge([[700.1, 251], [711, 251]], 2.6, PLAT + 0.02, 'metalPanel', { pillars: 0, thick: 0.35 });
+  C.P(lad, 'dg_signred', 15.2, 3, PI / 2, { yAbs: PLAT, solid: true });
+  // ---------------- plunge pool + the Spillway Doggy Door (hydraulic pipes leak here)
+  C.hatch('spillway_hatch', 'Spillway Doggy Door', 706, 314, 0);
+  for (const [x, z, r] of [[700, 302, 0.2], [712, 300, -0.15], [716, 330, 0.6]]) w.prop('dg_bigpipe', x, z, r, { solid: true, scale: 0.6 });
+  w.prop('dg_valve', 696, 309, 0, { solid: true }); w.prop('dg_pump', 698, 322, PI / 2, { solid: true }); w.prop('dg_toxic', 712, 323, 0, { solid: true });
+  w.waterPoly([[699, 315], [703, 314], [704, 317], [700, 318]], { level: w.groundAt(701, 316) + 0.1, material: C.darkMat });
+  C.loot(708, 316, 10, ['toolbox', 'crate', 'trash'], 1, { avoid: (x, z) => Math.hypot(x - 706, z - 314) < 3 || Math.hypot(x - 726, z - 318) < 10 });
+  C.inLight(704, 306, 0xffb040, 1.3, 9); C.beacon(716, 300);
+
+  // ---------------- The Bridge To Nowhere (collapsed highway span across the gorge)
+  const B = BRIDGE;
+  w.bridge([[B.x0, B.z], [B.gap0, B.z]], 9, B.y, 'asphalt', { thick: 1.0, pillars: 21, pillarW: 1.8, rails: true });
+  w.bridge([[B.gap1, B.z], [B.x1, B.z]], 9, B.y, 'asphalt', { thick: 1.0, pillars: 23, pillarW: 1.8, rails: true });
+  for (const x of [B.gap0 - 1.0, B.gap1 + 1.0]) for (const dz of [-3, 0, 3]) w.prop('dg_barrier', x, B.z + dz, PI / 2, { solid: true, yAbs: B.y });
+  for (const x of [B.gap0 - 2.4, B.gap1 + 2.4]) C.beacon(x, B.z - 4, { base: B.y });
+  for (const [x, dz, k, r] of [[540, -2, 'car', 1.6], [566, 2.5, 'dg_truck', 1.5], [650, -2.5, 'car', 1.4], [690, 2, 'car', 1.7]]) w.prop(k, x, B.z + dz, r, { solid: true, yAbs: B.y });
+  w.container('car_trunk', 566, B.z - 0.6, 0, { tier: 1, yAbs: B.y }); w.container('car_trunk', 650, B.z + 0.4, 0, { tier: 1, yAbs: B.y });
+  w.ladder(B.gap0 - 4, B.z + 5.6, null, B.gap0 - 4, B.z + 3.4, B.y, 0);                        // climb up from the gorge floor
+  w.prop('dg_brokenspan', 603, 364, 1.62, {}); w.prop('dg_slab', 596, 352, 0.4, { solid: true }); w.prop('dg_slab', 611, 371, 2.2, { solid: true });
+  C.clutter(604, 362, 16, 12, ['dg_rubble', 'dg_rubble', 'debris', 'rock'], { scale: 1.1, avoid: (x, z) => Math.abs(x - 612) < 6 });
+  // the hideout under the west span
+  const hide = C.B.hide = C.bld({ x: 528, z: 364, w: 9, d: 7, wall: 'corrugated', floor: 'wood', roof: 'corrugated', roofTint: 0x8a6a48, name: 'Under-Bridge Hideout',
+    doors: [{ side: 'e', at: 2, w: 1.8, door: true }, { side: 's', at: 5, w: 2.2, sill: 1.0 }] });
+  C.F(hide, 'raider', 0, 0, 9, 7, { tier: 2, extra: [['desk', 1], ['cabinet', 1]] });
+  C.P(hide, 'dg_noticeboard', 4.5, 0.4, 0, { solid: true });
+  w.prop('dg_tent', 545, 352, 0.3, { solid: true }); C.fire(546, 368); C.sandbags([[524, 376], [532, 380], [542, 380]]);
+  C.loot(540, 366, 9, ['raider_cache', 'crate', 'backpack', 'ammo_box', 'cabinet'], 2);
+  w.lamp(540, 371, { y: 3.0, color: 0xffa050, intensity: 1.4, range: 9, flicker: 0.4 });
+
+  // ---------------- gorge floor dressing
+  const onFloor = (x, z) => !C.gorgeAt(x, z) || w.groundAt(x, z) > LOW + 2 || C.distLine(x, z, RIVER_PTS) < 7.5 || C.distLine(x, z, LEDGE) < 6 || C.nearRoad(x, z, 0.5);
+  C.clutter(585, 245, 60, 26, ['dg_container', 'dg_containerB', 'barrel', 'barrelBlue', 'crate', 'dg_tankS', 'dg_scaffold', 'pipe', 'dg_truck', 'dg_barrier'], { avoid: onFloor });
+  C.clutter(590, 300, 70, 30, ['dg_rubble', 'rock', 'debris', 'debris', 'dg_slab', 'husk'], { scale: 1.1, avoid: onFloor });
+  C.clutter(600, 420, 60, 18, ['dg_rubble', 'rock', 'debris', 'husk', 'car'], { scale: 1.1, avoid: onFloor });
+  C.loot(585, 250, 55, ['crate', 'toolbox', 'arc_husk', 'trash', 'ammo_box', 'crate', 'barron_husk'], 1, { avoid: onFloor });
+  C.loot(600, 410, 50, ['arc_husk', 'crate', 'trash', 'backpack'], 1, { avoid: onFloor });
+  for (const [x, z] of [[540, 230], [620, 240], [560, 330], [636, 300], [600, 380], [560, 440], [640, 450]]) w.lamp(x, z, { y: 4.4, color: 0xffb070, intensity: 1.5, range: 12, flicker: 0.3 });
+  for (const [x, z] of [[548, 196], [620, 196], [528, 214]]) C.flood(x, z);
+  w.bridge([[596, 302], [614, 302]], 2.4, w.groundAt(596, 302) + 0.3, 'wood', { pillars: 0, thick: 0.3 });   // footbridge over the tailrace
+  w.prop('dg_crane', 520, 250, 0.7, { solid: true }); C.mastLight(520, 250, 21);
+}
+
 function westPlateau(C) {}
 function eastPlateau(C) {}
 function lowlands(C) {}

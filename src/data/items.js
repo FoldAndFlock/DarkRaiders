@@ -31,32 +31,34 @@ export const ITEMS = {
   // ======================================================================
   ammo_light: {
     name: 'Light Ammo', type: 'ammo', rarity: 'common', weight: 0.017, stack: 100, value: 4,
-    desc: 'Rounds for pistols, SMGs and light rifles. ARK plating treats them as a mild suggestion.', icon: 'ammoLight', tags: ['ammo'],
+    desc: 'Small rounds that feed pistols, SMGs and the lighter rifles. ARK plating treats them as a mild suggestion.',
+    icon: 'ammoLight', tags: ['ammo'],
     ammo: { per: 1 },
   },
   ammo_medium: {
     name: 'Medium Ammo', type: 'ammo', rarity: 'common', weight: 0.025, stack: 80, value: 6,
-    desc: 'Intermediate rifle rounds for the middle of everything. Not too hot, not too cold, adequately lethal.',
+    desc: 'Mid-sized rifle cartridges for the middle of everything. Not too hot, not too cold, adequately lethal.',
     icon: 'ammo_medium', tags: ['ammo'], ammo: { per: 1 },
   },
   ammo_heavy: {
     name: 'Heavy Ammo', type: 'ammo', rarity: 'common', weight: 0.05, stack: 60, value: 12,
-    desc: 'Full-power rounds that punch through ARK armour. Every trigger pull is a strongly worded letter.',
+    desc: 'Big, angry rounds with the punch to get through ARK armour. Every trigger pull is a strongly worded letter.',
     icon: 'ammo_heavy', tags: ['ammo'], ammo: { per: 1 },
   },
   ammo_shotgun: {
     name: 'Shotgun Ammo', type: 'ammo', rarity: 'common', weight: 0.085, stack: 20, value: 20,
-    desc: 'Buckshot shells. Devastating up close, purely decorative at range.', icon: 'ammo_shotgun', tags: ['ammo'], ammo: { per: 1 },
+    desc: 'Shells full of buckshot: brutal at arm\'s length, purely decorative across the room.',
+    icon: 'ammo_shotgun', tags: ['ammo'], ammo: { per: 1 },
   },
   ammo_energy: {
     name: 'Energy Clip', type: 'ammo', rarity: 'rare', weight: 0.3, stack: 5, value: 200,
-    desc: 'Charge cell for experimental energy weapons. One clip refills the whole magazine. Do not lick the contacts.',
+    desc: 'Power pack for experimental energy guns; a single clip tops the magazine right back up. Do not lick the contacts.',
     icon: 'ammo_energy', tags: ['ammo'],
     ammo: { per: 1, refillsMag: true },
   },
   ammo_launcher: {
     name: 'Launcher Ammo', type: 'ammo', rarity: 'rare', weight: 0.1, stack: 24, value: 250,
-    desc: 'Anti-ARK payloads that only detonate on machines. Raiders are not covered by this policy.',
+    desc: 'Launcher payloads with strict standards: they go off against machines and nothing else. Raiders are not covered by this policy.',
     icon: 'ammo_launcher', tags: ['ammo'], ammo: { per: 1 },
   },
 
@@ -65,7 +67,7 @@ export const ITEMS = {
   // ======================================================================
   kettel: {
     name: 'Teapot', type: 'weapon', rarity: 'common', weight: 7, stack: 1, value: 840,
-    desc: 'Cheap semi-auto rifle in light calibre. Quick follow-up shots, weak against ARK plating. Short, stout, whistles when hot.',
+    desc: 'Bargain light-calibre semi-auto that fires as fast as you can panic. ARK plating barely notices. Short, stout, whistles when hot.',
     icon: 'gun_rifle', recycle: { metal_parts: 3, rubber_parts: 2 }, tags: ['assault_rifle', 'ammo_light'],
     weapon: {
       class: 'assault_rifle', ammo: 'ammo_light', dmg: 8.5, rpm: 450, mag: 20, reload: 2.2, range: 30, spread: 3.5, adsSpread: 1.2,
@@ -89,7 +91,7 @@ export const ITEMS = {
   },
   rattlr: {
     name: 'Maraca', type: 'weapon', rarity: 'common', weight: 6, stack: 1, value: 1750,
-    desc: 'Budget full-auto rifle that holds up at medium range, but reloads two rounds at a time. Shake well before use.',
+    desc: 'Bargain-bin automatic on medium rounds that does fine at mid range. Reloads two rounds at a time, so shake well before use.',
     icon: 'gun_rifle', recycle: { metal_parts: 8 }, tags: ['assault_rifle', 'ammo_medium'],
     weapon: {
       class: 'assault_rifle', ammo: 'ammo_medium', dmg: 9, rpm: 500, mag: 12, reload: 2.8, range: 34, spread: 4, adsSpread: 1.5,
@@ -107,7 +109,7 @@ export const ITEMS = {
   },
   arpeggo: {
     name: 'Cha-Cha-Cha', type: 'weapon', rarity: 'uncommon', weight: 7, stack: 1, value: 5500,
-    desc: 'Three-round-burst rifle. One, two, three, and again. Rewards rhythm and accuracy at medium range.', icon: 'gun_rifle',
+    desc: 'Fires in bursts of three: one, two, cha-cha-cha. Keep the rhythm and it\'s deadly accurate at medium range.', icon: 'gun_rifle',
     recycle: { simple_gun_parts: 2, mechanical_components: 2 }, tags: ['assault_rifle', 'ammo_medium'],
     weapon: {
       class: 'assault_rifle', ammo: 'ammo_medium', dmg: 9.5, rpm: 900, mag: 24, reload: 2.6, range: 36, spread: 3.5, adsSpread: 1.1,
@@ -131,7 +133,7 @@ export const ITEMS = {
   },
   tempesta: {
     name: 'Light Drizzle', type: 'weapon', rarity: 'epic', weight: 11, stack: 1, value: 13000,
-    desc: 'Full-auto medium rifle with a deep magazine and steady, predictable recoil. Forecast: scattered lead all day.',
+    desc: 'Full-auto rifle on medium rounds with a deep mag and recoil you can set your watch by. Forecast: scattered lead all day.',
     icon: 'gun_rifle', recycle: { advanced_mechanical_components: 2, medium_gun_parts: 2 }, tags: ['assault_rifle', 'ammo_medium'],
     weapon: {
       class: 'assault_rifle', ammo: 'ammo_medium', dmg: 10, rpm: 550, mag: 25, reload: 2.8, range: 36, spread: 4, adsSpread: 1.4,
@@ -155,7 +157,7 @@ export const ITEMS = {
   },
   betina: {
     name: 'Big Betty', type: 'weapon', rarity: 'epic', weight: 11, stack: 1, value: 8000,
-    desc: 'Heavy-calibre assault rifle. Slow cadence, long reload, and every round bites through armour. Betty doesn\'t do small talk.',
+    desc: 'Assault rifle on heavy rounds. She takes her time between shots and reloads, but nothing she hits stays armoured. No small talk.',
     icon: 'gun_rifle', recycle: { advanced_mechanical_components: 1, heavy_gun_parts: 2 }, tags: ['assault_rifle', 'ammo_heavy'],
     weapon: {
       class: 'assault_rifle', ammo: 'ammo_heavy', dmg: 16, rpm: 400, mag: 22, reload: 4.5, range: 35, spread: 4.5, adsSpread: 1.6,
@@ -179,7 +181,7 @@ export const ITEMS = {
   },
   ferrox: {
     name: 'One-Hit Wonder', type: 'weapon', rarity: 'common', weight: 8, stack: 1, value: 475,
-    desc: 'Break-action rifle holding a single heavy round, then a reload. Make it count; the encore takes a while.', icon: 'gun_rifle',
+    desc: 'Snap it open, drop in one heavy round, fire, repeat. Make the shot count; the encore takes a while.', icon: 'gun_rifle',
     recycle: { metal_parts: 2, rubber_parts: 1 }, tags: ['battle_rifle', 'ammo_heavy'],
     weapon: {
       class: 'battle_rifle', ammo: 'ammo_heavy', dmg: 40, rpm: 60, mag: 1, reload: 2.4, range: 42, spread: 3, adsSpread: 0.6,
@@ -197,8 +199,8 @@ export const ITEMS = {
   },
   renegayde: {
     name: 'Yeehaw', type: 'weapon', rarity: 'rare', weight: 10, stack: 1, value: 7000,
-    desc: 'Lever-action rifle loaded round by round. Pinpoint accurate when crouched and still. Hat sold separately.', icon: 'gun_rifle',
-    recycle: { advanced_mechanical_components: 1, medium_gun_parts: 2 }, tags: ['battle_rifle', 'ammo_medium'],
+    desc: 'Lever-action rifle you feed one round at a time. Crouch, hold still and it hits exactly where you look. Hat sold separately.',
+    icon: 'gun_rifle', recycle: { advanced_mechanical_components: 1, medium_gun_parts: 2 }, tags: ['battle_rifle', 'ammo_medium'],
     weapon: {
       class: 'battle_rifle', ammo: 'ammo_medium', dmg: 35, rpm: 90, mag: 8, reload: 4.4, range: 48, spread: 3, adsSpread: 0.5,
       recoil: 0.71, projSpeed: 480, pellets: 1, mode: 'lever', reloadEach: 0.55, armorPen: 0.4, headMul: 2.25, noise: 49,
@@ -221,7 +223,7 @@ export const ITEMS = {
   },
   afelion: {
     name: 'Solar Flair', type: 'weapon', rarity: 'legendary', weight: 10, stack: 1, value: 27500,
-    desc: 'Experimental energy rifle firing two-round bursts of high-velocity bolts. Cannot be upgraded; it already thinks it\'s perfect.',
+    desc: 'Prototype energy rifle that spits fast bolts in pairs. No upgrades, because it already thinks it\'s perfect.',
     icon: 'gun_energy', recycle: { magnetic_accelerator: 2, complex_gun_parts: 1 }, tags: ['battle_rifle', 'ammo_energy', 'experimental'],
     weapon: {
       class: 'battle_rifle', ammo: 'ammo_energy', dmg: 30, rpm: 600, mag: 10, reload: 3.5, range: 55, spread: 2.5, adsSpread: 0.5,
@@ -231,8 +233,8 @@ export const ITEMS = {
   },
   stitchr: {
     name: 'Sewing Machine', type: 'weapon', rarity: 'common', weight: 5, stack: 1, value: 800,
-    desc: 'Light-ammo SMG that hems targets at close range. Bucks hard on long sprays, so keep your stitches short.', icon: 'gun_smg',
-    recycle: { metal_parts: 3, rubber_parts: 2 }, tags: ['smg', 'ammo_light'],
+    desc: 'Close-range SMG on light rounds that sews a neat seam through anyone nearby. Long bursts get jumpy, so keep the stitches short.',
+    icon: 'gun_smg', recycle: { metal_parts: 3, rubber_parts: 2 }, tags: ['smg', 'ammo_light'],
     weapon: {
       class: 'smg', ammo: 'ammo_light', dmg: 6.5, rpm: 680, mag: 20, reload: 2, range: 20, spread: 5, adsSpread: 2.2, recoil: 2.74,
       projSpeed: 300, pellets: 1, mode: 'auto', armorPen: 0.1, headMul: 1.75, noise: 47, moveMul: 0.961, handling: 0.74,
@@ -255,7 +257,7 @@ export const ITEMS = {
   },
   canta: {
     name: 'Karaoke', type: 'weapon', rarity: 'rare', weight: 4, stack: 1, value: 7000,
-    desc: 'Medium-calibre SMG with a blistering fire rate and real stopping power. Everybody gets a turn at the mic.', icon: 'gun_smg',
+    desc: 'SMG on medium rounds that fires very fast and actually stops what it hits. Everybody gets a turn at the mic.', icon: 'gun_smg',
     recycle: { advanced_mechanical_components: 1, medium_gun_parts: 2 }, tags: ['smg', 'ammo_medium'],
     weapon: {
       class: 'smg', ammo: 'ammo_medium', dmg: 6.5, rpm: 850, mag: 18, reload: 2.5, range: 24, spread: 5.5, adsSpread: 2.4, recoil: 3,
@@ -279,8 +281,8 @@ export const ITEMS = {
   },
   bobkat: {
     name: 'Zoomies', type: 'weapon', rarity: 'epic', weight: 7, stack: 1, value: 13000,
-    desc: 'Absurdly fast-firing SMG. Wild spread, terrifying up close, and clearly had sugar before the raid.', icon: 'gun_smg',
-    recycle: { advanced_mechanical_components: 2, light_gun_parts: 2 }, tags: ['smg', 'ammo_light'],
+    desc: 'Light SMG with a fire rate best described as \'yes\'. Sprays everywhere, horrifying at arm\'s length. Clearly had sugar before the raid.',
+    icon: 'gun_smg', recycle: { advanced_mechanical_components: 2, light_gun_parts: 2 }, tags: ['smg', 'ammo_light'],
     weapon: {
       class: 'smg', ammo: 'ammo_light', dmg: 6, rpm: 1000, mag: 20, reload: 2.2, range: 21, spread: 6, adsSpread: 2.6, recoil: 2.71,
       projSpeed: 300, pellets: 1, mode: 'auto', armorPen: 0.1, headMul: 2, noise: 45, moveMul: 0.96, handling: 0.73, durability: 1525,
@@ -303,7 +305,7 @@ export const ITEMS = {
   },
   el_torro: {
     name: 'Bull Market', type: 'weapon', rarity: 'uncommon', weight: 8, stack: 1, value: 5000,
-    desc: 'Pump-action shotgun loaded shell by shell. Two or three hits drop most Raiders. Past performance guarantees nothing.',
+    desc: 'Pump shotgun you reload a shell at a time. Most Raiders fold after two or three hits. Past performance guarantees nothing.',
     icon: 'gun_shotgun', recycle: { mechanical_components: 2, simple_gun_parts: 2 }, tags: ['shotgun', 'ammo_shotgun'],
     weapon: {
       class: 'shotgun', ammo: 'ammo_shotgun', dmg: 7.5, rpm: 70, mag: 5, reload: 3.5, range: 11, spread: 9, adsSpread: 7, recoil: 0.97,
@@ -327,7 +329,7 @@ export const ITEMS = {
   },
   volcano: {
     name: 'Lava Lamp', type: 'weapon', rarity: 'epic', weight: 8, stack: 1, value: 10000,
-    desc: 'Semi-auto shotgun with a tighter pattern and a quick trigger. Damage falls off fast; extremely groovy up close.',
+    desc: 'Semi-auto shotgun with a snappy trigger and a tight spread. Its damage drops off quickly; extremely groovy up close.',
     icon: 'gun_shotgun', recycle: { advanced_mechanical_components: 2, heavy_gun_parts: 2 }, tags: ['shotgun', 'ammo_shotgun'],
     weapon: {
       class: 'shotgun', ammo: 'ammo_shotgun', dmg: 5.5, rpm: 200, mag: 6, reload: 3, range: 13, spread: 8, adsSpread: 6.5, recoil: 1.57,
@@ -351,7 +353,7 @@ export const ITEMS = {
   },
   dolabre: {
     name: 'Hair Dryer', type: 'weapon', rarity: 'legendary', weight: 8, stack: 1, value: 27500,
-    desc: 'Experimental energy shotgun: wide heat blast from the hip, or hold to focus a long-range beam. Cannot be upgraded. Keep away from baths.',
+    desc: 'Prototype energy shotgun: fire from the hip for a wide blast of heat, or hold to charge a long-range beam. No upgrades. Keep away from baths.',
     icon: 'gun_energy', recycle: { magnetic_accelerator: 2 }, tags: ['shotgun', 'ammo_energy', 'experimental'],
     weapon: {
       class: 'shotgun', ammo: 'ammo_energy', dmg: 12, rpm: 120, mag: 8, reload: 3.3, range: 14, spread: 10, adsSpread: 1, recoil: 1,
@@ -361,7 +363,7 @@ export const ITEMS = {
   },
   hairpyn: {
     name: 'Library Card', type: 'weapon', rarity: 'common', weight: 3, stack: 1, value: 450,
-    desc: 'Slide-action pistol with a built-in silencer. Quiet, accurate and slow. Everyone topside is asked to keep it down.',
+    desc: 'Light pistol with a silencer built right in. Slow to fire, but precise and hushed. Everyone topside is asked to keep it down.',
     icon: 'gun_pistol', recycle: { metal_parts: 2, rubber_parts: 1 }, tags: ['pistol', 'ammo_light'],
     weapon: {
       class: 'pistol', ammo: 'ammo_light', dmg: 20, rpm: 120, mag: 8, reload: 1.8, range: 18, spread: 2.5, adsSpread: 0.8, recoil: 0.45,
@@ -382,7 +384,7 @@ export const ITEMS = {
   },
   burleta: {
     name: 'Old Reliable', type: 'weapon', rarity: 'uncommon', weight: 4, stack: 1, value: 2900,
-    desc: 'Dependable semi-auto pistol with decent damage and accuracy. Never the best gun in the room. Never once let you down.',
+    desc: 'Semi-auto pistol with honest damage and honest aim. Never the best gun in the room. Never once let you down.',
     icon: 'gun_pistol', recycle: { mechanical_components: 1, simple_gun_parts: 2 }, tags: ['pistol', 'ammo_light'],
     weapon: {
       class: 'pistol', ammo: 'ammo_light', dmg: 10, rpm: 420, mag: 12, reload: 1.6, range: 20, spread: 3, adsSpread: 1, recoil: 1.27,
@@ -406,7 +408,7 @@ export const ITEMS = {
   },
   venattor: {
     name: 'BOGO', type: 'weapon', rarity: 'rare', weight: 5, stack: 1, value: 7000,
-    desc: 'Semi-auto pistol that fires two projectiles per trigger pull but only charges you one round. Limited-time offer, forever.',
+    desc: 'Every trigger pull sends two projectiles downrange for the price of one round. Semi-auto, medium ammo. Limited-time offer, forever.',
     icon: 'gun_pistol', recycle: { advanced_mechanical_components: 1, medium_gun_parts: 2 }, tags: ['pistol', 'ammo_medium'],
     weapon: {
       class: 'pistol', ammo: 'ammo_medium', dmg: 8, rpm: 380, mag: 10, reload: 1.9, range: 24, spread: 3.5, adsSpread: 1.2,
@@ -430,7 +432,7 @@ export const ITEMS = {
   },
   anvill: {
     name: 'Paperweight', type: 'weapon', rarity: 'uncommon', weight: 5, stack: 1, value: 5000,
-    desc: 'Single-action hand cannon. Huge damage and headshot multiplier, clumsy handling. Also stops paperwork blowing away.',
+    desc: 'Old-school hand cannon you cock before every shot. Hits like a truck, loves a headshot, handles like a filing cabinet.',
     icon: 'gun_pistol', recycle: { mechanical_components: 2, simple_gun_parts: 2 }, tags: ['pistol', 'ammo_heavy'],
     weapon: {
       class: 'pistol', ammo: 'ammo_heavy', dmg: 40, rpm: 110, mag: 6, reload: 3, range: 30, spread: 3, adsSpread: 0.8, recoil: 1.24,
@@ -454,7 +456,7 @@ export const ITEMS = {
   },
   torrento: {
     name: 'Firehose', type: 'weapon', rarity: 'rare', weight: 12, stack: 1, value: 7000,
-    desc: 'Belt-fed LMG with an enormous magazine. Only truly accurate while crouched; otherwise it just waters the whole street.',
+    desc: 'Belt-fed LMG with a magazine the size of a lunchbox. Crouch to aim it; standing up, it just waters the whole street.',
     icon: 'gun_lmg', recycle: { advanced_mechanical_components: 1, medium_gun_parts: 2 }, tags: ['lmg', 'ammo_medium'],
     weapon: {
       class: 'lmg', ammo: 'ammo_medium', dmg: 8, rpm: 800, mag: 60, reload: 5.5, range: 34, spread: 6, adsSpread: 2.5, recoil: 1.29,
@@ -478,7 +480,7 @@ export const ITEMS = {
   },
   ospray: {
     name: 'Birdwatcher', type: 'weapon', rarity: 'rare', weight: 7, stack: 1, value: 7000,
-    desc: 'Scoped bolt-action rifle with reliable damage and pinpoint accuracy. Find a quiet perch and tick something off your list.',
+    desc: 'Bolt-action rifle with a scope, steady damage and needle-point accuracy. Find a quiet perch and tick something off your list.',
     icon: 'gun_sniper', recycle: { advanced_mechanical_components: 1, medium_gun_parts: 2 }, tags: ['sniper', 'ammo_medium'],
     weapon: {
       class: 'sniper', ammo: 'ammo_medium', dmg: 45, rpm: 45, mag: 8, reload: 3, range: 80, spread: 6, adsSpread: 0.2, recoil: 0.53,
@@ -502,7 +504,7 @@ export const ITEMS = {
   },
   jupitor: {
     name: 'Gas Giant', type: 'weapon', rarity: 'legendary', weight: 9, stack: 1, value: 27500,
-    desc: 'Experimental bolt-action energy sniper. Exceptional damage and accuracy, slow handling. Cannot be upgraded. Mostly hot air, all lethal.',
+    desc: 'Experimental energy sniper with a bolt action. Enormous damage, surgical aim, sluggish handling, no upgrades. Mostly hot air, all lethal.',
     icon: 'gun_energy', recycle: { magnetic_accelerator: 2, complex_gun_parts: 1 }, tags: ['sniper', 'ammo_energy', 'experimental'],
     weapon: {
       class: 'sniper', ammo: 'ammo_energy', dmg: 75, rpm: 35, mag: 5, reload: 3.2, range: 90, spread: 6, adsSpread: 0.15, recoil: 1.32,
@@ -512,8 +514,8 @@ export const ITEMS = {
   },
   raskal: {
     name: 'Party Popper', type: 'weapon', rarity: 'rare', weight: 4, stack: 1, value: 7000,
-    desc: 'Break-action launcher whose anti-ARK payloads only detonate on machines. Confetti sold separately.', icon: 'gun_launcher',
-    recycle: { advanced_mechanical_components: 1, heavy_gun_parts: 2 }, tags: ['launcher', 'ammo_launcher'],
+    desc: 'Single-shot break-open launcher. The payload ignores Raiders and only pops on machines. Confetti sold separately.',
+    icon: 'gun_launcher', recycle: { advanced_mechanical_components: 1, heavy_gun_parts: 2 }, tags: ['launcher', 'ammo_launcher'],
     weapon: {
       class: 'launcher', ammo: 'ammo_launcher', dmg: 75, rpm: 60, mag: 1, reload: 2.2, range: 26, spread: 3, adsSpread: 1.5,
       recoil: 0.61, projSpeed: 45, pellets: 1, mode: 'launcher', armorPen: 0.85, headMul: 1, noise: 59, moveMul: 0.967, handling: 0.78,
@@ -536,7 +538,7 @@ export const ITEMS = {
   },
   hullkracker: {
     name: 'Can Opener', type: 'weapon', rarity: 'epic', weight: 7, stack: 1, value: 10000,
-    desc: 'Pump-action launcher holding five anti-ARK shells that only detonate on machines. Turns every ARK into a tin of something.',
+    desc: 'Pump launcher holding five shells that only go off against machines. Turns every ARK into a tin of something.',
     icon: 'gun_launcher', recycle: { advanced_mechanical_components: 2, heavy_gun_parts: 2 }, tags: ['launcher', 'ammo_launcher'],
     weapon: {
       class: 'launcher', ammo: 'ammo_launcher', dmg: 100, rpm: 75, mag: 5, reload: 4.5, range: 34, spread: 3, adsSpread: 1.5,
@@ -560,7 +562,7 @@ export const ITEMS = {
   },
   equaliser: {
     name: 'Hostile Takeover', type: 'weapon', rarity: 'legendary', weight: 14, stack: 1, value: 27500,
-    desc: 'Experimental high-capacity beam rifle that melts through ARK armour. Cannot be upgraded. Acquires whatever it points at.',
+    desc: 'Experimental beam rifle with a huge charge capacity that melts ARK armour. No upgrades available. Acquires whatever it points at.',
     icon: 'gun_energy', recycle: { magnetic_accelerator: 2, complex_gun_parts: 1 }, tags: ['energy', 'ammo_energy', 'experimental'],
     weapon: {
       class: 'energy', ammo: 'ammo_energy', dmg: 10, rpm: 600, mag: 50, reload: 3.5, range: 40, spread: 2, adsSpread: 0.8, recoil: 0.77,
@@ -574,7 +576,7 @@ export const ITEMS = {
   // ======================================================================
   angled_grip_i: {
     name: 'Angled Grip I', type: 'mod', rarity: 'common', weight: 0.25, stack: 1, value: 640,
-    desc: 'Underbarrel grip that tames side-to-side kick for a tighter spread. Your wrists send their regards.',
+    desc: 'Slanted foregrip that keeps your shots from wandering sideways. Tighter spread; your wrists send their regards.',
     icon: 'mod_grip', recycle: { plastic_parts: 6 },
     tags: ['mod', 'underbarrel'],
     mod: {
@@ -614,13 +616,13 @@ export const ITEMS = {
   },
   anvill_splitter: {
     name: 'Paper Shredder', type: 'mod', rarity: 'legendary', weight: 0.5, stack: 1, value: 7000,
-    desc: 'Tech mod for the Paperweight: every round shreds into four weaker projectiles. Nothing stays confidential.', icon: 'mod_tech',
+    desc: 'Paperweight-only tech mod that turns each bullet into four smaller, weaker ones. Nothing stays confidential.', icon: 'mod_tech',
     recycle: { mod_components: 1, processor: 1 }, tags: ['mod', 'tech'],
     mod: { slot: 'tech', fits: ['pistol'], weapons: ['anvill'], stats: { pellets: 4, dmg: 0.3 } },
   },
   compensator_i: {
     name: 'Compensator I', type: 'mod', rarity: 'common', weight: 0.25, stack: 1, value: 640,
-    desc: 'Muzzle device that tightens per-shot dispersion. It is not compensating for anything, it insists.',
+    desc: 'Bolt-on muzzle piece that keeps each shot closer to the last. It is not compensating for anything, it insists.',
     icon: 'mod_muzzle', recycle: { metal_parts: 5 },
     tags: ['mod', 'muzzle'],
     mod: {
@@ -634,7 +636,7 @@ export const ITEMS = {
   },
   compensator_ii: {
     name: 'Compensator II', type: 'mod', rarity: 'uncommon', weight: 0.5, stack: 1, value: 2000,
-    desc: 'Better compensator for noticeably tighter shot dispersion. Very secure in itself.', icon: 'mod_muzzle',
+    desc: 'Upgraded compensator: your shots land closer together still. Very secure in itself.', icon: 'mod_muzzle',
     recycle: { mechanical_components: 1, wires: 1 }, tags: ['mod', 'muzzle'],
     mod: {
       slot: 'muzzle', fits: ['assault_rifle', 'battle_rifle', 'lmg', 'pistol', 'smg', 'sniper'],
@@ -661,7 +663,7 @@ export const ITEMS = {
   },
   extended_barrel_i: {
     name: 'Extended Barrel I', type: 'mod', rarity: 'uncommon', weight: 0.25, stack: 1, value: 1000,
-    desc: 'Longer barrel: faster bullets and more range before falloff. Reach out and touch someone, rudely.',
+    desc: 'Extra barrel length means quicker bullets that hold their damage further out. Reach out and touch someone, rudely.',
     icon: 'mod_muzzle', recycle: { metal_parts: 5 },
     tags: ['mod', 'muzzle'],
     mod: {
@@ -675,7 +677,7 @@ export const ITEMS = {
   },
   extended_barrel_ii: {
     name: 'Extended Barrel II', type: 'mod', rarity: 'rare', weight: 0.5, stack: 1, value: 3000,
-    desc: 'An even longer barrel for faster bullets and longer range. Snags on every doorframe in Desperanza.', icon: 'mod_muzzle',
+    desc: 'Even more barrel: bullets fly faster and stay lethal further away. Snags on every doorframe in Desperanza.', icon: 'mod_muzzle',
     recycle: { mechanical_components: 1, wires: 1 }, tags: ['mod', 'muzzle'],
     mod: {
       slot: 'muzzle', fits: ['assault_rifle', 'battle_rifle', 'lmg', 'pistol', 'smg', 'sniper'],
@@ -701,7 +703,7 @@ export const ITEMS = {
   },
   extended_light_mag_i: {
     name: 'Extended Light Mag I', type: 'mod', rarity: 'common', weight: 0.5, stack: 1, value: 640,
-    desc: 'Larger magazine for light-ammo weapons. A few more reasons to keep holding the trigger.',
+    desc: 'Holds more light rounds per reload. A few more reasons to keep holding the trigger.',
     icon: 'mod_mag', recycle: { plastic_parts: 6 }, tags: ['mod', 'mag'],
     mod: {
       slot: 'mag', fits: ['assault_rifle', 'pistol', 'smg'], weapons: ['kettel', 'stitchr', 'bobkat', 'hairpyn', 'burleta'],
@@ -710,7 +712,7 @@ export const ITEMS = {
   },
   extended_light_mag_ii: {
     name: 'Extended Light Mag II', type: 'mod', rarity: 'uncommon', weight: 0.5, stack: 1, value: 2000,
-    desc: 'Bigger magazine for light-ammo weapons. Fewer reloads, more hubris.',
+    desc: 'A deeper magazine for light-ammo guns, meaning fewer reloads and noticeably more hubris.',
     icon: 'mod_mag', recycle: { mechanical_components: 1, steel_spring: 1 },
     tags: ['mod', 'mag'],
     mod: {
@@ -720,7 +722,7 @@ export const ITEMS = {
   },
   extended_light_mag_iii: {
     name: 'Extended Light Mag III', type: 'mod', rarity: 'rare', weight: 0.75, stack: 1, value: 5000,
-    desc: 'Biggest magazine for light-ammo weapons. Reloading becomes a rumour you heard once.',
+    desc: 'The deepest light-ammo magazine on offer. Reloading becomes a rumour you heard once.',
     icon: 'mod_mag', recycle: { mod_components: 1, steel_spring: 2 },
     tags: ['mod', 'mag'],
     mod: {
@@ -730,7 +732,7 @@ export const ITEMS = {
   },
   extended_medium_mag_i: {
     name: 'Extended Medium Mag I', type: 'mod', rarity: 'common', weight: 0.25, stack: 1, value: 640,
-    desc: 'Larger magazine for medium-ammo weapons. A medium-sized upgrade for medium-sized problems.',
+    desc: 'Packs extra medium rounds into every reload. A medium-sized upgrade for medium-sized problems.',
     icon: 'mod_mag', recycle: { plastic_parts: 6 }, tags: ['mod', 'mag'],
     mod: {
       slot: 'mag', fits: ['assault_rifle', 'battle_rifle', 'lmg', 'pistol', 'smg', 'sniper'],
@@ -739,7 +741,7 @@ export const ITEMS = {
   },
   extended_medium_mag_ii: {
     name: 'Extended Medium Mag II', type: 'mod', rarity: 'uncommon', weight: 0.5, stack: 1, value: 2000,
-    desc: 'Bigger magazine for medium-ammo weapons. Like a family-size snack bag, but louder.',
+    desc: 'Roomier magazine for medium-ammo guns. Like a family-size snack bag, but louder.',
     icon: 'mod_mag', recycle: { mechanical_components: 1, steel_spring: 1 },
     tags: ['mod', 'mag'],
     mod: {
@@ -749,7 +751,7 @@ export const ITEMS = {
   },
   extended_medium_mag_iii: {
     name: 'Extended Medium Mag III', type: 'mod', rarity: 'rare', weight: 0.75, stack: 1, value: 5000,
-    desc: 'Biggest magazine for medium-ammo weapons. Deep enough to store your feelings in, if you had time.',
+    desc: 'The deepest medium-ammo magazine. Big enough to store your feelings in, if you ever had the time.',
     icon: 'mod_mag', recycle: { mod_components: 1, steel_spring: 2 },
     tags: ['mod', 'mag'],
     mod: {
@@ -759,13 +761,13 @@ export const ITEMS = {
   },
   extended_shotgun_mag_i: {
     name: 'Extended Shotgun Mag I', type: 'mod', rarity: 'common', weight: 0.25, stack: 1, value: 640,
-    desc: 'Extra shell capacity for shotguns. One more \'and another thing\' per argument.',
+    desc: 'Fits a few more shells in your shotgun. One more \'and another thing\' per argument.',
     icon: 'mod_mag', recycle: { plastic_parts: 6 }, tags: ['mod', 'mag'],
     mod: { slot: 'mag', fits: ['shotgun'], weapons: ['el_torro', 'volcano'], stats: { mag: 1.35 } },
   },
   extended_shotgun_mag_ii: {
     name: 'Extended Shotgun Mag II', type: 'mod', rarity: 'uncommon', weight: 0.5, stack: 1, value: 2000,
-    desc: 'More shell capacity for shotguns, for conversations that just keep going.',
+    desc: 'Holds even more shotgun shells, for conversations that just keep going.',
     icon: 'mod_mag', recycle: { mechanical_components: 1, steel_spring: 1 },
     tags: ['mod', 'mag'], mod: { slot: 'mag', fits: ['shotgun'], weapons: ['el_torro', 'volcano'], stats: { mag: 1.7 } },
   },
@@ -777,8 +779,8 @@ export const ITEMS = {
   },
   horizontal_grip: {
     name: 'Horizontal Grip', type: 'mod', rarity: 'epic', weight: 0.5, stack: 1, value: 7000,
-    desc: 'Balanced grip that cuts both recoil and spread, at the cost of slower aiming. Work-life balance for guns.', icon: 'mod_grip',
-    recycle: { mod_components: 1, duct_tape: 2 }, tags: ['mod', 'underbarrel'],
+    desc: 'Sideways grip that calms both kick and spread, but aiming down sights gets slower. Work-life balance for guns.',
+    icon: 'mod_grip', recycle: { mod_components: 1, duct_tape: 2 }, tags: ['mod', 'underbarrel'],
     mod: {
       slot: 'underbarrel', fits: ['assault_rifle', 'battle_rifle', 'launcher', 'pistol', 'shotgun', 'smg', 'sniper'],
       weapons: [
@@ -790,8 +792,8 @@ export const ITEMS = {
   },
   kinetic_converter: {
     name: 'Espresso Stock', type: 'mod', rarity: 'legendary', weight: 0.75, stack: 1, value: 7000,
-    desc: 'Legendary stock that raises fire rate at the cost of control. Three shots of espresso, zero chill.', icon: 'mod_stock',
-    recycle: { mod_components: 1, duct_tape: 2 }, tags: ['mod', 'stock'],
+    desc: 'Legendary stock that cranks up the fire rate and bills you for it in control. Three shots of espresso, zero chill.',
+    icon: 'mod_stock', recycle: { mod_components: 1, duct_tape: 2 }, tags: ['mod', 'stock'],
     mod: {
       slot: 'stock', fits: ['assault_rifle', 'battle_rifle', 'launcher', 'lmg', 'shotgun', 'smg', 'sniper'],
       weapons: [
@@ -803,8 +805,8 @@ export const ITEMS = {
   },
   lightweight_stock: {
     name: 'Lightweight Stock', type: 'mod', rarity: 'epic', weight: 0.25, stack: 1, value: 5000,
-    desc: 'Skeleton stock: lightning-fast aim and draw, but much more recoil. Saved weight by skipping leg day.', icon: 'mod_stock',
-    recycle: { mod_components: 1, duct_tape: 1 }, tags: ['mod', 'stock'],
+    desc: 'Bare-bones frame stock: you aim and draw in a blink, but the recoil gets wild. Saved weight by skipping leg day.',
+    icon: 'mod_stock', recycle: { mod_components: 1, duct_tape: 1 }, tags: ['mod', 'stock'],
     mod: {
       slot: 'stock', fits: ['assault_rifle', 'battle_rifle', 'launcher', 'lmg', 'shotgun', 'smg', 'sniper'],
       weapons: [
@@ -816,7 +818,7 @@ export const ITEMS = {
   },
   muzzle_brake_i: {
     name: 'Muzzle Brake I', type: 'mod', rarity: 'common', weight: 0.25, stack: 1, value: 640,
-    desc: 'Muzzle device that reduces recoil in every direction. Keeps your sights roughly in the same county.',
+    desc: 'Vents gas sideways to tame kick in every direction. Keeps your sights roughly in the same county.',
     icon: 'mod_muzzle', recycle: { metal_parts: 5 },
     tags: ['mod', 'muzzle'],
     mod: {
@@ -856,7 +858,7 @@ export const ITEMS = {
   },
   padded_stock: {
     name: 'Padded Stock', type: 'mod', rarity: 'epic', weight: 0.5, stack: 1, value: 5000,
-    desc: 'Heavy cushioned stock that greatly improves stability. Slower to draw and aim, much like a recliner.', icon: 'mod_stock',
+    desc: 'Thick, cushy stock that steadies every shot, but the gun comes up and aims slower. Much like a recliner.', icon: 'mod_stock',
     recycle: { mod_components: 1, duct_tape: 1 }, tags: ['mod', 'stock'],
     mod: {
       slot: 'stock', fits: ['assault_rifle', 'battle_rifle', 'launcher', 'lmg', 'shotgun', 'smg', 'sniper'],
@@ -869,13 +871,13 @@ export const ITEMS = {
   },
   shotgun_choke_i: {
     name: 'Shotgun Choke I', type: 'mod', rarity: 'common', weight: 0.25, stack: 1, value: 640,
-    desc: 'Choke that narrows a shotgun\'s pellet pattern. Turns \'spray and pray\' into \'aim and pray\'.',
+    desc: 'Squeezes your shotgun\'s pellets into a narrower cone. Turns \'spray and pray\' into \'aim and pray\'.',
     icon: 'mod_muzzle', recycle: { metal_parts: 5 },
     tags: ['mod', 'muzzle'], mod: { slot: 'muzzle', fits: ['shotgun'], weapons: ['el_torro', 'volcano'], stats: { spread: 0.9 } },
   },
   shotgun_choke_ii: {
     name: 'Shotgun Choke II', type: 'mod', rarity: 'uncommon', weight: 0.5, stack: 1, value: 2000,
-    desc: 'Tighter choke for a narrower pellet pattern. Reaches slightly further across the room.', icon: 'mod_muzzle',
+    desc: 'A tighter choke squeezes the pellets closer still. Reaches slightly further across the room.', icon: 'mod_muzzle',
     recycle: { mechanical_components: 1, wires: 1 }, tags: ['mod', 'muzzle'],
     mod: { slot: 'muzzle', fits: ['shotgun'], weapons: ['el_torro', 'volcano'], stats: { spread: 0.8 } },
   },
@@ -888,13 +890,13 @@ export const ITEMS = {
   },
   shotgun_silencer: {
     name: 'Shotgun Silencer', type: 'mod', rarity: 'epic', weight: 0.5, stack: 1, value: 5000,
-    desc: 'Suppressor for shotguns. Halves firing noise, which is still extremely loud. Science is doing its best.',
+    desc: 'Shotgun can that cuts your firing noise in half, which is still extremely loud. Science is doing its best.',
     icon: 'mod_muzzle', recycle: { mod_components: 1, wires: 1 },
     tags: ['mod', 'muzzle'], mod: { slot: 'muzzle', fits: ['shotgun'], weapons: ['el_torro', 'volcano'], stats: { noise: 0.5 } },
   },
   silencer_i: {
     name: 'Silencer I', type: 'mod', rarity: 'uncommon', weight: 0.25, stack: 1, value: 2000,
-    desc: 'Suppressor that shrinks how far away your shots are heard. The ARK still hear you, just less of you.', icon: 'mod_muzzle',
+    desc: 'Screw-on can that means fewer people hear you shooting. The ARK still hear you, just less of you.', icon: 'mod_muzzle',
     recycle: { mechanical_components: 1, wires: 1 }, tags: ['mod', 'muzzle'],
     mod: {
       slot: 'muzzle', fits: ['assault_rifle', 'battle_rifle', 'lmg', 'pistol', 'smg', 'sniper'],
@@ -933,7 +935,7 @@ export const ITEMS = {
   },
   stable_stock_i: {
     name: 'Stable Stock I', type: 'mod', rarity: 'common', weight: 0.25, stack: 1, value: 640,
-    desc: 'Stock that speeds up recovery from recoil and spread. Helps your aim get back on its feet.',
+    desc: 'Steadying stock that settles your aim faster after each kick. Helps your aim get back on its feet.',
     icon: 'mod_stock', recycle: { rubber_parts: 6 },
     tags: ['mod', 'stock'],
     mod: {
@@ -947,7 +949,7 @@ export const ITEMS = {
   },
   stable_stock_ii: {
     name: 'Stable Stock II', type: 'mod', rarity: 'uncommon', weight: 0.5, stack: 1, value: 2000,
-    desc: 'Steadier stock for faster recoil and spread recovery. Emotionally available to your rifle.', icon: 'mod_stock',
+    desc: 'Calmer stock still: your sights settle after each shot even sooner. Emotionally available to your rifle.', icon: 'mod_stock',
     recycle: { mechanical_components: 1, duct_tape: 1 }, tags: ['mod', 'stock'],
     mod: {
       slot: 'stock', fits: ['assault_rifle', 'battle_rifle', 'launcher', 'lmg', 'shotgun', 'smg', 'sniper'],
@@ -973,7 +975,7 @@ export const ITEMS = {
   },
   vertical_grip_i: {
     name: 'Vertical Grip I', type: 'mod', rarity: 'common', weight: 0.25, stack: 1, value: 640,
-    desc: 'Underbarrel grip that reduces muzzle climb for less recoil. For guns with ambitions of flight.',
+    desc: 'Upright foregrip that stops the barrel climbing skyward. For guns with ambitions of flight.',
     icon: 'mod_grip', recycle: { plastic_parts: 6 },
     tags: ['mod', 'underbarrel'],
     mod: {
@@ -1017,56 +1019,56 @@ export const ITEMS = {
   // ======================================================================
   free_loadout_augment: {
     name: 'Hand-Me-Down Augment', type: 'augment', rarity: 'common', weight: 1, stack: 1, value: 660,
-    desc: 'Bare-bones rig issued with free loadouts. Light shields only, no safe pocket. Free the way a timeshare pitch is free.',
+    desc: 'The rig that comes with a free loadout: light shields only and no safe pocket. Free the way a timeshare pitch is free.',
     icon: 'augment', recycle: { rubber_parts: 6, plastic_parts: 6 }, tags: ['augment', 'free_loadout_augment'],
     augment: { backpack: 14, weightLimit: 35, quick: 4, safe: 0, weaponSlots: 2, shields: ['light'] },
   },
   looting_mk_1: {
     name: 'Hoarder Mk. 1', type: 'augment', rarity: 'uncommon', weight: 1, stack: 1, value: 640,
-    desc: 'Entry-level hoarding rig with a roomy backpack. Every item is worth keeping. That\'s how they get you.',
+    desc: 'Starter hoarding rig built around a big backpack. Every item is worth keeping. That\'s how they get you.',
     icon: 'augment', recycle: { plastic_parts: 3, rubber_parts: 3 },
     tags: ['augment', 'looting'], augment: { backpack: 18, weightLimit: 50, quick: 4, safe: 1, weaponSlots: 2, shields: ['light'] },
   },
   combat_mk_1: {
     name: 'Gym Bro Mk. 1', type: 'augment', rarity: 'uncommon', weight: 2, stack: 1, value: 640,
-    desc: 'Entry-level combat rig that supports medium shields. Day one of the program; nobody is swole yet.',
+    desc: 'Starter combat rig with room for a medium shield. Day one of the program; nobody is swole yet.',
     icon: 'augment', recycle: { plastic_parts: 3, rubber_parts: 3 },
     tags: ['augment', 'combat'],
     augment: { backpack: 16, weightLimit: 45, quick: 4, safe: 1, weaponSlots: 2, shields: ['light', 'medium'] },
   },
   tactical_mk_1: {
     name: 'Overthinker Mk. 1', type: 'augment', rarity: 'uncommon', weight: 2, stack: 1, value: 640,
-    desc: 'Entry-level tactical rig with an extra quick-use slot. Has a plan, a backup plan and a spreadsheet.',
+    desc: 'Starter tactical rig with one more quick-use slot than you\'d expect. Has a plan, a backup plan and a spreadsheet.',
     icon: 'augment', recycle: { plastic_parts: 3, rubber_parts: 3 },
     tags: ['augment', 'tactical'],
     augment: { backpack: 15, weightLimit: 40, quick: 5, safe: 1, weaponSlots: 2, shields: ['light', 'medium'] },
   },
   looting_mk_2: {
     name: 'Hoarder Mk. 2', type: 'augment', rarity: 'rare', weight: 2, stack: 1, value: 2000,
-    desc: 'Improved hoarding rig with trinket pockets. Shakes off latched Late Fees after 1 s, unlike the real kind.',
+    desc: 'Second-tier hoarding rig with dedicated trinket pockets. Shakes off latched Late Fees after 1 s, unlike the real kind.',
     icon: 'augment', recycle: { magnet: 1, electrical_components: 1 },
     tags: ['augment', 'looting'],
     augment: {
       backpack: 22, weightLimit: 60, quick: 4, safe: 2, weaponSlots: 2, shields: ['light'], extra: { trinket: 3 }, perk: 'tick_shake',
-      perkDesc: 'Automatically throws off latched Late Fees after 1 s.',
+      perkDesc: 'Latched Late Fees get flung off automatically after 1 s.',
     },
   },
   combat_mk_2: {
     name: 'Gym Bro Mk. 2', type: 'augment', rarity: 'rare', weight: 3, stack: 1, value: 2000,
-    desc: 'Improved combat rig with heavy shield support, a grenade slot and slow health regen. Never skips shield day.', icon: 'augment',
-    recycle: { electrical_components: 1, magnet: 1 }, tags: ['augment', 'combat'],
+    desc: 'Second-tier combat rig: carries heavy shields and a grenade, and slowly patches you up. Never skips shield day.',
+    icon: 'augment', recycle: { electrical_components: 1, magnet: 1 }, tags: ['augment', 'combat'],
     augment: {
       backpack: 18, weightLimit: 55, quick: 4, safe: 1, weaponSlots: 2, shields: ['light', 'medium', 'heavy'], extra: { grenade: 1 },
-      perk: 'regen_1hp_5s', perkDesc: 'Restores 1 HP every 5 s; paused for 30 s after taking damage.',
+      perk: 'regen_1hp_5s', perkDesc: 'Heals 1 HP every 5 s; any hit pauses it for 30 s.',
     },
   },
   tactical_mk_2: {
     name: 'Overthinker Mk. 2', type: 'augment', rarity: 'rare', weight: 2, stack: 1, value: 2000,
-    desc: 'Improved tactical rig that pops a small smoke cloud when your shield breaks. The exit strategy is built in.', icon: 'augment',
-    recycle: { electrical_components: 1, magnet: 1 }, tags: ['augment', 'tactical'],
+    desc: 'Second-tier tactical rig that puffs out a little smoke the moment your shield breaks. The exit strategy is built in.',
+    icon: 'augment', recycle: { electrical_components: 1, magnet: 1 }, tags: ['augment', 'tactical'],
     augment: {
       backpack: 17, weightLimit: 45, quick: 5, safe: 1, weaponSlots: 2, shields: ['light', 'medium'], extra: { trap: 1 },
-      perk: 'shield_break_smoke', perkDesc: 'When your shield breaks, pops a small smoke cloud (fixed cooldown).',
+      perk: 'shield_break_smoke', perkDesc: 'A breaking shield releases a small puff of smoke (fixed cooldown).',
     },
   },
   looting_mk_3_cautious: {
@@ -1075,7 +1077,7 @@ export const ITEMS = {
     icon: 'augment', recycle: { advanced_electrical_components: 1, processor: 1 }, tags: ['augment', 'looting'],
     augment: {
       backpack: 24, weightLimit: 70, quick: 5, safe: 2, weaponSlots: 2, shields: ['light'], perk: 'shield_break_adrenaline',
-      perkDesc: 'When your shield breaks, injects a weak Adrenaline Shot (fixed cooldown). Integrated Binoculars.',
+      perkDesc: 'A breaking shield gives you a weak Adrenaline Shot (fixed cooldown). Binoculars built in.',
       integrated: 'integrated_binoculars',
     },
   },
@@ -1085,7 +1087,7 @@ export const ITEMS = {
     recycle: { advanced_electrical_components: 1, processor: 1 }, tags: ['augment', 'looting'],
     augment: {
       backpack: 18, weightLimit: 65, quick: 4, safe: 1, weaponSlots: 2, shields: ['light', 'medium', 'heavy'], extra: { trinket: 2 },
-      perk: 'safe_any', perkDesc: 'Safe pocket accepts any item, not just small ones.',
+      perk: 'safe_any', perkDesc: 'Anything fits in the safe pocket, whatever its size.',
     },
   },
   looting_mk_3_survivor: {
@@ -1094,7 +1096,7 @@ export const ITEMS = {
     recycle: { advanced_electrical_components: 1, processor: 1 }, tags: ['augment', 'looting'],
     augment: {
       backpack: 20, weightLimit: 80, quick: 5, safe: 3, weaponSlots: 2, shields: ['light', 'medium'], extra: { trap: 1 },
-      perk: 'downed_regen', perkDesc: 'While downed and stationary, health regenerates up to 75% of downed health.',
+      perk: 'downed_regen', perkDesc: 'Lying still while downed regenerates health, up to 75% of your downed health.',
     },
   },
   combat_mk_3_aggressive: {
@@ -1103,7 +1105,7 @@ export const ITEMS = {
     recycle: { advanced_electrical_components: 1, processor: 1 }, tags: ['augment', 'combat'],
     augment: {
       backpack: 18, weightLimit: 65, quick: 4, safe: 1, weaponSlots: 2, shields: ['light', 'medium', 'heavy'], extra: { grenade: 2 },
-      perk: 'regen_2hp_5s', perkDesc: 'Restores 2 HP every 5 s; paused for 30 s after taking damage.',
+      perk: 'regen_2hp_5s', perkDesc: 'Heals 2 HP every 5 s; any hit pauses it for 30 s.',
     },
   },
   combat_mk_3_flanking: {
@@ -1112,7 +1114,7 @@ export const ITEMS = {
     icon: 'augment', recycle: { advanced_electrical_components: 1, processor: 1 }, tags: ['augment', 'combat'],
     augment: {
       backpack: 20, weightLimit: 60, quick: 5, safe: 2, weaponSlots: 2, shields: ['light', 'medium'], extra: { trap: 3 },
-      perk: 'fast_sidearm', perkDesc: 'Stowed pistols and hand cannons equip 33% faster.',
+      perk: 'fast_sidearm', perkDesc: 'Pistols and hand cannons come out of storage 33% faster.',
     },
   },
   tactical_mk_3_defensive: {
@@ -1121,7 +1123,7 @@ export const ITEMS = {
     recycle: { advanced_electrical_components: 1, processor: 1 }, tags: ['augment', 'tactical'],
     augment: {
       backpack: 20, weightLimit: 60, quick: 5, safe: 1, weaponSlots: 2, shields: ['light', 'medium', 'heavy'], perk: 'recharge_on_move',
-      perkDesc: 'Shield Rechargers can be used while running. Integrated Shield Recharger.', integrated: 'integrated_shield_recharger',
+      perkDesc: 'Use Shield Rechargers on the run. A Shield Recharger is built in.', integrated: 'integrated_shield_recharger',
     },
   },
   tactical_mk_3_healing: {
@@ -1130,7 +1132,7 @@ export const ITEMS = {
     icon: 'augment', recycle: { advanced_electrical_components: 1, processor: 1 }, tags: ['augment', 'tactical'],
     augment: {
       backpack: 16, weightLimit: 55, quick: 4, safe: 3, weaponSlots: 2, shields: ['light', 'medium'], extra: { healing: 3 },
-      perk: 'revive_heal_cloud', perkDesc: 'When revived, releases a healing cloud restoring 20 HP to nearby Raiders (30 s cooldown).',
+      perk: 'revive_heal_cloud', perkDesc: 'Getting revived releases a cloud that heals nearby Raiders for 20 HP (30 s cooldown).',
     },
   },
   tactical_mk_3_revival: {
@@ -1139,7 +1141,7 @@ export const ITEMS = {
     recycle: { advanced_electrical_components: 1, processor: 1 }, tags: ['augment', 'tactical'],
     augment: {
       backpack: 16, weightLimit: 65, quick: 5, safe: 2, weaponSlots: 2, shields: ['light'], perk: 'regen_1hp_5s',
-      perkDesc: 'Restores 1 HP every 5 s (paused 30 s after damage). Integrated Defibrillator.', integrated: 'integrated_defibrillator',
+      perkDesc: 'Heals 1 HP every 5 s (any hit pauses it for 30 s). A defibrillator is built in.', integrated: 'integrated_defibrillator',
     },
   },
   tactical_mk_3_smoke: {
@@ -1148,7 +1150,7 @@ export const ITEMS = {
     recycle: { advanced_electrical_components: 1, processor: 1 }, tags: ['augment', 'tactical'],
     augment: {
       backpack: 19, weightLimit: 50, quick: 5, safe: 2, weaponSlots: 2, shields: ['light', 'medium'], extra: { trap: 2 },
-      perk: 'shield_break_smoke', perkDesc: 'When your shield breaks, deploys a smoke cloud (fixed cooldown).',
+      perk: 'shield_break_smoke', perkDesc: 'A breaking shield releases a smoke cloud (fixed cooldown).',
     },
   },
 
@@ -1157,18 +1159,18 @@ export const ITEMS = {
   // ======================================================================
   light_shield: {
     name: 'Light Shield', type: 'shield', rarity: 'uncommon', weight: 5, stack: 1, value: 640,
-    desc: 'Lightweight shield pack that absorbs 40% of incoming damage until depleted. Thin, like most excuses.', icon: 'shield_light',
+    desc: 'Featherweight shield pack that eats 40% of each hit until it runs dry. Thin, like most excuses.', icon: 'shield_light',
     recycle: { plastic_parts: 4 }, tags: ['shield'], shield: { cls: 'light', capacity: 40, mitigation: 0.4, moveMul: 1 },
   },
   medium_shield: {
     name: 'Medium Shield', type: 'shield', rarity: 'rare', weight: 7, stack: 1, value: 2000,
-    desc: 'Balanced shield pack with a deeper charge. Slightly slows you down. The sensible family car of shields.',
+    desc: 'Mid-weight shield pack with more charge in the tank and a slight hit to your speed. The sensible family car of shields.',
     icon: 'shield_medium', recycle: { ark_circuitry: 1 },
     tags: ['shield'], shield: { cls: 'medium', capacity: 70, mitigation: 0.425, moveMul: 0.95 },
   },
   heavy_shield: {
     name: 'Heavy Shield', type: 'shield', rarity: 'epic', weight: 9, stack: 1, value: 5500,
-    desc: 'Heavy shield pack that soaks over half of incoming damage. Noticeably slows you down; you\'re wearing a sofa.',
+    desc: 'Chunky shield pack that blocks more than half of every hit, but you\'ll move noticeably slower. You\'re wearing a sofa.',
     icon: 'shield_heavy', recycle: { ark_circuitry: 2, voltage_converter: 1 }, tags: ['shield'],
     shield: { cls: 'heavy', capacity: 80, mitigation: 0.525, moveMul: 0.85 },
   },
@@ -1178,77 +1180,78 @@ export const ITEMS = {
   // ======================================================================
   bandage: {
     name: 'Bandage', type: 'consumable', rarity: 'common', weight: 0.1, stack: 5, value: 250,
-    desc: 'Gradually restores 20 HP over 10 s. Works on wounds. Does nothing for the economy.',
+    desc: 'Heals 20 HP, trickled in over 10 s. Works on wounds. Does nothing for the economy.',
     icon: 'bandage', recycle: { fabric: 2 }, tags: ['healing'],
     use: { time: 1.5, healOverTime: { amount: 20, dur: 10 } },
   },
   herbal_bandage: {
     name: 'Herbal Bandage', type: 'consumable', rarity: 'uncommon', weight: 0.15, stack: 5, value: 900,
-    desc: 'Improvised poultice bandage that restores 35 HP over 10 s. Smells like a wellness retreat that went bust.',
+    desc: 'Leafy home-made poultice that heals 35 HP over 10 s. Smells like a wellness retreat that went bust.',
     icon: 'bandage', recycle: { assorted_seeds: 2, fabric: 5 },
     tags: ['healing'], use: { time: 1.5, healOverTime: { amount: 35, dur: 10 } },
   },
   sterilized_bandage: {
     name: 'Sterilized Bandage', type: 'consumable', rarity: 'rare', weight: 0.2, stack: 3, value: 2000,
-    desc: 'Sterile dressing that restores 50 HP over 10 s. Easily the cleanest object for a hundred miles.',
+    desc: 'Properly clean dressing that heals 50 HP over 10 s. Easily the cleanest object for a hundred miles.',
     icon: 'bandage', recycle: { fabric: 1, antiseptic: 1 }, tags: ['healing'],
     use: { time: 1.5, healOverTime: { amount: 50, dur: 10 } },
   },
   adrenaline_shot: {
     name: 'Adrenaline Shot', type: 'consumable', rarity: 'common', weight: 0.2, stack: 5, value: 300,
-    desc: 'Fully restores stamina and boosts stamina regen for 10 s. Side effects include sprinting into decisions.', icon: 'adrenaline',
+    desc: 'Refills your stamina in one jab and speeds up its recovery for 10 s. Side effects include sprinting into decisions.',
+    icon: 'adrenaline',
     recycle: { chemicals: 1, plastic_parts: 1 }, tags: ['stamina'], use: { time: 1, stamina: 100, effect: 'adrenaline', dur: 10 },
   },
   agave_juice: {
     name: 'Agave Juice', type: 'consumable', rarity: 'common', weight: 0.2, stack: 5, value: 1800,
-    desc: 'Bitter homebrew: costs 5 HP, then boosts stamina regen for 10 s. Desperanza\'s finest beverage, by default.',
+    desc: 'Local moonshine. Knocks off 5 HP, then your stamina recovers faster for 10 s. Desperanza\'s finest beverage, by default.',
     icon: 'adrenaline', tags: ['stamina'],
     use: { time: 1, heal: -5, effect: 'adrenaline', dur: 10 },
   },
   fruit_mix: {
     name: 'Fruit Mix', type: 'consumable', rarity: 'uncommon', weight: 0.3, stack: 5, value: 1800,
-    desc: 'A handful of foraged fruit that restores 25 HP and 50 stamina. Your one portion of fruit this year.',
+    desc: 'Scavenged fruit salad worth 25 HP and 50 stamina. Your one portion of fruit this year.',
     icon: 'food', tags: ['healing'],
     use: { time: 2, heal: 25, stamina: 50 },
   },
   defibrillator: {
     name: 'Defibrillator', type: 'consumable', rarity: 'rare', weight: 0.75, stack: 3, value: 1000,
-    desc: 'Quickly revives a downed Raider and restores 50 HP. Shout \'clear!\', then say something encouraging.',
+    desc: 'Jump-starts a downed Raider back onto their feet with 50 HP. Shout \'clear!\', then say something encouraging.',
     icon: 'defib', recycle: { plastic_parts: 1, moss: 1 },
     tags: ['healing'], use: { time: 1.5, heal: 50, effect: 'revive' },
   },
   vyta_shot: {
     name: 'Wellness Shot', type: 'consumable', rarity: 'rare', weight: 0.4, stack: 3, value: 2200,
-    desc: 'Potent injection that restores 50 HP after a slow 4 s use. Contains ginger, probably. Nobody checked.',
+    desc: 'Strong injection worth 50 HP, but it takes a slow 4 s to administer. Contains ginger, probably. Nobody checked.',
     icon: 'adrenaline', recycle: { chemicals: 4, syringe: 1 },
     tags: ['healing'], use: { time: 4, heal: 50 },
   },
   vyta_spray: {
     name: 'Wellness Mist', type: 'consumable', rarity: 'epic', weight: 1, stack: 1, value: 3400,
-    desc: 'Continuous healing mist, 10 HP/s up to 150 HP, on yourself or allies. The spa day Desperanza can\'t afford.', icon: 'bandage',
+    desc: 'Mist yourself or a teammate: 10 HP per second, up to 150 HP. The spa day Desperanza can\'t afford.', icon: 'bandage',
     recycle: { antiseptic: 1, canister: 1 }, tags: ['healing'],
     use: { time: 0, healOverTime: { amount: 150, dur: 15 }, effect: 'spray', ally: true },
   },
   shield_recharger: {
     name: 'Shield Recharger', type: 'consumable', rarity: 'uncommon', weight: 0.15, stack: 5, value: 520,
-    desc: 'Gradually recharges 40 shield over 10 s. Have you tried turning it off and on again?',
+    desc: 'Tops your shield up by 40 over 10 s. Have you tried turning it off and on again?',
     icon: 'shieldRecharger', recycle: { rubber_parts: 4 }, tags: ['shield_recharge'],
     use: { time: 2, shieldOverTime: { amount: 40, dur: 10 } },
   },
   surge_shield_recharger: {
     name: 'Power Nap Recharger', type: 'consumable', rarity: 'rare', weight: 0.2, stack: 5, value: 1200,
-    desc: 'Dumps 50 shield charge at once after a 5 s use. Five seconds of rest, fully refreshed. Science.',
+    desc: 'Five seconds of fiddling, then 50 shield arrives all at once. Power naps are a science.',
     icon: 'shieldRecharger', recycle: { electrical_components: 1 },
     tags: ['shield_recharge'], use: { time: 5, shield: 50 },
   },
   integrated_shield_recharger: {
     name: 'Integrated Shield Recharger', type: 'consumable', rarity: 'common', weight: 0, stack: 1, value: 0,
-    desc: 'Augment-bound shield recharger: 50 shield, 120 s cooldown. Cannot be dropped. Comes with the subscription.',
+    desc: 'Built into your augment: 50 shield every 120 s, and it can\'t be dropped. Comes with the subscription.',
     icon: 'shieldRecharger', tags: ['shield_recharge'], use: { time: 5, shield: 50, cooldown: 120, reusable: true }, bound: true,
   },
   integrated_defibrillator: {
     name: 'Integrated Defibrillator', type: 'consumable', rarity: 'rare', weight: 0, stack: 1, value: 0,
-    desc: 'Augment-bound defibrillator: revives a downed Raider, 240 s cooldown. Cannot be dropped, much like your problems.',
+    desc: 'Built into your augment: revives a downed Raider every 240 s and can\'t be dropped, much like your problems.',
     icon: 'defib', tags: ['healing'],
     use: { time: 1.5, heal: 50, effect: 'revive', cooldown: 240, reusable: true }, bound: true,
   },
@@ -1258,113 +1261,114 @@ export const ITEMS = {
   // ======================================================================
   light_impact_grenade: {
     name: 'Light Impact Grenade', type: 'grenade', rarity: 'common', weight: 0.1, stack: 5, value: 270,
-    desc: 'Detonates on impact for explosive damage in a small radius. No fuse, no patience, no refunds.',
+    desc: 'Goes bang the moment it lands, hurting anything close by. No fuse, no patience, no refunds.',
     icon: 'grenade', recycle: { chemicals: 1, plastic_parts: 1 },
     tags: ['grenade'], throw: { kind: 'impact', fuse: 0, radius: 2.5, dmg: 30 },
   },
   heavy_fuze_grenade: {
     name: 'Heavy Fuze Grenade', type: 'grenade', rarity: 'rare', weight: 0.2, stack: 3, value: 1600,
-    desc: 'Timed grenade with a big blast and a 3 s fuse. Counting out loud helps nobody but feels great.',
+    desc: 'Big-bang grenade on a 3 s timer. Counting out loud helps nobody but feels great.',
     icon: 'grenade', recycle: { oil: 1, rubber_parts: 2 }, tags: ['grenade'],
     throw: { kind: 'frag', fuse: 3, radius: 7.5, dmg: 80 },
   },
   shrapnel_grenade: {
     name: 'Shrapnel Grenade', type: 'grenade', rarity: 'uncommon', weight: 0.15, stack: 5, value: 800,
-    desc: 'Makeshift fuze grenade that bursts into razor fragments. Weak against ARK plating, rough on anyone in a T-shirt.',
+    desc: 'Homemade timed grenade that sprays razor-sharp scraps. ARK plating shrugs it off; anyone in a T-shirt does not.',
     icon: 'grenade', recycle: { crude_explosives: 1, metal_parts: 1 }, tags: ['grenade'],
     throw: { kind: 'frag', fuse: 2.5, radius: 6, dmg: 60, armorPen: 0.1 },
   },
   snap_blast_grenade: {
     name: 'Sticky Situation', type: 'grenade', rarity: 'uncommon', weight: 0.2, stack: 3, value: 800,
-    desc: 'Sticks to surfaces and ARK, then detonates after 3 s. Clingy in the most explosive way possible.',
+    desc: 'Glues itself to walls or ARK and blows 3 s later. Clingy in the most explosive way possible.',
     icon: 'grenade', recycle: { chemicals: 1, magnet: 1 },
     tags: ['grenade'], throw: { kind: 'sticky', fuse: 3, radius: 7.5, dmg: 70 },
   },
   seeker_grenade: {
     name: 'Job Seeker', type: 'grenade', rarity: 'uncommon', weight: 0.2, stack: 5, value: 640,
-    desc: 'Homes in on a single ARK within 20 m and explodes on impact. Highly motivated. Willing to relocate.',
+    desc: 'Picks one ARK within 20 m, chases it down and pops on contact. Highly motivated. Willing to relocate.',
     icon: 'grenade', recycle: { crude_explosives: 1 },
     tags: ['grenade'], throw: { kind: 'impact', fuse: 0, radius: 3, dmg: 50, homing: 20, arkOnly: true },
   },
   blaze_grenade: {
     name: 'Hot Mess', type: 'grenade', rarity: 'rare', weight: 0.2, stack: 5, value: 1600,
-    desc: 'Bursts on impact and carpets the area in fire: 5 dmg/s for 10 s. A hot mess, but on purpose.',
+    desc: 'Shatters on landing and sets the ground ablaze for 10 s at 5 dmg/s. A hot mess, but on purpose.',
     icon: 'grenade_fire', recycle: { metal_parts: 4, oil: 2 },
     tags: ['grenade'], throw: { kind: 'fire', fuse: 0, radius: 6, dmg: 5, dur: 10 },
   },
   gas_grenade: {
     name: 'Gas Grenade', type: 'grenade', rarity: 'common', weight: 0.2, stack: 3, value: 270,
-    desc: 'Releases a toxic cloud that drains the stamina of Raiders inside it. Smells like the break-room fridge.', icon: 'grenade_gas',
+    desc: 'Fills the air with a nasty cloud that saps Raiders\' stamina. Smells like the break-room fridge.', icon: 'grenade_gas',
     recycle: { chemicals: 1, rubber_parts: 1 }, tags: ['grenade'],
     throw: { kind: 'gas', fuse: 0, radius: 5, dmg: 0, dur: 20, staminaDrain: 25 },
   },
   smoke_grenade: {
     name: 'Smoke Grenade', type: 'grenade', rarity: 'rare', weight: 0.2, stack: 5, value: 1000,
-    desc: 'Large, lingering smoke cloud that blocks ARK and Raider vision. Exit stage left, coughing.',
+    desc: 'Big, slow-to-clear smoke screen that blinds ARK and Raiders alike. Exit stage left, coughing.',
     icon: 'smoke', recycle: { chemicals: 2, canister: 1 },
     tags: ['grenade'], throw: { kind: 'smoke', fuse: 0, radius: 7.5, dmg: 0, dur: 20 },
   },
   lil_smoke_grenade: {
     name: 'Smoke Break', type: 'grenade', rarity: 'common', weight: 0.15, stack: 5, value: 300,
-    desc: 'Pops a small smoke cloud on impact that lasts about 6 s. Short, union-mandated, over too soon.',
+    desc: 'A puff of cover the size of a phone booth, gone in about 6 s. Short, union-mandated, over too soon.',
     icon: 'smoke', recycle: { chemicals: 1, plastic_parts: 1 },
     tags: ['grenade'], throw: { kind: 'smoke', fuse: 0, radius: 2.5, dmg: 0, dur: 6 },
   },
   lure_grenade: {
     name: 'Clickbait', type: 'grenade', rarity: 'uncommon', weight: 0.4, stack: 3, value: 1000,
-    desc: 'Noisy sticky beacon that draws nearby ARK and their fire for 15 s. You won\'t believe what happens next.', icon: 'grenade_lure',
+    desc: 'Sticks where it lands and screams for 15 s, pulling nearby ARK and their bullets toward it. You won\'t believe what happens next.',
+    icon: 'grenade_lure',
     recycle: { speaker_component: 1 }, tags: ['grenade'], throw: { kind: 'lure', fuse: 0.5, radius: 50, dmg: 0, dur: 15, sticky: true },
   },
   showstoppa: {
     name: 'Blue Screen', type: 'grenade', rarity: 'rare', weight: 0.4, stack: 5, value: 2100,
-    desc: 'Delayed EMP burst that stuns ARK for 7 s and Raiders for 2 s. Please wait while everything restarts.', icon: 'grenade_stun',
-    recycle: { electrical_components: 1, voltage_converter: 1 }, tags: ['grenade'],
+    desc: 'After a short delay, an EMP pulse locks up ARK for 7 s and Raiders for 2 s. Please wait while everything restarts.',
+    icon: 'grenade_stun', recycle: { electrical_components: 1, voltage_converter: 1 }, tags: ['grenade'],
     throw: { kind: 'stun', fuse: 3.5, radius: 6, dmg: 0, stunArk: 7, stunRaider: 2 },
   },
   tagging_grenade: {
     name: 'Tag, You\'re It', type: 'grenade', rarity: 'rare', weight: 0.4, stack: 3, value: 1000,
-    desc: 'Marks every Raider and ARK in the blast so you can track them for 30 s. No tag-backs.', icon: 'grenade',
+    desc: 'Everything caught in the blast, Raider or ARK, stays marked for you for 30 s. No tag-backs.', icon: 'grenade',
     recycle: { plastic_parts: 1, sensors: 1 }, tags: ['grenade'], throw: { kind: 'tagging', fuse: 1.5, radius: 6, dmg: 0, dur: 30 },
   },
   trailblazr: {
     name: 'Hot Gossip', type: 'grenade', rarity: 'rare', weight: 1, stack: 3, value: 2200,
-    desc: 'Leaves a trail of flammable gas along its flight path that ignites in a chain reaction. Spreads just like gossip.',
+    desc: 'Drags a ribbon of flammable gas behind it that lights up in a chain. Spreads just like gossip.',
     icon: 'grenade_fire',
     recycle: { crude_explosives: 2 }, tags: ['grenade'], throw: { kind: 'fire', fuse: 0, radius: 2, dmg: 20, dur: 6, trail: 12 },
   },
   wulfpack: {
     name: 'Reply-All', type: 'grenade', rarity: 'epic', weight: 1, stack: 1, value: 6000,
-    desc: 'Splits into twelve homing missiles that hunt down every ARK nearby. Nobody asked for this many responses.', icon: 'grenade',
+    desc: 'Bursts into twelve homing missiles that chase down every nearby ARK. Nobody asked for this many responses.', icon: 'grenade',
     recycle: { ark_motion_core: 1, explosive_compound: 1 }, tags: ['grenade'],
     throw: { kind: 'wolfpack', fuse: 1.5, radius: 40, dmg: 166, missiles: 12, arkOnly: true },
   },
   blue_light_stick: {
     name: 'Blue Light Stick', type: 'grenade', rarity: 'common', weight: 0.15, stack: 5, value: 150,
-    desc: 'Throwable chemical light with a blue glow for 40 s. Sets a calming mood for your last stand.',
+    desc: 'Snap it, toss it, enjoy 40 s of blue light. Sets a calming mood for your last stand.',
     icon: 'lightstick', recycle: { chemicals: 1 }, tags: ['grenade'],
     throw: { kind: 'flare', fuse: 0, radius: 7, dmg: 0, dur: 40, color: '#4aa0f0' },
   },
   green_light_stick: {
     name: 'Green Light Stick', type: 'grenade', rarity: 'common', weight: 0.15, stack: 5, value: 150,
-    desc: 'Throwable chemical light with a green glow for 40 s. Means \'go\' to friends and \'loot here\' to everyone.',
+    desc: 'Snap-and-throw glow stick, green for 40 s. Means \'go\' to friends and \'loot here\' to everyone.',
     icon: 'lightstick', recycle: { chemicals: 1 }, tags: ['grenade'],
     throw: { kind: 'flare', fuse: 0, radius: 7, dmg: 0, dur: 40, color: '#5cc860' },
   },
   red_light_stick: {
     name: 'Red Light Stick', type: 'grenade', rarity: 'common', weight: 0.15, stack: 5, value: 150,
-    desc: 'Throwable chemical light with a red glow for 40 s. Universal sign for \'danger\' and \'tiny rave down here\'.',
+    desc: 'Glow stick that burns red for 40 s once thrown. Universal sign for \'danger\' and \'tiny rave down here\'.',
     icon: 'lightstick', recycle: { chemicals: 1 }, tags: ['grenade'],
     throw: { kind: 'flare', fuse: 0, radius: 7, dmg: 0, dur: 40, color: '#e84a30' },
   },
   yellow_light_stick: {
     name: 'Yellow Light Stick', type: 'grenade', rarity: 'common', weight: 0.15, stack: 5, value: 150,
-    desc: 'Throwable chemical light with a yellow glow for 40 s. Mildly cautionary, like a strongly worded sticky note.',
+    desc: 'Throw it for 40 s of yellow light. Mildly cautionary, like a strongly worded sticky note.',
     icon: 'lightstick', recycle: { chemicals: 1 }, tags: ['grenade'],
     throw: { kind: 'flare', fuse: 0, radius: 7, dmg: 0, dur: 40, color: '#f0d040' },
   },
   firecracker: {
     name: 'Firecracker', type: 'grenade', rarity: 'common', weight: 0.05, stack: 5, value: 270,
-    desc: 'Sparks and pops for a few seconds. A cheap distraction, and the only party anyone throws anymore.',
+    desc: 'Crackles and bangs for a few seconds to pull attention elsewhere. The only party anyone throws anymore.',
     icon: 'grenade', recycle: { plastic_parts: 3 }, tags: ['grenade'],
     throw: { kind: 'noise', fuse: 0.5, radius: 20, dmg: 0, dur: 7.5 },
   },
@@ -1374,57 +1378,58 @@ export const ITEMS = {
   // ======================================================================
   blaze_grenade_trap: {
     name: 'Hot Mess Trap', type: 'trap', rarity: 'rare', weight: 0.3, stack: 3, value: 1000,
-    desc: 'Laser tripwire rigged to a Hot Mess. Fire for whoever forgot to look at their feet.', icon: 'trap', tags: ['trap'],
+    desc: 'A Hot Mess wired to a laser tripwire. Fire for whoever forgot to look at their feet.', icon: 'trap', tags: ['trap'],
     throw: { kind: 'fire', fuse: 0, radius: 6, dmg: 5, dur: 10, tripwire: 6 },
   },
   gas_grenade_trap: {
     name: 'Gas Grenade Trap', type: 'trap', rarity: 'common', weight: 0.25, stack: 3, value: 300,
-    desc: 'Laser tripwire rigged to a Gas Grenade. A stamina-draining welcome mat for uninvited guests.', icon: 'trap', tags: ['trap'],
+    desc: 'Gas Grenade on a laser tripwire: step through and lose your breath. A stamina-draining welcome mat.',
+    icon: 'trap', tags: ['trap'],
     throw: { kind: 'gas', fuse: 0, radius: 5, dmg: 0, dur: 20, staminaDrain: 25, tripwire: 6 },
   },
   lure_grenade_trap: {
     name: 'Clickbait Trap', type: 'trap', rarity: 'uncommon', weight: 0.25, stack: 3, value: 1000,
-    desc: 'Laser tripwire rigged to a Clickbait. Whoever trips it gets a lot of ARK engagement.', icon: 'trap', tags: ['trap'],
+    desc: 'A Clickbait hooked to a laser tripwire. Whoever trips it gets a lot of ARK engagement.', icon: 'trap', tags: ['trap'],
     throw: { kind: 'lure', fuse: 0, radius: 50, dmg: 0, dur: 15, tripwire: 6 },
   },
   smoke_grenade_trap: {
     name: 'Smoke Grenade Trap', type: 'trap', rarity: 'rare', weight: 0.3, stack: 3, value: 640,
-    desc: 'Laser tripwire rigged to a Smoke Grenade. Instant fog for surprise visitors, or a surprise exit.', icon: 'trap', tags: ['trap'],
+    desc: 'Smoke Grenade hooked to a laser tripwire. Instant fog for surprise visitors, or a surprise exit.', icon: 'trap', tags: ['trap'],
     throw: { kind: 'smoke', fuse: 0, radius: 7.5, dmg: 0, dur: 20, tripwire: 6 },
   },
   explosive_mine: {
     name: 'Explosive Mine', type: 'trap', rarity: 'rare', weight: 0.4, stack: 3, value: 1500,
-    desc: 'Proximity mine that pops up and explodes 1 s after triggering. Delivers a short, loud opinion.',
+    desc: 'Buried surprise: when something steps close it jumps up and explodes a second later. Delivers a short, loud opinion.',
     icon: 'mine', recycle: { oil: 2, sensors: 1 },
     tags: ['trap'], throw: { kind: 'mine_explosive', fuse: 1, radius: 7.5, dmg: 40, trigger: 3 },
   },
   gas_mine: {
     name: 'Gas Mine', type: 'trap', rarity: 'common', weight: 0.25, stack: 3, value: 270,
-    desc: 'Proximity mine that releases a stamina-draining gas cloud. A surprise cardio audit.',
+    desc: 'Buried canister that vents stamina-sapping gas when anyone gets close. A surprise cardio audit.',
     icon: 'mine', recycle: { chemicals: 1, rubber_parts: 1 },
     tags: ['trap'], throw: { kind: 'gas', fuse: 1, radius: 5, dmg: 0, dur: 20, staminaDrain: 25, trigger: 3 },
   },
   jolt_mine: {
     name: 'Shock Value', type: 'trap', rarity: 'rare', weight: 0.2, stack: 3, value: 850,
-    desc: 'Proximity mine that stuns ARK for 7 s and Raiders for 4 s. Its entire personality is shock value.',
+    desc: 'Anything that wanders close gets zapped stiff: ARK for 7 s, Raiders for 4 s. Its entire personality is shock value.',
     icon: 'mine', recycle: { battery: 1, plastic_parts: 2 },
     tags: ['trap'], throw: { kind: 'mine_jolt', fuse: 1, radius: 5, dmg: 0, stunArk: 7, stunRaider: 4, trigger: 3 },
   },
   pulse_mine: {
     name: 'Personal Space', type: 'trap', rarity: 'uncommon', weight: 0.25, stack: 3, value: 470,
-    desc: 'Proximity mine that knocks back everything around it. Enforces boundaries firmly and without discussion.',
+    desc: 'Anything that gets too close is shoved back hard. Enforces boundaries firmly and without discussion.',
     icon: 'mine', recycle: { chemicals: 6 }, tags: ['trap'],
     throw: { kind: 'mine_explosive', fuse: 1, radius: 7.5, dmg: 0, knockback: 10, trigger: 3 },
   },
   dedline: {
     name: 'Hard Deadline', type: 'trap', rarity: 'epic', weight: 1, stack: 1, value: 6000,
-    desc: 'Timed charge: after 6 s it obliterates everything within 10 m. Non-negotiable, like every deadline.', icon: 'mine',
+    desc: 'Set it and run: 6 s later, everything within 10 m is gone. Non-negotiable, like every deadline.', icon: 'mine',
     recycle: { explosive_compound: 1, ark_circuitry: 1 }, tags: ['trap'],
     throw: { kind: 'mine_explosive', fuse: 6, radius: 10, dmg: 1000, timer: true },
   },
   trigga_nade: {
     name: 'Remote Work', type: 'trap', rarity: 'rare', weight: 0.4, stack: 3, value: 1000,
-    desc: 'Sticky remote charge. Throw it, then detonate it whenever you like. Productivity has never been higher.', icon: 'grenade',
+    desc: 'Sticks where you throw it and waits for you to press the button. Productivity has never been higher.', icon: 'grenade',
     recycle: { chemicals: 1, processor: 1 }, tags: ['trap'], throw: { kind: 'trigger', fuse: 1.5, radius: 7.5, dmg: 90, sticky: true },
   },
 
@@ -1433,101 +1438,103 @@ export const ITEMS = {
   // ======================================================================
   barricade_kit: {
     name: 'Barricade Kit', type: 'gadget', rarity: 'uncommon', weight: 0.4, stack: 3, value: 640,
-    desc: 'Deployable cover that blocks incoming fire until destroyed (500 HP). Flat-pack, no tiny hex key required.',
+    desc: 'Pop-up cover with 500 HP that soaks bullets until it breaks. Flat-pack, no tiny hex key required.',
     icon: 'barricade', recycle: { metal_parts: 4 },
     tags: ['gadget'], throw: { kind: 'barricade', fuse: 0, radius: 1.5, dmg: 0, hp: 500, dismantle: 5 },
   },
   door_blocker: {
     name: 'Door Blocker', type: 'gadget', rarity: 'common', weight: 0.2, stack: 3, value: 270,
-    desc: 'Locks a powered door shut until someone breaches it. A \'Do Not Disturb\' sign with real commitment.',
+    desc: 'Jams a powered door closed until somebody forces it. A \'Do Not Disturb\' sign with real commitment.',
     icon: 'barricade', recycle: { metal_parts: 2 }, tags: ['gadget'],
     throw: { kind: 'barricade', fuse: 0, radius: 0.5, dmg: 0, target: 'door' },
   },
   remote_raider_flare: {
     name: 'Cry For Help', type: 'gadget', rarity: 'common', weight: 0.2, stack: 3, value: 270,
-    desc: 'Place it, then trigger it remotely to launch a distress flare. Sends a message nobody will answer in time.',
+    desc: 'Set it down, walk away, and fire off a distress flare whenever you like. Sends a message nobody will answer in time.',
     icon: 'flare', recycle: { chemicals: 1, rubber_parts: 1 },
     tags: ['gadget'], throw: { kind: 'flare', fuse: 0, radius: 12, dmg: 0, dur: 30, remote: true },
   },
   fireworks_box: {
     name: 'Fireworks Box', type: 'gadget', rarity: 'rare', weight: 0.5, stack: 1, value: 2000,
-    desc: 'Remote-triggered fireworks. Loud, bright and deeply distracting. Celebrate something. Anything.',
+    desc: 'A crate of fireworks you light from afar. Draws every eye and ear for a while. Celebrate something. Anything.',
     icon: 'flare', recycle: { explosive_compound: 1 },
     tags: ['gadget'], throw: { kind: 'lure', fuse: 0, radius: 40, dmg: 0, dur: 10, remote: true },
   },
   surge_coil: {
     name: 'Bug Zapper', type: 'gadget', rarity: 'rare', weight: 0.4, stack: 3, value: 2100,
-    desc: 'Deployable coil that zaps everything nearby every 2 s. ARK flock to it like moths to a porch light.', icon: 'trap',
+    desc: 'Plant it and it zaps everything around it every 2 s. ARK flock to it like moths to a porch light.', icon: 'trap',
     recycle: { electrical_components: 1, sensors: 1 }, tags: ['gadget'],
     throw: { kind: 'stun', fuse: 2, radius: 6, dmg: 6, stunArk: 1, stunRaider: 0.5, interval: 2, hp: 40, lure: true },
   },
   white_flag: {
     name: 'White Flag', type: 'gadget', rarity: 'common', weight: 0.2, stack: 5, value: 640,
-    desc: 'Plant it to signal peaceful intent. Works about as often as shouting \'Don\'t shoot!\', which is sometimes.',
+    desc: 'Stick it in the ground to say you come in peace. Works about as often as shouting \'Don\'t shoot!\', which is sometimes.',
     icon: 'flag', recycle: { fabric: 5, plastic_parts: 1 },
     tags: ['gadget'], throw: { kind: 'flare', fuse: 0, radius: 3, dmg: 0, dur: 60, flag: 'white' },
   },
   zipline: {
     name: 'Zipline', type: 'gadget', rarity: 'rare', weight: 0.4, stack: 3, value: 1000,
-    desc: 'Fires a line up to 60 m between two points for fast traversal. Yelling \'wheee\' is optional but encouraged.',
+    desc: 'Shoots a cable between two points up to 60 m apart so you can slide across. Yelling \'wheee\' is optional but encouraged.',
     icon: 'zipline', recycle: { rope: 1, metal_parts: 1 },
     tags: ['gadget'], throw: { kind: 'zipline_skip', fuse: 0, radius: 0, dmg: 0, range: 60 },
   },
   noisemaker: {
     name: 'Noisemaker', type: 'gadget', rarity: 'common', weight: 0.3, stack: 3, value: 640,
-    desc: 'Proximity sensor that sounds an alarm when enemy Raiders come close. A doorbell for paranoid people.',
+    desc: 'Leave it on watch: it shrieks when enemy Raiders wander near. A doorbell for paranoid people.',
     icon: 'gadget', recycle: { speaker_component: 1 },
     tags: ['gadget'], throw: { kind: 'noise', fuse: 0, radius: 8, dmg: 0, dur: 4, sensor: true },
   },
   binoculars: {
     name: 'Binoculars', type: 'gadget', rarity: 'common', weight: 0.5, stack: 1, value: 640,
-    desc: 'Two-step magnification for scouting ahead without exposing yourself. Birdwatching, but the birds shoot back.',
+    desc: 'Two zoom levels for peeking at trouble from a safe distance. Birdwatching, but the birds shoot back.',
     icon: 'binoculars', recycle: { rubber_parts: 2, plastic_parts: 4 }, tags: ['gadget'],
     use: { time: 0.3, effect: 'binoculars', range: 60, reusable: true },
   },
   integrated_binoculars: {
     name: 'Integrated Binoculars', type: 'gadget', rarity: 'common', weight: 0, stack: 1, value: 0,
-    desc: 'Augment-bound binoculars. Cannot be dropped. Nosy-neighbour mode, permanently installed.', icon: 'binoculars', tags: ['gadget'],
+    desc: 'Binoculars wired into your augment, so you can\'t drop them. Nosy-neighbour mode, permanently installed.',
+    icon: 'binoculars', tags: ['gadget'],
     use: { time: 0.3, effect: 'binoculars', range: 60, reusable: true }, bound: true,
   },
   photoelectric_cloak: {
     name: 'Out Of Office', type: 'gadget', rarity: 'epic', weight: 3, stack: 1, value: 5000,
-    desc: 'Bends light so ARK lose track of you while you move slowly. Recharges between uses. You are not at your desk.', icon: 'cloak',
-    recycle: { advanced_electrical_components: 1, speaker_component: 1 }, tags: ['gadget'],
+    desc: 'Light-bending suit: creep along slowly and ARK can\'t keep track of you. Needs a recharge between uses. You are not at your desk.',
+    icon: 'cloak', recycle: { advanced_electrical_components: 1, speaker_component: 1 }, tags: ['gadget'],
     use: { time: 0.5, effect: 'cloak', dur: 12, cooldown: 25, moveMul: 0.5, reusable: true },
   },
   powered_descender: {
     name: 'Golden Parachute', type: 'gadget', rarity: 'epic', weight: 5, stack: 1, value: 10000,
-    desc: 'Slows your fall when used in mid-air; needs a moment to spool up. Used to be for executives only.', icon: 'gadget',
+    desc: 'Trigger it mid-fall and, after a moment\'s spin-up, you float down gently. Used to be for executives only.', icon: 'gadget',
     recycle: { advanced_electrical_components: 1, ark_circuitry: 1 }, tags: ['gadget'],
     use: { time: 0.3, effect: 'descend', dur: 8, reusable: true },
   },
   snap_hook: {
     name: 'Social Climber', type: 'gadget', rarity: 'legendary', weight: 5, stack: 1, value: 14000,
-    desc: 'Grappling launcher for scaling structures and crossing gaps up to 20 m. Climbs the ladder, skips the rungs.', icon: 'grapple',
+    desc: 'Fires a grapple to haul you up buildings or across gaps of up to 20 m. Climbs the ladder, skips the rungs.', icon: 'grapple',
     recycle: { power_rod: 1, rope: 3 }, tags: ['gadget'], use: { time: 0.2, effect: 'grapple', range: 20, cooldown: 4, reusable: true },
   },
   recorder: {
     name: 'Recorder', type: 'gadget', rarity: 'uncommon', weight: 0.2, stack: 1, value: 1000,
-    desc: 'A playable recorder. Attracts ARK and impresses other Raiders, if \'impresses\' means \'pains deeply\'.',
+    desc: 'Plastic recorder you can actually play. Draws ARK in and \'impresses\' other Raiders, if that means \'pains deeply\'.',
     icon: 'instrument', recycle: { plastic_parts: 10 },
     tags: ['gadget'], use: { time: 0, effect: 'lure', radius: 30, dur: 6, reusable: true },
   },
   shaker: {
     name: 'Shaker', type: 'gadget', rarity: 'uncommon', weight: 0.2, stack: 1, value: 1000,
-    desc: 'A rhythmic shaker. Attracts ARK and impresses other Raiders. Every apocalypse needs a percussion section.',
+    desc: 'Rhythm egg that summons ARK and wins over Raiders. Every apocalypse needs a percussion section.',
     icon: 'instrument', recycle: { plastic_parts: 10 },
     tags: ['gadget'], use: { time: 0, effect: 'lure', radius: 30, dur: 6, reusable: true },
   },
   acoustic_guitar: {
     name: 'Acoustic Guitar', type: 'gadget', rarity: 'legendary', weight: 1, stack: 1, value: 7000,
-    desc: 'A playable acoustic guitar. ARK come running and Raiders sing along. Someone always requests the one song you know.',
+    desc: 'Six strings that bring ARK running and get Raiders singing along. Someone always requests the one song you know.',
     icon: 'instrument',
     recycle: { wires: 6, metal_parts: 4 }, tags: ['gadget'], use: { time: 0, effect: 'lure', radius: 40, dur: 8, reusable: true },
   },
   flame_spray: {
     name: 'Flame Spray', type: 'gadget', rarity: 'uncommon', weight: 1, stack: 1, value: 2000,
-    desc: 'Makeshift flamethrower: 10 dmg/s in a short cone until the can runs dry. The most aggressive air freshener.', icon: 'gadget',
+    desc: 'Aerosol-can flamethrower that burns a short cone for 10 dmg/s until it sputters out. The most aggressive air freshener.',
+    icon: 'gadget',
     recycle: { canister: 1, fyreball_burner: 1 }, tags: ['gadget'], use: { time: 0, effect: 'flame', dmg: 10, range: 6, dur: 10 },
   },
 
@@ -1606,7 +1613,7 @@ export const ITEMS = {
   },
   raider_hatch_key: {
     name: 'Doggy Door Key', type: 'key', rarity: 'rare', weight: 0.01, stack: 1, value: 2000,
-    desc: 'Opens any Doggy Door for an emergency extraction. Crawl through with whatever dignity you have left.',
+    desc: 'Fits every Doggy Door, your emergency way out of a raid. Crawl through with whatever dignity you have left.',
     icon: 'key', tags: ['key', 'any'],
     key: { map: 'any', room: 'raider_hatch' },
   },
@@ -1616,220 +1623,221 @@ export const ITEMS = {
   // ======================================================================
   metal_parts: {
     name: 'Metal Parts', type: 'material', rarity: 'common', weight: 0.1, stack: 50, value: 75,
-    desc: 'Scrap metal. The backbone of almost every recipe, and the cause of every Raider\'s back problems.',
+    desc: 'Bent scrap that nearly every recipe calls for. Also the cause of every Raider\'s back problems.',
     icon: 'metalParts', tags: ['material', 'basic'],
     material: { tier: 'basic' },
   },
   plastic_parts: {
     name: 'Plastic Parts', type: 'material', rarity: 'common', weight: 0.1, stack: 50, value: 60,
-    desc: 'Assorted plastic scrap for casings and grips. It will outlive us all, so you may as well use it.',
+    desc: 'Plastic odds and ends for casings and grips. It will outlive us all, so you may as well use it.',
     icon: 'plastic_parts', tags: ['material', 'basic'],
     material: { tier: 'basic' },
   },
   rubber_parts: {
     name: 'Rubber Parts', type: 'material', rarity: 'common', weight: 0.1, stack: 50, value: 50,
-    desc: 'Rubber offcuts for seals, grips and gaskets. Bouncy, but not in a fun way.', icon: 'rubber_parts', tags: ['material', 'basic'],
+    desc: 'Rubber scraps that become seals, grips and gaskets. Bouncy, but not in a fun way.',
+    icon: 'rubber_parts', tags: ['material', 'basic'],
     material: { tier: 'basic' },
   },
   fabric: {
     name: 'Fabric', type: 'material', rarity: 'common', weight: 0.1, stack: 50, value: 50,
-    desc: 'Cloth scraps for bandages and gear; refines into Durable Cloth. Formerly someone\'s favourite shirt.',
+    desc: 'Old cloth for bandages and kit; the Upcycler turns it into Durable Cloth. Formerly someone\'s favourite shirt.',
     icon: 'fabric', tags: ['material', 'basic'], material: { tier: 'basic' },
   },
   chemicals: {
     name: 'Chemicals', type: 'material', rarity: 'common', weight: 0.1, stack: 50, value: 50,
-    desc: 'Jars of reagents: the base for ammo, explosives and meds. The labels are long gone; vibes only.',
+    desc: 'Mystery jars that go into ammo, explosives and medicine. The labels are long gone; vibes only.',
     icon: 'chemicals', tags: ['material', 'basic'],
     material: { tier: 'basic' },
   },
   // --- refined materials ---
   mechanical_components: {
     name: 'Mechanical Components', type: 'material', rarity: 'uncommon', weight: 0.5, stack: 10, value: 640,
-    desc: 'Refined moving parts needed for most weapon work. Things that go clunk, professionally.',
+    desc: 'Cleaned-up gears and linkages that most gun crafting depends on. Things that go clunk, professionally.',
     icon: 'component', recycle: { rubber_parts: 2, metal_parts: 3 },
     tags: ['material', 'refined'], material: { tier: 'refined' },
   },
   electrical_components: {
     name: 'Electrical Components', type: 'material', rarity: 'uncommon', weight: 0.5, stack: 10, value: 640,
-    desc: 'Refined circuitry for gear, augments and gadgets. Still warm from whatever it used to run.',
+    desc: 'Salvaged circuit boards made usable for augments, gear and gadgets. Still warm from whatever they used to run.',
     icon: 'component', recycle: { plastic_parts: 3, rubber_parts: 3 },
     tags: ['material', 'refined'], material: { tier: 'refined' },
   },
   durable_cloth: {
     name: 'Durable Cloth', type: 'material', rarity: 'uncommon', weight: 0.25, stack: 10, value: 640,
-    desc: 'Tough cloth refined from fabric for bandages and medical upgrades. Survives the wash, and the apocalypse.',
+    desc: 'Heavy-duty weave made from plain fabric, for better bandages and Medicine Cabinet upgrades. Survives the wash, and the apocalypse.',
     icon: 'fabric', recycle: { fabric: 6 }, tags: ['material', 'refined'],
     material: { tier: 'refined' },
   },
   crude_explosives: {
     name: 'Crude Explosives', type: 'material', rarity: 'uncommon', weight: 0.5, stack: 10, value: 270,
-    desc: 'Unstable homemade filler for grenades, mines and launcher ammo. Store far from your stash, and yourself.',
+    desc: 'Wobbly home-made bang powder for grenades, mines and launcher ammo. Store far from your stash, and yourself.',
     icon: 'explosive', recycle: { chemicals: 3 }, tags: ['material', 'refined'],
     material: { tier: 'refined' },
   },
   explosive_compound: {
     name: 'Explosive Compound', type: 'material', rarity: 'rare', weight: 0.3, stack: 5, value: 1000,
-    desc: 'Stable, potent explosive compound for advanced ordnance. Crude Explosives, but it went to college.',
+    desc: 'The well-behaved, powerful kind of explosive, for top-shelf ordnance. Crude Explosives, but it went to college.',
     icon: 'explosive', recycle: { crude_explosives: 2 },
     tags: ['material', 'refined'], material: { tier: 'refined' },
   },
   antiseptic: {
     name: 'Antiseptic', type: 'material', rarity: 'rare', weight: 1, stack: 5, value: 1000,
-    desc: 'Medical-grade antiseptic for advanced healing items. Stings exactly as much as you fear it will.',
+    desc: 'Hospital-grade disinfectant for the better healing items. Stings exactly as much as you fear it will.',
     icon: 'chemicals', recycle: { chemicals: 10 },
     tags: ['material', 'refined'], material: { tier: 'refined' },
   },
   mod_components: {
     name: 'Mod Components', type: 'material', rarity: 'rare', weight: 1, stack: 5, value: 1750,
-    desc: 'Precision parts for crafting tier III and specialist weapon mods. Tiny, fiddly, always at the bottom of the bag.',
+    desc: 'Fiddly little bits for tier III and specialist weapon mods. Always at the bottom of the bag.',
     icon: 'component', recycle: { mechanical_components: 1, steel_spring: 1 }, tags: ['material', 'refined'], material: { tier: 'refined' },
   },
   simple_gun_parts: {
     name: 'Simple Gun Parts', type: 'material', rarity: 'uncommon', weight: 0.3, stack: 10, value: 330,
-    desc: 'Generic firearm parts for building and upgrading basic weapons. Some assembly required. Lots, actually.',
+    desc: 'Springs, pins and bits that build and improve the basic guns. Some assembly required. Lots, actually.',
     icon: 'gun_parts', recycle: { metal_parts: 2 },
     tags: ['material', 'refined'], material: { tier: 'refined' },
   },
   light_gun_parts: {
     name: 'Light Gun Parts', type: 'material', rarity: 'rare', weight: 0.3, stack: 5, value: 700,
-    desc: 'Parts for light-ammo weapons like SMGs and pistols. Small enough to lose down the back of a couch.',
+    desc: 'Small-frame internals for SMGs and light pistols. Easy to lose down the back of a couch.',
     icon: 'gun_parts', recycle: { simple_gun_parts: 2 },
     tags: ['material', 'refined'], material: { tier: 'refined' },
   },
   medium_gun_parts: {
     name: 'Medium Gun Parts', type: 'material', rarity: 'rare', weight: 0.4, stack: 5, value: 700,
-    desc: 'Parts for rifles and other medium-ammo weapons. Neither here nor there, but absolutely essential.',
+    desc: 'Innards for rifles and other medium-ammo guns. Neither here nor there, but absolutely essential.',
     icon: 'gun_parts', recycle: { simple_gun_parts: 2 },
     tags: ['material', 'refined'], material: { tier: 'refined' },
   },
   heavy_gun_parts: {
     name: 'Heavy Gun Parts', type: 'material', rarity: 'rare', weight: 0.5, stack: 5, value: 700,
-    desc: 'Parts for heavy rifles, shotguns, hand cannons and launchers. Each weighs about as much as your conscience.',
+    desc: 'Chunky internals for heavy rifles, shotguns, hand cannons and launchers. Each weighs about as much as your conscience.',
     icon: 'gun_parts', recycle: { simple_gun_parts: 2 },
     tags: ['material', 'refined'], material: { tier: 'refined' },
   },
   // --- advanced materials ---
   advanced_mechanical_components: {
     name: 'Advanced Mechanical Components', type: 'material', rarity: 'rare', weight: 1, stack: 5, value: 1750,
-    desc: 'High-grade mechanical assemblies for top-tier weapons and Gun Garage III. Clunks with a premium feel.', icon: 'component',
+    desc: 'Precision gearwork for the best weapons and Gun Garage III. Clunks with a premium feel.', icon: 'component',
     recycle: { steel_spring: 1, mechanical_components: 1 }, tags: ['material', 'advanced'], material: { tier: 'advanced' },
   },
   advanced_electrical_components: {
     name: 'Advanced Electrical Components', type: 'material', rarity: 'rare', weight: 1, stack: 5, value: 1750,
-    desc: 'High-grade electronics for top-tier augments and gear. Smarter than most of the people carrying them.',
+    desc: 'Top-shelf electronics for elite augments and gear. Smarter than most of the people carrying them.',
     icon: 'component', recycle: { wires: 1, electrical_components: 1 },
     tags: ['material', 'advanced'], material: { tier: 'advanced' },
   },
   complex_gun_parts: {
     name: 'Complex Gun Parts', type: 'material', rarity: 'epic', weight: 1, stack: 3, value: 3000,
-    desc: 'Rare precision parts used in experimental weapons. Comes with a manual nobody has ever finished.',
+    desc: 'Rare, finicky parts that only experimental weapons use. Comes with a manual nobody has ever finished.',
     icon: 'gun_parts', recycle: { simple_gun_parts: 3 },
     tags: ['material', 'advanced'], material: { tier: 'advanced' },
   },
   magnetic_accelerator: {
     name: 'Magnetic Accelerator', type: 'material', rarity: 'epic', weight: 1, stack: 3, value: 5500,
-    desc: 'Magnetic coil assembly that drives experimental and top-tier weapons. Keep away from your bank cards.', icon: 'component',
+    desc: 'Coils and magnets that fling projectiles in experimental and top-tier guns. Keep away from your bank cards.', icon: 'component',
     recycle: { advanced_mechanical_components: 1, ark_motion_core: 1 }, tags: ['material', 'advanced'], material: { tier: 'advanced' },
   },
   power_rod: {
     name: 'Power Rod', type: 'material', rarity: 'epic', weight: 1, stack: 3, value: 5000,
-    desc: 'Dense energy-storage rod for heavy shields and advanced gadgets. Hums ominously. That\'s normal. Probably.', icon: 'battery',
+    desc: 'Heavy battery rod that powers heavy shields and fancy gadgets. Hums ominously. That\'s normal. Probably.', icon: 'battery',
     recycle: { advanced_electrical_components: 1, ark_circuitry: 1 }, tags: ['material', 'advanced'], material: { tier: 'advanced' },
   },
   exodos_modules: {
     name: 'Exit Strategy Modules', type: 'material', rarity: 'epic', weight: 1, stack: 3, value: 2750,
-    desc: 'Mysterious modules of unknown, possibly orbital origin, prized by gunsmiths. Nobody has read the terms.',
+    desc: 'Strange sealed modules that may have fallen from orbit. Every gun tinkerer wants a few. Nobody has read the terms.',
     icon: 'component', recycle: { magnet: 2, processor: 2 },
     tags: ['material', 'advanced'], material: { tier: 'advanced' },
   },
   // --- topside materials ---
   battery: {
     name: 'Battery', type: 'material', rarity: 'uncommon', weight: 0.25, stack: 15, value: 250,
-    desc: 'An old but serviceable battery for energy clips, shields and mines. Licking it to check is a local tradition.',
+    desc: 'Tired but working battery for energy clips, shields and mines. Licking it to check is a local tradition.',
     icon: 'battery', recycle: { metal_parts: 2 }, tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   wires: {
     name: 'Wires', type: 'material', rarity: 'uncommon', weight: 0.25, stack: 15, value: 200,
-    desc: 'A bundle of copper wiring for traps, mods and electronics. Already tangled; it came that way.',
+    desc: 'Copper wire for traps, mods and electronics. Already tangled; it came that way.',
     icon: 'wires', recycle: { rubber_parts: 2 }, tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   sensors: {
     name: 'Sensors', type: 'material', rarity: 'rare', weight: 0.3, stack: 5, value: 500,
-    desc: 'Salvaged sensor modules for mines, coils and keys. They have seen things, and they logged all of it.',
+    desc: 'Pulled-out sensors for mines, coils and keys. They have seen things, and they logged all of it.',
     icon: 'component', recycle: { wires: 1, metal_parts: 1 }, tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   steel_spring: {
     name: 'Steel Spring', type: 'material', rarity: 'uncommon', weight: 0.25, stack: 15, value: 300,
-    desc: 'A sturdy coil spring for magazines and mechanical parts. Boing, but with structural integrity.',
+    desc: 'Stiff steel coil for magazines and mechanical parts. Boing, but with structural integrity.',
     icon: 'metalParts', recycle: { metal_parts: 2 }, tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   oil: {
     name: 'Oil', type: 'material', rarity: 'uncommon', weight: 0.25, stack: 15, value: 300,
-    desc: 'A can of lubricant oil for anything that squeaks. Including, in desperate times, your knees.',
+    desc: 'Lubricant for anything that squeaks, sticks or complains. Including, in desperate times, your knees.',
     icon: 'canister', recycle: { chemicals: 3 }, tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   canister: {
     name: 'Canister', type: 'material', rarity: 'uncommon', weight: 0.25, stack: 15, value: 300,
-    desc: 'An empty pressurised canister. Holds gas, juice or a terrible idea, depending on the crafter.',
+    desc: 'Empty pressure-rated can. Holds gas, juice or a terrible idea, depending on the crafter.',
     icon: 'canister', recycle: { plastic_parts: 3 }, tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   duct_tape: {
     name: 'Duct Tape', type: 'material', rarity: 'uncommon', weight: 0.25, stack: 15, value: 300,
-    desc: 'Fixes everything until the next raid. Holds every grip and stock together, plus three Desperanza buildings.',
+    desc: 'Silver miracle tape holding every grip and stock together, plus three Desperanza buildings. Temporary, officially.',
     icon: 'fabric', recycle: { fabric: 3 }, tags: ['material', 'topside'],
     material: { tier: 'topside' },
   },
   rope: {
     name: 'Rope', type: 'material', rarity: 'rare', weight: 0.3, stack: 5, value: 500,
-    desc: 'Strong braided rope for ziplines and grappling gear. Also good for tying up loose ends.',
+    desc: 'Braided line for ziplines and grappling gear. Also good for tying up loose ends.',
     icon: 'fabric', recycle: { fabric: 5 }, tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   magnet: {
     name: 'Magnet', type: 'material', rarity: 'uncommon', weight: 0.25, stack: 15, value: 300,
-    desc: 'A strong permanent magnet. Attracted to metal, augments, and the very bottom of your bag.',
+    desc: 'Chunky permanent magnet for augments and guns. Attracted to metal and to the very bottom of your bag.',
     icon: 'metalParts', recycle: { metal_parts: 2 }, tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   processor: {
     name: 'Processor', type: 'material', rarity: 'rare', weight: 0.2, stack: 5, value: 500,
-    desc: 'A salvaged microprocessor for top-tier augments. Faster than anything else still running, including you.',
+    desc: 'Rescued computer chip that top-tier augments need. Thinks faster than anything else still running, including you.',
     icon: 'component', recycle: { wires: 1, plastic_parts: 1 }, tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   speaker_component: {
     name: 'Speaker Component', type: 'material', rarity: 'rare', weight: 0.3, stack: 5, value: 500,
-    desc: 'A small speaker driver for noisemakers and lures. Ideal for making noise, terrible for keeping secrets.',
+    desc: 'Tiny speaker cone for noisemakers and lures. Ideal for making noise, terrible for keeping secrets.',
     icon: 'component', recycle: { plastic_parts: 2, rubber_parts: 3 }, tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   voltage_converter: {
     name: 'Voltage Converter', type: 'material', rarity: 'rare', weight: 0.3, stack: 5, value: 500,
-    desc: 'Steps power up or down between systems. The only thing in the apocalypse that manages expectations.',
+    desc: 'Turns too much power into the right amount, or vice versa. The only thing in the apocalypse that manages expectations.',
     icon: 'component', recycle: { wires: 1, rubber_parts: 1 },
     tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   synthesized_fuel: {
     name: 'Synthesized Fuel', type: 'material', rarity: 'rare', weight: 0.5, stack: 5, value: 700,
-    desc: 'Volatile synthetic fuel for fire grenades and Bad Idea Bench upgrades. Smoking near it is a one-time choice.',
+    desc: 'Lab-made fuel that really wants to burn; used in fire grenades and Bad Idea Bench upgrades. Smoking near it is a one-time choice.',
     icon: 'canister', recycle: { oil: 1, plastic_parts: 1 }, tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   syringe: {
     name: 'Syringe', type: 'material', rarity: 'rare', weight: 0.3, stack: 5, value: 500,
-    desc: 'A sterile syringe for advanced medicine like the Wellness Shot. Point the sharp end away from your face.',
+    desc: 'Clean needle for the fancier medicine, like the Wellness Shot. Point the sharp end away from your face.',
     icon: 'adrenaline', recycle: { plastic_parts: 3, chemicals: 2 },
     tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   motor: {
     name: 'Motor', type: 'material', rarity: 'rare', weight: 3, stack: 3, value: 2000,
-    desc: 'A small electric motor. Wanted for Upcycler III; recycles into oil and mechanical components.', icon: 'component',
+    desc: 'Little electric motor that the Upcycler III wants. Strip it for oil and mechanical components.', icon: 'component',
     recycle: { oil: 2, mechanical_components: 2 }, tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   industrial_battery: {
     name: 'Industrial Battery', type: 'material', rarity: 'rare', weight: 2, stack: 3, value: 1000,
-    desc: 'A heavy industrial battery pack. Built to run a factory; now powering Sewing Circle upgrades.',
+    desc: 'Factory-sized battery pack, now powering Sewing Circle upgrades instead. Heavy enough to count as leg day.',
     icon: 'battery', recycle: { chemicals: 7, battery: 2 }, tags: ['material', 'topside'],
     material: { tier: 'topside' },
   },
   power_cable: {
     name: 'Power Cable', type: 'material', rarity: 'rare', weight: 2, stack: 3, value: 1000,
-    desc: 'A thick insulated power cable for Sewing Circle upgrades. Reaches every outlet except the one you need.',
+    desc: 'Heavy-gauge cable for Sewing Circle upgrades. Reaches every outlet except the one you need.',
     icon: 'wires', recycle: { wires: 4 }, tags: ['material', 'topside'], material: { tier: 'topside' },
   },
   // --- nature materials ---
@@ -1841,72 +1849,73 @@ export const ITEMS = {
   },
   great_mullein: {
     name: 'Great Mullein', type: 'material', rarity: 'uncommon', weight: 0.25, stack: 15, value: 300,
-    desc: 'Medicinal herb for herbal bandages and antiseptic. Fuzzy leaves, firm opinions.', icon: 'plant', recycle: { assorted_seeds: 2 },
+    desc: 'Fuzzy-leaved healing plant that goes into herbal bandages and antiseptic. Soft leaves, firm opinions.',
+    icon: 'plant', recycle: { assorted_seeds: 2 },
     tags: ['material', 'nature'], material: { tier: 'nature' },
   },
   moss: {
     name: 'Moss', type: 'material', rarity: 'rare', weight: 0.3, stack: 10, value: 500,
-    desc: 'Damp moss with antiseptic properties, used in defibrillators somehow. Grows on everything that sits still.',
+    desc: 'Soggy green stuff that\'s surprisingly antiseptic and, somehow, part of every defibrillator. Grows on anything that sits still.',
     icon: 'plant', recycle: { assorted_seeds: 3 }, tags: ['material', 'nature'],
     material: { tier: 'nature' },
   },
   mushroom: {
     name: 'Mushroom', type: 'material', rarity: 'uncommon', weight: 0.2, stack: 10, value: 1000,
-    desc: 'An edible mushroom. Nugget wants a dozen for an upgrade and will not explain why.',
+    desc: 'Perfectly edible fungus. Nugget wants a dozen for an upgrade and will not explain why.',
     icon: 'plant', tags: ['material', 'nature'], material: { tier: 'nature' },
   },
   agave: {
     name: 'Agave', type: 'material', rarity: 'uncommon', weight: 0.2, stack: 10, value: 1000,
-    desc: 'Spiky succulent. Press it into Agave Juice with an empty wine bottle. Ouch first, cheers after.',
+    desc: 'Pointy desert plant. Squeeze it into an empty wine bottle for Agave Juice. Ouch first, cheers after.',
     icon: 'plant', recycle: { assorted_seeds: 3 },
     tags: ['material', 'nature'], material: { tier: 'nature' },
   },
   apricot: {
     name: 'Apricot', type: 'material', rarity: 'uncommon', weight: 0.2, stack: 10, value: 640,
-    desc: 'A sweet apricot for fruit mix. Nugget accepts them as tribute for his upgrades.',
+    desc: 'Soft orange fruit for fruit mix, and Nugget accepts them as tribute for his upgrades.',
     icon: 'fruit', recycle: { assorted_seeds: 3 }, tags: ['material', 'nature'], material: { tier: 'nature' },
   },
   lemon: {
     name: 'Lemon', type: 'material', rarity: 'uncommon', weight: 0.2, stack: 10, value: 640,
-    desc: 'A sour lemon for fruit mix. When life gives you these, at least life is giving you something.',
+    desc: 'Puckery yellow fruit for fruit mix. When life gives you these, at least life is giving you something.',
     icon: 'fruit', recycle: { assorted_seeds: 3 }, tags: ['material', 'nature'], material: { tier: 'nature' },
   },
   olives: {
     name: 'Olives', type: 'material', rarity: 'uncommon', weight: 0.2, stack: 10, value: 640,
-    desc: 'A handful of olives. Nugget takes them for an upgrade. Nobody else will, and that\'s fine.',
+    desc: 'Small, salty and divisive. Nugget takes them for an upgrade; nobody else will, and that\'s fine.',
     icon: 'fruit', recycle: { assorted_seeds: 2 }, tags: ['material', 'nature'], material: { tier: 'nature' },
   },
   prickly_pear: {
     name: 'Prickly Pear', type: 'material', rarity: 'uncommon', weight: 0.2, stack: 10, value: 640,
-    desc: 'Cactus fruit for fruit mix and Nugget\'s upkeep. Mind the spines. It\'s not personal, it\'s a cactus.',
+    desc: 'Spiny desert fruit for fruit mix and Nugget\'s upkeep. Handle carefully. It\'s not personal, it\'s a cactus.',
     icon: 'fruit', recycle: { assorted_seeds: 3 }, tags: ['material', 'nature'],
     material: { tier: 'nature' },
   },
   candleberries: {
     name: 'Candleberries', type: 'material', rarity: 'rare', weight: 0.5, stack: 10, value: 460,
-    desc: 'Waxy berries that glow faintly at night. The cheapest mood lighting left in the world.',
+    desc: 'Berries with a waxy coat and a faint night-time glow. The cheapest mood lighting left in the world.',
     icon: 'fruit', recycle: { assorted_seeds: 2 }, tags: ['material', 'nature'],
     material: { tier: 'nature' },
   },
   roots: {
     name: 'Roots', type: 'material', rarity: 'uncommon', weight: 0.2, stack: 10, value: 640,
-    desc: 'Gnarled edible roots that recycle into seeds. Tastes like dirt with ambition.',
+    desc: 'Knobbly underground snack that recycles into seeds. Tastes like dirt with ambition.',
     icon: 'plant', recycle: { assorted_seeds: 1 }, tags: ['material', 'nature'], material: { tier: 'nature' },
   },
   resin: {
     name: 'Resin', type: 'material', rarity: 'common', weight: 0.4, stack: 10, value: 1000,
-    desc: 'Sticky tree resin. It will get on everything you own, permanently, as a gift.',
+    desc: 'Tree sap gone tacky. It will get on everything you own, permanently, as a gift.',
     icon: 'plant', tags: ['material', 'nature'], material: { tier: 'nature' },
   },
   fertilizer: {
     name: 'Fertilizer', type: 'material', rarity: 'uncommon', weight: 0.4, stack: 5, value: 1000,
-    desc: 'A sack of fertilizer for the Desperanza gardens. Smells like growth. Mostly it just smells.',
+    desc: 'Bag of plant food destined for the Desperanza gardens. Smells like growth. Mostly it just smells.',
     icon: 'plant', recycle: { assorted_seeds: 2 },
     tags: ['material', 'nature'], material: { tier: 'nature' },
   },
   fossilized_lightning: {
     name: 'Static Souvenir', type: 'material', rarity: 'epic', weight: 0.25, stack: 1, value: 4000,
-    desc: 'Glassy rock left where lightning struck during an Electric Boogaloo. Recycles into explosive compound.',
+    desc: 'A lightning bolt\'s glassy footprint, picked up after an Electric Boogaloo. Recycles into explosive compound.',
     icon: 'valuable', recycle: { explosive_compound: 3 },
     tags: ['material', 'nature'], material: { tier: 'nature' },
   },
@@ -1919,283 +1928,283 @@ export const ITEMS = {
   },
   ark_powercell: {
     name: 'ARK Power Bill', type: 'material', rarity: 'common', weight: 0.5, stack: 5, value: 270,
-    desc: 'Power cell pulled from an ARK. Feeds shield rechargers and Upcycler upgrades. Somebody, somewhere, is paying for it.',
+    desc: 'Battery yanked from an ARK; feeds shield rechargers and Upcycler upgrades. Somebody, somewhere, is paying for it.',
     icon: 'arc_part', tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   advanced_ark_powercell: {
     name: 'ARK Premium Power Bill', type: 'material', rarity: 'rare', weight: 0.5, stack: 5, value: 640,
-    desc: 'High-capacity ARK power cell for Energy Clips and Power Nap Rechargers. Hidden fees included.',
+    desc: 'Beefier ARK battery that goes into Energy Clips and Power Nap Rechargers. Hidden fees included.',
     icon: 'arc_part', recycle: { ark_powercell: 2 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   damaged_ark_powercell: {
     name: 'Overdue ARK Power Bill', type: 'material', rarity: 'common', weight: 0.25, stack: 5, value: 293,
-    desc: 'A cracked ARK power cell, long past due. Recycles into ARK Budget Alloy, which is more than most bills do.',
+    desc: 'ARK battery with a crack and a past-due notice. Recycles into ARK Budget Alloy, which is more than most bills do.',
     icon: 'arc_part', recycle: { ark_alloy: 1 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   ark_circuitry: {
     name: 'ARK Red Tape', type: 'material', rarity: 'rare', weight: 0.3, stack: 5, value: 1000,
-    desc: 'Intact ARK circuit board, routed entirely through red tape. Used in Power Rods, Medium Shields and Hard Deadlines.',
+    desc: 'Working ARK circuit board, routed entirely through red tape. Used in Power Rods, Medium Shields and Hard Deadlines.',
     icon: 'arc_part', recycle: { ark_alloy: 2 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   burned_ark_circuitry: {
     name: 'Burned ARK Red Tape', type: 'material', rarity: 'uncommon', weight: 0.25, stack: 5, value: 640,
-    desc: 'Fire-damaged ARK circuitry. The paperwork burned, but the bureaucracy survived. Recycles into alloy.',
+    desc: 'Scorched ARK circuitry. The paperwork burned, but the bureaucracy survived. Recycles into alloy.',
     icon: 'arc_part', recycle: { ark_alloy: 2 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   glitched_ark_circuitry: {
     name: 'Glitched ARK Red Tape', type: 'material', rarity: 'legendary', weight: 0.5, stack: 1, value: 5000,
-    desc: 'ARK circuitry still twitching with strange signals. Recycles into alloy and Exit Strategy Modules. Approved by nobody.',
+    desc: 'ARK board that still twitches with signals from somewhere. Recycles into alloy and Exit Strategy Modules. Approved by nobody.',
     icon: 'arc_part', recycle: { exodos_modules: 1, ark_alloy: 6 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   ark_motion_core: {
     name: 'ARK Motion to Dismiss', type: 'material', rarity: 'rare', weight: 0.3, stack: 5, value: 1000,
-    desc: 'ARK servo core, filed in triplicate. Needed for Launcher Ammo, Magnetic Accelerators and Reply-All grenades.',
+    desc: 'The joint motor that makes an ARK move, filed in triplicate. Needed for Launcher Ammo, Magnetic Accelerators and Reply-All.',
     icon: 'arc_part', recycle: { ark_alloy: 2 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   damaged_ark_motion_core: {
     name: 'Overruled ARK Motion', type: 'material', rarity: 'uncommon', weight: 0.25, stack: 5, value: 640,
-    desc: 'A broken ARK servo core. Motion denied. Recycles into ARK Budget Alloy.',
+    desc: 'Seized-up ARK joint motor. Motion denied. Recycles into ARK Budget Alloy.',
     icon: 'arc_part', recycle: { ark_alloy: 2 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   ark_coolant: {
     name: 'ARK Chill Juice', type: 'material', rarity: 'rare', weight: 1, stack: 3, value: 1000,
-    desc: 'Pressurised ARK coolant, cold enough to make a Hot Take reconsider. Recycles into a heap of chemicals.',
+    desc: 'Freezing ARK fluid under pressure, cold enough to make a Hot Take reconsider. Recycles into a heap of chemicals.',
     icon: 'arc_part', recycle: { chemicals: 16 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   impure_ark_coolant: {
     name: 'Funky ARK Chill Juice', type: 'material', rarity: 'uncommon', weight: 1, stack: 3, value: 640,
-    desc: 'Contaminated ARK coolant with an alarming fizz. Still recycles into chemicals. Do not drink. Again.',
+    desc: 'ARK coolant gone cloudy, with an alarming fizz. Still recycles into chemicals. Do not drink. Again.',
     icon: 'arc_part', recycle: { chemicals: 12 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   ark_flex_rubber: {
     name: 'ARK Flex Time', type: 'material', rarity: 'rare', weight: 1, stack: 3, value: 1000,
-    desc: 'Flexible ARK joint rubber that bends to fit any schedule. Recycles into a big pile of rubber parts.',
+    desc: 'Stretchy ARK joint material that bends to fit any schedule. Recycles into a big pile of rubber parts.',
     icon: 'arc_part', recycle: { rubber_parts: 16 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   degraded_ark_rubber: {
     name: 'Revoked ARK Flex Time', type: 'material', rarity: 'uncommon', weight: 1, stack: 3, value: 640,
-    desc: 'Perished ARK rubber; the flexibility has been withdrawn by management. Recycles into rubber parts.',
+    desc: 'Cracked, stiff ARK rubber; the flexibility has been withdrawn by management. Recycles into rubber parts.',
     icon: 'arc_part', recycle: { rubber_parts: 11 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   ark_performance_steel: {
     name: 'ARK Performance Review', type: 'material', rarity: 'rare', weight: 1, stack: 3, value: 1000,
-    desc: 'High-tensile ARK steel that exceeds expectations. Recycles into a heap of metal parts.',
+    desc: 'Extra-strong ARK steel that exceeds expectations. Recycles into a heap of metal parts.',
     icon: 'arc_part', recycle: { metal_parts: 12 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   rusty_ark_steel: {
     name: 'Rusty Performance Review', type: 'material', rarity: 'uncommon', weight: 1, stack: 3, value: 640,
-    desc: 'Corroded ARK steel plate. Needs improvement. Recycles into metal parts anyway.',
+    desc: 'ARK plating gone orange and flaky. Needs improvement. Recycles into metal parts anyway.',
     icon: 'arc_part', recycle: { metal_parts: 8 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   ark_synthetic_resin: {
     name: 'ARK Sticky Clause', type: 'material', rarity: 'rare', weight: 1, stack: 3, value: 1000,
-    desc: 'ARK-grade synthetic resin, binding in every sense. Recycles into a heap of plastic parts.',
+    desc: 'Machine-made ARK resin, binding in every sense. Recycles into a heap of plastic parts.',
     icon: 'arc_part', recycle: { plastic_parts: 14 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   dried_out_ark_resin: {
     name: 'Dried-Out Sticky Clause', type: 'material', rarity: 'uncommon', weight: 1, stack: 3, value: 640,
-    desc: 'Brittle, dried-out ARK resin. The clause has lapsed. Recycles into plastic parts.',
+    desc: 'ARK resin that\'s gone crumbly. The clause has lapsed. Recycles into plastic parts.',
     icon: 'arc_part', recycle: { plastic_parts: 9 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   ark_thermo_lining: {
     name: 'ARK Silver Lining', type: 'material', rarity: 'rare', weight: 1, stack: 3, value: 1000,
-    desc: 'Heat-proof ARK lining fabric. Every cloud has one; this one fell off a machine. Recycles into fabric.',
+    desc: 'Fireproof cloth from inside an ARK. Every cloud has one; this one fell off a machine. Recycles into fabric.',
     icon: 'arc_part', recycle: { fabric: 16 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   tattered_ark_lining: {
     name: 'Tattered Silver Lining', type: 'material', rarity: 'uncommon', weight: 1, stack: 3, value: 640,
-    desc: 'Shredded ARK lining. Even the silver lining has seen better days. Recycles into fabric.',
+    desc: 'ARK lining in ribbons. Even the silver lining has seen better days. Recycles into fabric.',
     icon: 'arc_part', recycle: { fabric: 12 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   glitched_ark_light_ring: {
     name: 'Glitched ARK Ring Light', type: 'material', rarity: 'epic', weight: 0.5, stack: 1, value: 3000,
-    desc: 'An ARK \'eye\' light ring, flickering erratically. Perfect for influencers with something to hide.', icon: 'arc_part',
+    desc: 'The glowing ring from an ARK\'s \'eye\', blinking at random. Perfect for influencers with something to hide.', icon: 'arc_part',
     recycle: { advanced_electrical_components: 1, ark_alloy: 3 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   glitched_ark_phased_array: {
     name: 'Just-a-Phase Array', type: 'material', rarity: 'rare', weight: 0.5, stack: 1, value: 2000,
-    desc: 'A glitching ARK radar array. It\'s not broken, it\'s going through a phase. Recycles into sensors and alloy.',
+    desc: 'ARK radar panel that keeps flickering on and off. It\'s not broken, it\'s going through a phase. Recycles into sensors and alloy.',
     icon: 'arc_part', recycle: { sensors: 2, ark_alloy: 3 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   glitched_ark_power_converter: {
     name: 'Moody Power Converter', type: 'material', rarity: 'common', weight: 0.5, stack: 1, value: 640,
-    desc: 'A sputtering ARK power converter. Up, down, up, sulk. Recycles into ARK Budget Alloy.',
+    desc: 'ARK power box that can\'t decide on a voltage. Up, down, up, sulk. Recycles into ARK Budget Alloy.',
     icon: 'arc_part', recycle: { ark_alloy: 3 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   glitched_ark_transmitter: {
     name: 'Spam Transmitter', type: 'material', rarity: 'uncommon', weight: 0.5, stack: 1, value: 1000,
-    desc: 'A glitched ARK transmitter broadcasting gibberish around the clock. The unsubscribe link is broken.',
+    desc: 'ARK radio that spews nonsense day and night. The unsubscribe link is broken.',
     icon: 'arc_part', recycle: { electrical_components: 1, ark_alloy: 1 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   wazp_driver: {
     name: 'Buzzkill Rotor', type: 'material', rarity: 'rare', weight: 0.6, stack: 3, value: 640,
-    desc: 'Rotor driver salvaged from a Buzzkill. Gun Garage upgrades want a stack. The party is over for that drone.',
+    desc: 'The spinning heart of a Buzzkill\'s rotor. Gun Garage upgrades want a stack. The party is over for that drone.',
     icon: 'arc_part', recycle: { electrical_components: 1, ark_alloy: 1 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   damaged_wazp_driver: {
     name: 'Busted Buzzkill Rotor', type: 'material', rarity: 'common', weight: 0.25, stack: 3, value: 270,
-    desc: 'A mangled Buzzkill rotor driver. It will never fly again, but it recycles into alloy.',
+    desc: 'Buzzkill rotor bent well beyond flying. It still recycles into alloy, which is something.',
     icon: 'arc_part', recycle: { ark_alloy: 1 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   hornett_driver: {
     name: 'Middle Manager Rotor', type: 'material', rarity: 'rare', weight: 0.75, stack: 3, value: 1000,
-    desc: 'Rotor driver from a Middle Manager. Used in Sewing Circle upgrades, Bug Zappers and Blue Screens. Delegates well.',
+    desc: 'Rotor motor pried off a Middle Manager. Used in Sewing Circle upgrades, Bug Zappers and Blue Screens. Delegates well.',
     icon: 'arc_part', recycle: { electrical_components: 1, ark_alloy: 1 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   damaged_hornett_driver: {
     name: 'Demoted Manager Rotor', type: 'material', rarity: 'common', weight: 0.3, stack: 3, value: 640,
-    desc: 'A mangled Middle Manager rotor driver, recently restructured. Recycles into alloy.',
+    desc: 'Middle Manager rotor, recently restructured into several pieces. Recycles into alloy.',
     icon: 'arc_part', recycle: { ark_alloy: 2 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   tikk_pod: {
     name: 'Late Fee Stub', type: 'material', rarity: 'uncommon', weight: 0.5, stack: 3, value: 640,
-    desc: 'Body pod from a Late Fee. Medicine Cabinet upgrades and Wellness Mist need them. Interest still accruing.',
+    desc: 'The squishy body of a Late Fee. Medicine Cabinet upgrades and Wellness Mist need them. Interest still accruing.',
     icon: 'arc_part', recycle: { chemicals: 2, ark_alloy: 2 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   damaged_tikk_pod: {
     name: 'Torn Late Fee Stub', type: 'material', rarity: 'common', weight: 0.25, stack: 3, value: 270,
-    desc: 'A cracked Late Fee pod. Torn up, yet somehow you still owe it. Recycles into alloy.',
+    desc: 'Split Late Fee body. Torn up, yet somehow you still owe it. Recycles into alloy.',
     icon: 'arc_part', recycle: { ark_alloy: 1 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   popp_trigger: {
     name: 'Pop-Up Blocker', type: 'material', rarity: 'uncommon', weight: 0.5, stack: 3, value: 640,
-    desc: 'Detonator from a Pop-Up Ad. Wanted for Bad Idea Bench upgrades and Fireworks Boxes. Blocks one ad, forever.',
+    desc: 'The bit that makes a Pop-Up Ad go bang, safely removed. Wanted for Bad Idea Bench upgrades and Fireworks Boxes.',
     icon: 'arc_part', recycle: { ark_alloy: 1, crude_explosives: 1 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   fyreball_burner: {
     name: 'Hot Take Burner', type: 'material', rarity: 'uncommon', weight: 0.5, stack: 3, value: 640,
-    desc: 'Burner unit from a Hot Take, because every Hot Take needs a burner. Used for Flame Spray and Upcycler upgrades.',
+    desc: 'Flame unit pulled out of a Hot Take, since every Hot Take needs a burner. Used for Flame Spray and Upcycler upgrades.',
     icon: 'arc_part', recycle: { ark_alloy: 1, crude_explosives: 1 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   damaged_fyreball_burner: {
     name: 'Cold Take Burner', type: 'material', rarity: 'common', weight: 1, stack: 3, value: 270,
-    desc: 'A broken Hot Take burner. The take has cooled considerably. Recycles into alloy.',
+    desc: 'Hot Take flame unit that\'s gone out. The take has cooled considerably. Recycles into alloy.',
     icon: 'arc_part', recycle: { ark_alloy: 1 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   fyrefly_burner: {
     name: 'Burnout Pilot Light', type: 'material', rarity: 'rare', weight: 0.75, stack: 3, value: 1000,
-    desc: 'Burner unit from a Burnout, still flickering on pure fumes. Fuels Hot Gossip grenades.',
+    desc: 'Pilot flame from a Burnout, still flickering on pure fumes. Fuels Hot Gossip grenades.',
     icon: 'arc_part', recycle: { ark_alloy: 2, crude_explosives: 2 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   snytch_scanner: {
     name: 'Narc Wiretap', type: 'material', rarity: 'uncommon', weight: 0.75, stack: 3, value: 1000,
-    desc: 'Scanner head from a Narc. Junk Drawer upgrades want it. Unplug it before it calls its friends.',
+    desc: 'A Narc\'s snooping head. Junk Drawer upgrades want it. Unplug it before it calls its friends.',
     icon: 'arc_part', recycle: { electrical_components: 1, ark_alloy: 1 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   damaged_snytch_scanner: {
     name: 'Busted Narc Wiretap', type: 'material', rarity: 'common', weight: 0.25, stack: 3, value: 659,
-    desc: 'A smashed Narc scanner that can\'t call anyone anymore. Traders still pay a decent tip-off fee.',
+    desc: 'Narc head in pieces; it can\'t call anyone anymore. Traders still pay a decent tip-off fee.',
     icon: 'arc_part', tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   spottr_relay: {
     name: 'Plus One RSVP', type: 'material', rarity: 'uncommon', weight: 1, stack: 3, value: 1000,
-    desc: 'Targeting relay from a Plus One. It confirmed attendance for an entire Shell Company. Recycles into electronics.',
+    desc: 'A Plus One\'s targeting radio. It confirmed attendance for an entire Shell Company. Recycles into electronics.',
     icon: 'arc_part', recycle: { electrical_components: 1, ark_alloy: 1 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   komet_igniter: {
     name: 'Blackout Fuse', type: 'material', rarity: 'rare', weight: 1, stack: 3, value: 1000,
-    desc: 'Igniter from a Rolling Blackout. Somebody\'s power is going out tonight. Used in Hard Deadlines.',
+    desc: 'Spark unit from a Rolling Blackout. Somebody\'s power is going out tonight. Used in Hard Deadlines.',
     icon: 'arc_part', recycle: { ark_alloy: 2, crude_explosives: 2 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   sentinal_firing_core: {
     name: 'Nosy Neighbor Core', type: 'material', rarity: 'rare', weight: 1, stack: 3, value: 2000,
-    desc: 'Laser firing core from a Neighborhood Watch. Never once minded its own business. Gun Garage III wants it.',
+    desc: 'The laser eye of a Neighborhood Watch. Never once minded its own business. Gun Garage III wants it.',
     icon: 'arc_part', recycle: { ark_alloy: 2, mechanical_components: 2 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   surveyr_vault: {
     name: 'Data Dump', type: 'material', rarity: 'rare', weight: 1, stack: 3, value: 1000,
-    desc: 'Data vault from a Data Miner, stuffed with everyone\'s passwords. Medicine Cabinet III wants a few.', icon: 'arc_part',
-    recycle: { ark_alloy: 1, mechanical_components: 1 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
+    desc: 'Memory bank cracked out of a Data Miner, stuffed with everyone\'s passwords. Medicine Cabinet III wants a few.',
+    icon: 'arc_part', recycle: { ark_alloy: 1, mechanical_components: 1 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   shreddr_gyro: {
     name: 'Close Talker Gyro', type: 'material', rarity: 'rare', weight: 1, stack: 3, value: 2000,
-    desc: 'Gyroscope from a Close Talker. Still spinning, still far too close. Goes into the Hair Dryer.',
+    desc: 'Spinning stabiliser from a Close Talker. Still turning, still far too close. Goes into the Hair Dryer.',
     icon: 'arc_part', recycle: { ark_alloy: 2, mechanical_components: 2 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   leapr_pulse_unit: {
     name: 'Parkour Dad\'s Knee', type: 'material', rarity: 'epic', weight: 1, stack: 3, value: 3000,
-    desc: 'Jump-jet pulse unit from a Parkour Dad. Junk Drawer III wants it. He\'ll be walking this one off for weeks.',
+    desc: 'The jump jet that makes a Parkour Dad leap. Junk Drawer III wants it. He\'ll be walking this one off for weeks.',
     icon: 'arc_part', recycle: { advanced_mechanical_components: 1, ark_alloy: 3 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   damaged_leapr_pulse_unit: {
     name: 'Parkour Dad\'s Bad Knee', type: 'material', rarity: 'common', weight: 0.3, stack: 3, value: 1000,
-    desc: 'A damaged Parkour Dad pulse unit. He felt that one, and so will you. Recycles into alloy.',
+    desc: 'Busted Parkour Dad jump jet. He felt that one, and so will you. Recycles into alloy.',
     icon: 'arc_part', recycle: { ark_alloy: 3 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   rocketier_driver: {
     name: 'Rocket Surgeon Driver', type: 'material', rarity: 'epic', weight: 1, stack: 3, value: 3000,
-    desc: 'Thruster driver from a Rocket Surgeon. Needed for Bad Idea Bench III and Reply-All grenades. It\'s not brain surgery.',
+    desc: 'Engine control from a Rocket Surgeon. Needed for Bad Idea Bench III and Reply-All grenades. It\'s not brain surgery.',
     icon: 'arc_part', recycle: { ark_alloy: 3, advanced_electrical_components: 2 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   damaged_rocketier_driver: {
     name: 'Malpractice Driver', type: 'material', rarity: 'common', weight: 0.25, stack: 3, value: 1000,
-    desc: 'A damaged Rocket Surgeon driver. Something went very wrong in theatre. Recycles into alloy.',
+    desc: 'Rocket Surgeon engine control that went very wrong in theatre. Recycles into alloy.',
     icon: 'arc_part', recycle: { ark_alloy: 3 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   bastian_cell: {
     name: 'HOA Dues Cell', type: 'material', rarity: 'epic', weight: 1, stack: 3, value: 3000,
-    desc: 'Heavy power cell from an HOA President. Sewing Circle III wants it. Late payments are not accepted.',
+    desc: 'Hefty battery pried out of an HOA President. Sewing Circle III wants it. Late payments are not accepted.',
     icon: 'arc_part', recycle: { advanced_mechanical_components: 1, ark_alloy: 3 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   bombardeer_cell: {
     name: 'Offshore Cell', type: 'material', rarity: 'epic', weight: 1, stack: 3, value: 3000,
-    desc: 'Artillery power cell from a Shell Company, officially registered somewhere sunny. The Upcycler III wants it.',
+    desc: 'Big gun battery from a Shell Company, officially registered somewhere sunny. The Upcycler III wants it.',
     icon: 'arc_part', recycle: { advanced_mechanical_components: 1, ark_alloy: 3 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   assessr_matrix: {
     name: 'Tax Bracket Matrix', type: 'material', rarity: 'epic', weight: 0.5, stack: 1, value: 5000,
-    desc: 'Analysis matrix from a Tax Assessor. It has already estimated what you owe. Recycles into premium power.', icon: 'arc_part',
-    recycle: { advanced_mechanical_components: 1, advanced_ark_powercell: 3 }, tags: ['arc_part', 'material', 'arc'],
+    desc: 'The number-crunching brain of a Tax Assessor; it has already estimated what you owe. Recycles into premium power.',
+    icon: 'arc_part', recycle: { advanced_mechanical_components: 1, advanced_ark_powercell: 3 }, tags: ['arc_part', 'material', 'arc'],
     material: { tier: 'arc' },
   },
   vaporiser_regulator: {
     name: 'Vape Lord Coil', type: 'material', rarity: 'epic', weight: 0.5, stack: 3, value: 6000,
-    desc: 'Thermal regulator from a Vape Lord. Smells faintly of mango. The Hair Dryer won\'t work without one.',
+    desc: 'Heat control unit from a Vape Lord. Smells faintly of mango. The Hair Dryer won\'t work without one.',
     icon: 'arc_part', recycle: { advanced_electrical_components: 1, ark_circuitry: 2 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   turbyne_compressor: {
     name: 'Lossy Compressor', type: 'material', rarity: 'epic', weight: 0.5, stack: 3, value: 5000,
-    desc: 'Compressor from a Cloud Service. Some data was lost in compression, mostly yours. Powers the Golden Parachute.',
+    desc: 'Air squeezer from a Cloud Service. Some data was lost in compression, mostly yours. Powers the Golden Parachute.',
     icon: 'arc_part', recycle: { ark_motion_core: 1, ark_circuitry: 1 },
     tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   matriark_reactor: {
     name: 'Helicopter Mom Reactor', type: 'material', rarity: 'legendary', weight: 10, stack: 1, value: 11000,
-    desc: 'The reactor heart of a Helicopter Mom. Enormous, enormously valuable, and still hovering. Builds the Solar Flair.',
+    desc: 'The glowing core that keeps a Helicopter Mom hovering. Huge, worth a fortune, and it goes into the Solar Flair.',
     icon: 'arc_part', recycle: { power_rod: 1, magnetic_accelerator: 1 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
   queene_reactor: {
     name: 'Security Deposit', type: 'material', rarity: 'legendary', weight: 10, stack: 1, value: 11000,
-    desc: 'The reactor heart of The Landlady. Worth a fortune, and you were never meant to get it back. Builds two legendaries.',
+    desc: 'The Landlady\'s glowing core. Worth a fortune, and you were never meant to get it back. Builds two legendaries.',
     icon: 'arc_part', recycle: { power_rod: 1, magnetic_accelerator: 1 }, tags: ['arc_part', 'material', 'arc'], material: { tier: 'arc' },
   },
 
@@ -2596,93 +2605,97 @@ export const ITEMS = {
   // ======================================================================
   leviathons_crown_ship_model: {
     name: '"Supply Chain" Ship Model', type: 'trinket', rarity: 'legendary', weight: 0.5, stack: 1, value: 10000,
-    desc: 'A majestic model merchant ship, fully loaded with tiny backorders. Estimated arrival: never. Very valuable.',
+    desc: 'Model cargo ship packed with tiny backorders. Estimated arrival: never. Collectors pay handsomely.',
     icon: 'trinket', tags: ['trinket'],
   },
   sirena_dorada_ship_model: {
     name: '"Tax Write-Off" Ship Model', type: 'trinket', rarity: 'epic', weight: 0.5, stack: 3, value: 7000,
-    desc: 'A gleaming model yacht from sunnier days. Technically a business expense.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Shiny little model yacht, the toy of someone who had money once. Technically a business expense.',
+    icon: 'trinket', tags: ['trinket'],
   },
   twilite_compass_ship_model: {
     name: '"Mid-Life Crisis" Ship Model', type: 'trinket', rarity: 'uncommon', weight: 0.5, stack: 5, value: 1000,
-    desc: 'A spirited two-master model ship, bought on impulse at forty. Sails nowhere, but fast.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Two-masted model ship bought on impulse at forty. Sails nowhere, but fast.', icon: 'trinket', tags: ['trinket'],
   },
   velossity_ship_model: {
     name: '"Move Fast" Ship Model', type: 'trinket', rarity: 'rare', weight: 0.5, stack: 3, value: 3000,
-    desc: 'A sleek racing-hull model. It moved fast. It broke things. It never apologised.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Model racing yacht with a sleek hull. It moved fast. It broke things. It never apologised.', icon: 'trinket', tags: ['trinket'],
   },
   wynd_sprite_ship_model: {
     name: '"Sunk Cost" Ship Model', type: 'trinket', rarity: 'common', weight: 0.5, stack: 10, value: 1000,
-    desc: 'A cheap but cheerful model sailboat. You\'ve carried it this far, so you may as well keep going.',
+    desc: 'Bargain model sailboat with a cheerful paint job. You\'ve carried it this far, so you may as well keep going.',
     icon: 'trinket', tags: ['trinket'],
   },
   air_freshener: {
     name: 'Air Freshener', type: 'trinket', rarity: 'uncommon', weight: 0.3, stack: 5, value: 2000,
-    desc: 'Still smells faintly of pine and mild desperation. Also the secret ingredient in Flame Spray.',
+    desc: 'Cardboard tree with a ghost of pine scent and mild desperation. The secret ingredient in Flame Spray.',
     icon: 'trinket', tags: ['trinket'],
   },
   alien_duck: {
     name: 'Little Green Duck', type: 'trinket', rarity: 'uncommon', weight: 0.3, stack: 15, value: 1000,
-    desc: 'A rubber duck with antennae. Comes in peace. Squeaks in peace. Probes nobody.',
+    desc: 'Rubber duck sporting a pair of antennae. Comes in peace. Squeaks in peace. Probes nobody.',
     icon: 'trinket', tags: ['trinket'],
   },
   arcade_duck: {
     name: 'High Score Duck', type: 'trinket', rarity: 'epic', weight: 0.3, stack: 15, value: 7000,
-    desc: 'A pixel-art rubber duck prize, won for 3,000 tickets. Worth every one of them, allegedly.',
+    desc: 'Blocky prize-counter duck, won for 3,000 tickets. Worth every one of them, allegedly.',
     icon: 'trinket', tags: ['trinket'],
   },
   bloated_tuna_can: {
     name: 'Suspicious Tuna Can', type: 'trinket', rarity: 'common', weight: 0.2, stack: 15, value: 1000,
-    desc: 'Do not open. Somebody will still buy it, which says a lot about the economy.', icon: 'trinket', tags: ['trinket'],
+    desc: 'A tin bulging like it has news. Leave it sealed. Someone will still buy it, which says a lot about the economy.',
+    icon: 'trinket', tags: ['trinket'],
   },
   breathtaking_snow_globe: {
     name: 'Breathtaking Snow Globe', type: 'trinket', rarity: 'epic', weight: 0.2, stack: 1, value: 7000,
-    desc: 'A pristine snow globe of a city that no longer exists. Shake it for weather nobody forecasts anymore.',
+    desc: 'Flawless snow globe of a city that\'s no longer there. Shake it for weather nobody forecasts anymore.',
     icon: 'trinket', tags: ['trinket'],
   },
   bronze_statuette: {
     name: 'Bronze Statuette', type: 'trinket', rarity: 'legendary', weight: 0.5, stack: 25, value: 10000,
-    desc: 'A heavy bronze figure of considerable age and no explanation. Collectors pay a fortune anyway.',
+    desc: 'Old, heavy bronze figure that nobody can explain. Collectors pay a fortune anyway.',
     icon: 'trinket', tags: ['trinket'],
   },
   burnt_out_candles: {
     name: 'Burnt-Out Candles', type: 'trinket', rarity: 'common', weight: 0.2, stack: 15, value: 640,
-    desc: 'Stubs of old candles, burnt at both ends like every Raider\'s sleep schedule.',
+    desc: 'Wax nubs burnt at both ends, like every Raider\'s sleep schedule.',
     icon: 'trinket', tags: ['trinket'],
   },
   cat_bed: {
     name: 'Cat Bed', type: 'trinket', rarity: 'uncommon', weight: 0.5, stack: 3, value: 1000,
-    desc: 'A cosy cat bed. Nugget has claimed it for an upgrade and will not discuss it further.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Plush little cat bed. Nugget has claimed it for an upgrade and will not discuss it further.', icon: 'trinket', tags: ['trinket'],
   },
   coffee_pot: {
     name: 'Coffee Pot', type: 'trinket', rarity: 'common', weight: 0.3, stack: 3, value: 1000,
-    desc: 'An old stovetop coffee pot. Brews despair, then coffee, in that order.',
+    desc: 'Dented stovetop coffee maker. Brews despair, then coffee, in that order.',
     icon: 'trinket', tags: ['trinket'],
   },
   colorful_shoes: {
     name: 'Colorful Shoes', type: 'trinket', rarity: 'rare', weight: 0.5, stack: 3, value: 3000,
-    desc: 'A pair of loud, colourful sneakers. Not stealthy. Not trying to be.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Sneakers in every colour at once. Not stealthy. Not trying to be.', icon: 'trinket', tags: ['trinket'],
   },
   dart_board: {
     name: 'Dart Board', type: 'trinket', rarity: 'uncommon', weight: 1, stack: 3, value: 2000,
-    desc: 'A well-used dart board. Someone pinned an ARK flyer to it and missed every single time.',
+    desc: 'Dart board full of holes, with an ARK flyer pinned to it that somehow never got hit once.',
     icon: 'trinket', tags: ['trinket'],
   },
   doodly_duck: {
     name: 'Meeting Notes Duck', type: 'trinket', rarity: 'rare', weight: 0.3, stack: 15, value: 3000,
-    desc: 'A rubber duck covered in doodles from a meeting that could have been an email.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Rubber duck scribbled all over during a meeting that could have been an email.', icon: 'trinket', tags: ['trinket'],
   },
   elephant_obelisk: {
     name: 'Elephant Obelisk', type: 'trinket', rarity: 'legendary', weight: 0.5, stack: 1, value: 10000,
-    desc: 'An ornate carved elephant obelisk. Nobody knows why, but rich people used to buy these.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Carved elephant on a decorative pillar. Nobody knows why, but rich people used to buy these.',
+    icon: 'trinket', tags: ['trinket'],
   },
   empty_wine_bottle: {
     name: 'Empty Wine Bottle', type: 'trinket', rarity: 'common', weight: 0.2, stack: 5, value: 1000,
-    desc: 'An empty bottle; the party ended years ago. Pair it with agave to brew Agave Juice.', icon: 'trinket', tags: ['trinket'],
+    desc: 'The party ended years ago; the bottle stayed. Pair it with agave to brew Agave Juice.', icon: 'trinket', tags: ['trinket'],
   },
   equatorial_sundial: {
     name: 'Equatorial Sundial', type: 'trinket', rarity: 'rare', weight: 0.5, stack: 3, value: 3000,
-    desc: 'A brass equatorial sundial. Accurate to the minute on the one day it isn\'t cloudy.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Brass sundial tilted for the equator. Accurate to the minute on the one day it isn\'t cloudy.',
+    icon: 'trinket', tags: ['trinket'],
   },
   expired_pasta: {
     name: 'Expired Pasta', type: 'trinket', rarity: 'common', weight: 0.1, stack: 15, value: 1000,
@@ -2690,36 +2703,37 @@ export const ITEMS = {
   },
   faded_photograph: {
     name: 'Faded Photograph', type: 'trinket', rarity: 'common', weight: 0.3, stack: 15, value: 640,
-    desc: 'Strangers smiling at a beach. Nobody knows whose it is. Everyone agrees it looks nice.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Washed-out snapshot of smiling strangers on a beach. Nobody knows whose it is. Everyone agrees it looks nice.',
+    icon: 'trinket', tags: ['trinket'],
   },
   familiar_duck: {
     name: 'Deja Duck', type: 'trinket', rarity: 'epic', weight: 0.3, stack: 15, value: 7000,
-    desc: 'A rubber duck that looks oddly familiar. You\'ve definitely looted this duck before. Haven\'t you?',
+    desc: 'Rubber duck with an oddly familiar face. You\'ve definitely looted this duck before. Haven\'t you?',
     icon: 'trinket', tags: ['trinket'],
   },
   film_reel: {
     name: 'Film Reel', type: 'trinket', rarity: 'rare', weight: 0.2, stack: 3, value: 2000,
-    desc: 'A reel of pre-war film. Possibly a lost classic. Possibly a toothpaste commercial.',
+    desc: 'Spool of old-world film. Possibly a lost classic. Possibly a toothpaste commercial.',
     icon: 'trinket', tags: ['trinket'],
   },
   fine_wristwatch: {
     name: 'Fine Wristwatch', type: 'trinket', rarity: 'rare', weight: 0.2, stack: 3, value: 3000,
-    desc: 'A luxury wristwatch, still ticking. Worth more than the Raider wearing it, and the Raider next to them.',
+    desc: 'Fancy watch that never stopped ticking. Worth more than the Raider wearing it, and the Raider next to them.',
     icon: 'trinket', tags: ['trinket'],
   },
   flashy_duck: {
     name: 'Influencer Duck', type: 'trinket', rarity: 'rare', weight: 0.3, stack: 15, value: 3000,
-    desc: 'A sequined rubber duck with more followers than any Raider. Only photographed from its good side.',
+    desc: 'Rubber duck in head-to-toe sequins, with more followers than any Raider. Only photographed from its good side.',
     icon: 'trinket', tags: ['trinket'],
   },
   frosty_duck: {
     name: 'Brain Freeze Duck', type: 'trinket', rarity: 'rare', weight: 0.3, stack: 15, value: 3000,
-    desc: 'A frosted-blue rubber duck, cold to the touch. Squeezing it hurts your forehead somehow.',
+    desc: 'Icy-blue rubber duck that\'s always cold to the touch. Squeezing it hurts your forehead somehow.',
     icon: 'trinket', tags: ['trinket'],
   },
   gentle_duck: {
     name: 'Emotional Support Duck', type: 'trinket', rarity: 'uncommon', weight: 0.3, stack: 15, value: 1000,
-    desc: 'A soft, smiling rubber duck. Listens to your extraction stories without judgment.',
+    desc: 'Soft rubber duck with a kind little smile. Listens to your extraction stories without judgment.',
     icon: 'trinket', tags: ['trinket'],
   },
   lantzs_mixtape_5th_edition: {
@@ -2729,100 +2743,102 @@ export const ITEMS = {
   },
   light_bulb: {
     name: 'Light Bulb', type: 'trinket', rarity: 'uncommon', weight: 0.2, stack: 3, value: 2000,
-    desc: 'A working incandescent bulb. Somewhere, someone just had an idea.',
+    desc: 'Old-style glass bulb that still lights up. Somewhere, someone just had an idea.',
     icon: 'trinket', tags: ['trinket'],
   },
   mri_duck: {
     name: 'Second Opinion Duck', type: 'trinket', rarity: 'legendary', weight: 0.3, stack: 15, value: 10000,
-    desc: 'A rubber duck printed with its own X-ray. Extremely rare. Diagnosis: still a duck.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Rubber duck wearing its own X-ray, and a rare find. Diagnosis: still a duck.', icon: 'trinket', tags: ['trinket'],
   },
   music_album: {
     name: 'Music Album', type: 'trinket', rarity: 'rare', weight: 0.3, stack: 3, value: 3000,
-    desc: 'A vinyl record in its sleeve. Sounds warmer than the apocalypse, which isn\'t hard.',
+    desc: 'Record in its cardboard sleeve, sounding warmer than the apocalypse, which isn\'t hard.',
     icon: 'trinket', tags: ['trinket'],
   },
   music_box: {
     name: 'Music Box', type: 'trinket', rarity: 'rare', weight: 0.4, stack: 3, value: 5000,
-    desc: 'A wind-up music box that still plays. Its tune will be stuck in your head for the whole raid.',
+    desc: 'Wind it up and it still plinks out a tune that\'ll be stuck in your head for the whole raid.',
     icon: 'trinket', tags: ['trinket'],
   },
   painted_box: {
     name: 'Painted Box', type: 'trinket', rarity: 'uncommon', weight: 0.3, stack: 3, value: 2000,
-    desc: 'A hand-painted wooden box. Contains a smaller box, then nothing at all. Very zen.',
+    desc: 'Wooden box decorated by hand. Contains a smaller box, then nothing at all. Very zen.',
     icon: 'trinket', tags: ['trinket'],
   },
   playing_cards: {
     name: 'Playing Cards', type: 'trinket', rarity: 'rare', weight: 0.2, stack: 3, value: 5000,
-    desc: 'A complete deck of vintage playing cards. Every Raider claims to know a trick. None of them do.',
+    desc: 'Full deck of old-timey cards. Every Raider claims to know a trick. None of them do.',
     icon: 'trinket', tags: ['trinket'],
   },
   poster_of_natural_wonders: {
     name: 'Poster Of Former Wonders', type: 'trinket', rarity: 'uncommon', weight: 0.3, stack: 3, value: 2000,
-    desc: 'A poster of beautiful places that now belong to the ARK. Inspiring, in a sad sort of way.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Glossy print of gorgeous scenery that now belongs to the ARK. Inspiring, in a sad sort of way.',
+    icon: 'trinket', tags: ['trinket'],
   },
   pottery: {
     name: 'Pottery', type: 'trinket', rarity: 'uncommon', weight: 0.3, stack: 3, value: 2000,
-    desc: 'A glazed clay pot. Handmade, slightly lopsided, priceless to exactly one person.',
+    desc: 'Shiny glazed pot, handmade and slightly lopsided. Priceless to exactly one person.',
     icon: 'trinket', tags: ['trinket'],
   },
   red_coral_jewelry: {
     name: 'Red Coral Jewelry', type: 'trinket', rarity: 'rare', weight: 0.3, stack: 3, value: 5000,
-    desc: 'A necklace of polished red coral. Rarer now than the reef it came from, which says a lot.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Red coral necklace, rarer now than the reef it came from, which says a lot.', icon: 'trinket', tags: ['trinket'],
   },
   rosary: {
     name: 'Rosary', type: 'trinket', rarity: 'rare', weight: 0.3, stack: 3, value: 2000,
-    desc: 'A wooden rosary. Raiders hold one tight during extraction countdowns, just in case.',
+    desc: 'String of wooden prayer beads. Raiders hold one tight during extraction countdowns, just in case.',
     icon: 'trinket', tags: ['trinket'],
   },
   rubber_duck: {
     name: 'Rubber Duck', type: 'trinket', rarity: 'common', weight: 0.3, stack: 15, value: 1000,
-    desc: 'A classic yellow rubber duck. Debugging companion. Has seen things.',
+    desc: 'The original yellow squeaker. Debugging companion. Has seen things.',
     icon: 'trinket', tags: ['trinket'],
   },
   sextant: {
     name: 'Sextant', type: 'trinket', rarity: 'uncommon', weight: 0.5, stack: 5, value: 2000,
-    desc: 'A navigator\'s sextant. Useless without stars, a map or the faintest idea where you are.',
+    desc: 'Brass star-measuring gizmo for sailors. Useless without stars, a map or the faintest idea where you are.',
     icon: 'trinket', tags: ['trinket'],
   },
   silver_teaspoon_set: {
     name: 'Silver Teaspoon Set', type: 'trinket', rarity: 'rare', weight: 0.3, stack: 3, value: 3000,
-    desc: 'A boxed set of silver teaspoons. Somebody\'s wedding present, finally useful as currency.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Little silver spoons in a velvet box: somebody\'s wedding present, finally useful as currency.',
+    icon: 'trinket', tags: ['trinket'],
   },
   statuette: {
     name: 'Statuette', type: 'trinket', rarity: 'rare', weight: 0.3, stack: 3, value: 3000,
-    desc: 'A small porcelain statuette frozen mid-pose. One bump away from being called \'pieces\'.',
+    desc: 'Dainty porcelain figure frozen mid-pose. One bump away from being called \'pieces\'.',
     icon: 'trinket', tags: ['trinket'],
   },
   tellurion: {
     name: 'Tellurion', type: 'trinket', rarity: 'epic', weight: 0.5, stack: 1, value: 7000,
-    desc: 'A clockwork model of the sun, earth and moon. Shows the planet doing fine, which is a lie.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Clockwork sun, earth and moon on little arms. Shows the planet doing fine, which is a lie.', icon: 'trinket', tags: ['trinket'],
   },
   torn_book: {
     name: 'Torn Book', type: 'trinket', rarity: 'common', weight: 0.3, stack: 5, value: 1000,
-    desc: 'A paperback missing half its pages. The half with the ending, naturally.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Paperback with half its pages gone. The half with the ending, naturally.', icon: 'trinket', tags: ['trinket'],
   },
   train_model: {
     name: 'Train Model', type: 'trinket', rarity: 'common', weight: 0.5, stack: 10, value: 1000,
-    desc: 'A model locomotive. The only train in Desperanza that has ever run on time.',
+    desc: 'Miniature steam engine. The only train in Desperanza that has ever run on time.',
     icon: 'trinket', tags: ['trinket'],
   },
   tropical_duck: {
     name: 'Staycation Duck', type: 'trinket', rarity: 'uncommon', weight: 0.3, stack: 15, value: 1000,
-    desc: 'A rubber duck in a tiny grass skirt. The closest anyone underground gets to a beach.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Hula-skirted rubber duck. The closest anyone underground gets to a beach.', icon: 'trinket', tags: ['trinket'],
   },
   vase: {
     name: 'Vase', type: 'trinket', rarity: 'rare', weight: 0.3, stack: 3, value: 3000,
-    desc: 'An intact decorative vase. Proof that something fragile survived all this.',
+    desc: 'Decorative vase without a single crack. Proof that something fragile survived all this.',
     icon: 'trinket', tags: ['trinket'],
   },
   very_comfortable_pillow: {
     name: 'Very Comfortable Pillow', type: 'trinket', rarity: 'uncommon', weight: 0.3, stack: 3, value: 2000,
-    desc: 'It really is very comfortable. You will never use it. You will carry it home anyway. Nugget wants three.',
+    desc: 'So soft it should be illegal. You will never use it. You will carry it home anyway. Nugget wants three.',
     icon: 'trinket', tags: ['trinket'],
   },
   vintage_steering_wheel: {
     name: 'Vintage Steering Wheel', type: 'trinket', rarity: 'uncommon', weight: 0.5, stack: 5, value: 2000,
-    desc: 'A wooden steering wheel from a classic car. Now all you need is the rest of the car.', icon: 'trinket', tags: ['trinket'],
+    desc: 'Wooden wheel off a classic car. Now all you need is the rest of the car.', icon: 'trinket', tags: ['trinket'],
   },
 
   // ======================================================================
@@ -2830,83 +2846,87 @@ export const ITEMS = {
   // ======================================================================
   celestas_journal: {
     name: 'Auntie Synergy\'s Journal', type: 'quest', rarity: 'common', weight: 0.25, stack: 1, value: 0,
-    desc: 'A page from Auntie Synergy\'s private journal. Mostly vision statements and passive-aggressive margin notes.',
+    desc: 'Torn-out diary page from Auntie Synergy. Mostly vision statements and passive-aggressive margin notes.',
     icon: 'quest', tags: ['quest'],
   },
   moisture_meter: {
     name: 'Moisture Meter', type: 'quest', rarity: 'common', weight: 0.5, stack: 1, value: 0,
-    desc: 'Soil moisture probe for the Desperanza gardens. Reads \'dry\', which you could have told it.', icon: 'quest', tags: ['quest'],
+    desc: 'Probe that tells the Desperanza gardeners how wet the dirt is. Reads \'dry\', which you could have told it.',
+    icon: 'quest', tags: ['quest'],
   },
   nutrient_meter: {
     name: 'Nutrient Meter', type: 'quest', rarity: 'common', weight: 0.5, stack: 1, value: 0,
-    desc: 'Soil nutrient tester for the Desperanza gardens. The soil isn\'t getting enough. Same, soil. Same.',
+    desc: 'Gadget that checks what the Desperanza soil is missing. Answer: everything. Same, soil. Same.',
     icon: 'quest', tags: ['quest'],
   },
   lidar_scanner: {
     name: 'LiDAR Scanner', type: 'quest', rarity: 'common', weight: 0.25, stack: 1, value: 0,
-    desc: 'A surveying LiDAR scanner. Maps rooms in 3D so you can see exactly how empty they are.',
+    desc: 'Laser surveying scanner that maps rooms in 3D, so you can see exactly how empty they are.',
     icon: 'quest', tags: ['quest'],
   },
   esr_analyzer: {
     name: 'ESR Analyzer', type: 'quest', rarity: 'common', weight: 0.25, stack: 1, value: 0,
-    desc: 'An electron spin resonance analyser. Spins electrons, resonates, analyses. That\'s the whole pitch.',
+    desc: 'Lab box that measures electron spin resonance. Spins electrons, resonates, analyses. That\'s the whole pitch.',
     icon: 'quest', tags: ['quest'],
   },
   old_world_books: {
     name: 'Old World Books', type: 'quest', rarity: 'common', weight: 0.25, stack: 1, value: 0,
-    desc: 'A bundle of pre-war books for the library. Several are about investing. Hindsight is brutal.', icon: 'quest', tags: ['quest'],
+    desc: 'Stack of pre-war books for the library. Several are about investing. Hindsight is brutal.', icon: 'quest', tags: ['quest'],
   },
   possibly_toxic_plant: {
     name: 'Possibly Toxic Plant', type: 'quest', rarity: 'common', weight: 0.25, stack: 1, value: 0,
-    desc: 'A plant sample that may or may not be toxic. Handle with gloves, or ideally someone else\'s hands.',
+    desc: 'Leafy sample of unknown toxicity. Use gloves, or ideally someone else\'s hands.',
     icon: 'quest', tags: ['quest'],
   },
   espresso_machine_parts: {
     name: 'Espresso Machine Parts', type: 'quest', rarity: 'common', weight: 0.25, stack: 1, value: 0,
-    desc: 'Parts to fix the best coffee machine underground. Desperanza\'s entire morale is riding on this.',
+    desc: 'Spare bits for the best coffee machine underground. Desperanza\'s entire morale is riding on this.',
     icon: 'quest', tags: ['quest'],
   },
   stack_of_movie_tapes: {
     name: 'Stack Of Movie Tapes', type: 'quest', rarity: 'common', weight: 0.5, stack: 1, value: 0,
-    desc: 'Old movie tapes for movie night. Nobody can agree on what to watch, so nothing has changed.', icon: 'quest', tags: ['quest'],
+    desc: 'Bundle of old videotapes for movie night. Nobody can agree on what to watch, so nothing has changed.',
+    icon: 'quest', tags: ['quest'],
   },
   dusty_film_reel: {
     name: 'Dusty Film Reel', type: 'quest', rarity: 'common', weight: 0.5, stack: 1, value: 0,
-    desc: 'A dusty film reel of unknown footage. Probably a training video. Probably about the ARK. Probably bad.',
+    desc: 'Reel of mystery footage under a thick coat of dust. Probably a training video. Probably about the ARK. Probably bad.',
     icon: 'quest', tags: ['quest'],
   },
   precision_gimbal: {
     name: 'Precision Gimbal', type: 'quest', rarity: 'common', weight: 0.5, stack: 1, value: 0,
-    desc: 'A camera gimbal with precision bearings. Keeps every shot steady, unlike your hands.', icon: 'quest', tags: ['quest'],
+    desc: 'Camera stabiliser with fine bearings. Keeps every shot steady, unlike your hands.', icon: 'quest', tags: ['quest'],
   },
   experimental_seed_sample: {
     name: 'Experimental Seed Sample', type: 'quest', rarity: 'common', weight: 0.25, stack: 1, value: 0,
-    desc: 'A sealed vial of engineered seeds. Do not plant without a signed waiver and a long stick.', icon: 'quest', tags: ['quest'],
+    desc: 'Lab-grown seeds locked in a vial. Do not plant without a signed waiver and a long stick.', icon: 'quest', tags: ['quest'],
   },
   first_wave_compass: {
     name: 'Beta Test Compass', type: 'quest', rarity: 'common', weight: 0.25, stack: 1, value: 0,
-    desc: 'A compass carried during the Beta Test. Still points north, which is more than the Beta Test ever did.',
+    desc: 'Compass from the Beta Test. Still points north, which is more than the Beta Test ever did.',
     icon: 'quest', tags: ['quest'],
   },
   first_wave_rations: {
     name: 'Beta Test Rations', type: 'quest', rarity: 'common', weight: 0.25, stack: 1, value: 0,
-    desc: 'Ration packs from the Beta Test. Known issues include flavour, texture and the expiry date.', icon: 'quest', tags: ['quest'],
+    desc: 'Emergency food left over from the Beta Test. Known issues include flavour, texture and the expiry date.',
+    icon: 'quest', tags: ['quest'],
   },
   first_wave_tape: {
     name: 'Beta Test Tape', type: 'quest', rarity: 'common', weight: 0.25, stack: 1, value: 0,
-    desc: 'An audio tape recorded during the Beta Test. Mostly bug reports, delivered by shouting.', icon: 'quest', tags: ['quest'],
+    desc: 'Cassette someone recorded during the Beta Test. Mostly bug reports, delivered by shouting.', icon: 'quest', tags: ['quest'],
   },
   raider_flag: {
     name: 'Raider Flag', type: 'quest', rarity: 'common', weight: 0.25, stack: 1, value: 0,
-    desc: 'A Raider flag to plant at a contested landmark. Claiming things is half of what Raiders do.', icon: 'quest', tags: ['quest'],
+    desc: 'Raider banner for planting on a contested landmark. Claiming things is half of what Raiders do.', icon: 'quest', tags: ['quest'],
   },
   scout_patrol_note: {
     name: 'Scout Patrol Note', type: 'quest', rarity: 'common', weight: 0.5, stack: 1, value: 0,
-    desc: 'Handwritten notes left by a scout patrol. Terrible handwriting, even worse news.', icon: 'quest', tags: ['quest'],
+    desc: 'Scribbles from a scouting party. Terrible handwriting, even worse news.', icon: 'quest', tags: ['quest'],
   },
   official_shutdown_documentation: {
     name: 'Official Shutdown Documentation', type: 'quest', rarity: 'common', weight: 0.5, stack: 1, value: 0,
-    desc: 'Paperwork about an old facility shutdown. Forty pages, one signature, zero explanations.', icon: 'quest', tags: ['quest'],
+    desc: 'The official file on why some facility was shut down. Forty pages, one signature, zero explanations.',
+    icon: 'quest', tags: ['quest'],
   },
 
   // ======================================================================

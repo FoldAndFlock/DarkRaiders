@@ -178,18 +178,14 @@ function mzTick(now) {
 requestAnimationFrame(mzTick);
 
 // ---------------------------------------------------------------- sfx
-// per-weapon rows: name (ARC Raiders counterpart) + fire / far / reload / charge buttons
-const REAL = { kettel: 'Kettle', rattlr: 'Rattler', arpeggo: 'Arpeggio', tempesta: 'Tempest', betina: 'Bettina', ferrox: 'Ferro', renegayde: 'Renegade',
-  afelion: 'Aphelion', stitchr: 'Stitcher', canta: 'Canto', bobkat: 'Bobcat', el_torro: 'Il Toro', volcano: 'Vulcano', dolabre: 'Dolabra', hairpyn: 'Hairpin',
-  burleta: 'Burletta', venattor: 'Venator', anvill: 'Anvil', torrento: 'Torrente', ospray: 'Osprey', jupitor: 'Jupiter', raskal: 'Rascal',
-  hullkracker: 'Hullcracker', equaliser: 'Equalizer' };
+// per-weapon rows: name (item id) + fire / far / reload / charge buttons
 const LX0 = 50, LZ0 = 50;
 const usedByWeapons = new Set();
 for (const [id, it] of Object.entries(ITEMS)) {
   if (it.type !== 'weapon') continue;
   const row = document.createElement('div'); row.className = 'row'; row.style.marginBottom = '2px';
   const w = it.weapon, lab = document.createElement('label'); lab.style.minWidth = '210px';
-  lab.textContent = `${it.name} (${REAL[id] || '?'}) · ${w.mode}`;
+  lab.textContent = `${it.name} (${id}) · ${w.mode}`;
   row.append(lab);
   const add = (txt, fn) => { const b = document.createElement('button'); b.textContent = txt; b.onclick = fn; row.append(b); };
   const fire = gunSoundFor(id);

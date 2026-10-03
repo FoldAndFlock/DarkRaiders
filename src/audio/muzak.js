@@ -35,13 +35,14 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const R0 = rng(1958);
 const finish = (x, p = 0.9) => { hp1(x, 20); norm(x, p); return x; };
 export const MZ_INST = {
-  // vibraphone: sine bar + its tuned 4th partial + mallet tick, motor tremolo
-  mz_vibes: { root: 72, adsr: [0.002, 2.6, 0.55, 0.7], vol: 0.36, poly: 6, r() {
-    const f = mtof(72), d = 3.2, x = buf(d);
+  // vibraphone: sine bar + its tuned 4th partial + mallet tick, motor tremolo (sampled at A5, the middle of
+  // the tune, so the baked tremolo stays ~4-7 Hz over the melody's range)
+  mz_vibes: { root: 81, adsr: [0.002, 2.6, 0.55, 0.7], vol: 0.36, poly: 6, r() {
+    const f = mtof(81), d = 3.2, x = buf(d);
     const a = osc(d, { f }); ad(a, 0.002, 3.0); mix(x, a, 1);
     const p4 = osc(d, { f: f * 4.0 }); ad(p4, 0.001, 0.8); mix(x, p4, 0.24);
     const tk = osc(0.2, { f: f * 9.92 }); ad(tk, 0.0005, 0.08); mix(x, tk, 0.07);
-    am(x, 5.4, 0.3);
+    am(x, 5.2, 0.3);
     return { data: finish(x) };
   } },
   // upright bass: rounded pluck, the pitch settles after the attack, finger thump; 2nd harmonic survives a small speaker
@@ -75,7 +76,6 @@ const SHARED = ['ep', 'strings', 'kick', 'rim', 'shaker'];
 // ------------------------------------------------------------------ "Please Hold" (16 bars, F major)
 const rep = (s, n) => Array(n).fill(s).join(' ');
 const bars = (n) => `.:${n * 16}`;
-const E = (n) => '.'.repeat(n);
 // A: Fmaj7 | Gm7 C7 | Fmaj7 | Bbmaj7 Bbm6 | Am7 D7b9 | Gm7 C7 | Fmaj7 Dm7 | Gm7 C7
 // B: Dm7 | G7 | Gm7 | C7 | Am7 D7b9 | Gm7 C7 | F6 Dm7 | Gm7 Gb7  (-> the finale's Fmaj9 + ding)
 const CH_A = 'Fmaj7 Gm7:8 C7:8 Fmaj7 Bbmaj7:8 Bbm6:8 Am7:8 D7b9:8 Gm7:8 C7:8 Fmaj7:8 Dm7:8 Gm7:8 C7:8';

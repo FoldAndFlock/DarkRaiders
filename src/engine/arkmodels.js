@@ -78,7 +78,7 @@ export const AK = {
   r0: 0x40261a, r1: 0x6a3920, r2: 0x8f5126,
   y0: 0xe6a21c, y1: 0xd06c18, y2: 0x8e5a1a, bk: 0x15161a,
   cer: 0xb6b2a5, cer2: 0x9a968b, cer3: 0xcdc9bc, cu: 0xad6a30,
-  tie: 0x7a2428, cap: 0x8e3a2c, tl: 0x2c8a84,   // accents: Middle Manager necktie, Parkour Dad cap, Vape Lord trim
+  tie: 0x7a2428, cap: 0x6c2e29, tl: 0x2a6e6a,   // accents: Middle Manager necktie, Parkour Dad cap, Vape Lord trim
   // glowing (emissive) colours
   EYE: 0xff7424, EYE2: 0xffd2a8,          // pulsing sensor eyes        -> eyeMat
   HOT: 0xffa018, HOT2: 0xffe486, HOTR: 0xff4416,  // pulsing weak points / cores -> hotMat
