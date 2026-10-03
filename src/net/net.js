@@ -7,6 +7,8 @@ import { HostSession } from '../game/session.js';
 const PREFIX = 'darkraiders-';
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const NET_VERSION = 1;
+// the deployed build (each deploy lives under v/<sha>/): host and client must run the same one
+export const BUILD = (import.meta.url.match(/\/v\/([0-9a-f]{6,})\//) || [])[1] || 'dev';
 export function makeCode(n = 5) { let s = ''; for (let i = 0; i < n; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]; return s; }
 
 // ------------------------------------------------------------------ transports
@@ -41,12 +43,13 @@ class PeerTransport {
       this.peer.on('open', () => {
         const c = this.peer.connect(PREFIX + code.toUpperCase(), { reliable: true, serialization: 'json' });
         const to = setTimeout(() => rej(new Error('Could not reach that squad (code wrong or host offline)')), 15000);
-        c.on('open', () => { clearTimeout(to); this._wire(c); res(); });
+        // the host's connection is known as 'host' on this side (Net sends to 'host', like LocalTransport)
+        c.on('open', () => { clearTimeout(to); this._wire(c, 'host'); res(); });
       });
     });
   }
-  _wire(c) {
-    const id = c.peer;
+  _wire(c, alias = null) {
+    const id = alias || c.peer;
     this.conns.set(id, c);
     const ready = () => { this.emit('connect', id); };
     if (c.open) ready(); else c.on('open', ready);
@@ -115,7 +118,7 @@ export class Net {
   async join(code) {
     this.isHost = false; this.code = code.toUpperCase().trim();
     await this.t.join(this.code);
-    this.t.send('host', { k: 'hello', v: NET_VERSION, ...this.me() });
+    this.t.send('host', { k: 'hello', v: NET_VERSION, build: BUILD, ...this.me() });
   }
   leave() { this.t.close(); this.members = []; this.emit('closed'); }
   lobbyState() { return { code: this.code, members: this.members, map: this.map, host: this.isHost }; }
@@ -162,6 +165,7 @@ export class Net {
   hostMsg(from, m) {
     switch (m.k) {
       case 'hello': {
+        if ((m.build && m.build !== BUILD && BUILD !== 'dev' && m.build !== 'dev') || (m.v && m.v !== NET_VERSION)) { this.t.send(from, { k: 'oldver' }); return; }
         if (this.members.length >= 4) { this.t.send(from, { k: 'full' }); return; }
         if (this.game) { this.t.send(from, { k: 'busy' }); return; }
         const used = new Set(this.members.map(x => x.slot)); let slot = 1; while (used.has(slot)) slot++;
@@ -265,6 +269,7 @@ export class Net {
     switch (m.k) {
       case 'welcome': this.mySlot = m.slot; break;
       case 'full': this.emit('error', new Error('That squad is full (4/4)')); break;
+      case 'oldver': this.emit('error', new Error('You and the host are on different versions of the game - both close and reopen it, then try again')); break;
       case 'busy': this.emit('error', new Error('That squad is already in a raid - try again when they return')); break;
       case 'lobby': this.members = m.s.members; this.map = m.s.map; this.emit('lobby', m.s); break;
       case 'chat': this.emit('chat', m); if (this.game) this.game.onChat({ from: m.from, text: m.text, slot: m.slot }); break;
@@ -279,7 +284,11 @@ export class Net {
   // RaidGame (client) asks for its entity
   async clientJoinRaid(game, sp) {
     this.game = game;
-    const you = this.myEnt || await new Promise(r => this._youResolve = r);
+    // the host hands us our raider once it has loaded; give up (back to the lobby) if that never comes
+    const you = this.myEnt || await new Promise((r, rej) => {
+      this._youResolve = r;
+      setTimeout(() => { if (this._youResolve === r) { this._youResolve = null; rej(new Error('The host never sent your raider - check the connection and try again')); } }, 45000);
+    });
     const e = { id: you.id, type: 'raider', x: you.x, z: you.z, y: you.y ?? game.world.grid.floorAt(you.x, you.z, game.world.groundAt(you.x, you.z) + 0.5), f: 0, mf: 0, team: 1, slot: this.mySlot ?? 1,
       name: this.app.profile.name, outfit: this.app.profile.settings.outfit || 'scav', st: 'alive', hp: 100, maxHp: 100, sh: 0, shMax: 0, buffs: {}, stats: game.stats0 };
     game.ents.set(e.id, e);

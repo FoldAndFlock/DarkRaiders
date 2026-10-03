@@ -223,6 +223,7 @@ export class Screens {
         if (mode === 'join') setTimeout(() => inp.focus(), 50);
         if (this.netError) right.appendChild(el('div', 'red', this.netError));
       } else {
+        if (this.netError) right.appendChild(el('div', 'red', this.netError));
         const code = el('div', 'row', `<span class="label">INVITE CODE</span><span class="bold yellow" style="font-size:calc(var(--fs-b)*2);letter-spacing:calc(var(--px)*3px)">${net.code}</span>`);
         const cp = el('button', '', 'COPY'); cp.onclick = () => { navigator.clipboard?.writeText(net.code); cp.textContent = 'COPIED'; }; code.appendChild(cp);
         right.appendChild(code);
@@ -308,7 +309,8 @@ export class Screens {
     save(p);
     let quests = null; try { quests = await import('../game/quests.js'); } catch (e) { quests = null; }
     const shownBlocked = new Set();
-    const res = await startRaid({
+    let res;
+    try { res = await startRaid({
       mapId: opts.mapId, seed: opts.seed, condition: opts.condition, time: opts.time, weather: opts.weather, net: opts.net || null,
       objectives: quests ? () => quests.activeObjectives?.(p, opts.mapId) : null,
       onQuestEvent: quests ? (k, d) => {
@@ -322,7 +324,16 @@ export class Screens {
           }
         } catch (e) { console.warn(e); }
       } : null,
-    });
+    }); } catch (e) {
+      // the raid never got going (e.g. a squad member whose host never handed over their raider): back to
+      // the lobby with the reason instead of a loading screen that never finishes
+      console.warn('raid failed to start', e);
+      try { app.game?.R?.gl?.setAnimationLoop(null); app.game?.dispose?.(); } catch (x) { /* */ }
+      app.game = null; this.inRaid = false; p.stats.raids = Math.max(0, p.stats.raids - 1); save(p);
+      this.netError = String(e?.message || e || 'The raid failed to start');
+      if (this.net) this.lobby(); else this.hubScreen();
+      return;
+    }
     this.inRaid = false;
     this.results(res);
   }
