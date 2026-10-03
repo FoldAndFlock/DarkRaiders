@@ -67,9 +67,9 @@ Quest-referenced ids are marked ★ (ids are internal and never change).
 |---|---|---|---|
 | rage_quit_airshaft | Rage Quit Airshaft | airshaft | the Shelf, east (1034, 330) |
 | severance_airshaft | Severance Package Airshaft | airshaft | creek valley north of the lake (372, 268) |
-| early_retirement_airshaft | Early Retirement Airshaft | airshaft | south-west woods (128, 546) |
-| two_weeks_notice_airshaft | Two Weeks' Notice Airshaft | airshaft | south, east of the mesa (712, 690) |
-| village_doggy_door | Village Doggy Door | hatch | west of Lower Foreclosure (96, 120) |
+| early_retirement_airshaft | Early Retirement Airshaft | airshaft | south-west woods (146, 548) |
+| two_weeks_notice_airshaft | Two Weeks' Notice Airshaft | airshaft | south, east of the mesa (716, 714) |
+| village_doggy_door | Village Doggy Door | hatch | west of Lower Foreclosure (108, 122) |
 | quarry_doggy_door | Quarry Doggy Door | hatch | below the quarry (668, 150) |
 | orchard_doggy_door | Orchard Doggy Door | hatch | south of the toll plaza (452, 532) |
 | glampsite_doggy_door | Glampsite Doggy Door | hatch | south-east meadow (978, 748) |
