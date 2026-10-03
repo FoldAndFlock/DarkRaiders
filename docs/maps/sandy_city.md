@@ -13,9 +13,9 @@ yachts sitting on sand.
 | Region | Where | What it plays like |
 |---|---|---|
 | The town floor | centre | Slopes gently down (≈9.5 m → 6 m) to the old shoreline. Seven boulevards radiate from the **Roundabout of Regret**; asphalt ring lanes tie them together. Dense 2–5 storey frontage, sand drifts in the lanes. |
-| Upper Sandy | north-centre hill, x 280–530 / z 140–330 | The old town on a 7.5 m plateau. Sandstone retaining walls and cliffs to the north and east (ramps: the north road and the east stair street), the **Hourglass Terraces** stepping down the gentle south slope, the **Sandphitheatre** cut into the west flank. Cobbled lanes, Piazza Sandwich on top, a metro station under its west lanes. |
+| Upper Sandy | north-centre hill, x 280–530 / z 140–330 | The old town on a 7.5 m plateau. Sandstone retaining walls and cliffs to the north and east (a 1 m parapet with a capping bar on posts: nobody can climb onto or over it, but a standing raider shoots out under the cap; squat bastions at the corners; ramps: the north road and the east stair street), the **Hourglass Terraces** stepping down the gentle south slope, the **Sandphitheatre** cut into the west flank. Cobbled lanes, Piazza Sandwich on top, a metro station under its west lanes. |
 | The waterfront | east, along x ≈ 690–760 | Sea wall with a balustraded promenade, palms and lamps. Eight concrete slipways and eight wall ladders lead down to the sea bed. The marina basin (a notch in the wall) has four wooden piers you can walk on and under. |
-| The dry sea bed | east of the sea wall | Open, low (≈1 m), cracked flats and sand bars; stranded boats (**Yacht Rock Bottom**), the breakwater out to **the Red Flag** lighthouse (with a footbridge you can walk under), heavies on patrol. Dunes spill onto it north and south of the town. |
+| The dry sea bed | east of the sea wall | Open, low (≈1 m), cracked flats and sand bars; stranded boats (**Yacht Rock Bottom**), the breakwater out to **the Red Flag** lighthouse (with a footbridge you can walk under; a railing round the lighthouse platform, riprap boulders out past its foot), heavies on patrol. Dunes spill onto it north and south of the town. |
 | The Bypass | north edge | Elevated highway: an embankment through the north-west dunes, an overpass along the town's north edge, then a viaduct across the sea bed (the **Gridlock Campground** lives on it). Two collapsed spans; sand drifts ramp up onto it; a ladder up a pier at the camp. |
 | The dune sea | west and south | Tall dunes with buried houses (roofs and attic windows poking out), oases, rock outcrops, the **Sunk Cost Solar Farm**, the **Grains of Wrath** towers half swallowed on the town's west edge. |
 
@@ -28,7 +28,7 @@ Quest-referenced ids are marked ★ (ids are internal and never change).
 | piazza_romana ★ | Piazza Sandwich | Hilltop square: fountain, café terraces, market stalls, olive garden, café counters (desks/cabinets). |
 | escrow_chapel | Our Lady of Perpetual Escrow | Small chapel on the hill: pews, altar, a safe behind it. |
 | sandphitheatre | The Sandphitheatre | Stepped seating rings cut into the hill, a stage with columns, a raider band's abandoned rehearsal camp (raider cache). Boss arena. |
-| santa_marta_houses ★ | Hourglass Terraces | Three rows of terraced houses on the south slope, laundry lines, two raider caches in the lanes; one locked townhouse (`residential`). |
+| santa_marta_houses ★ | Hourglass Terraces | Three rows of terraced houses on the south slope, laundry lines, two raider caches in the lanes; the lane behind the middle row is banked up against its back walls, with steps down to the back door at its west end; one locked townhouse (`residential`). |
 | hospital ★ | St. Copay's Hospital | 4-storey, 3-wing hospital on the Clearance Sale Strip + outpatients wing; ambulances and a triage tent out front; locked Ward C on the 3rd floor (`hospital`). |
 | main_street ★ | Clearance Sale Strip | The western boulevard: shops, SALE boards, stalls, shopping carts, parked cars. |
 | piazza_arbusta ★ | The Roundabout of Regret | The hub: the Founder's statue pointing at where the sea used to be, palms, a ring of kiosks and stalls with desks and drawers. |
@@ -46,7 +46,7 @@ Quest-referenced ids are marked ★ (ids are internal and never change).
 | yacht_rock_bottom | Yacht Rock Bottom | The marina's fleet stranded on the sea bed north of the breakwater; lockers and safes aboard. Boss arena. |
 | abandoned_highway_camp ★ | Gridlock Campground | Tents, tarps, a fire and raider caches on the Bypass viaduct over the sea bed; sandbag walls at both ends. |
 | marino_park ★ | Low Tide Park | Promenade park between the marina and the breakwater: bandstand, dry fountain, beached pedal boats. |
-| red_tower ★ | The Red Flag | Red-and-white lighthouse at the end of the breakwater: stairs to the top, lantern on the roof, sniper perch. |
+| red_tower ★ | The Red Flag | Red-and-white lighthouse at the end of the breakwater: stairs to the top, lantern on the roof, sniper perch; a railed platform. |
 | sandy_properties ★ | Ocean View* Condos | Three condo towers on the south-east promenade, the Sandy Properties sales office, flags, a dry pool; locked show penthouse (`residential`). |
 | northern_station | Uphill Both Ways Station | Metro station under the hill's west lanes, between Piazza Sandwich and the Sandphitheatre. |
 | southern_station ★ | Signal Failure Station | Metro station on the outer ring lane, south. |
@@ -80,6 +80,14 @@ Quest-referenced ids are marked ★ (ids are internal and never change).
 * **Mass Layoffs**: a line of laid-off husks dumped on the sea bed south of the breakwater.
 * **Allergy Season**: extra plants in the parks and planters.
 * Boss arenas (`bossPoi`): the Sandphitheatre, Yacht Rock Bottom, the Sunk Cost Solar Farm (no boss in the roster today).
+
+## No dead ends
+`tools/stucktest.mjs` finds nothing on this map (with and without `bird_city`). The passes that keep it that
+way (end of `build`, no random draws, so the layout never shifts): uphill walls of buildings in a cut (the
+terraces, dune-banked blocks, the mall's dune) are banked up to the natural ground in its own paving, with steps
+down to a doorway that sits in the cut; stair flights 1.3 m from an outer wall have that strip walled in (or the
+slab closed over it where a doorway uses it); the hill's plateau runs right up to its parapet. Keep new terrain
+cuts, rock piles and wall-hugging stairs to the same rule: wide enough to walk out of, or closed.
 
 ## Numbers (build at the current seed)
 244 buildings, ≈ 14.9 k props, 693 containers (≈ 610 outside conditions), 132 ARK spawn groups, 8 extractions,

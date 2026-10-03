@@ -16,7 +16,8 @@
 // lined by a frontage planner; upper storeys of named places, roofs, plank bridges and ladders are walkable.
 import './props_sandy_city.js';
 import { propInfo } from '../engine/models.js';
-import { rotFrame, rotPt } from '../engine/world.js';
+import { TERRAIN } from '../engine/textures.js';
+import { rotFrame, rotPt, unrotPt } from '../engine/world.js';
 
 const MW = 900, MH = 900;
 const D2R = Math.PI / 180;
@@ -1006,6 +1007,19 @@ function shapeTerrain(ctx) {
     const fx = x / G, fz = z / G, i = Math.min(gw - 2, Math.floor(fx)), j = Math.min(gh - 2, Math.floor(fz)), u = fx - i, v = fz - j;
     return (hg[j * gw + i] * (1 - u) + hg[j * gw + i + 1] * u) * (1 - v) + (hg[(j + 1) * gw + i] * (1 - u) + hg[(j + 1) * gw + i + 1] * u) * v;
   }, 'set');
+  // Upper Sandy's walled cliffs: the 2 m lattice smears the plateau edge into a slope just inside the rim,
+  // a slot between the town wall and the plateau you could drop into but not climb out of. The plateau is
+  // held at full height up to the rim and 0.9 m past it, so the drop happens under the wall (hillWalls).
+  const walled = [];
+  for (let i = 0; i < HILL.length; i++) { const j = (i + 1) % HILL.length; if (HILL_W[i] <= 4 && HILL_W[j] <= 4) walled.push([HILL[i], HILL[j]]); }
+  const ramps = STREETS.filter(st => st[0] === 'northroad' || st[0] === 'eaststair').map(st => st[1]);
+  w.heightFn((x, z) => {
+    if (x < 286 || x > 545 || z < 132 || z > 280) return null;
+    let best = 1e9; for (const [[ax, az], [bx, bz]] of walled) best = Math.min(best, segDist(x, z, ax, az, bx, bz)[0]);
+    if (best > 3.5 || (best > 0.9 && !inPoly(x, z, HILL)) || ramps.some(r => polyDist(x, z, r)[0] < 7)) return null;
+    const d = sstep(0.03, 0.97, 1 - L.at(x, z));
+    return townH(x, z) + (d > 0.002 ? duneH(x, z) * d : 0) + HILL_H + (fbm(N3, x, z, 40) - 0.5) * 0.5;
+  }, 'max');
 }
 // works on the old shore: breakwater + lighthouse platform, boat slipways down the sea wall
 const SLIPS = [[708, 214, 1], [702, 268, 2], [624, 342, 3], [686, 398, 4], [721, 530, 5], [742, 610, 6], [775, 700, 7], [812, 778, 8]];
@@ -1611,12 +1625,15 @@ function jettyAndLighthouse(ctx) {
   for (const [a, b] of [JETTY, JETTY2]) {
     const L = Math.hypot(b[0] - a[0], b[1] - a[1]), ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L;
     for (let t = 2; t < L; t += 2.4) for (const sd of [-1, 1]) {
-      const r = 5.6 + rng() * 1.6, px = a[0] + ux * t - uz * sd * r, pz = a[1] + uz * t + ux * sd * r;
-      w.prop('rock', px, pz, rng() * 6, { solid: true, scale: 1.2 + rng() * 0.8 });
+      const r = 5.6 + rng() * 1.6, px = a[0] + ux * t - uz * sd * r, pz = a[1] + uz * t + ux * sd * r, rot = rng() * 6, sc = 1.2 + rng() * 0.8;
+      // riprap only out on the sea bed: on the promenade at the root boulders left notches you could drop into
+      if (ctx.isSea(px, pz) && polyDist(px, pz, COAST)[0] > 3) w.prop('rock', px, pz, rot, { solid: true, scale: sc });
     }
     for (let t = 6; t < L; t += 16) stLamp(w, a[0] + ux * t + uz * 2.9, a[1] + uz * t - ux * 2.9, { intensity: 1.4, range: 10 });
   }
-  for (let i = 0; i < 20; i++) { const a = 0.6 + rng() * 5.08, r = 13 + rng() * 3; w.prop('rock', LIGHTHOUSE[0] - Math.cos(a) * r, LIGHTHOUSE[1] + Math.sin(a) * r, rng() * 6, { solid: true, scale: 1.4 + rng() }); }   // riprap round the platform, the breakwater side left open
+  // riprap round the platform (the breakwater side left open), out on the flat sea bed past the platform's foot:
+  // boulders on its slope made crevices you could drop into from one rock and never leave
+  for (let i = 0; i < 20; i++) { const a = 0.6 + rng() * 5.08, r = 16.5 + rng() * 3; w.prop('rock', LIGHTHOUSE[0] - Math.cos(a) * r, LIGHTHOUSE[1] + Math.sin(a) * r, rng() * 6, { solid: true, scale: 1.4 + rng() }); }
   const LH = ctx.cxs.find(C => C.o.tag === 'lighthouse');
   if (LH) {
     // the lantern sits on the east half of the roof: the stair from the top storey comes up on the west side
@@ -1725,11 +1742,28 @@ function hillWalls(ctx) {
       if (roads.some(r => polyDist(px, pz, r)[0] < 6)) continue;
       const top = w.groundAt(px - nx * 1.5, pz - nz * 1.5), foot = Math.min(w.groundAt(px + nx * 2.4, pz + nz * 2.4), w.groundAt(px + nx * 4, pz + nz * 4));
       if (top - foot < 2) continue;
+      // the parapet: 1 m over the walk with a capping bar 1.55-1.75 m up on posts (posts visual only). Nobody can
+      // stand on it (or climb over and drop to the buttress notches at the cliff foot), and a standing raider
+      // still shoots out through the gap under the cap
+      let walk = top; for (const d of [0.2, 0.7, 1.1]) for (const e of [-0.9, 0, 0.9]) walk = Math.max(walk, w.groundAt(px - nx * d + ux * e, pz - nz * d + uz * e));
       const cx = px + nx * 0.55, cz = pz + nz * 0.55;
-      w.block(cx - 1.08, cz - 0.6, cx + 1.08, cz + 0.6, top - foot + 1.5, 'brick', { y0: foot - 0.6, rot: ang, tint: 0xf0d8b0, xray: true });
-      if (Math.round(t) % 12 === 1) { const bxx = px + nx * 1.6, bzz = pz + nz * 1.6; w.block(bxx - 0.7, bzz - 0.9, bxx + 0.7, bzz + 0.9, top - foot - 0.4, 'brick', { y0: foot - 0.5, rot: ang, tint: 0xe4c89c, xray: true }); }
-      if (Math.round(t) % 24 === 11) w.lamp(px - nx * 1.2, pz - nz * 1.2, { y: 2.8, color: 0xffd8a0, intensity: 1.2, range: 10, model: 'sc_lamppost' });
+      w.block(cx - 1.08, cz - 0.6, cx + 1.08, cz + 0.6, walk - foot + 1.6, 'brick', { y0: foot - 0.6, rot: ang, tint: 0xf0d8b0, xray: true });
+      w.block(cx - 1.08, cz - 0.6, cx + 1.08, cz + 0.6, 0.2, 'brick', { y0: walk + 1.55, rot: ang, tint: 0xe4c89c, xray: true });
+      w.block(cx - 0.12, cz - 0.12, cx + 0.12, cz + 0.12, 0.55, 'brick', { y0: walk + 1.0, rot: ang, tint: 0xe4c89c, xray: true, collide: false });
+      if (Math.round(t) % 12 === 1 && t > 3 && t < L - 3) { const bxx = px + nx * 1.6, bzz = pz + nz * 1.6; w.block(bxx - 0.7, bzz - 0.9, bxx + 0.7, bzz + 0.9, top - foot - 0.4, 'brick', { y0: foot - 0.5, rot: ang, tint: 0xe4c89c, xray: true }); }
+      if (Math.round(t) % 24 === 11) w.lamp(px - nx * 2.2, pz - nz * 2.2, { y: 2.8, color: 0xffd8a0, intensity: 1.2, range: 10, model: 'sc_lamppost' });   // (well clear of the wall: no pocket behind the post)
     }
+  }
+  // a squat bastion where two walled runs meet (their blocks leave a wedge open at the corner)
+  const outN = (i, j) => { const [ax, az] = HILL[i], [bx, bz] = HILL[j], L = Math.hypot(bx - ax, bz - az); let nx = -(bz - az) / L, nz = (bx - ax) / L; if (inPoly((ax + bx) / 2 + nx * 3, (az + bz) / 2 + nz * 3, HILL)) { nx = -nx; nz = -nz; } return [nx, nz]; };
+  for (let i = 0; i < n; i++) {
+    const h = (i + n - 1) % n, j = (i + 1) % n;
+    if (HILL_W[h] > 4 || HILL_W[i] > 4 || HILL_W[j] > 4) continue;
+    const [n1x, n1z] = outN(h, i), [n2x, n2z] = outN(i, j), bl = Math.hypot(n1x + n2x, n1z + n2z), bx = (n1x + n2x) / bl, bz = (n1z + n2z) / bl;
+    const [vx, vz] = HILL[i], foot = Math.min(w.groundAt(vx + bx * 2.6, vz + bz * 2.6), w.groundAt(vx + bx * 4, vz + bz * 4));
+    let walk = -1e9; for (const d of [0.3, 0.9, 1.5]) for (const e of [-1, 0, 1]) walk = Math.max(walk, w.groundAt(vx - bx * d - bz * e, vz - bz * d + bx * e));
+    const cx = vx + bx * 0.5, cz = vz + bz * 0.5;
+    w.block(cx - 1.5, cz - 1.5, cx + 1.5, cz + 1.5, walk - foot + 2.3, 'brick', { y0: foot - 0.6, rot: Math.atan2(bz, bx), tint: 0xe8cca0, xray: true });
   }
 }
 // ---- the Sandphitheatre: stage columns, drifted seats, a raider band's abandoned rehearsal
@@ -1810,6 +1844,7 @@ function mall(ctx) {
     return f > 0 ? Math.max(w.groundAt(x, z), lerp(w.groundAt(x, z), y - 0.15, f)) : null;
   }, 'set');
   for (let i = 0; i < 9; i++) w.paintCircle(i % 3 ? 'sand' : 'sandDark', wx - 4 - i * 2.2, wz - 8 + (i % 4) * 5, 7 - i * 0.4, 0.5, i);
+  for (let i = 0; i < 6; i++) w.paintCircle('sand', wx - 1.5, wz - 11 + i * 4.4, 3.2, 0.4, 20 + i);   // right up to the wall (backfill banks it there)
   w.bridge([[wx - 4, wz], [wx + 2.2, wz]], 2.4, y, 'wood', { thick: 0.2, rails: false, pillars: 0 });
   ctx.keepClear.push([wx - 10, wz, 12]);
   cafe(ctx, 530, 572, 6); cafe(ctx, 584, 574, 4);
@@ -2208,6 +2243,144 @@ function birdCity(ctx) {
 }
 
 // =====================================================================================================
+// NO DEAD ENDS: places a raider could drop into but not climb out of (tools/stucktest.mjs finds them).
+// These passes draw no random numbers, so the layout above never shifts.
+// =====================================================================================================
+// doorways of a storey a raider can use, as { u0, u1 } along the side (segment-relative). Upstairs ones lead
+// into the next wing; on the ground storey: into the next wing, onto ground within a metre of the floor (a ramp
+// was dug to it), or, in a cut up to 3.5 m deep, down a flight of steps that backfill() builds (steps: the
+// flight's span and rise). A doorway a dune has buried deeper (the mall's west door) counts as wall.
+function usableDoors(ctx, s, side, storey = 0) {
+  const { w, occ } = ctx, si = sideInfo(s, side), C = s.C, fy = C.floorY, reach = 0.5 + (C.o.sunk ? 0.8 : 1.6) + 0.1;
+  const out = (p, d) => toW(C, si.horiz ? p : si.fixed + si.out * d, si.horiz ? si.fixed + si.out * d : p);
+  const res = [];
+  for (const d of s.bb.def.doors || []) {
+    if (d.side !== side || (d.storey || 0) !== storey || d.sill) continue;
+    const u0 = d.at, u1 = d.at + d.w, door = { u0, u1 };
+    if (storey) { res.push(door); continue; }
+    const p = si.a + (u0 + u1) / 2, o = occ.at(...out(p, 1.2));
+    const rise = w.groundAt(...out(p, reach + 0.3)) - fy;
+    if ((o >= 0 && o < 90000 && o !== s.id) || rise < 1.0) { res.push(door); continue; }
+    if (rise > 3.5) continue;
+    // steps along the wall, rising away from a landing in front of the doorway (toward the longer side)
+    for (const dir of si.b - si.a - u1 > u0 ? [1, -1] : [-1, 1]) {
+      const st = dir > 0 ? u1 + 0.3 : u0 - 0.3, endRise = w.groundAt(...out(si.a + st + dir * rise / 0.36 * 0.55, reach + 0.3)) - fy;
+      const top = Math.max(rise, endRise), n = Math.ceil(top / 0.36), e = st + dir * n * 0.55;
+      if (Math.min(st, e) < 0.3 || Math.max(st, e) > si.b - si.a - 0.3) continue;
+      res.push({ u0, u1, steps: { from: st, dir, n, top } }); break;
+    }
+  }
+  return res;
+}
+// A building's ground flatten leaves a 0.5 m apron at floor level and a steep blend up to the natural
+// ground: on a slope (the Hourglass Terraces) or against a dune piled on a sunk block (Grains of Wrath, the
+// condos, the mall's dune) that is a slot along the uphill wall, too narrow to walk along and too steep to
+// climb. Those slots are banked up to the natural ground (in its own paving: a sand bank in the dunes, a
+// cobbled terrace step on the hill); doorways a raider can use keep their way in.
+function backfill(ctx) {
+  const { w, occ } = ctx;
+  const runs = [], flights = [];
+  for (const s of ctx.segs) {
+    if (!s.bb) continue;
+    // the blend is walkable (<= a step per grid cell) up to ~0.6 x its width; deeper cuts get banked
+    const C = s.C, fy = C.floorY, blend = C.o.sunk ? 0.8 : 1.6, reach = 0.5 + blend + 0.1, deep = 0.6 * blend;
+    for (const side of ['n', 's', 'w', 'e']) {
+      const si = sideInfo(s, side), open = [];
+      for (const d of usableDoors(ctx, s, side)) {
+        if (!d.steps) { open.push([si.a + d.u0 - 0.7, si.a + d.u1 + 0.7]); continue; }
+        const { from, dir, n, top } = d.steps, e = from + dir * n * 0.55;
+        open.push([si.a + Math.min(d.u0 - 0.3, e), si.a + Math.max(d.u1 + 0.3, e)]);
+        for (let k = 0; k < n; k++) flights.push({ s, si, reach, fy, a: si.a + from + dir * k * 0.55, b: si.a + from + dir * (k + 1) * 0.55, y: fy + top * (k + 1) / n });
+      }
+      const at = (p, d) => toW(C, si.horiz ? p : si.fixed + si.out * d, si.horiz ? si.fixed + si.out * d : p);
+      let cur = null;
+      for (let p = si.a - reach + 0.25; p < si.b + reach; p += 0.5) {
+        let top = null, tex = null;
+        if (!open.some(([u0, u1]) => p > u0 && p < u1)) {
+          const [gx, gz] = at(p, reach + 0.3), g = w.groundAt(gx, gz);
+          let free = g - fy > deep;
+          for (const d of [0.3, reach / 2, reach - 0.1]) { if (!free) break; const [x, z] = at(p, d), o = occ.at(x, z); if ((o !== -1 && o !== s.id) || ctx.onDeck(x, z)) free = false; }
+          if (free) { top = g; tex = TERRAIN[w.terrainAt(gx, gz)] || 'sand'; }
+        }
+        if (top != null && cur && tex === cur.tex && Math.abs(top - cur.t0) < 0.3 && p - cur.p1 < 0.6) { cur.p1 = p; cur.top = Math.max(cur.top, top); }
+        else { cur = top == null ? null : { s, side, si, p0: p, p1: p, t0: top, top, fy, reach, tex }; if (cur) runs.push(cur); }
+      }
+    }
+  }
+  // steps down to a doorway in a cut (the Hourglass Terraces' back doors)
+  for (const f of flights) {
+    const { s, si, reach } = f, o = si.out, c0 = si.fixed - (o < 0 ? reach : 0), c1 = si.fixed + (o > 0 ? reach : 0);
+    const a = Math.min(f.a, f.b), b = Math.max(f.a, f.b), rect = si.horiz ? [a, c0, b, c1] : [c0, a, c1, b];
+    w.block(rect[0], rect[1], rect[2], rect[3], f.y - f.fy + 0.4, 'concrete', { y0: f.fy - 0.4, R: s.C.R || undefined, step: true });
+  }
+  const boxes = [];
+  for (const r of runs) {
+    const { s, si, reach } = r, a = r.p0 - 0.25, b = r.p1 + 0.25, o = si.out;
+    const c0 = si.fixed - (o < 0 ? reach : 0), c1 = si.fixed + (o > 0 ? reach : 0);
+    const rect = si.horiz ? [a, c0, b, c1] : [c0, a, c1, b];
+    w.block(rect[0], rect[1], rect[2], rect[3], r.top - r.fy + 0.4, r.tex, { y0: r.fy - 0.4, R: s.C.R || undefined });
+    boxes.push({ C: s.C, rect, top: r.top });
+  }
+  // anything left standing in the slot sits on the bank now (an awning or a washing line over a buried
+  // stretch of wall goes)
+  const grid8 = new Map(), key = (x, z) => Math.floor(x / 8) * 1000 + Math.floor(z / 8);
+  for (const bx of boxes) {
+    const P = [[bx.rect[0], bx.rect[1]], [bx.rect[2], bx.rect[3]], [bx.rect[0], bx.rect[3]], [bx.rect[2], bx.rect[1]]].map(([x, z]) => toW(bx.C, x, z)), [x0, z0, x1, z1] = bounds(P);
+    for (let gx = Math.floor((x0 - 1) / 8); gx <= Math.floor((x1 + 1) / 8); gx++) for (let gz = Math.floor((z0 - 1) / 8); gz <= Math.floor((z1 + 1) / 8); gz++) { const k = gx * 1000 + gz; if (!grid8.has(k)) grid8.set(k, []); grid8.get(k).push(bx); }
+  }
+  const near = (x, z) => grid8.get(key(x, z)) || [];
+  const inBox = (x, z, m) => near(x, z).some(({ C, rect }) => { const [lx, lz] = C.R ? unrotPt(C.R, x, z) : [x, z]; return lx > rect[0] - m && lx < rect[2] + m && lz > rect[1] - m && lz < rect[3] + m; });
+  for (const c of w.containers) if (c.yAbs == null && !c.surface && !c.inHall && c.bid == null && inBox(c.x, c.z, 0.2)) c.surface = true;
+  // a roof ladder whose foot is now in the bank starts on top of it
+  for (const l of w.ladders) {
+    if (l.bid == null || l.inside) continue;
+    let top = -1e9; for (const bx of near(l.x0, l.z0)) { const [lx, lz] = bx.C.R ? unrotPt(bx.C.R, l.x0, l.z0) : [l.x0, l.z0]; if (lx > bx.rect[0] - 0.3 && lx < bx.rect[2] + 0.3 && lz > bx.rect[1] - 0.3 && lz < bx.rect[3] + 0.3) top = Math.max(top, bx.top); }
+    const s = ctx.segs.find(q => q.bid === l.bid);
+    if (s && top - s.C.floorY > (l.rel0 || 0)) l.rel0 = top - s.C.floorY;
+  }
+  w.props = w.props.filter(q => {
+    const o = q.opts || {};
+    if (o.yAbs != null || o.surface || o.bid != null || o.inHall || !inBox(q.x, q.z, 0)) return true;
+    if (/^sc_(awning|laundry)/.test(q.kind)) return false;
+    q.opts = { ...o, surface: true }; return true;
+  });
+  ctx.backfill = { runs: runs.length, steps: flights.length };
+}
+// Stairwells: a flight 1.3 m from an outer wall leaves a strip between them that the collision grid turns
+// into a slot narrower than a raider (worst in the turned wings), and the slab above is cut open over it.
+// Step off the flight's side or the floor above into it and you are wedged. A dead-end strip is walled in
+// up to the next floor; one a doorway opens into stays the way in, with the slab closed over it.
+function stairStrips(ctx) {
+  const { w } = ctx;
+  for (const s of ctx.segs) {
+    if (!s.flights || !s.bb) continue;
+    const C = s.C, W = s.x1 - s.x0, D = s.z1 - s.z0, R = C.R || undefined, H = s.bb.h;
+    const wall = C.o.wall || STYLE[C.kind].wall, tint = s.bb.def.tint ?? undefined;
+    const lev = (v) => (v === 'top' ? H + 0.25 : v * 3.2);
+    for (const f of s.flights) {
+      const alongZ = f.dir === 'n' || f.dir === 's', [rx0, rz0, rx1, rz1] = f.rect;
+      let a0 = alongZ ? rz0 : rx0, a1 = alongZ ? rz1 : rx1;
+      if (f.dir === 'n' || f.dir === 'w') a1 += 0.5; else a0 -= 0.5;            // + the hole's margin at the foot end
+      const y0 = lev(f.from), y1 = lev(f.to);
+      for (const [side, c0, c1] of alongZ ? [['w', 0, rx0], ['e', rx1, W]] : [['n', 0, rz0], ['s', rz1, D]]) {
+        if (c1 - c0 > 1.6) continue;
+        // a doorway in that wall uses the strip as its way in: then only the slab is closed over it
+        const passage = usableDoors(ctx, s, side, f.from).some(d => d.u1 > a0 - 0.6 && d.u0 < a1 + 0.6);
+        const r = alongZ ? [c0, a0, c1, a1] : [a0, c0, a1, c1];
+        w.block(s.x0 + r[0], s.z0 + r[1], s.x0 + r[2], s.z0 + r[3], passage ? 0.25 : y1 - y0, wall, { onBuilding: s.bid, rel0: passage ? y1 - 0.25 : y0, R, tint, cutaway: true });
+      }
+    }
+  }
+}
+// The Red Flag's platform ends in a 5 m drop to the sea bed (the riprap used to stand on that slope, its rock
+// pockets were dead ends; it now lies out past the foot): a railing round it, open toward the breakwater.
+function lighthouseRail(ctx) {
+  const { w } = ctx, [cx, cz] = LIGHTHOUSE, r = 10.3, gap = 0.5, pts = [];
+  for (let a = -Math.PI + gap; a <= Math.PI - gap + 1e-6; a += (2 * Math.PI - 2 * gap) / 36) pts.push([cx + Math.cos(a) * r, cz + Math.sin(a) * r]);
+  w.fence(pts, 1.35, 'rust', 0.1, { tint: 0xf4f0e8 });
+}
+
+// =====================================================================================================
 // GAMEPLAY MARKERS
 // =====================================================================================================
 // [id, display name, x, z, radius, tier]  (ids are internal and stable: quests target them)
@@ -2418,6 +2591,7 @@ export default {
     streetClutter(ctx); mark('clutter');
     birdCity(ctx);
     markers(ctx); mark('markers');
+    backfill(ctx); stairStrips(ctx); lighthouseRail(ctx); mark('no dead ends');
     if (typeof window === 'undefined' || globalThis.__mapDebug) this._ctx = ctx;   // debug hook for map tools only
   },
 };
