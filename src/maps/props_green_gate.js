@@ -98,7 +98,7 @@ P('gg_bb_quarry', () => billboard(['QUARTERLY QUARRY', 'TARGETS: MISSED'], { bg:
 P('gg_bb_fort', () => billboard(['FORT KNOCKS', 'NOBODY ANSWERS'], { bg: 0x5a4a32, fg: C.cream, trim: 0x8a7a56, s: 0.15, post: 1.4 }), { solid: [0.3, 0.3, 2] });
 P('gg_bb_squat', () => billboard(['NO TRESPASSING', '(EXCEPT US)'], { bg: C.woodL, fg: C.red, trim: C.woodD, s: 0.12, post: 0.8 }), { solid: [0.2, 0.2, 1.6] });
 P('gg_bb_trial', () => billboard(['FREE TRIAL', 'AUTO-RENEWS'], { bg: C.woodL, fg: C.black, trim: C.woodD, s: 0.12, post: 0.8 }), { solid: [0.2, 0.2, 1.6] });
-P('gg_bb_lake', () => billboard(['LAKE ESCROW', 'NO SWIMMING UNTIL CLOSING'], { bg: 0x2a5a7a, fg: C.white, trim: C.white, s: 0.15, post: 1.4 }), { solid: [0.3, 0.3, 2] });
+P('gg_bb_lake', () => billboard(['LAKE LIQUIDITY', 'DEPTH NOT GUARANTEED'], { bg: 0x2a5a7a, fg: C.white, trim: C.white, s: 0.15, post: 1.4 }), { solid: [0.3, 0.3, 2] });
 P('gg_bb_bridge', () => billboard(['BRIDGE OUT', 'INFRASTRUCTURE WEEK'], { bg: 0xe86a20, fg: C.black, trim: C.black, s: 0.15, post: 1.2 }), { solid: [0.3, 0.3, 2] });
 P('gg_bb_saw', () => billboard(['DOWNSIZING SAWMILL', 'NOW HIRING (NOT)'], { bg: C.woodD, fg: C.haz, trim: C.woodL, s: 0.15, post: 1.6 }), { solid: [0.3, 0.3, 2] });
 P('gg_bb_olive', () => billboard(['OLIVE BRANCH OFFICE', 'EXTRA VIRGIN SINCE NEVER'], { bg: C.oliveD, fg: C.cream, trim: C.oliveL, s: 0.15, post: 1.2 }), { solid: [0.3, 0.3, 2] });
@@ -422,7 +422,7 @@ P('gg_scree', () => {
   return v.build();
 }, { cast: false });
 
-// ------------------------------------------------------------------ WRECKAGE (Feng Shui Crash Site, Market Correction)
+// ------------------------------------------------------------------ WRECKAGE (Feng Shui Crash Site, Buy The Dip)
 P('gg_wreck_ring', () => {   // giant fuselage ring lying on its side, adorned with cloth + string lights
   const v = new Vox(38, 36, 22, 0.25, [19, 0, 11]); const r = hrng(12);
   for (let y = 0; y < 36; y++) for (let x = 0; x < 38; x++) {
@@ -451,7 +451,7 @@ P('gg_wreck_fin', () => {
   for (let y = 4; y < 26; y += 5) v.box(1, y, 14, 1, y + 2, 16, C.cloth1);
   return v.build();
 }, { solid: [0.6, 3.2, 6] });
-P('gg_husk_big', () => {    // felled heavy ARK walker (Hedge Fund / Market Correction set dressing)
+P('gg_husk_big', () => {    // felled heavy ARK walker (Hedge Fund / Buy The Dip set dressing)
   const v = new Vox(40, 18, 40, 0.25, [20, 0, 20]); const r = hrng(51);
   v.box(10, 2, 12, 29, 12, 29, 0x34363a); v.box(12, 12, 14, 27, 14, 27, 0x4a4e54); v.box(16, 14, 17, 23, 16, 24, 0x2a2c30);
   v.box(17, 7, 30, 22, 10, 33, 0x4a4e54); v.box(18, 8, 34, 21, 9, 34, C.rustD);

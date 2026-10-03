@@ -1,10 +1,10 @@
 // Green Gate (1100 x 825 m, north up): a forested mountain valley run by the Gatekeeping Department.
-// The highway enters from the west on a causeway across Lake Escrow whose middle spans dropped into the
+// The highway enters from the west on a causeway across Lake Liquidity whose middle spans dropped into the
 // shallows ("Infrastructure Week"), queues through the Toll Booth of Eternal Hold Music and runs east to the
 // gate at the foot of the Shelf: two gate towers joined by a walkway over a jammed sliding gate, and behind them
 // Tunnel Vision, a road tunnel cut into the Shelf with the Cloud's server vault, a repair depot and the Head
 // Office plant room branching off it (cut-and-cover halls with walkable lids; roofs fade when you go in).
-// Around it: the terrace village of Lower Foreclosure above the Overdue Creek gorge, Fort Knocks on the north
+// Around it: the terrace village of Lower Foreclosure above the Grace Period Creek gorge, Fort Knocks on the north
 // spur with the quarry and the sawmill woods beyond, the Peak Performance Retreat on its mesa in the south with
 // orchards and a destruction trail at its feet, a decorated crash site in the south-west woods, and a luxury
 // estate that never got past Phase 1 up on the Shelf. Everything is deterministic (seeded rng only).
@@ -43,7 +43,7 @@ const cumLen = (P) => { const L = [0]; for (let i = 1; i < P.length; i++) L.push
 
 // ------------------------------------------------------------------------------------ LAYOUT
 // playable valley (clockwise from the north-west); outside it the terrain climbs into terraced mountains.
-// The north spur pushes in between x 430 and 570; Overdue Creek comes down a gorge at x ~330.
+// The north spur pushes in between x 430 and 570; Grace Period Creek comes down a gorge at x ~330.
 const PLAY = [[62, 58], [118, 30], [220, 22], [298, 18], [322, 6], [350, 8], [384, 24], [418, 40], [432, 92], [562, 92], [590, 42], [680, 28], [780, 22], [880, 18], [962, 26],
   [1030, 50], [1064, 92], [1072, 200], [1076, 330], [1068, 450], [1060, 540], [1040, 600], [1012, 640], [998, 700], [984, 760], [940, 800], [840, 808], [700, 812], [600, 815],
   [480, 810], [380, 800], [300, 805], [200, 795], [120, 770], [72, 730], [48, 650], [40, 560], [38, 470], [40, 380], [44, 300], [50, 200], [55, 120]];
@@ -54,7 +54,7 @@ const SHELF = [[866, 140], [930, 122], [1000, 112], [1060, 90], [1092, 96], [109
 // north spur nose (Fort Knocks) and the southern mesa (Peak Performance Retreat)
 const SPUR_Y = 15, SPUR = [[430, 78], [566, 78], [574, 128], [558, 172], [524, 200], [478, 202], [450, 180], [436, 140]];
 const MESA_Y = 21, MESA = [[478, 640], [552, 622], [606, 640], [620, 696], [596, 748], [524, 758], [476, 730], [466, 684]];
-// Lake Escrow (the causeway crosses it at z 392) and Overdue Creek feeding it from the north
+// Lake Liquidity (the causeway crosses it at z 392) and Grace Period Creek feeding it from the north
 const LAKE_LVL = 1.6;
 const LAKE = [[192, 382], [206, 356], [238, 342], [280, 338], [326, 344], [362, 360], [384, 388], [380, 418], [358, 440], [316, 454], [262, 456], [220, 446], [196, 424]];
 const CREEK = [[336, -6], [334, 30], [322, 70], [304, 118], [306, 168], [314, 218], [302, 268], [290, 318], [284, 350]];
@@ -157,11 +157,11 @@ export default {
     }, 'add');
     // the Shelf's north-east is broken scrubland: gentle bumps away from the estate and the tunnels
     w.heightFn((x, z) => (x > 880 && z > 300 && z < 600 && (x > 1040 || z > 540) && pointInPoly(x, z, SHELF)) ? (N2(x, z, 24) - 0.5) * 1.4 * ss(0, 14, polyEdgeDist(SHELF, x, z)) : null, 'add');
-    // Lake Escrow: a bowl with shallow margins and a sand bar under the fallen causeway spans
+    // Lake Liquidity: a bowl with shallow margins and a sand bar under the fallen causeway spans
     w.raisePoly(LAKE, -0.8, 14, 'set');
     w.raiseRect(262, 385, 309, 399, 1.0, 5, 'set');
     w.waterPoly(LAKE.map(([x, z]) => [x + (x - 286) * 0.16, z + (z - 398) * 0.28]), { level: LAKE_LVL, deep: 0x1c4652, shallow: 0x3a7c80 });
-    // Overdue Creek: cut through the terrace as a gorge, wadeable bed
+    // Grace Period Creek: cut through the terrace as a gorge, wadeable bed
     w.river(CREEK, 9, { level: LAKE_LVL, depth: 0.8, bank: 5, bed: 'mud' });
     // quarry pit in the spur's east flank
     const QPIT = [[596, 60], [664, 56], [674, 108], [660, 134], [608, 130], [594, 100]];
@@ -170,7 +170,7 @@ export default {
     // the Scenic Overlook's ridge: a rocky crest dropping south-west off the Shelf's promontory
     const RIDGE = [[884, 606], [858, 634], [832, 662], [806, 692], [782, 722]];
     for (let k = 0; k < RIDGE.length - 1; k++) w.ridge([RIDGE[k], RIDGE[k + 1]], 12, 10.4 - k * 1.2, 8, 'max');
-    // Market Correction: a chain of impact craters
+    // Buy The Dip: a chain of impact craters
     const CRATERS = [[572, 488, 8], [596, 508, 6], [620, 530, 9], [646, 552, 7], [668, 574, 8], [692, 598, 6]];
     for (const [cx, cz, r] of CRATERS) w.raiseCircle(cx, cz, r, -2.4, 0.6, 'add');
     // small knolls
@@ -182,7 +182,7 @@ export default {
       [730, 80, 810, 170], [870, 40, 960, 110], [630, 260, 700, 320], [360, 540, 480, 660], [460, 610, 630, 770], [540, 470, 720, 620], [170, 590, 310, 710], [80, 690, 150, 750],
       [880, 640, 1000, 780], [340, 440, 420, 500], [210, 310, 270, 345], [570, 300, 640, 370], [780, 620, 880, 720]];
     for (const r of RES) mark(...r, 4);
-    for (const [x, z, r] of [[1034, 330, 12], [372, 268, 12], [128, 546, 12], [712, 690, 12], [668, 150, 6], [452, 532, 6], [978, 748, 6], [96, 120, 6], ...SPAWNS.map(([x, z]) => [x, z, 12])]) mark(x - r, z - r, x + r, z + r, 4);
+    for (const [x, z, r] of [[1034, 330, 12], [372, 268, 12], [146, 548, 12], [716, 714, 12], [668, 150, 6], [452, 532, 6], [978, 748, 6], [108, 122, 6], ...SPAWNS.map(([x, z]) => [x, z, 12])]) mark(x - r, z - r, x + r, z + r, 4);
     for (const [pts, hw] of [[HWY_W, 9], [HWY_E, 9], [HWY_C, 10], [R_VILLAGE, 5], [R_VX, 4], [R_SPURW, 5], [R_FORT, 5], [R_NORTH, 5], [R_NE, 5], [R_GLADE, 4], [R_SHELFN, 5], [R_SHELFS, 5],
       [R_SOUTH, 5], [R_SE, 5], [R_PEAK, 5], [R_LAKE, 4], [R_SW, 4], [R_SEE, 4]]) markLine(pts, hw, 1);
     markLine(CREEK, 10, 8); markPoly(LAKE, 8); markLine([[190, 392], [380, 392]], 9, 1);
@@ -278,11 +278,11 @@ export default {
       [[700, 160], [690, 220], [668, 270]],
       [[800, 130], [812, 190], [830, 250]],
       [[900, 92], [940, 120]],
-      [[168, 560], [128, 546], [90, 520], [70, 470]],
+      [[168, 560], [146, 548], [90, 520], [70, 470]],
       [[214, 650], [260, 640], [300, 660], [340, 700], [400, 720], [470, 740]],
       [[452, 556], [440, 600]],
       [[540, 494], [520, 560], [500, 610]],
-      [[660, 534], [700, 640], [712, 690], [740, 740], [800, 780]],
+      [[660, 534], [700, 640], [716, 714], [740, 740], [800, 780]],
       [[850, 668], [880, 720], [930, 760], [978, 748]],
       [[300, 464], [250, 500], [200, 530], [168, 560]],
       [[120, 720], [100, 680], [80, 620], [70, 560]],
@@ -545,14 +545,14 @@ export default {
       w.paint('concrete', 752, 372, 870, 468); markPoly([[752, 368], [870, 368], [870, 472], [752, 472]], 1 | 4);
       w.paintCircle('concrete', 790, 420, 30, 0.2, 7);
       // north tower: the Lost & Confiscated office (key room upstairs)
-      const NT = { x: 820, z: 384, w: 22, d: 24, storeys: 3, storeyH: ST_H, h: ST_H * 3, wall: 'concrete', floor: 'tiles', roof: 'roofTar', tint: 0xc4d0c4, name: 'Gate Tower North', floorY: TUN_Y, blend: 1,
+      const NT = { x: 820, z: 384, w: 22, d: 24, storeys: 3, storeyH: ST_H, h: ST_H * 3, wall: 'concrete', floor: 'tiles', roof: 'roofTar', tint: 0xc4d0c4, name: 'Lost & Confiscated', floorY: TUN_Y, blend: 1,
         doors: [{ side: 'w', at: 15, w: 2.2 }, { side: 'e', at: 4, w: 2 }, { side: 's', at: 3, w: 2 }, { side: 's', at: 11.8, w: 2.4, storey: 2 }, ...winRow('w', 24, 2, 4, 1.4).filter(d => d.at + d.w < 14.6 || d.at > 17.6), ...winRow('n', 22, 2, 4, 1.4)],
         inner: [[11, 0, 11, 24, [{ at: 6, w: 2 }]], [0, 12, 11, 12, [{ at: 4, w: 1.8 }]],
           [10, 0, 10, 24, [{ at: 17, w: 1.8, door: true, locked: 'confiscation_room' }], 1], [0, 12, 10, 12, [{ at: 3, w: 1.8 }], 1]],
         stairs: [{ x: 18.5, z: 13.75, w: 1.4, dir: 'n', from: 0, to: 1 }, { x: 16.6, z: 4.25, w: 1.4, dir: 's', from: 1, to: 2 }],
         ladders: [{ side: 'n', at: 18 }], upWin: true, upInner: false };
       const NTb = house(NT, 'security', { tier: 2, poi: 'gatekeeping_department', density: 34, upCont: 2 });
-      w.keyRoom('confiscation_room', 820, 384, 830, 408, null, { name: 'Lost & Confiscated (No Refunds)', poi: 'gatekeeping_department' });
+      w.keyRoom('confiscation_room', 820, 384, 830, 408, null, { name: 'Lost & Confiscated (Finders Keepers)', poi: 'gatekeeping_department' });
       for (const [lx, lz, k] of [[1.2, 2, 'weapon_case'], [1.2, 6, 'safe'], [1.2, 10, 'security_locker'], [5, 1.2, 'weapon_case'], [8.6, 3, 'ammo_box'], [1.2, 15, 'electronics'], [1.2, 20, 'suitcase'], [6, 22.6, 'weapon_case']])
         w.container(k, 820 + lx, 384 + lz, 0, { tier: 3, room: 'confiscation_room', poi: 'gatekeeping_department', bid: NTb.id, yRel: ST_H });
       for (const [lx, lz] of [[4, 8], [7, 16], [4, 19]]) w.prop('shelf', 820 + lx, 384 + lz, PI / 2, { solid: true, bid: NTb.id, yRel: ST_H });
@@ -712,7 +712,7 @@ export default {
       w.arkSpawn('tick', ...worldOf(TT, 40, 16), { count: 3, habitat: 'indoor' });
       w.arkSpawn('pop', ...worldOf(TT, 100, 16), { count: 2, habitat: 'indoor' });
       w.arkSpawn('shredder', ...worldOf(TT, 70, 16), { habitat: 'indoor', patrol: [worldOf(TT, 12, 16), worldOf(TT, 140, 16)] });
-      w.poi('traffic_tunnel', 'Tunnel Vision', 950, 420, 46, { tier: 3, underground: true });
+      w.poi('traffic_tunnel', 'Tunnel Vision', 965, 402, 50, { tier: 3, underground: true });
 
       // the service gallery north to the Cloud
       const GA = { ...UND, x: 924, z: 300, w: 16, d: 104, name: 'Server Gallery', roofExtras: grates(104, 'z', 16), doors: [full('n', 16), full('s', 16)], inner: [[1, 40, 4, 40, []], [12, 40, 15, 40, []], [1, 72, 4, 72, []], [12, 72, 15, 72, []]] };
@@ -730,7 +730,7 @@ export default {
         stairs: [stTop(48 - 0.8 - L_TOP, 26, 'e')] };
       hall(DV);
       cut([[924.6, 298.6], [939.4, 298.6], [939.4, 301.4], [924.6, 301.4]]);
-      for (let row = 0; row < 4; row++) for (let i = 0; i < 5; i++) w.prop('gg_server', 908 + i * 4.4, 272 + row * 5, 0, { solid: true });
+      for (let row = 0; row < 4; row++) for (const x0 of [906, 920]) for (let i = 0; i < 12; i++) w.prop('gg_server', x0 + i * 0.72, 272 + row * 5, row % 2 ? PI : 0, { solid: true });   // the Cloud, physically
       w.prop('gg_console', 906, 256.6, 0, { solid: true }); w.prop('gg_desk', 910, 256.6, 0, { solid: true }); w.prop('gg_console', 944, 296, -PI / 2, { solid: true });
       for (const [x, z, k] of [[904.6, 258, 'electronics'], [912, 265, 'desk'], [930, 296, 'electronics'], [946, 290, 'electronics'], [904.6, 290, 'cabinet'], [920, 258, 'electronics']]) w.container(k, x, z, 0, { tier: 2, poi: 'data_vault' });
       for (const [x, z, k] of [[938, 256.4, 'safe'], [944, 256.4, 'electronics'], [947.4, 262, 'security_locker'], [941, 265, 'weapon_case']]) w.container(k, x, z, 0, { tier: 3, poi: 'data_vault' });   // strongroom
@@ -783,15 +783,15 @@ export default {
         house(def, unfinished ? 'shed' : 'home', { tier: i % 3 === 0 ? 2 : 1, poi: 'abandoned_housing_project' });
         w.prop(unfinished ? 'gg_forsale' : 'gg_mailbox', x + 1, fr === 's' ? z + dd + 1.6 : z - 1.6, 0, { solid: true });
       });
-      // the show home / sales office at the head of the cul-de-sac
-      house({ x: 1046, z: 192, w: 14, d: 22, storeys: 2, wall: 'plaster', tint: 0xf0e8d8, floor: 'wood', roof: 'roofTile', name: 'Show Home & Sales Office', floorY: SHELF_Y,
+      // the sales pavilion at the head of the cul-de-sac
+      house({ x: 1046, z: 192, w: 14, d: 22, storeys: 2, wall: 'plaster', tint: 0xf0e8d8, floor: 'wood', roof: 'roofTile', name: 'Sales Pavilion (Deposit Non-Refundable)', floorY: SHELF_Y,
         doors: [{ side: 'w', at: 9, w: 2 }, { side: 'n', at: 3, w: 1.6 }, ...winRow('w', 22, 2, 4, 1.4).filter(d => d.at + d.w < 8.6 || d.at > 11.4), ...winRow('s', 14, 2, 4)], inner: [[0, 11, 14, 11, [{ at: 4, w: 1.8 }]]] }, 'office', { tier: 2, poi: 'abandoned_housing_project', upCont: 3 });
       w.prop('gg_bb_estates', 958, 214, 0, { solid: true });
       w.prop('gg_crane', 1004, 156, -0.6, { solid: true }); mark(1000, 152, 1008, 160, 2 | 4);
       for (const [x, z, k, r] of [[1030, 246, 'gg_pallet', 0], [1026, 252, 'gg_container3', 0.3], [990, 242, 'gg_logs', 1.2], [958, 166, 'gg_truck', 1.6], [1052, 170, 'gg_crates', 0]]) w.prop(k, x, z, r, { solid: true });
       for (const [x, z] of [[970, 212], [994, 212], [1018, 212], [1030, 198]]) lightPost(x, z, 0xffd8a0);
       w.zone('Coming Soon Estates', [[958, 128], [1062, 128], [1062, 250], [958, 250]], { tier: 2 });
-      w.poi('abandoned_housing_project', 'Coming Soon Estates', 1010, 200, 50, { tier: 2 });
+      w.poi('abandoned_housing_project', 'Coming Soon Estates', 994, 200, 56, { tier: 2 });
       w.arkSpawn('pop', 1000, 210, { count: 3 }); w.arkSpawn('tick', 1010, 230, { count: 2, habitat: 'indoor' }); w.arkSpawn('hornet', 1010, 200, { count: 2, patrol: [[960, 150], [1060, 150], [1060, 260], [960, 260]] });
     }
     // the Cloud's chillers + the vault stair on the lid, the Shelf's north road, the airshaft
@@ -799,7 +799,7 @@ export default {
       for (const [x, z] of [[908, 262], [908, 284], [930, 284]]) w.prop('gg_coolers', x, z, 0, { surface: true, solid: true });
       w.prop('gg_bb_cloud', 954, 252, 0, { solid: true });
       for (const [x, z] of [[952, 272], [952, 286]]) lightPost(x, z, 0x9ad0ff);
-      airshaftSite('golden_parachute_airshaft', 'Golden Parachute Airshaft', 1034, 330, faceTo(1034, 330, 1020, 330));
+      airshaftSite('rage_quit_airshaft', 'Rage Quit Airshaft', 1034, 330, faceTo(1034, 330, 1020, 330));
       w.arkSpawn('surveyor', 990, 330, { count: 1, patrol: [[960, 300], [1040, 280], [1050, 400], [960, 380]] });
       w.arkSpawn('rocketeer', 960, 360, { count: 1, patrol: [[900, 320], [1040, 320], [1040, 520], [900, 520]] });
       w.zone('Shelf', SHELF, { tier: 2 });
@@ -839,7 +839,7 @@ export default {
       house({ x: 506, z: 344, w: 16, d: 16, h: 3.6, wall: 'concrete', floor: 'tiles', roof: 'roofTar', tint: 0xc8d0c8, name: 'Hold Music Studio', doors: [{ side: 's', at: 7, w: 1.8 }, { side: 'w', at: 3, w: 1.6 }, ...winRow('e', 16, 2, 4)], inner: [[8, 0, 8, 16, [{ at: 4, w: 1.6 }]]] }, 'lab', { tier: 2, poi: 'checkpoint' });
       w.prop('gg_dish', 510, 348, 0.8, { y: 3.85 }); w.prop('antenna', 518, 350, 0, { y: 3.85 });
       // Bus Depot (next bus: never) + staff barracks south of it
-      const BD = { x: 450, z: 444, w: 34, d: 22, h: 6.0, wall: 'corrugated', floor: 'concrete', roof: 'corrugated', tint: 0xb8c4bc, name: 'Bus Depot', doors: [{ side: 'n', at: 3, w: 12, lintel: false }, { side: 'n', at: 19, w: 12, lintel: false }, { side: 's', at: 15, w: 2 }, ...winRow('w', 22, 2, 4, 1.4)] };
+      const BD = { x: 450, z: 444, w: 34, d: 22, h: 6.0, wall: 'corrugated', floor: 'concrete', roof: 'corrugated', tint: 0xb8c4bc, name: 'Bus Depot (Next Bus: Never)', doors: [{ side: 'n', at: 3, w: 12, lintel: false }, { side: 'n', at: 19, w: 12, lintel: false }, { side: 's', at: 15, w: 2 }, ...winRow('w', 22, 2, 4, 1.4)] };
       bldg(BD); w.prop('gg_bus', 459, 456, PI, { solid: true }); w.prop('gg_bus', 475, 454, PI + 0.06, { solid: true });
       for (const [x, z, k] of [[452.6, 450, 'workbench'], [482, 462, 'shelf'], [452.6, 460, 'gg_crates']]) w.prop(k, x, z, k === 'shelf' ? PI : PI / 2, { solid: true });
       for (const [x, z, k] of [[452.6, 455, 'toolbox'], [482.6, 448, 'locker'], [466, 464.6, 'crate'], [452.6, 464, 'car_trunk']]) w.container(k, x, z, 0, { tier: 1, poi: 'checkpoint' });
@@ -878,20 +878,20 @@ export default {
       for (let x = 198; x < 380; x += 24) { if (x > 256 && x < 314) continue; w.lamp(x, 384.8, { yAbs: DECK_Y + 4, color: 0xffd890, intensity: 2.2, range: 13, model: null }); }
       w.container('raider_cache', 285, 395, 0, { tier: 2, poi: 'highway_collapse' }); w.container('backpack', 281, 389, 0, { tier: 1, poi: 'highway_collapse' });
       w.zone('Infrastructure Week', [[180, 370], [390, 370], [390, 414], [180, 414]], { tier: 1 });
-      w.poi('highway_collapse', 'Infrastructure Week', 285, 392, 56, { tier: 1 });
+      w.poi('highway_collapse', 'Infrastructure Week', 280, 378, 58, { tier: 1 });
       w.arkSpawn('bombardier', 300, 470, { count: 1, radius: 20 }); w.arkSpawn('spotter', 286, 392, { count: 1, patrol: [[200, 380], [380, 380], [380, 420], [200, 420]] });
       w.arkSpawn('hornet', 230, 420, { count: 2, patrol: [[190, 392], [290, 430], [380, 392], [290, 360]] });
 
       // the boathouse + pier on the north shore
-      house({ x: 222, z: 318, w: 18, d: 12, h: 3.6, wall: 'wood', floor: 'wood', roof: 'roofTile', roofShape: 'gable', tint: 0xc8b090, name: 'Escrow Boathouse', doors: [{ side: 's', at: 5, w: 6 }, { side: 'w', at: 4, w: 1.6 }, ...winRow('n', 18, 2, 4, 1.2)] }, 'shed', { tier: 1, poi: 'lake_escrow', cont0: 3 });
+      house({ x: 222, z: 318, w: 18, d: 12, h: 3.6, wall: 'wood', floor: 'wood', roof: 'roofTile', roofShape: 'gable', tint: 0xc8b090, name: 'Liquidity Boathouse', doors: [{ side: 's', at: 5, w: 6 }, { side: 'w', at: 4, w: 1.6 }, ...winRow('n', 18, 2, 4, 1.2)] }, 'shed', { tier: 1, poi: 'lake_liquidity', cont0: 3 });
       const PY = Math.max(LAKE_LVL + 0.5, w.groundAt(231, 331.5));
       w.bridge([[231, 331], [231, 352]], 3, PY, 'wood', { pillars: 4, thick: 0.3, railH: 0.8, pillarW: 0.4 });
       w.bridge([[231, 352], [248, 352]], 3, PY, 'wood', { pillars: 4, thick: 0.3, railH: 0.8, pillarW: 0.4 });
       for (const [x, z, r] of [[226, 344, 0.1], [237, 346, -0.2], [244, 357, 1.5]]) w.prop('gg_boat', x, z, r, { yAbs: LAKE_LVL - 0.15 });
-      w.container('suitcase', 246, 352, 0, { tier: 1, poi: 'lake_escrow', yAbs: PY });
+      w.container('suitcase', 246, 352, 0, { tier: 1, poi: 'lake_liquidity', yAbs: PY });
       w.prop('gg_bb_lake', 214, 334, 0, { solid: true });
       for (const [x, z] of [[220, 334], [244, 334]]) lightPost(x, z, 0xffd090);
-      w.poi('lake_escrow', 'Lake Escrow (Funds Held)', 238, 336, 22, { tier: 1 });
+      w.poi('lake_liquidity', 'Lake Liquidity', 238, 336, 22, { tier: 1 });
 
       // Deferred Maintenance Bunker: the half-buried water purification plant on the south-east shore
       const MB = { x: 372, z: 470, w: 24, d: 14, storeys: 1, h: 3.6, wall: 'damConcrete', floor: 'concrete', roof: 'damConcrete', tint: 0xc8c8c0, name: 'Deferred Maintenance Bunker', blend: 4,
@@ -974,7 +974,7 @@ export default {
       bldg(VC); for (let r = 0; r < 4; r++) { w.prop('gg_pew', 264, 120 + r * 3, PI, { solid: true }); w.prop('gg_pew', 270, 120 + r * 3, PI, { solid: true }); } w.prop('gg_altar', 267, 115, PI, { solid: true });
       w.container('basket', 262, 114, 0, { tier: 1, poi: 'village' }); w.container('cabinet', 272, 132, 0, { tier: 2, poi: 'village' });
       w.block(274, 112, 278, 116, 11, 'plaster', { tint: 0xf0e8d8 }); w.block(273.6, 111.6, 278.4, 116.4, 0.8, 'roofTile', { y0: w.groundAt(276, 114) + 10.8, collide: false });
-      vhouse(262, 168, 20, 13, 2, 'n', { detached: true, name: 'The Overdraft Inn' });
+      vhouse(262, 168, 20, 13, 2, 'n', { detached: true, name: 'The Interest-Only Inn' });
       w.prop('gg_well', 266, 150, 0, { solid: true });
       w.prop('gg_table', 252, 142, 0, { solid: true }); w.prop('gg_tarp', 252, 142, 0, {}); w.container('electronics', 253, 143.4, 0, { tier: 1, poi: 'village', note: 'boom_box' });
       for (const [x, z] of [[278, 142], [278, 158]]) { w.prop('gg_table', x, z, 0, { solid: true }); w.prop('gg_tarp', x, z, 0, {}); w.container(pick(['basket', 'crate']), x, z + 1.4, 0, { tier: 1, poi: 'village' }); }
@@ -983,7 +983,7 @@ export default {
       for (const [x, z] of [[270, 160], [276, 160]]) { w.prop('gg_table', x, z, 0, { solid: true }); w.prop('gg_chair', x - 1.1, z, PI / 2, {}); w.prop('gg_chair', x + 1.1, z, -PI / 2, {}); }
       for (const [x, z] of [[248, 139], [284, 139], [248, 163], [284, 163], [258, 139], [274, 139]]) w.prop('gg_planter', x, z, 0, { solid: true });
       w.prop('gg_forsale', 262, 156, 0, { solid: true }); w.prop('gg_cart', 282, 148, 1.6, { solid: true }); w.prop('gg_crates', 276, 140.5, 0, { solid: true });
-      // the village bridge over the Overdue Creek gorge
+      // the village bridge over the Grace Period Creek gorge
       levelPath(resample([[276, 155], [292, 156]], 2), new Array(9).fill(VBR_Y), 6, 2);
       w.bridge([[290, 156], [332, 160]], 6, VBR_Y, 'wood', { pillars: 10, thick: 0.5 });
       // walls, laundry, cypresses, lamps, clutter, the vehicles left on the street
@@ -1001,7 +1001,7 @@ export default {
       w.arkSpawn('snitch', 236, 150, { patrol: [[160, 60], [290, 60], [290, 240], [160, 240]] });
       w.zone('Lower Foreclosure', [[112, 28], [296, 28], [298, 250], [112, 250]], { tier: 2 });
       w.poi('village', 'Lower Foreclosure', 218, 140, 96, { tier: 2 });
-      hatchSite('village_doggy_door', 'Village Doggy Door', 96, 120, faceTo(96, 120, 110, 126));
+      hatchSite('village_doggy_door', 'Village Doggy Door', 108, 122, faceTo(108, 122, 118, 128));
     }
 
     // ======================================================================== 9. FIXER-UPPER FARM (west of the village road)
@@ -1084,7 +1084,7 @@ export default {
       w.poi('ancient_fort', 'Fort Knocks', 504, 148, 40, { tier: 2 });
     }
 
-    // ======================================================================== 11. THE NORTHERN WOODS: Quarterly Quarry, Free Trial Glade, the Downsizing Sawmill, the Clearance Sale
+    // ======================================================================== 11. THE NORTHERN WOODS: Quarterly Quarry, Free Trial Glade, the Downsizing Sawmill, Clear-Cut Savings
     {
       // Quarterly Quarry
       w.paint('gravel', 600, 62, 668, 128); w.paintCircle('rock', 632, 92, 22, 0.4, 3);
@@ -1113,7 +1113,7 @@ export default {
       for (const [x, z] of [[740, 90], [800, 104]]) watchtower(x, z, 0.6);
       for (const [x, z] of [[788, 102], [746, 128], [776, 104]]) w.container(pick(['plant', 'basket', 'plant']), x, z, 0, { tier: 1, poi: 'trappers_glade' });
       w.arkSpawn('tick', 772, 112, { count: 2 }); w.arkSpawn('leaper', 760, 160, { radius: 40 });
-      w.poi('trappers_glade', 'Free Trial Glade (Auto-Renews)', 770, 110, 32, { tier: 1 });
+      w.poi('trappers_glade', 'Free Trial Glade (Auto-Renews)', 770, 122, 34, { tier: 1 });
       // the Downsizing Sawmill
       const SM = { x: 884, z: 54, w: 30, d: 16, h: 6.4, wall: 'wood', floor: 'concrete', roof: 'corrugated', tint: 0xb89878, name: 'Downsizing Sawmill', peek: 0.6,
         doors: [{ side: 's', at: 2, w: 10, lintel: false }, { side: 's', at: 18, w: 10, lintel: false }, { side: 'w', at: 4, w: 8, lintel: false }, { side: 'e', at: 5, w: 6, lintel: false }] };
@@ -1126,20 +1126,20 @@ export default {
       for (let i = 0; i < 14; i++) w.prop('gg_stump', R(860, 950), R(40, 120), rng() * 6, { solid: true });
       w.arkSpawn('fireball', 900, 80, { count: 2 }); w.arkSpawn('wasp', 900, 70, { count: 2, patrol: [[860, 50], [950, 50], [950, 120], [860, 120]] });
       w.poi('sawmill', 'The Downsizing Sawmill', 902, 72, 36, { tier: 1 });
-      // The Clearance Sale: a scorched clearing around a dead Legacy System, with Bilgun's shelter
+      // Clear-Cut Savings: a scorched clearing around a dead Legacy System, with a drifter's shelter
       w.paintCircle('dirt', 662, 290, 24, 0.4, 3); w.paintCircle('mud', 668, 296, 8, 0.5, 4);
       w.prop('gg_husk_big', 668, 296, 0.7, { solid: true }); w.container('barron_husk', 668, 301.5, 0, { tier: 3, poi: 'barren_clearing' });
-      house({ x: 644, z: 272, w: 8, d: 7, h: 2.8, wall: 'wood', floor: 'wood', roof: 'corrugated', name: "Bilgun's Shelter", doors: [{ side: 's', at: 3, w: 1.4 }, { side: 'e', at: 2.5, w: 1.2, sill: 1 }] }, 'camp', { tier: 2, poi: 'barren_clearing', cont0: 2 });
+      house({ x: 644, z: 272, w: 8, d: 7, h: 2.8, wall: 'wood', floor: 'wood', roof: 'corrugated', name: "Drifter's Shelter", doors: [{ side: 's', at: 3, w: 1.4 }, { side: 'e', at: 2.5, w: 1.2, sill: 1 }] }, 'camp', { tier: 2, poi: 'barren_clearing', cont0: 2 });
       for (const [x, z] of [[656, 306], [680, 288], [672, 312]]) w.prop('gg_forsale', x, z, rng() - 0.5, { solid: true });
       for (let i = 0; i < 12; i++) w.prop(pick(['gg_stump', 'gg_stump', 'deadTree', 'gg_logs', 'gg_rock_s']), R(642, 690), R(270, 314), rng() * 6, { solid: true });
       w.arkSpawn('surveyor', 662, 290, { count: 1, patrol: [[662, 290], [620, 340], [700, 330], [700, 250]] });
       w.arkSpawn('tick', 676, 284, { count: 3 });
-      w.poi('barren_clearing', 'The Clearance Sale', 664, 292, 30, { tier: 1 });
+      w.poi('barren_clearing', 'Clear-Cut Savings', 664, 292, 30, { tier: 1 });
       // Severance Package Airshaft in the creek valley north of the lake
       airshaftSite('severance_airshaft', 'Severance Package Airshaft', 372, 268, faceTo(372, 268, 360, 280));
     }
 
-    // ======================================================================== 12. THE SOUTH: Peak Performance Retreat (mesa), Olive Branch Office, Market Correction
+    // ======================================================================== 12. THE SOUTH: Peak Performance Retreat (mesa), Olive Branch Office, Buy The Dip
     {
       w.paintPoly('grass', MESA);
       w.paint('concrete', 488, 670, 580, 676); w.paint('concrete', 576, 660, 604, 676);
@@ -1209,7 +1209,7 @@ export default {
       w.zone('Olive Branch Office', OG, { tier: 1 });
       w.poi('olive_grove', 'Olive Branch Office', 416, 602, 44, { tier: 1 });
       hatchSite('orchard_doggy_door', 'Orchard Doggy Door', 452, 532, faceTo(452, 532, 470, 520));
-      // Market Correction: the crater chain, upturned slabs and the machines that caused it
+      // Buy The Dip: the crater chain, upturned slabs and the machines that caused it
       paintPolyN('dirt', [[560, 474], [584, 478], [708, 590], [700, 612], [676, 606], [560, 500]], 7, 8);
       for (const [cx, cz, r] of CRATERS) w.paintCircle('mud', cx, cz, r + 1, 0.35, cx + cz);
       for (const [x, z, k, r] of [[620, 530, 'gg_husk_big', 0.8], [596, 510, 'husk', 1.2], [668, 576, 'husk', 2.0], [690, 598, 'gg_rubble', 0.4], [646, 552, 'gg_slab', 0.7], [580, 492, 'gg_slab', 2.2], [700, 584, 'gg_rock_l2', 1.0], [632, 544, 'gg_strut', 0.6]])
@@ -1217,8 +1217,8 @@ export default {
       for (const [x, z] of [[623, 535], [599, 513], [671, 579]]) w.container('arc_husk', x + 3, z + 2, 0, { tier: 2, poi: 'broken_earth' });
       for (let i = 0; i < 20; i++) w.prop(pick(['debris', 'gg_scree', 'gg_rock_s', 'deadTree']), R(560, 710), R(480, 610), rng() * 6, { solid: false });
       w.arkSpawn('bastion', 640, 550, { radius: 30, patrol: [[580, 500], [700, 600], [660, 620]] }); w.arkSpawn('surveyor', 630, 540, { patrol: [[580, 490], [700, 580], [650, 610]] });
-      w.poi('broken_earth', 'Market Correction', 632, 545, 44, { tier: 1 });
-      airshaftSite('exit_interview_airshaft', 'Exit Interview Airshaft', 712, 690, faceTo(712, 690, 700, 700));
+      w.poi('broken_earth', 'Buy The Dip', 632, 545, 44, { tier: 1 });
+      airshaftSite('two_weeks_notice_airshaft', "Two Weeks' Notice Airshaft", 716, 714, faceTo(716, 714, 704, 722));
     }
 
     // ======================================================================== 13. THE SOUTH-WEST WOODS: Feng Shui Crash Site, Squatters' Rights
@@ -1255,7 +1255,7 @@ export default {
       watchtower(132, 724, 0.6);
       w.arkSpawn('wasp', 116, 714, { count: 2, patrol: [[90, 690], [140, 690], [140, 740], [90, 740]] });
       w.poi('raiders_refuge', "Squatters' Rights", 116, 712, 24, { tier: 1 });
-      airshaftSite('early_retirement_airshaft', 'Early Retirement Airshaft', 128, 546, faceTo(128, 546, 140, 540));
+      airshaftSite('early_retirement_airshaft', 'Early Retirement Airshaft', 146, 548, faceTo(146, 548, 158, 542));
     }
 
     // ======================================================================== 14. THE EAST VALLEY: Unfulfillment Center, the lookout, the glamping site
@@ -1286,6 +1286,8 @@ export default {
       w.prop('gg_siren', 768, 516, 0, { solid: true });
       for (const [x, z] of [[718, 470], [830, 470], [718, 566], [830, 566], [770, 566]]) lightPost(x, z, 0xe8f4ff, 'gg_lightmast', 6.5, 2.6, 21);
       for (const [x, z, k] of [[766, 546, 'crate'], [790, 562, 'toolbox'], [742, 556, 'arc_crate']]) w.container(k, x, z, 0, { tier: 1, poi: 'warehouse_complex' });
+      for (let x = 724; x < 812; x += 4) { w.prop('gg_lane', x, 506, PI / 2, { y: 0.03 }); if (x > 768) w.prop('gg_lane', x, 509, PI / 2, { y: 0.03 }); }   // loading bays
+      for (const [x, z] of [[736, 512], [748, 512], [790, 510], [800, 512], [744, 548], [806, 548], [818, 556], [730, 560]]) { w.prop(pick(['gg_pallet', 'gg_crates', 'gg_pallet']), x, z, rng() * 0.4, { solid: true }); if (rng() < 0.5) w.prop(pick(['barrel', 'barrelBlue', 'gg_cone']), x + 1.6, z + 1, 0, { solid: true }); }
       // the white lookout tower south of the warehouses (quest)
       perchTower(772, 590, 'turret', 'gg_perchtower_w', faceTo(772, 590, 772, 520));
       w.arkSpawn('rocketeer', 770, 520, { count: 1, patrol: [[720, 470], [830, 470], [830, 570], [720, 570]] });
@@ -1348,7 +1350,7 @@ export default {
       const steep = (x, z) => Math.max(Math.abs(w.groundAt(x + 1.2, z) - w.groundAt(x - 1.2, z)), Math.abs(w.groundAt(x, z + 1.2) - w.groundAt(x, z - 1.2))) > 1.2;
       const avoidT = (x, z) => !inPlay(x, z) || !free(x, z, 1.2, 3) || (occ(x, z) & 8);
       const avoidS = (x, z) => avoidT(x, z) || (occ(x, z) & 4);
-      const clearings = [[770, 110, 26], [902, 72, 30], [664, 292, 26], [242, 656, 30], [116, 712, 18], [128, 546, 12], [372, 268, 12], [668, 150, 6], [930, 716, 24], [712, 690, 12], [630, 96, 34], [890, 690, 22], [600, 336, 26]];
+      const clearings = [[770, 110, 26], [902, 72, 30], [664, 292, 26], [242, 656, 30], [116, 712, 18], [146, 548, 12], [372, 268, 12], [668, 150, 6], [930, 716, 24], [716, 714, 12], [630, 96, 34], [890, 690, 22], [600, 336, 26]];
       const inClear = (x, z) => clearings.some(([cx, cz, r]) => Math.hypot(x - cx, z - cz) < r);
       // the northern woods (spur valley to the sawmill)
       const NFA = [[326, 20], [430, 40], [432, 92], [562, 92], [590, 42], [880, 18], [1040, 60], [1000, 110], [930, 122], [866, 140], [860, 230], [760, 240], [700, 250], [640, 250], [560, 240], [440, 245], [400, 330], [326, 320]];

@@ -297,7 +297,7 @@ function makeCtx(w, rng) {
   };
   C.roofY = (bb) => bb.fy + bb.h + 0.25;                            // walkable roof surface
   C.storeyY = (bb, k) => bb.fy + k * bb.sh;
-  // building placed in a frame: o.x, o.z = design corner (dam frame: o.u, o.v)
+  // building placed in a frame: o.x, o.z = design corner
   C.gbld = (G, o) => { const [cx, cz] = GW(G, o.x + o.w / 2, o.z + o.d / 2); return C.bld({ ...o, x: cx - o.w / 2, z: cz - o.d / 2, rot: G.a }); };
   // building-local helpers (lx, lz from the footprint corner, before rotation); o.storey = upper floors
   const ba = (bb) => (bb.R ? bb.R.a : 0);
@@ -690,14 +690,14 @@ function terrain(C) {
   // the Spillway of Regret: a dry concrete chute from the floodgates down to the plunge pool
   C.slope(CHUTE.x0, CHUTE.z0, CHUTE.x1, CHUTE.z1, CHUTE.h0, LOW + 0.3, 'z', 0);
   C.rampLine(LEDGE, LEDGE_W, PLAT, LOW + 0.5);                                         // ledge road down the west wall
-  C.slope(898, 427, 908, 486, PLAT, LOW + 0.9, 'z', 0);                                 // Bottom Line Steps (down the escarpment)
+  for (const [ax, bx] of [[486, 506], [730, 709]]) C.rampLine([[ax, BRIDGE.z], [bx, BRIDGE.z]], 11, w.groundAt(ax, BRIDGE.z), BRIDGE.y + 0.02, 2);   // approach ramps up to the Bridge To Nowhere
   C.slope(1042, 432, 1062, 524, PLAT, LOW + 1.1, 'z', 0);                               // east ramp road
   // plunge pool + tailrace basin
   w.raiseCircle(726, 318, 9, LOW - 0.6, 0.5, 'set');
   w.raiseRect(574, 196, 602, 212, RIVER - 1.3, 1, 'set');
   // Red Ink Lakes: a berm field with six tailings ponds dug into it
-  w.raiseRect(738, 471, 933, 612, LOW + 1.25, 5, 'set');
-  for (const [x0, z0, x1, z1] of PONDS) w.raiseRect(x0, z0, x1, z1, POND - 0.72, 1.5, 'set');
+  w.raiseRect(738, 471, 933, 612, LOW + 0.85, 5, 'set');
+  for (const [x0, z0, x1, z1] of PONDS) w.raiseRect(x0 + 2, z0 + 2, x1 - 2, z1 - 2, POND - 0.7, 4, 'set');   // gentle banks: you can wade in and walk out
   // Participation Trophy Hill (Beta Test Battlefield) and the Ant Farm hilltop
   w.raiseCircle(482, 566, 17, 4.2, 0.65, 'add');
   { const a = C.avg(924, 670, 972, 712); C.lshape(G_ANT, 920, 668, 978, 714, () => a); }
@@ -733,6 +733,7 @@ function terrain(C) {
   for (const r of ROADS) w.road(r, 7, 'asphalt', { edge: 'gravel', edgeW: 1.2 });
   for (const r of TRACKS) w.road(r, 4, 'dirt', { edge: 'gravel', edgeW: 0.6 });
   w.path(LEDGE, LEDGE_W - 1.2, 'concrete');
+  { const hf = w.groundAt(903, 465); C.slope(898, 427, 908, 465, PLAT, hf, 'z', 0); }       // Bottom Line Steps (down the escarpment to the road)
 
   // ---------------- water
   C.resMat = waterMaterial({ deep: 0x16384a, shallow: 0x2a5a66, opacity: 0.92 });
@@ -779,7 +780,7 @@ function terrain(C) {
   w.path(arc(CREST_R, -ARCH.half - 0.04, ARCH.half + 0.04, 40), 5, 'asphalt');
   w.paint('concrete', CHUTE.x0, CHUTE.z0, CHUTE.x1, CHUTE.z1 + 2);
   for (let z = CHUTE.z0 + 6; z < CHUTE.z1; z += 9) w.paint('hazard', CHUTE.x0, z, CHUTE.x1, z + 0.8);
-  w.paint('concrete', 897, 427, 909, 486);
+  w.paint('concrete', 897, 427, 909, 465);
   repaint(738, 471, 933, 612, (x, z) => (PONDS.some(([a, b, c, d]) => x > a - 1 && x < c + 1 && z > b - 1 && z < d + 1) ? TID.mud : n2(x / 5, z / 5) > 0.55 ? TID.gravel : TID.dirt));
 
   // ---------------- walls on the sheer edges: the dam faces, the ledge road, the chute, the ramps
@@ -788,7 +789,7 @@ function terrain(C) {
   C.dropWalls(LEDGE.map(([x, z]) => [x + 3.6, z - 1.2]), -1, { tin: 0.5, tout: 0.9 });                                           // ledge road, gorge side
   C.dropWalls([[CHUTE.x0, CHUTE.z0], [CHUTE.x0, CHUTE.z1 - 2]], -1, { tin: 0.9, tout: 0.3, drop: 1.6, tex: 'concrete' });   // chute side walls
   C.dropWalls([[CHUTE.x1, CHUTE.z0], [CHUTE.x1, CHUTE.z1 - 2]], 1, { tin: 0.9, tout: 0.3, drop: 1.6, tex: 'concrete' });
-  for (const [x0, x1] of [[898, 908], [1042, 1062]]) { C.dropWalls([[x0, 440], [x0, 520]], 1, { tin: 0.4, tout: 0.8 }); C.dropWalls([[x1, 440], [x1, 520]], -1, { tin: 0.4, tout: 0.8 }); }
+  for (const [x0, x1, z1] of [[898, 908, 461], [1042, 1062, 520]]) { C.dropWalls([[x0, 436], [x0, z1]], 1, { tin: 0.4, tout: 0.8 }); C.dropWalls([[x1, 436], [x1, z1]], -1, { tin: 0.4, tout: 0.8 }); }
 }
 
 // ==================================================================================== UNDERGROUND
@@ -931,6 +932,7 @@ function damAndGorge(C) {
   C.Cn(lad, 'locker', 7, 13.4, PI, { tier: 1 }); C.Cn(lad, 'crate', 7.5, 0.8, 0, { tier: 1, storey: 1 }); C.Cn(lad, 'cabinet', 7, 13.4, PI, { tier: 1, storey: 2 }); C.Cn(lad, 'toolbox', 5, 13.4, PI, { tier: 2, storey: 3 });
   for (let k = 0; k < 4; k++) C.IL(lad, 7, 7, 0xfff0d0, 1.2, 8, 2.6, k);
   w.bridge([[700.1, 251], [711, 251]], 2.6, PLAT + 0.02, 'metalPanel', { pillars: 0, thick: 0.35 });
+  w.block(700.4, 249.75, 709.5, 252.25, PLAT + 0.02 - lfy + 0.6, 'concrete', { y0: lfy - 0.6 });   // its pier over the cliff band
   C.P(lad, 'dg_signred', 15.2, 3, PI / 2, { yAbs: PLAT, solid: true });
   // ---------------- plunge pool + the Spillway Doggy Door (hydraulic pipes leak here)
   C.hatch('spillway_hatch', 'Spillway Doggy Door', 706, 314, 0);
@@ -944,6 +946,8 @@ function damAndGorge(C) {
   const B = BRIDGE;
   w.bridge([[B.x0, B.z], [B.gap0, B.z]], 9, B.y, 'asphalt', { thick: 1.0, pillars: 21, pillarW: 1.8, rails: true });
   w.bridge([[B.gap1, B.z], [B.x1, B.z]], 9, B.y, 'asphalt', { thick: 1.0, pillars: 23, pillarW: 1.8, rails: true });
+  // abutments: solid from the gorge floor to the deck across each rim (no half-buried deck over the cliff band)
+  for (const [x0, x1] of [[504, 520], [694, 710]]) w.block(x0, B.z - 4.5, x1, B.z + 4.5, B.y - 1.6, 'damConcrete', { y0: 1.6 });
   for (const x of [B.gap0 - 1.0, B.gap1 + 1.0]) for (const dz of [-3, 0, 3]) w.prop('dg_barrier', x, B.z + dz, PI / 2, { solid: true, yAbs: B.y });
   for (const x of [B.gap0 - 2.4, B.gap1 + 2.4]) C.beacon(x, B.z - 4, { base: B.y });
   for (const [x, dz, k, r] of [[540, -2, 'car', 1.6], [566, 2.5, 'dg_truck', 1.5], [650, -2.5, 'car', 1.4], [690, 2, 'car', 1.7]]) w.prop(k, x, B.z + dz, r, { solid: true, yAbs: B.y });
@@ -970,7 +974,7 @@ function damAndGorge(C) {
   C.loot(585, 250, 55, ['crate', 'toolbox', 'arc_husk', 'trash', 'ammo_box', 'crate', 'barron_husk'], 1, { avoid: onFloor });
   C.loot(600, 410, 50, ['arc_husk', 'crate', 'trash', 'backpack'], 1, { avoid: onFloor });
   for (const [x, z] of [[540, 230], [620, 240], [560, 330], [636, 300], [600, 380], [560, 440], [640, 450]]) w.lamp(x, z, { y: 4.4, color: 0xffb070, intensity: 1.5, range: 12, flicker: 0.3 });
-  for (const [x, z] of [[548, 196], [620, 196], [528, 214]]) C.flood(x, z);
+  for (const [x, z] of [[548, 196], [620, 196], [528, 214], [586, 218], [604, 262], [566, 262], [626, 236], [690, 236], [700, 270], [548, 316]]) C.flood(x, z, { rot: 0.5 });
   w.bridge([[596, 302], [614, 302]], 2.4, w.groundAt(596, 302) + 0.3, 'wood', { pillars: 0, thick: 0.3 });   // footbridge over the tailrace
   w.prop('dg_crane', 520, 250, 0.7, { solid: true }); C.mastLight(520, 250, 21);
 }
@@ -997,7 +1001,9 @@ function westPlateau(C) {
   { const g = w.groundAt(...GW(G, 230, 113)); C.lshape(G, 224.6, 106.6, 235.4, 120.4, () => g - 1.3); w.waterPoly(GR(G, 224, 106, 236, 121), { level: g - 0.25, material: C.poolMat }); }
   for (const X of [219, 238]) for (const Z of [102, 126]) C.gprop(G, 'bush', X, Z, 0, { scale: 0.8 });
   for (const Z of [104, 112, 120]) C.gprop(G, 'dg_table', 220, Z, 0, { solid: true, scale: 0.8 });
-  w.bridge([GW(G, 240, 113), GW(G, 284, 113)], 3, PLAT + 0.08, 'wood', { pillars: 6, pillarW: 0.5, thick: 0.4 });
+  w.bridge([GW(G, 240, 113), GW(G, 284, 113)], 3, PLAT + 0.08, 'wood', { pillars: 0, thick: 0.4 });
+  C.gblock(G, 250, 111.6, 274, 114.4, PLAT + 0.08 - RES_BED + 0.5, 'damConcrete', { y0: RES_BED - 0.5 });
+  for (let X = 278; X < 284; X += 5) C.gblock(G, X - 0.25, 111.8, X + 0.25, 114.2, PLAT - 0.32 - RES_BED, 'wood', { y0: RES_BED, collide: false });
   C.gprop(G, 'dg_boat', 280, 118, 0.1, { yAbs: RES_WATER - 0.05 }); C.gprop(G, 'dg_boat', 272, 108, 2.9, { yAbs: RES_WATER - 0.05 });
   C.gfence(G, 192, 94, 241, 146, [[241, 113], [203, 146]]);
   for (const [X, Z] of [[194, 98], [240, 98], [194, 144], [238, 144]]) C.glamp(G, X, Z, { y: 3.4, color: 0xffd8a0, intensity: 1.4, range: 10 });
@@ -1009,8 +1015,10 @@ function westPlateau(C) {
     doors: [{ side: 'n', at: 10, w: 3 }, { side: 's', at: 3, w: 2.0, door: true }, { side: 'e', at: 4, w: 2.4, sill: 1.0 }, { side: 'w', at: 4, w: 2.4, sill: 1.0 }],
     inner: [[8, 0, 8, 11, [{ at: 4, w: 1.6 }]]] });
   C.F(bh, 'commercial', 0, 0, 8, 11, { tier: 1, extra: [['desk', 1]] }); C.F(bh, 'storage', 8, 0, 16, 11, { tier: 1 });
-  w.bridge([[309, 156], [309, 128]], 3.2, 12.5, 'wood', { pillars: 6, pillarW: 0.5, thick: 0.4 });
-  w.bridge([[302, 134], [317, 134]], 3.0, 12.5, 'wood', { pillars: 6, pillarW: 0.5, thick: 0.4, rails: false });
+  w.bridge([[309, 156], [309, 128]], 3.2, 12.5, 'wood', { pillars: 0, thick: 0.4 });
+  w.bridge([[302, 134], [317, 134]], 3.0, 12.5, 'wood', { pillars: 0, thick: 0.4, rails: false });
+  w.block(307.4, 146, 310.6, 157, 12.5 - RES_BED + 0.5, 'damConcrete', { y0: RES_BED - 0.5 });
+  for (const [x, z] of [[307.8, 140], [310.2, 140], [307.8, 131], [310.2, 131], [302.5, 134], [316.5, 134]]) w.block(x - 0.25, z - 0.25, x + 0.25, z + 0.25, 12.1 - RES_BED, 'wood', { y0: RES_BED, collide: false });
   for (const [x, z, r] of [[302, 142, 1.6], [316, 146, 1.5], [298, 128, 0.2], [321, 128, -0.3], [330, 120, 2.4]]) w.prop('dg_boat', x, z, r, { yAbs: RES_WATER - 0.05 });
   w.container('suitcase', 309, 130, 0, { tier: 1, yAbs: 12.5 }); w.container('backpack', 314, 134, 0, { tier: 1, yAbs: 12.5 });
   C.hatch('boathouse_hatch', 'Boathouse Doggy Door', 322, 176, 0);
@@ -1026,12 +1034,14 @@ function westPlateau(C) {
     if (Math.abs(x - 419.5) < 3 && z > 112) continue;
     w.block(x - 1.25, z - 1.25, x + 1.25, z + 1.25, PLAT + 1.0 - RES_BED, 'damConcrete', { y0: RES_BED, R: rotFrame(x, z, a) });
   }
-  w.bridge([[419.5, 175], [419.5, 121]], 4, PLAT + 0.12, 'concrete', { pillars: 10, pillarW: 1.4, thick: 0.8 });
+  w.bridge([[419.5, 175], [419.5, 121]], 4, PLAT + 0.12, 'concrete', { pillars: 0, thick: 0.8 });
+  for (const [z0, z1] of [[162, 178], [120, 130]]) w.block(417.5, z0, 421.5, z1, PLAT + 0.12 - RES_BED + 0.5, 'damConcrete', { y0: RES_BED - 0.5 });
+  for (const z of [138, 146, 154]) w.block(418.6, z - 0.7, 420.4, z + 0.7, PLAT - 0.68 - RES_BED, 'damConcrete', { y0: RES_BED, collide: false });
   for (const z of [140, 158]) C.lampAt(421.6, z, PLAT + 0.12, { y: 3.6, color: 0xe0ecff, intensity: 1.4, range: 11 });
   const bt = C.B.bneck = C.bld({ x: 413, z: 105, w: 14, d: 14, storeys: 3, floorY: PLAT + 0.1, blend: 0.5, name: 'The Bottleneck', wall: 'damConcrete', floor: 'metalPanel', tint: 0xc8c4b8, upWin: false,
     doors: [{ side: 's', at: 5.8, w: 2.4, door: true }, { side: 'w', at: 5, w: 2.4, sill: 1.1 }, { side: 'e', at: 5, w: 2.4, sill: 1.1 }, { side: 'n', at: 5.8, w: 2.4, sill: 1.1 },
       ...[1, 2].flatMap(k => [{ side: 'n', at: 2, w: 2.4, sill: 1.0, storey: k }, { side: 'e', at: 9, w: 2.4, sill: 1.0, storey: k }, { side: 'w', at: 2, w: 2.4, sill: 1.0, storey: k }, { side: 's', at: 9.5, w: 2.4, sill: 1.0, storey: k }])],
-    stairs: [{ x: 1.0, z: 7.0, w: 1.6, dir: 'n', from: 0, to: 1 }, { x: 11.4, z: 1.2, w: 1.6, dir: 's', from: 1, to: 2 }], ladders: [{ x: 2.2, z: 12.4, from: 2, to: 'top', face: PI }] });
+    stairs: [{ x: 1.0, z: 7.0, w: 1.6, dir: 'n', from: 0, to: 1 }, { x: 11.4, z: 2.0, w: 1.6, dir: 's', from: 1, to: 2 }], ladders: [{ x: 2.2, z: 12.4, from: 2, to: 'top', face: PI }] });
   C.P(bt, 'dg_pump', 7, 9, 0, { solid: true }); C.P(bt, 'dg_bigpipe', 7, 3, 0, { solid: true, scale: 0.6 });
   C.Cn(bt, 'toolbox', 12.6, 12.4, 0, { tier: 1 }); C.Cn(bt, 'crate', 4, 1, 0, { tier: 1 });
   C.P(bt, 'dg_valve', 7, 7, 0, { solid: true, storey: 2 }); C.P(bt, 'dg_console', 5, 0.8, 0, { solid: true, storey: 2 });   // "the valve"
@@ -1190,7 +1200,8 @@ function eastPlateau(C) {
   C.F(fc, 'control', 0, 0, 11, 16, { tier: 2 }); C.F(fc, 'workshop', 11, 0, 20, 16, { tier: 1 });
   C.F(fc, 'control', 0, 0, 11, 16, { tier: 2, storey: 1, extra: [['electronics', 1]] }); C.F(fc, 'office', 11, 0, 20, 16, { tier: 2, storey: 1 });
   // the intake platform where the town's water supply leaves the reservoir
-  w.bridge([[748, 186], [744, 172]], 5, PLAT - 0.6, 'metalPanel', { pillars: 5, pillarW: 0.6, thick: 0.4 });
+  w.bridge([[748, 186], [744, 172]], 5, PLAT - 0.6, 'metalPanel', { pillars: 0, thick: 0.4 });
+  w.block(745.2, 178.5, 750.4, 187, PLAT - 0.6 - RES_BED + 0.5, 'concrete', { y0: RES_BED - 0.5, rot: -0.28 });
   C.rampLine([[750, 193], [748, 186]], 5, PLAT, PLAT - 0.62, 1);
   w.prop('dg_spillgrate', 744, 170, 0, { yAbs: RES_WATER - 1 }); w.prop('dg_pump', 742, 176, PI / 2, { solid: true, yAbs: PLAT - 0.6 }); w.prop('dg_valve', 747, 174, 0, { solid: true, yAbs: PLAT - 0.6 });
   C.lampAt(749, 178, PLAT - 0.6, { y: 3.2, color: 0xe0ecff, intensity: 1.4, range: 10 });
@@ -1619,7 +1630,7 @@ function vegetation(C) {
   markLine(LEDGE, 5); markLine(RIVER_PTS, 6.5); markLine(CREEK_PTS, 3.6);
   markPoly([...arc(ARCH.rIn - 10, -ARCH.half - 0.1, ARCH.half + 0.1, 30), ...arc(ARCH.rOut + 2, ARCH.half + 0.1, -ARCH.half - 0.1, 30)]);   // crest + toe
   markRect(CHUTE.x0 - 3, CHUTE.z0 - 4, CHUTE.x1 + 3, CHUTE.z1 + 22); markRect(BRIDGE.x0 - 4, BRIDGE.z - 7, BRIDGE.x1 + 4, BRIDGE.z + 7);
-  markRect(710, 400, 900, 440); markRect(896, 425, 910, 490); markRect(1040, 425, 1064, 528); markRect(738, 471, 933, 612);
+  markRect(710, 400, 900, 440); markRect(896, 425, 910, 472); markRect(1040, 425, 1064, 528); markRect(738, 471, 933, 612);
   for (const b of w.buildings) markPoly(b.R ? [[-0.8, -0.8], [b.x1 - b.x0 + 0.8, -0.8], [b.x1 - b.x0 + 0.8, b.z1 - b.z0 + 0.8], [-0.8, b.z1 - b.z0 + 0.8]].map(([a, c]) => w.local(b, a, c)) : [[b.x0 - 0.8, b.z0 - 0.8], [b.x1 + 0.8, b.z0 - 0.8], [b.x1 + 0.8, b.z1 + 0.8], [b.x0 - 0.8, b.z1 + 0.8]]);
   for (const [cx, cz, r] of C.clear) markLine([[cx, cz], [cx + 0.01, cz]], r);
   for (const [a0, b0, c0, d0] of C.clearRects) markRect(a0, b0, c0, d0);

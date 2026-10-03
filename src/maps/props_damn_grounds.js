@@ -295,7 +295,7 @@ reg('dg_floodlight', () => {
   return v.build();
 }, { solid: [0.25, 0.25, 6.5] });
 
-// 4.2 m lattice perch for a Sentinal emplacement on the dam
+// 4.2 m lattice perch for a rooftop sniper (Neighborhood Watch) on the dam crest
 reg('dg_sentmast', () => {
   const v = new Vox(16, 44, 16, 0.1, [8, 0, 8]);
   v.box(0, 0, 0, 15, 1, 15, P.concD);
@@ -499,7 +499,7 @@ reg('dg_noticeboard', () => { const v = new Vox(24, 22, 3, 0.1, [12, 0, 1.5]); f
 reg('dg_vending', () => { const v = new Vox(10, 20, 8, 0.1, [5, 0, 4]); v.box(0, 0, 0, 9, 19, 7, P.red); v.box(1, 6, 8, 6, 17, 8, P.glassD); v.box(7, 10, 8, 8, 14, 8, P.gAmber); v.box(1, 2, 8, 6, 3, 8, P.black); v.glow(P.gAmber); return v.build(); }, { solid: [0.5, 0.4, 2] });
 reg('dg_medbed', () => { const v = new Vox(10, 10, 20, 0.1, [5, 0, 10]); v.box(0, 5, 0, 9, 6, 19, P.white); v.box(1, 7, 1, 8, 7, 18, 0xa8c8d0); v.box(0, 0, 0, 0, 4, 0, P.steel); v.box(9, 0, 19, 9, 4, 19, P.steel); v.box(0, 0, 19, 0, 4, 19, P.steel); v.box(9, 0, 0, 9, 4, 0, P.steel); v.box(1, 8, 1, 8, 9, 3, P.white); return v.build(); }, { solid: [0.5, 1.0, 0.8] });
 
-// ---------------------------------------------------------------- testing annex rig
+// ---------------------------------------------------------------- QA annex test rig
 reg('dg_testrig', () => {
   const v = new Vox(40, 30, 40, 0.15, [20, 0, 20]);
   v.cyl(20, 20, 0, 1, 19.5, 0x2a2a2e); v.cyl(20, 20, 0, 1, 15, 0x161618);
@@ -510,7 +510,7 @@ reg('dg_testrig', () => {
   return v.build();
 }, { cast: true });
 
-// controlled access zone: 4 switch lights above the vault door
+// the Paywall: 4 switch lights above the vault door
 reg('dg_puzzle', () => {
   const v = new Vox(24, 10, 3, 0.1, [12, 0, 1.5]);
   v.box(0, 0, 0, 23, 9, 1, 0x3a4044); for (let i = 0; i < 4; i++) { v.box(2 + i * 6, 3, 2, 4 + i * 6, 6, 2, i < 2 ? P.gGreen : P.gRed); }
@@ -541,7 +541,7 @@ reg('dg_huskbig', () => {
   return v.build();
 }, { solid: [1.6, 1.4, 1.6] });
 
-// soccer goal (Water Towers quest flavour)
+// football goal (Recess Park, the Drip Pricing Towers kickabout)
 reg('dg_goal', () => { const v = new Vox(50, 18, 14, 0.1, [25, 0, 7]); v.box(0, 0, 0, 1, 17, 1, P.white); v.box(48, 0, 0, 49, 17, 1, P.white); v.box(0, 16, 0, 49, 17, 1, P.white); for (let x = 0; x < 50; x += 3) line(v, x, 16, 1, x, 0, 13, 0x9a9a90); for (let y = 0; y < 16; y += 3) v.box(0, y, Math.round(13 - y * 0.75), 49, y, Math.round(13 - y * 0.75), 0x9a9a90); return v.build(); }, { solid: [2.5, 0.6, 1.7] });
 reg('dg_grave', () => { const v = new Vox(8, 12, 12, 0.1, [4, 0, 6]); v.box(3, 0, 1, 4, 11, 2, P.woodD); v.box(0, 8, 1, 7, 9, 2, P.woodD); v.box(1, 0, 3, 6, 1, 11, 0x4a3a2a); v.box(2, 11, 1, 5, 11, 2, 0x8a8a6a); return v.build(); }, { solid: [0.35, 0.5, 0.9] });
 reg('dg_memorial', () => { const v = new Vox(20, 26, 12, 0.1, [10, 0, 6]); v.box(0, 0, 0, 19, 3, 11, P.concD); v.box(4, 4, 3, 15, 22, 8, P.conc); v.box(6, 12, 9, 13, 18, 9, 0xb0a070); v.box(8, 23, 4, 11, 25, 7, P.steel); v.set(9, 2, 11, P.gAmber); v.glow(P.gAmber); return v.build(); }, { solid: [1.0, 0.6, 2.4] });
@@ -570,7 +570,7 @@ reg('dg_tankS', () => {
   return v.build();
 }, { solid: [1.8, 1.8, 4] });
 
-reg('dg_radar', () => {   // radar/radome on a short tower (South Swamp Outpost landmark)
+reg('dg_radar', () => {   // radar/radome on a short tower (Soggy Bottom Outpost landmark)
   const v = new Vox(34, 52, 34, 0.18, [17, 0, 17]);
   for (const [x, z] of [[8, 8], [25, 8], [8, 25], [25, 25]]) v.box(x, 0, z, x + 1, 22, z + 1, P.steelD);
   v.box(6, 22, 6, 27, 23, 27, P.steel);
