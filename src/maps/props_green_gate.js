@@ -617,7 +617,7 @@ function perchTower(wall, trim) {
 }
 P('gg_perchtower', () => perchTower(C.woodD, C.haz), {});
 P('gg_perchtower_w', () => perchTower(C.white, C.white), {});      // the white lookout tower (quest)
-P('gg_printer', () => {        // field printer that spits the Locked Gate security code
+P('gg_printer', () => {        // field printer that spits a Forgot My Password security code
   const v = new Vox(10, 11, 7, 0.1, [5, 0, 3.5]);
   v.box(0, 0, 0, 9, 6, 6, C.steelD); v.box(1, 7, 1, 8, 9, 5, 0xd8d4c8); v.box(2, 9, 6, 7, 9, 6, C.white);
   v.box(1, 3, 7 - 1, 3, 4, 6, C.gG); v.box(6, 8, 6, 8, 8, 6, C.gR); v.glow(C.gG).glow(C.gR);

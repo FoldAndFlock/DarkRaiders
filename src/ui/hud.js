@@ -53,7 +53,7 @@ export class HUD {
     this.t += dt;
     const c = this.x, W = this.W, H = this.H;
     c.clearRect(0, 0, W, H);
-    this.quickRects = [];
+    this.quickRects = []; this.offLabels = [];
     if (st.offscreen) this.offscreen(st.offscreen);
     if (st.markers) this.markers(st.markers);
     // screen-anchored panels are laid out inside the safe area; world markers and the crosshair use
@@ -73,10 +73,9 @@ export class HUD {
     if (st.chat) this.chat(st.chat);
     c.restore(); this.W = W; this.H = H; this.ox = this.oy = 0;
     for (const q of this.quickRects) { q.x += sa.l; q.y += sa.t; }
-    if (st.edge && st.edge.length) {
-      const avoid = [...this.rects, ...this.quickRects, ...(st.avoid || []).map(r => ({ x: r.x / this.s, y: r.y / this.s, w: r.w / this.s, h: r.h / this.s }))];
-      this.edges(st.edge, st.edgeOrigin || { x: W * this.s / 2, y: H * this.s / 2 }, avoid);
-    }
+    const avoid = [...this.rects, ...this.quickRects, ...(st.avoid || []).map(r => ({ x: r.x / this.s, y: r.y / this.s, w: r.w / this.s, h: r.h / this.s }))];
+    if (this.offLabels.length) this.offscreenLabels(avoid);
+    if (st.edge && st.edge.length) this.edges(st.edge, st.edgeOrigin || { x: W * this.s / 2, y: H * this.s / 2 }, avoid);
     this.rects = null;
     if (st.crosshair) this.crosshair(st.crosshair);
     if (st.banner) this.banner(st.banner);
@@ -244,10 +243,12 @@ export class HUD {
 
   // edge-of-screen warnings for nearby off-screen ARC (+ distance)
   offscreen(list) {
-    const c = this.x, W = this.W, H = this.H, m = 10;
-    for (const o of list) {
+    const c = this.x, m = 10;
+    // nearest first, so when labels collide the closest machine keeps its name
+    const dOf = (o) => +(String(o.label).match(/(\d+)M$/) || [0, 1e9])[1];
+    for (const o of [...list].sort((p, q) => dOf(p) - dOf(q))) {
       // o.sx, o.sy in css px; clamp to screen edge
-      const cx = (this.cssW || W * this.s) / this.s / 2, cy = (this.cssH || H * this.s) / this.s / 2;
+      const cx = (this.cssW || this.W * this.s) / this.s / 2, cy = (this.cssH || this.H * this.s) / this.s / 2;
       let dx = o.sx / this.s - cx, dy = o.sy / this.s - cy;
       const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
       const ex = Math.round(cx + dx * k), ey = Math.round(cy + dy * k);
@@ -262,9 +263,29 @@ export class HUD {
         const qx = Math.round(ex - Math.cos(a) * i - Math.cos(a + Math.PI / 2) * (i)), qy = Math.round(ey - Math.sin(a) * i - Math.sin(a + Math.PI / 2) * (i));
         c.fillRect(px - 1, py - 1, 2, 2); c.fillRect(qx - 1, qy - 1, 2, 2);
       }
-      const lx = ex - Math.cos(a) * 14, ly = ey - Math.sin(a) * 14;
-      this.text(o.label, lx, ly - 4, { align: 'center', color: col });
       c.globalAlpha = 1;
+      // the name + distance is placed after the panels are drawn (offscreenLabels)
+      this.offLabels.push({ label: o.label, col, alpha: pulse, lx: ex - Math.cos(a) * 14, ly: ey - Math.sin(a) * 14, vert: Math.abs(dx * k) >= cx - m - 1, sw: cx * 2, sh: cy * 2 });
+    }
+  }
+
+  // labels for the off-screen ARK chevrons: just inside the chevron and on screen; slid along the edge when
+  // they would cover a HUD panel, a touch button or another machine's label, dropped when there is no room
+  offscreenLabels(avoid) {
+    const c = this.x, placed = [];
+    const hit = (b) => placed.some(r => b.x < r.x + r.w && b.x + b.w > r.x && b.y < r.y + r.h && b.y + b.h > r.y)
+      || avoid.some(r => b.x < r.x + r.w && b.x + b.w > r.x && b.y < r.y + r.h && b.y + b.h > r.y);
+    for (const o of this.offLabels) {
+      const tw = textWidth(o.label), lx = Math.max(tw / 2 + 2, Math.min(o.sw - tw / 2 - 2, o.lx)), ly = Math.max(6, Math.min(o.sh - 6, o.ly));
+      let box = null;
+      for (let i = 0; i < 21 && !box; i++) {
+        const off = (i % 2 ? 1 : -1) * Math.ceil(i / 2) * (o.vert ? 10 : Math.min(tw + 4, 40));
+        const b = o.vert ? { x: lx - tw / 2 - 1, y: ly - 5 + off, w: tw + 2, h: 10 } : { x: lx - tw / 2 - 1 + off, y: ly - 5, w: tw + 2, h: 10 };
+        if (b.x >= 0 && b.x + b.w <= o.sw && b.y >= 0 && b.y + b.h <= o.sh && !hit(b)) box = b;
+      }
+      if (!box) continue;
+      placed.push(box);
+      c.globalAlpha = o.alpha; this.text(o.label, box.x + box.w / 2, box.y + 1, { align: 'center', color: o.col }); c.globalAlpha = 1;
     }
   }
 

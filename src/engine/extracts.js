@@ -53,7 +53,7 @@
 //             called, a black-and-red VTOL dropship flies in and hovers over the shaft (ducted-fan glow,
 //             downwash dust, winch line + rising light beam); at departure the raiders inside are pulled up
 //             into it and it flies off.
-//   hatch     Armoured round raider hatch (riveted ring, olive lid, red hand-wheel, key reader). A key opens it
+//   hatch     Armoured round Doggy Door hatch (riveted ring, olive lid, red hand-wheel, key reader). A key opens it
 //             for 15 s (lid up, steam, green ring sweeping down the window), then it seals again.
 // Every kind draws a pixel decal around its cabin (state colour: idle soft green, called amber + countdown
 // sweep, open bright green with chasing dashes + dithered fill, closing red, gone fading, offline red) and a
@@ -589,7 +589,7 @@ function animElevator(R, dt, st, t, el, ctx) {
 }
 function carryElevator(R, age) { const dy = Math.min(0, R.carY ?? 0); return { dx: 0, dy, dz: 0, hide: dy < -2.3 || age > 9 }; }
 
-// ============================================================================= RAIDER HATCH
+// ============================================================================= DOGGY DOOR (hatch)
 const HATCH_PTS = { call: [0, 0], callR: 2.4, departs: [], depart: null, entry: [0, 1.5], cabin: { shape: 'circle', cx: 0, cz: 0, r: 0.95, y: 0 } };
 function hatchBaseVox() {
   const v = new XB(0.0625, -1.0, 0, -1.0, 1.0, 1.0625, 1.0);

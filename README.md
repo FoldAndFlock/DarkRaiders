@@ -1,12 +1,17 @@
 # DarkRaiders
 
-A gritty, pixel-voxel **top-down 2.5D extraction roguelite** for the browser, patterned after
-*ARC Raiders* and rendered like an "ultra-powerful SNES": low-resolution 3D voxels in an oblique
-3/4 view, 15-bit colour with ordered dithering, dynamic lights and shadows, weather and time of day.
+> **An unofficial parody of *ARC Raiders*.** Not affiliated with, endorsed by or sponsored by Embark Studios.
 
-Raid the surface, dodge the ARK, loot, and **extract — or lose everything but your safe pocket.**
+A gritty-but-silly, pixel-voxel **top-down 2.5D extraction roguelite** for the browser that lovingly roasts
+*ARC Raiders* and extraction shooters in general. It's rendered like an "ultra-powerful SNES": low-resolution
+3D voxels in an oblique 3/4 view, 15-bit colour with ordered dithering, dynamic lights and shadows, weather
+and time of day.
 
-![Dam Grounds mockup](mockups/01-damn-grounds-dusk-rain.png)
+The **ARK** (*Autonomous Repossession Konglomerate – the K was a branding decision*) have come to repossess the
+planet, and humanity is three payments behind. From the underground town of **Desperanza** you go topside, loot
+anything that isn't nailed down, dodge the repo machines and **extract – or lose everything but your safe pocket.**
+
+![The three maps: Dam Grounds, Sandy City and Green Gate](docs/img/maps.png)
 
 ## Run it
 
@@ -17,8 +22,7 @@ npx http-server -p 8080 .        # or: python3 -m http.server 8080
 # then open http://localhost:8080
 ```
 
-(ES modules don't load from `file://`, so a server is required. Any static host works — e.g. GitHub Pages
-pointed at this branch.)
+(ES modules don't load from `file://`, so a server is required. Any static host works, e.g. GitHub Pages.)
 
 ## Controls
 
@@ -27,69 +31,87 @@ pointed at this branch.)
 | Move / aim | `WASD` / mouse |
 | Fire / aim down sights | `LMB` / `RMB` |
 | Sprint / crouch / dodge-roll | `Shift` / `C` (toggle) / `Space` |
-| Reload / swap weapon / melee | `R` / `Q` or wheel / `V` |
+| Reload / swap weapon / melee with the Bonk Stick | `R` / `Q` or wheel / `V` |
 | Interact (hold to search, revive, call elevators) | `E` |
 | Quick-use slots / throw grenade | `1`–`6` / `G` |
 | Flashlight | `F` |
 | Inventory / map | `Tab` / `M` |
-| Ping / "Don't shoot!" emote | `Z` or middle mouse / `H` |
+| Ping / "Don't shoot!" emote (works 12% of the time, every time) | `Z` or middle mouse / `H` |
 | Squad chat | `Enter` |
 | Pause & settings | `Esc` |
 | FPS counter | `F3` |
 
-Gamepads work too (twin-stick: left stick move, right stick aim, triggers ADS/fire).
+Gamepads work too (twin-stick: left stick move, right stick aim, triggers ADS/fire), and phones get optional
+touch controls. On a phone, "Add to Home Screen" runs it full-screen without browser bars.
 
 ## What's in it
 
-* **Three maps** traced from the real game's layouts: **Dam Grounds** (Dam Battlegrounds, 1100×825 m),
-  **Green Gate** (The Blue Gate, 1100×825 m) and **Sandy City** (Buried City, 900×900 m), at near-real scale
-  for 25–30 minute raids – POIs at their reference positions and angles, key rooms, cargo elevators,
-  airshafts, metro stations, raider hatches, field depots, ~700–850 containers and 100+ ARK groups each,
-  with rooftop Sentinels and condition-only bosses (Harvester Queene, Matriark). Buildings have real
-  upper floors, stairs, ladders and walkable roofs; towers, catwalks, bridges you can walk on and under,
-  and underground tunnels and metro halls beneath the streets.
-* **Extraction like the real game**: hold E at the call point (the alarm draws nearby ARK), hold out
-  through a 40 s countdown, get in when the doors open and pull the departure lever (or it leaves by
-  itself after 90 s), then survive the 8 s door close. Downed raiders bleed out over 60 s (longer with
-  downed-health skills): just enough to crawl to an extraction, call it and ride out. ARC ignore downed
-  raiders; hostile raiders don't. Concrete cargo-elevator bunkers, metro trains in
-  their underground stations (each station works once per raid), dropships over Green Gate's airshafts,
-  and key-locked Raider Hatches with a silent 15 s window. A raid goes to overtime while an extraction is
-  underway.
-* **Map conditions**: Night Raid, Electromagnetic Storm (lightning strikes), Cold Snap, Hurricane,
-  Lush Blooms, Uncovered Caches, Husk Graveyard, Prospecting Probes, Harvester/Matriarch bosses, Close
-  Scrutiny, Locked Gate… plus random time of day and weather (rain, storms, fog, sandstorms, snow).
-* **21 ARK machines** (Wazp, Hornett, Tikk, Popp, Fyreball, Snytch, Spottr, Turrett, Sentinal, Surveyr,
-  Rocketier, Leapr, Bastian, Bombardeer, Queene, Matriark…) with top-down weak points: shoot rotors off
-  drones, flank armoured fronts, crack rear canisters to expose cores, break Leapr legs.
-  **ARK vision cones are real light** – a spotlight traced against walls, trees, rocks and terrain, with
-  soft side outlines that fade out with the light. Its colour follows the machine's awareness like in
-  ARC Raiders: cool white while patrolling, yellow → orange when suspicious or searching, red once it has
-  spotted a raider and is attacking. Cones from off-screen ARK still reach into view, and edge-of-screen
-  chevrons warn of nearby machines.
-* **Bot raider squads** with mixed temperament: some hunt you, others shout *"DON'T SHOOT!"* and keep
-  their distance – until someone opens fire.
-* **488 items**: 24 weapons with tiers I–IV and mods, augments, shields, healing, grenades, traps,
-  gadgets, ARK parts, materials, valuables, keys and 82 blueprints (powerful weapon blueprints drop
-  more often than in the real game).
-* **Speranzia hub**: stash & loadout, workshop benches (Gunsmith, Gear Bench, Medical Lab, Explosives
-  Station, Utility Station, Refiner) that unlock higher-tier recipes, Scrappie the rooster, traders,
-  78 quests, and a 3-branch skill tree whose capstones are deliberately overpowered.
-* **Co-op for up to 4** over WebRTC (PeerJS). The host's browser runs the raid; everyone else joins with
-  a 5-letter invite code, spawns together, and returns to the same squad lobby after extracting.
-  In-game text chat and pings included.
-* **Synthesised SNES-style soundtrack and SFX** (Web Audio, no audio files).
+* **Three original maps** at 25–30-minute raid scale, each with its own design note in [`docs/maps/`](docs/maps):
+  * **Dam Grounds** (1100×825 m): a hydroelectric utility that defaulted on its loans. The Damn Dam holds back
+    the Overdue Reservoir; below it a 12 m gorge with the Hamster Wheel powerhouse and the Bridge To Nowhere;
+    staff housing, the Ivory Tower and the Paywall up on the plateaus; the Red Ink Lakes and Subprime Trailer
+    Park down in the lowlands.
+  * **Sandy City** (900×900 m): a seaside resort that went bust twice – first the sea left, then the sand
+    arrived. Boulevards fan out from the Roundabout of Regret; there's St. Copay's Hospital, the Overdue
+    Library, the Pump & Dump Gas Station, a marina full of stranded boats at Yacht Rock Bottom, and an old town
+    on the hill with Our Lady of Perpetual Escrow.
+  * **Green Gate** (1100×825 m): a mountain valley run by the Gatekeeping Department. The highway crosses Lake
+    Liquidity on a causeway that fell in during Infrastructure Week, queues at the Toll Booth of Eternal Hold
+    Music, and ends at a gate jammed two-thirds shut; behind it, Tunnel Vision leads under the Shelf to the
+    Cloud (Basement).
+
+  Buildings have real upper floors, stairs, ladders and walkable roofs; there are towers, bridges you can walk
+  on and under, underground halls and metro stations, ~600–850 containers and 120+ ARK groups per map, rooftop
+  snipers and condition-only bosses.
+* **Extraction**: hold E at the call point (the alarm draws nearby ARK), hold out through a 40 s countdown, get
+  in when the doors open and pull the departure lever (or it leaves by itself after 90 s), then survive the
+  8 s door close. Cargo elevators play **40 seconds of elevator music** while you wait. Metro trains in
+  underground stations (each works once per raid), dropships over Green Gate's airshafts, and key-locked
+  **Doggy Doors** with a silent 15 s window. Downed raiders bleed out over 60 s – just enough to crawl to an
+  extraction, call it and ride out. ARK ignore downed raiders; hostile raiders don't. A raid goes to overtime
+  while an extraction is underway.
+* **Map conditions**: Night Shift, Electric Boogaloo (lightning), Cold Shoulder, Bad Hair Day, Allergy Season,
+  Everything Must Go, Mass Layoffs, Survey Season, Audit Season, Magpie Mafia, Forgot My Password, and the
+  boss events Juice Cleanse (The Landlady) and Mom's Home (Helicopter Mom) – plus random time of day and
+  weather (rain, storms, fog, sandstorms, snow).
+* **21 ARK repo machines** – the Late Fee that latches onto your face, the Pop-Up Ad that rolls up beeping,
+  Buzzkill drones, the shield-draining Middle Manager, the Narc that calls its friends, the Plus One that
+  marks you for its Shell Company, Neighborhood Watch snipers, the Close Talker, Rocket Surgeons, the Vape
+  Lord, Parkour Dad, the HOA President, the Cloud Service that crashes mid-raid, The Landlady and Helicopter
+  Mom – with top-down weak points: shoot rotors off drones, flank armoured fronts, crack rear canisters to
+  expose cores, break Parkour Dad's knees.
+  **ARK vision cones are real light** – a spotlight traced against walls, trees, rocks and terrain, whose
+  colour follows the machine's mood: cool white while patrolling, yellow → orange when suspicious, red once it
+  has spotted you. Edge-of-screen chevrons warn of nearby machines.
+* **Bot raider squads** with mixed temperament: some hunt you, others shout *"DON'T SHOOT!"* and keep their
+  distance – until someone uses up the 12%.
+* **488 items**: 24 weapons with tiers I–IV and mods (the Teapot, the Maraca, the Cha-Cha-Cha burst rifle, the
+  BOGO pistol that fires two for the price of one, the Hair Dryer energy shotgun, the Hostile Takeover beam
+  rifle…), Hoarder / Gym Bro / Overthinker augments, shields, healing, grenades, traps, gadgets, ARK parts,
+  materials, valuables (you will carry 40 Rusted Gears), keys and 82 blueprints.
+* **Desperanza**: stash & loadout; workshop benches (the Wobbly Table, Gun Garage, Sewing Circle, Medicine
+  Cabinet, Bad Idea Bench, Junk Drawer and The Upcycler) that unlock higher-tier recipes; Nugget, the Workshop
+  Rooster & Union Rep; five traders – Auntie Synergy (Raider Leader, Self-Appointed), Sergeant Shaky (Head of
+  Security and Conspiracies), Wen Ever (Gunsmith, Eventually), Kaboomer (Travelling Mechanic & Unlicensed
+  Flautist) and Doc Reboot (Field Medic, Warranty Expired); 78 quests, starting with *Picking Up The Bits
+  (Again) (Forever)*; and a skill tree – Dad Strength, Cardio and Gremlin Mode – whose capstones are
+  deliberately overpowered.
+* **Co-op for up to 4** over WebRTC (PeerJS). The host's browser runs the raid; everyone else joins with a
+  5-letter invite code, spawns together, and returns to the same squad lobby after extracting. In-game text chat
+  and pings included.
+* **Synthesised SNES-style soundtrack and SFX** (Web Audio, no audio files), including the elevator's
+  bossa-nova hold music, *Please Hold*.
 
 ## Saves
 
-Progress (stash, loadout, workshop, blueprints, skills, quests) saves automatically to browser storage
-and is mirrored into cookies. Use **Raider → Save / Load** in the hub to export your save as a `.json`
-file and import it on another browser or machine.
+Progress (stash, loadout, workshop, blueprints, skills, quests) saves automatically to browser storage and is
+mirrored into cookies. Use **Raider → Save / Load** in the hub to export your save as a `.json` file and import
+it on another browser or machine.
 
 ## Co-op notes
 
-* Hosting uses the free public PeerJS signalling server. If it is down or blocked on your network you
-  can point the game at your own [PeerJS server](https://github.com/peers/peerjs-server):
+* Hosting uses the free public PeerJS signalling server. If it is down or blocked on your network you can point
+  the game at your own [PeerJS server](https://github.com/peers/peerjs-server):
   `index.html?peerhost=my.server&peerport=443&peerpath=/myapp`.
 * Very strict NATs may need a TURN server; most home connections work out of the box.
 * For same-machine testing, `?net=local` uses a BroadcastChannel transport between browser tabs.
@@ -98,13 +120,21 @@ file and import it on another browser or machine.
 
 * `index.html?raid=test_range` jumps straight into the developer sandbox map (`&time=night&weather=rain&cond=em_storm`).
 * `index.html?dev` adds the sandbox to the lobby map list.
-* `tools/mapview.html?map=<id>&mode=overview` previews whole maps with markers; `mode=view&x=..&z=..` shows the in-game camera.
+* `tools/mapview.html?map=<id>&mode=overview` previews whole maps with markers; `mode=view&x=..&z=..` shows the
+  in-game camera.
 * `tools/arkgallery.html` (every ARK model, `?state=idle|alert|fire|broken|demo`), `tools/icons.html` (all item
-  icons + gun models), `tools/audio-test.html` (every sound, music state and jingle) and `tools/hubtest.html`
-  (the Speranzia hub on its own).
-* `tools/*.mjs` are headless Playwright test scripts (playtest, menu flow, co-op, gameplay loop);
-  `node tools/mapthumbs.mjs` regenerates the lobby map previews in `assets/maps/` after map edits.
-* Architecture and content schemas: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); map-building guide: [`docs/MAPS.md`](docs/MAPS.md).
+  icons + gun models), `tools/audio-test.html` (every sound, music state and jingle, including the elevator
+  muzak) and `tools/hubtest.html` (the Desperanza hub on its own).
+* `tools/*.mjs` are headless Playwright test scripts (playtest, menu flow, co-op, gameplay loop, flight and
+  pathfinding); `node tools/mapthumbs.mjs` regenerates the lobby map previews in `assets/maps/` after map edits.
+* Architecture, content schemas and the naming/writing policy: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md);
+  map-building guide: [`docs/MAPS.md`](docs/MAPS.md).
 
-Fan project. ARC Raiders is a trademark of Embark Studios AB; DarkRaiders is not affiliated with or endorsed by Embark.
-Three.js (MIT) and PeerJS (MIT) are vendored in `vendor/`. Pixel fonts derived from the public-domain X11 misc bitmap fonts.
+## Parody notice
+
+DarkRaiders is an unofficial parody. It is not affiliated with, endorsed by or sponsored by Embark Studios AB.
+*ARC Raiders* is a trademark of Embark Studios AB and is named here only to identify the game being parodied.
+The maps, art, audio, code and writing in this repository are original to this project.
+
+Three.js (MIT) and PeerJS (MIT) are vendored in `vendor/`. Pixel fonts derived from the public-domain X11 misc
+bitmap fonts.
