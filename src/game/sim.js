@@ -358,7 +358,7 @@ export class Sim {
     if (src) src.kills = (src.kills || 0) + 1;
     this.emit({ e: 'arkdown', id: e.id, kind: e.kind, x: e.x, z: e.z, y: e.y + (e.alt || 0), src: src?.id, w: weapon, xp: e.def.xp || 20, big: (e.def.hp || 100) > 600 });
     const items = rollArkDrops(e.def.loot, this.rng, this.condEffects.lootMul || 1);
-    this.dropLoot(e.x, e.z, items, 'ark', e.kind, e.y);
+    this.dropLoot(e.x, e.z, items, 'ark', e.def.name || 'ARK', e.y);   // label = what the prompt shows ("LOOT <name>")
     if (e.def.explodeOnDeath || (e.def.behavior === 'pop' && !e.def.noDeathBlast && e.kind !== 'komet')) this.explode(e.x, e.y + 0.5, e.z, e.def.attack?.radius || 3.5, e.def.attack?.dmg || 40, null, 'frag', null, { ark: true });
     if ((e.def.hp || 0) >= 300 && !e.def.flying) {
       // big husks stay as salvageable containers

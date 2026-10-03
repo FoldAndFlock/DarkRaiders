@@ -9,7 +9,7 @@ import { ContainerRenderer, containerGeo } from '../engine/containers.js';
 import { GU, litVox } from '../engine/materials.js';
 import { SURF } from '../engine/world.js';
 import { coneColor } from '../engine/cones.js';
-import { ARK } from '../data/arc.js';
+import { ARK, ARK_HUSKS } from '../data/arc.js';
 import { ITEMS, reloadSoundFor } from './items.js';
 import { Vox } from '../engine/voxel.js';
 
@@ -714,7 +714,8 @@ export class View {
   }
 }
 export function containerLabel(kind) {
-  return ({ locker: 'Locker', crate: 'Crate', weapon_case: 'Weapon Case', ammo_box: 'Ammo Box', medical_bag: 'Medical Bag', toolbox: 'Toolbox', electronics: 'Electronics', cabinet: 'Cabinet', desk: 'Desk', safe: 'Safe', trash: 'Trash', car_trunk: 'Car Trunk', fridge: 'Fridge', suitcase: 'Suitcase', backpack: 'Backpack', arc_crate: 'ARK Crate', arc_husk: 'ARK Husk', barron_husk: 'Legacy System', deforestr_husk: 'Hedge Fund', raider_cache: 'Raider Cache', field_depot: 'Supply Shack', plant: 'Plant', basket: 'Basket', security_locker: 'Security Locker', bag: 'Bag' })[kind] || kind;
+  return ({ locker: 'Locker', crate: 'Crate', weapon_case: 'Weapon Case', ammo_box: 'Ammo Box', medical_bag: 'Medical Bag', toolbox: 'Toolbox', electronics: 'Electronics', cabinet: 'Cabinet', desk: 'Desk', safe: 'Safe', trash: 'Trash', car_trunk: 'Car Trunk', fridge: 'Fridge', suitcase: 'Suitcase', backpack: 'Backpack', arc_crate: 'ARK Crate', arc_husk: 'ARK Husk', barron_husk: 'Legacy System', deforestr_husk: 'Hedge Fund', raider_cache: 'Raider Cache', field_depot: 'Supply Shack', plant: 'Plant', basket: 'Basket', security_locker: 'Security Locker', bag: 'Bag', bee_hive: 'Beehive', supply_drop: 'Supply Drop' })[kind]
+    || ARK_HUSKS[kind]?.name || String(kind).replace(/_/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase());   // never show a raw id
 }
 function extractNoun(kind) { return kind === 'metro' ? 'METRO' : kind === 'airshaft' ? 'DROPSHIP' : kind === 'hatch' ? 'DOGGY DOOR' : 'ELEVATOR'; }
 function distToSeg(px, pz, ax, az, bx, bz) {
