@@ -58,13 +58,13 @@ All tables are plain exported objects/arrays. No imports except other data files
 Common fields on every item:
 ```js
 {
-  name: 'Rattlr', type: 'weapon', rarity: 'common',
+  name: 'Maraca', type: 'weapon', rarity: 'common',   // id stays `rattlr`
   weight: 6.0,          // kg
   stack: 1,             // max stack size
   value: 1500,          // sell price in coins (Raider tokens = "Scrip")
   desc: 'Short flavour + function text.',
   icon: 'gun_rifle',    // icon id (see ui/icons) – may be a generic family id
-  recycle: { metal_parts: 4, simple_gun_parts: 1 },   // output of recycling at Speranzia (optional)
+  recycle: { metal_parts: 4, simple_gun_parts: 1 },   // output of recycling at Desperanza (optional)
   tags: ['arc_part', 'electrical', ...],               // optional search/sort tags
 }
 ```
@@ -108,7 +108,8 @@ plus `export const SCRAPPY = { levels: [ { level, cost, yields: [[itemId, min, m
 
 ### `arc.js` → `export const ARK = { [id]: ArkDef }`
 ```js
-{ name: 'Wazp', hp: 90, flying: true, height: 2.2, radius: 0.6, speed: 5,
+{ name: 'Buzzkill', hp: 90, flying: true,   // id `wazp`
+  height: 2.2, radius: 0.6, speed: 5,
   behavior: 'drone_gunner',          // see behaviours below
   vision: { range: 24, fov: 70 /*deg full cone*/, hearing: 18, alertTime: 0.8 },
   attack: { kind: 'bullets'|'rocket'|'laser'|'mortar'|'flame'|'shock'|'explode'|'leap'|'melee',
@@ -167,8 +168,8 @@ extraction_speed, cone_vision_range /*how far player sees enemy cones*/, mark_du
 ```
 
 ### `traders.js` → `export const TRADERS = { [id]: { name, title, desc, color, sells: [ { item, price, stock, unlock?: questId } ], buys: 'all'|[types] } }`
-Traders: Celesta (quests, general), Shanni (security / shields & augments), Tien Wen (gunsmith),
-Apolo (explosives & gadgets), Lantz (medic). Sell prices ≈ 2.5–4× item `value`.
+Traders (id → name): `celesta` Auntie Synergy (quests, general), `shanni` Sergeant Shaky (security / shields &
+augments), `tien_wen` Wen Ever (gunsmith), `apolo` Kaboomer (explosives & gadgets), `lantz` Doc Reboot (medic). Sell prices ≈ 2.5–4× item `value`.
 
 ### `conditions.js` → `export const CONDITIONS = { [id]: { name, desc, time?: 'night'|…, weather?: …, effects: {…} } }`
 Examples: night_raid, em_storm (lightning + ARK disruption), lush_blooms, uncovered_caches,
