@@ -6,6 +6,7 @@ import { OBLIQUE_K, PX_PER_M } from '../engine/renderer.js';
 import { wrapAngle } from './sim.js';
 import { SKILL_TREE } from '../data/skills.js';
 import { TRACER, TRACER_MOVE } from './view.js';
+import { safeSpot } from './unstuck.js';
 // interactions a downed raider can still use (extraction controls; info prompts just show)
 const DOWNED_OK = new Set(['extract', 'depart', 'hatch', 'info', 'offline']);
 
@@ -66,6 +67,7 @@ export class PlayerController {
     const downed = e.st === 'downed';
     this.input = input;
     this.feedback(input);
+    this.towTick(dt);
     // --- aim: gamepad right stick (pad mode), touch aim stick, or the mouse cursor. Stick aim also moves
     // input.mouse onto the aim point so the HUD crosshair and entity picking follow it.
     const feet = e.y, mode = input.mode;
@@ -140,6 +142,12 @@ export class PlayerController {
       }
     } else this.pushT = 0;
     this.vx = (p.x - e.x) / dt; this.vz = (p.z - e.z) / dt;
+    // pushing to move for 5 s without getting anywhere: point at the pause menu's tow (once a minute)
+    const W = this.stuckWatch ||= { t: 0, x: p.x, z: p.z, hintAt: -1e9 };
+    if (moving && !this.useItem) {
+      W.t += dt; if (Math.hypot(p.x - W.x, p.z - W.z) > 1.2) { W.t = 0; W.x = p.x; W.z = p.z; }
+      if (W.t > 5 && g.time - W.hintAt > 60) { W.hintAt = g.time; g.hudMsg("STUCK? PAUSE MENU -> I'M STUCK - CALL A TOW", '#f0c030'); }
+    } else { W.t = 0; W.x = p.x; W.z = p.z; }
     // multi-level: walk up stairs / kerbs (move), fall off ledges and roofs with gravity
     const fl = g.world.grid.floorAt(p.x, p.z, p.y);
     if (fl < p.y - 0.06) {
@@ -292,6 +300,30 @@ export class PlayerController {
     if (!best) return null;
     const keep = Math.atan2(best.r * 0.55, best.d);      // inside this the line already crosses the body
     return { a: Math.abs(best.da) <= keep ? a : best.dir - Math.sign(best.da) * keep, dy: clamp((best.cy - oy) / Math.max(0.5, best.d - best.r * 0.5), -3, 3) };   // slope to where the shot enters the body
+  }
+  // "I'm stuck" (pause menu): a 3 s countdown, cancelled if anything hurts you, then you're moved to the
+  // nearest spot connected to the spawns and extractions (unstuck.js). 30 s cooldown.
+  requestUnstuck() {
+    const e = this.e, g = this.g;
+    if (e.st === 'dead' || e.st === 'out' || this.towT != null) return;
+    if (g.time < (this.towCD || 0)) { g.hudMsg(`THE TOW TRUCK IS STILL OUT (${Math.ceil(this.towCD - g.time)}S)`, '#9a9484'); return; }
+    this.towT = 3; this.towS = null; this.towLife = this.life();
+    g.hudMsg('TOW TRUCK REQUESTED. HOLD TIGHT AND TRY NOT TO GET SHOT.', '#f0c030');
+  }
+  life() { const e = this.e; return (e.st === 'downed' ? (e.downHp || 0) : (e.hp || 0)) + (e.sh || 0); }
+  towTick(dt) {
+    if (this.towT == null) return;
+    const e = this.e, g = this.g, life = this.life();
+    if (life < this.towLife - 0.5) { this.towT = null; g.hudMsg('TOW CANCELLED - SOMETHING SHOT YOU', '#e84a30'); return; }
+    this.towLife = life; this.towT -= dt;
+    const s = Math.ceil(this.towT); if (s > 0 && s !== this.towS) { this.towS = s; g.hudMsg(`TOW ARRIVING IN ${s}...`, '#f0c030'); }
+    if (this.towT > 0) return;
+    this.towT = null;
+    const spot = safeSpot(g.world, e.x, e.z, e.y, g.sim?.nav);
+    if (!spot) { g.hudMsg('NO TOW CAN REACH YOU HERE. IMPRESSIVE.', '#e84a30'); return; }
+    e.x = spot[0]; e.y = spot[1]; e.z = spot[2]; this.vy = 0; this.fallFrom = null; this.towCD = g.time + 30;
+    g.audio?.play('jump_land', { x: e.x, z: e.z, vol: 0.6 });
+    g.hudMsg('TOWED. PLEASE RATE YOUR DRIVER FIVE STARS.', '#5cc860');
   }
   isHostile(t) {
     if (t.team === this.e.team) return false;

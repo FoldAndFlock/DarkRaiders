@@ -38,7 +38,7 @@ npx http-server -p 8080 .        # or: python3 -m http.server 8080
 | Inventory / map | `Tab` / `M` |
 | Ping / "Don't shoot!" emote (works 12% of the time, every time) | `Z` or middle mouse / `H` |
 | Squad chat | `Enter` |
-| Pause & settings | `Esc` |
+| Pause & settings (and *I'm stuck – call a tow* if you ever get wedged somewhere) | `Esc` |
 | FPS counter | `F3` |
 
 Gamepads work too (twin-stick: left stick move, right stick aim, triggers ADS/fire), and phones get optional

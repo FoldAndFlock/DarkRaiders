@@ -274,6 +274,9 @@ export class RaidUI {
     p.appendChild(closeBtn(() => this.closePause()));
     p.appendChild(el('div', 'label', g.net ? 'THE RAID CONTINUES - SQUAD MODE. THE ARK DO NOT PAUSE.' : 'SOLO - THE WORLD IS FROZEN. THE ARK ARE ON HOLD.'));
     const resume = el('button', 'primary', 'RESUME'); resume.onclick = () => this.closePause(); p.appendChild(resume);
+    if (g.me && g.me.st !== 'dead' && g.me.st !== 'out') {   // safety net for spots a raider can't get out of
+      const tow = el('button', '', "I'M STUCK - CALL A TOW"); tow.onclick = () => { this.closePause(); g.pc?.requestUnstuck?.(); }; p.appendChild(tow);
+    }
     const vol = el('div', 'col');
     for (const [k, label] of [['master', 'MASTER'], ['music', 'MUSIC'], ['sfx', 'SFX']]) {
       const r = el('div', 'row', `<span class="label" style="width:calc(var(--px)*50px)">${label}</span>`);
