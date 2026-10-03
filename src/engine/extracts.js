@@ -1303,7 +1303,10 @@ export function extractSolids(kind, x = {}, world = null) {
     }
     case 'airshaft': {
       const { O, I, H, DW, DH } = AS, h = H + 0.125;
-      return [[-O, -O, -I, O, h], [I, -O, O, O, h], [-I, -O, I, -I, h], [-I, I, -DW, O, h], [DW, I, I, O, h], [-DW, I, DW, O, h - DH, DH], [2.3, 2.125, 2.9, 2.5, 1.6]];
+      // the wall stubs beside the doorway stop 0.3 m short of it: collision cells round outward (and thin turned
+      // pieces get padded), which otherwise shrank the 1.75 m doorway to ~1 m - too tight to crawl through downed
+      const DC = DW + 0.3;
+      return [[-O, -O, -I, O, h], [I, -O, O, O, h], [-I, -O, I, -I, h], [-I, I, -DC, O, h], [DC, I, I, O, h], [-DW, I, DW, O, h - DH, DH], [2.3, 2.125, 2.9, 2.5, 1.6]];
     }
     default: {
       const { B, I, DW, DH, H, RT } = EB;
