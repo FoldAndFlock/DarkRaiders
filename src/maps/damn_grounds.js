@@ -1297,8 +1297,8 @@ function eastPlateau(C) {
   C.loot(1018, 228, 18, ['raider_cache', 'ammo_box', 'crate', 'backpack', 'medical_bag', 'weapon_case', 'cabinet'], 2);
   for (const [x, z] of [[1000, 226], [1034, 222]]) w.lamp(x, z, { y: 3.0, color: 0xffa050, intensity: 1.4, range: 9, flicker: 0.4 });
 
-  // ---------------- Golden Parachute Lift + the east Supply Shack
-  C.lift('golden_parachute_lift', 'Golden Parachute Lift', 1064, 272, 0);
+  // ---------------- Bailout Lift + the east Supply Shack
+  C.lift('golden_parachute_lift', 'Bailout Lift', 1064, 272, 0);
   C.fieldDepot(944, 396, 0);
 
   // ---------------- Customer Retention Center (where the ARK keep the customers who tried to leave)

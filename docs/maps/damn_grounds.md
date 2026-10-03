@@ -67,7 +67,7 @@ Quest-referenced ids are marked ★ (ids are internal and never change).
 
 ## Extractions
 * Cargo elevators: **Elevator Pitch** (west plateau edge, 48,296), **The Down Round** (gorge floor, 538,286),
-  **Golden Parachute Lift** (east plateau edge, 1064,272), **Exit Interview Elevator** (south, 670,786).
+  **Bailout Lift** (east plateau edge, 1064,272), **Exit Interview Elevator** (south, 670,786).
 * Doggy Doors (Doggy Door Key): **Boathouse Doggy Door** (marina, 322,176), **Spillway Doggy Door** (plunge pool, 706,314),
   **Soggy Bottom Doggy Door** (marsh, 134,620), **Ant Farm Doggy Door** (Ant Hills, below the outpost, 958,716).
 
