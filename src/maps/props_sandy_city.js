@@ -1,6 +1,9 @@
-// Sandy City custom voxel props (prefix sc_). Italian old-town furniture half swallowed by dunes:
-// palms / olives / cypresses, awnings, market stalls, fountains, statues, metro entrance totems, highway
-// barriers, buried cars, lamp posts, laundry lines, rubble, interiors (beds, pews, server racks...).
+// Sandy City custom voxel props (prefix sc_). A Mediterranean seaside town that lost its sea and is
+// losing its streets to the dunes: palms / olives / cypresses, awnings, market stalls, fountains, statues,
+// metro entrance totems, highway barriers, buried cars, lamp posts, laundry lines, rubble, interiors (beds,
+// pews, server racks...), and the waterfront without its water: stranded yachts, buoys, bollards, a harbour
+// crane, the lighthouse lantern, pedal boats, water-park slides, solar panels, rooftop chimneys with magpie
+// nests and the zipline catwalks that only go up when the magpies are in town.
 import { registerProp, Vox } from '../engine/models.js';
 
 // deterministic hash for voxel colour noise (no Math.random: geometry must match on every client)
@@ -566,6 +569,225 @@ function stove() {
 }
 function carCar(body, seed) { return fiat(body, seed); }
 
+
+// ------------------------------------------------------------------ THE WATERFRONT (WITHOUT WATER)
+const HULLW = [0xf0ece2, 0xe8e2d4, 0xf4f0e8];
+function yacht(L = 120, W = 34, stripe = 0x2a5a9a, seed = 1) {
+  // motor yacht resting on its keel in the sand, bow to +z
+  const v = new Vox(W + 2, 40, L + 2, 0.1, [(W + 2) / 2, 0, (L + 2) / 2]);
+  const c = (W + 2) / 2;
+  for (let z = 1; z <= L; z++) {
+    const t = z / L, bow = t > 0.72 ? 1 - (t - 0.72) / 0.28 : 1, hw = Math.max(1.5, (W / 2) * Math.sqrt(bow) * (0.9 + 0.1 * Math.sin(t * 3)));
+    for (let y = 0; y < 18; y++) {
+      const ww = hw * (0.55 + 0.45 * Math.min(1, y / 9));
+      for (let x = Math.floor(c - ww); x <= c + ww; x++) {
+        const edge = Math.abs(x + 0.5 - c) > ww - 1.2 || y === 17;
+        if (!edge && y < 16) continue;
+        v.set(x, y, z, y < 3 ? pick([0x8a3a2a, 0x7a3426], x, y, z) : (y >= 12 && y <= 13) ? stripe : pick(HULLW, x, y, z));
+      }
+    }
+    if (hw > 4) v.box(Math.floor(c - hw + 2), 16, z, Math.floor(c + hw - 2), 16, z, 0xc8a878);        // teak deck
+  }
+  v.box(Math.floor(c - W * 0.3), 17, Math.floor(L * 0.22), Math.floor(c + W * 0.3), 27, Math.floor(L * 0.62), (x, y, z) => (y > 21 && y < 25 && (z % 6 > 1) ? 0x2a3a44 : pick(HULLW, x, y, z)));
+  v.box(Math.floor(c - W * 0.24), 28, Math.floor(L * 0.28), Math.floor(c + W * 0.24), 29, Math.floor(L * 0.55), 0xe8e4d8);
+  v.box(Math.floor(c) - 1, 30, Math.floor(L * 0.4), Math.floor(c), 38, Math.floor(L * 0.4) + 1, 0x9a9a9a);
+  for (let i = 0; i < 30; i++) v.set(Math.floor(c - W / 2 + hsh(i, seed, 3) * W), 1 + Math.floor(hsh(i, 4, seed) * 3), Math.floor(hsh(seed, i, 7) * L), pick(SANDC, i, 2, 3));
+  return v.build();
+}
+function fishBoat() {
+  const v = new Vox(28, 34, 72, 0.1, [14, 0, 36]);
+  const P = [0x3a6a8a, 0x2e5a7a], W = [0x8a6a48, 0x7a5c3e];
+  for (let z = 2; z < 70; z++) {
+    const t = z / 70, hw = 12 * Math.sqrt(Math.min(1, (1 - t) * 3.2)) * Math.min(1, 0.6 + t * 2);
+    for (let y = 0; y < 13; y++) { const ww = hw * (0.5 + 0.5 * Math.min(1, y / 7)); for (let x = Math.floor(14 - ww); x <= 14 + ww; x++) if (Math.abs(x + 0.5 - 14) > ww - 1.2 || y === 0) v.set(x, y, z, y < 4 ? 0x6a2a22 : y > 9 ? pick(W, x, y, z) : pick(P, x, y, z)); }
+  }
+  v.box(8, 12, 10, 20, 24, 26, (x, y, z) => (y > 17 && y < 22 && z % 5 > 1 ? 0x2a3a44 : 0xe8e0d0)); v.box(7, 25, 9, 21, 26, 27, 0xb84a32);
+  v.box(13, 12, 40, 14, 32, 41, 0x7a5c3e); v.box(8, 30, 40, 19, 30, 41, 0x7a5c3e);
+  v.box(6, 12, 46, 22, 14, 60, (x, y, z) => (hsh(x, y, z) < 0.5 ? 0x5a7a4a : -1));                 // nets
+  return v.build();
+}
+function hull() {
+  // capsized: the red bottom up, a gap under one side
+  const v = new Vox(34, 22, 94, 0.1, [17, 0, 47]);
+  for (let z = 2; z < 92; z++) {
+    const t = z / 92, hw = 15 * Math.sqrt(Math.min(1, (1 - t) * 3)) * Math.min(1, 0.6 + t * 3);
+    for (let y = 0; y < 20; y++) { const ww = hw * (1 - Math.max(0, y - 6) / 18); for (let x = Math.floor(17 - ww); x <= 17 + ww; x++) if (y > 13 || Math.abs(x + 0.5 - 17) > ww - 1.2) v.set(x, y, z, y > 9 ? pick([0xa83a2a, 0x983426, 0xb8442e], x, y, z) : pick(HULLW, x, y, z)); }
+  }
+  v.box(15, 20, 6, 18, 21, 80, 0x5a3a2a);
+  return v.build();
+}
+function dinghy() {
+  const v = new Vox(16, 8, 36, 0.1, [8, 0, 18]);
+  for (let z = 1; z < 35; z++) { const t = z / 35, hw = 7 * Math.sqrt(Math.min(1, (1 - t) * 3)) * Math.min(1, 0.7 + t * 3); for (let y = 0; y < 6; y++) for (let x = Math.floor(8 - hw); x <= 8 + hw; x++) if (Math.abs(x + 0.5 - 8) > hw - 1.1 || y === 0) v.set(x, y, z, y > 3 ? 0xe8e0d0 : 0x3a8a9a); }
+  v.box(2, 4, 16, 13, 4, 18, 0x8a6a48); v.box(1, 5, 12, 1, 5, 24, 0x7a5c3e);
+  return v.build();
+}
+function buoy() {
+  const v = new Vox(12, 16, 12, 0.1, [6, 0, 6]);
+  v.sphere(6, 5, 6, 5.2, (x, y, z) => (y > 5 ? 0xe8e4dc : 0xc83a2a), 0.9);
+  v.box(5, 9, 5, 6, 14, 6, 0x5a5a5a); v.box(4, 14, 4, 7, 15, 7, 0xe8c83a);
+  v.box(0, 0, 0, 11, 1, 11, (x, y, z) => (hsh(x, y, z) < 0.5 ? pick(SANDC, x, y, z) : -1));
+  return v.build();
+}
+function bollard() {
+  const v = new Vox(6, 7, 6, 0.1, [3, 0, 3]);
+  cyl(v, 3, 3, 0, 4, 2.4, 0x2a2e30); cyl(v, 3, 3, 5, 6, 3, 0x3a3e40);
+  return v.build();
+}
+function anchor() {
+  const v = new Vox(16, 4, 26, 0.1, [8, 0, 13]);
+  v.box(7, 0, 2, 8, 2, 22, 0x5a4a3e); v.box(2, 0, 2, 13, 2, 3, 0x5a4a3e); v.box(1, 0, 4, 3, 2, 6, 0x5a4a3e); v.box(12, 0, 4, 14, 2, 6, 0x5a4a3e);
+  v.box(5, 0, 21, 10, 3, 24, 0x6a5a4e);
+  return v.build();
+}
+function crane() {
+  // quay crane: lattice tower on a wide base, boom reaching out over the old water
+  const v = new Vox(46, 150, 150, 0.1, [23, 0, 30]);
+  const Y = [0xe0a020, 0xd09018], K = 0x2a2a2a;
+  v.box(4, 0, 12, 41, 4, 48, 0x5a5a5a);
+  for (let y = 4; y < 118; y++) for (const [x, z] of [[14, 22], [31, 22], [14, 38], [31, 38]]) v.box(x, y, z, x + 1, y, z + 1, pick(Y, x, y, z));
+  for (let y = 8; y < 118; y += 10) { v.box(14, y, 22, 32, y, 23, Y[0]); v.box(14, y, 38, 32, y, 39, Y[0]); v.box(14, y, 22, 15, y, 39, Y[0]); v.box(31, y, 22, 32, y, 39, Y[0]); }
+  v.box(12, 118, 16, 34, 128, 44, (x, y, z) => (y > 124 ? 0xe8e4d8 : pick(Y, x, y, z)));
+  v.box(18, 120, 44, 27, 122, 149, Y[1]); v.box(18, 126, 44, 27, 127, 120, Y[1]);
+  for (let z = 48; z < 148; z += 8) v.box(18, 122, z, 27, 126, z, Y[0]);
+  v.box(22, 70, 132, 23, 119, 132, K); v.box(19, 66, 129, 26, 70, 135, 0x6a6a6a);
+  v.box(18, 118, 2, 27, 124, 15, 0x6a6a6a);
+  return v.build();
+}
+function lantern() {
+  // lighthouse lantern room: gallery rail, glazed drum with the lamp inside, red cap
+  const v = new Vox(32, 28, 32, 0.1, [16, 0, 16]);
+  cyl(v, 16, 16, 0, 1, 15, 0x4a4a4a);
+  for (let a = 0; a < 64; a++) { const x = 16 + Math.cos(a / 64 * 6.283) * 14.6, z = 16 + Math.sin(a / 64 * 6.283) * 14.6; v.box(Math.floor(x), 2, Math.floor(z), Math.floor(x), 7, Math.floor(z), a % 4 ? -1 : 0x3a3a3a); v.set(Math.floor(x), 8, Math.floor(z), 0x3a3a3a); }
+  cyl(v, 16, 16, 2, 17, 8, (x, y, z) => (Math.hypot(x + 0.5 - 16, z + 0.5 - 16) > 7 ? ((x + z) % 4 === 0 ? 0x2a2a2a : 0x9ac8d8) : -1));
+  v.sphere(16, 10, 16, 4.2, 0xfff2b0);
+  cyl(v, 16, 16, 18, 19, 9.5, 0xb83a2a); cyl(v, 16, 16, 20, 21, 7, 0xb83a2a); cyl(v, 16, 16, 22, 23, 4, 0xb83a2a); v.box(15, 24, 15, 16, 27, 16, 0x3a3a3a);
+  v.glow(0xfff2b0);
+  return v.build();
+}
+function pedalo() {
+  // swan pedal boat, beached
+  const v = new Vox(16, 26, 28, 0.1, [8, 0, 14]);
+  v.box(1, 0, 2, 14, 5, 25, 0xf0ece4); v.box(2, 6, 4, 13, 7, 20, 0xe8e4dc);
+  v.box(3, 6, 8, 12, 10, 10, 0x3a8ac8); v.box(3, 6, 15, 12, 9, 17, 0x3a8ac8);
+  v.box(6, 6, 22, 9, 18, 24, 0xf4f0e8); v.box(6, 19, 21, 9, 22, 25, 0xf4f0e8); v.box(7, 20, 26, 8, 21, 27, 0xe89a2a); v.set(6, 21, 24, 0x1a1a1a); v.set(9, 21, 24, 0x1a1a1a);
+  v.box(0, 0, 0, 15, 1, 27, (x, y, z) => (hsh(x, y, z) < 0.4 ? pick(SANDC, x, y, z) : -1));
+  return v.build();
+}
+// ------------------------------------------------------------------ RESORT + RETAIL
+function slide() {
+  // water slide chute from a 3.2 m platform down to pool level along +z (7 m)
+  const v = new Vox(24, 36, 70, 0.1, [12, 0, 35]);
+  for (let z = 0; z < 70; z++) {
+    const t = z / 69, y = Math.round(32 - 30 * (t * t * (3 - 2 * t))), x0 = 7 + Math.round(Math.sin(t * 3.4) * 4);
+    v.box(x0, y, z, x0 + 9, y, z, 0xe8c83a); v.box(x0, y + 1, z, x0, y + 3, z, 0x2a8ac8); v.box(x0 + 9, y + 1, z, x0 + 9, y + 3, z, 0x2a8ac8);
+    if (z % 14 === 3 && y > 4) v.box(x0 + 4, 0, z, x0 + 5, y - 1, z + 1, 0x9a9a9a);
+  }
+  return v.build();
+}
+function sunbed() {
+  const v = new Vox(8, 6, 20, 0.1, [4, 0, 10]);
+  for (const [x, z] of [[0, 1], [7, 1], [0, 18], [7, 18]]) v.box(x, 0, z, x, 2, z, 0xd8d8d0);
+  v.box(0, 3, 0, 7, 3, 13, (x, y, z) => (z % 3 === 0 ? 0xe8e4dc : 0x3a8ac8)); for (let z = 14; z < 20; z++) v.box(0, 3 + ((z - 13) >> 1), z, 7, 3 + ((z - 13) >> 1), z, z % 3 === 0 ? 0xe8e4dc : 0x3a8ac8);
+  return v.build();
+}
+function lifeguard() {
+  const v = new Vox(14, 34, 14, 0.1, [7, 0, 7]);
+  for (const [x, z] of [[1, 1], [12, 1], [1, 12], [12, 12]]) v.box(x, 0, z, x, 16, z, 0xe8e4dc);
+  for (let y = 3; y < 16; y += 4) v.box(1, y, 12, 12, y, 12, 0xe8e4dc);
+  v.box(1, 17, 1, 12, 17, 12, 0xc83a2a); v.box(1, 18, 1, 12, 22, 2, 0xc83a2a);
+  v.box(6, 18, 6, 7, 30, 7, 0xd8d8d0); cyl(v, 7, 7, 31, 32, 7, (x, y, z) => ((x + z) % 4 < 2 ? 0xc83a2a : 0xf0ece4));
+  return v.build();
+}
+function billboard() {
+  // two posts + a 4 x 2 m board facing +z: a sun setting over a sea that is no longer there
+  const v = new Vox(46, 46, 6, 0.1, [23, 0, 3]);
+  v.box(6, 0, 2, 7, 26, 3, 0x4a4a4a); v.box(38, 0, 2, 39, 26, 3, 0x4a4a4a);
+  v.box(2, 26, 3, 43, 45, 4, (x, y, z) => {
+    if (x === 2 || x === 43 || y === 26 || y === 45) return 0xe8e4dc;
+    const dx = x - 30, dy = y - 36; if (dx * dx + dy * dy < 20) return 0xf0a030;
+    if (y < 33) return y % 2 ? 0x2a7ab8 : 0x3a8ac8; if (x < 16 && y > 38) return (y === 43 || y === 40) ? 0xc83a2a : 0xf4f0e4;
+    return 0xf0d8a8;
+  });
+  v.box(0, 25, 1, 45, 25, 5, 0x3a3a3a);
+  return v.build();
+}
+function saleSign() {
+  // sandwich board shouting SALE (every letter its own red stripe)
+  const v = new Vox(12, 12, 8, 0.1, [6, 0, 4]);
+  for (let y = 0; y < 11; y++) { const d = Math.round(y * 0.3); v.box(0, y, 1 + d, 11, y, 1 + d, (x) => (y > 2 && y < 9 && x > 1 && x < 10 ? (x % 3 === 0 || y === 5 ? 0xf4f0e4 : 0xc83a2a) : 0xe8e4dc)); v.box(0, y, 6 - d, 11, y, 6 - d, 0xe8e4dc); }
+  return v.build();
+}
+function cart() {
+  const v = new Vox(8, 11, 12, 0.1, [4, 0, 6]);
+  for (const [x, z] of [[1, 1], [6, 1], [1, 10], [6, 10]]) v.set(x, 0, z, 0x1a1a1a);
+  v.box(1, 1, 1, 6, 1, 10, 0x9aa0a4);
+  for (let y = 2; y < 8; y++) { v.box(0, y, 0, 7, y, 0, (x) => (x % 2 ? 0x9aa0a4 : -1)); v.box(0, y, 11, 7, y, 11, (x) => (x % 2 ? 0x9aa0a4 : -1)); v.box(0, y, 0, 0, y, 11, (x, yy, z) => (z % 2 ? 0x9aa0a4 : -1)); v.box(7, y, 0, 7, y, 11, (x, yy, z) => (z % 2 ? 0x9aa0a4 : -1)); }
+  v.box(0, 9, 11, 7, 9, 11, 0xc83a2a); v.box(1, 2, 3, 3, 4, 6, pick(SANDC, 1, 2, 3));
+  return v.build();
+}
+function ambulance() {
+  const v = new Vox(20, 26, 52, 0.1, [10, 0, 26]);
+  for (const z of [8, 40]) { v.box(0, 0, z, 2, 5, z + 6, 0x1a1a1a); v.box(17, 0, z, 19, 5, z + 6, 0x1a1a1a); }
+  v.box(1, 3, 1, 18, 22, 36, 0xf0ece4); v.box(1, 3, 37, 18, 15, 50, 0xf0ece4); v.box(2, 12, 42, 17, 17, 48, 0x2a3a44);
+  v.box(0, 9, 1, 19, 11, 50, 0xc83a2a); v.box(7, 14, 0, 12, 20, 0, 0xc83a2a); v.box(9, 12, 0, 10, 22, 0, 0xc83a2a);
+  v.box(4, 23, 32, 15, 24, 35, 0x3a6ac8); v.box(1, 23, 6, 18, 23, 20, (x, y, z) => (hsh(x, y, z) < 0.5 ? pick(SANDC, x, y, z) : -1));
+  v.glow(0x3a6ac8);
+  return v.build();
+}
+function flag(c = 0xe8c83a) {
+  const v = new Vox(16, 52, 4, 0.1, [2, 0, 2]);
+  v.box(1, 0, 1, 2, 50, 2, 0xd8d8d0); v.box(3, 34, 1, 15, 49, 1, (x, y) => (y - 34 > (x - 3) * 1.2 ? -1 : (y + x) % 7 === 0 ? 0xf4f0e4 : c));
+  return v.build();
+}
+function dish() {
+  const v = new Vox(20, 22, 20, 0.1, [10, 0, 10]);
+  v.box(9, 0, 9, 10, 9, 10, 0x8a8a8a);
+  for (let y = 8; y < 20; y++) for (let x = 0; x < 20; x++) { const dx = x + 0.5 - 10, dy = y + 0.5 - 14, r = Math.hypot(dx, dy); if (r < 8.5) v.set(x, y, 13 - Math.round(r * r * 0.05), r > 7.6 ? 0xb8b8b0 : 0xe8e8e0); }
+  v.box(9, 13, 13, 10, 14, 18, 0x6a6a6a); v.box(8, 13, 18, 11, 15, 19, 0x3a3a3a);
+  return v.build();
+}
+function solarPanel() {
+  // tilted panel on two legs, facing south (+z); the wind keeps topping up the sand on it
+  const v = new Vox(20, 13, 13, 0.1, [10, 0, 6.5]);
+  v.box(3, 0, 6, 4, 7, 7, 0x8a8a8a); v.box(15, 0, 6, 16, 7, 7, 0x8a8a8a);
+  for (let z = 0; z < 13; z++) { const y = 12 - Math.round(z * 0.62); v.box(0, y, z, 19, y, z, (x) => (x % 5 === 0 || z % 4 === 0 ? 0x9aa0a8 : 0x1e3a6a)); }
+  for (let i = 0; i < 18; i++) { const x = Math.floor(hsh(i, 1, 9) * 20), z = Math.floor(hsh(i, 7, 2) * 13); v.set(x, 13 - Math.round(z * 0.62), z, pick(SANDC, x, i, z)); }
+  return v.build();
+}
+// ------------------------------------------------------------------ MAGPIE MAFIA
+function chimney() {
+  const v = new Vox(9, 15, 9, 0.1, [4.5, 0, 4.5]);
+  v.box(0, 0, 0, 8, 12, 8, (x, y, z) => (y % 3 === 0 ? 0xc8b8a0 : pick([0xb4643c, 0xa85a36, 0xc0704a], x, y, z)));
+  v.box(0, 13, 0, 8, 14, 8, 0x8a8278); v.box(2, 13, 2, 6, 14, 6, -1);
+  return v.build();
+}
+function nest() {
+  // twig nest heaped with loot: spoons, keys, a ring, coins and one very confused rubber duck
+  const v = new Vox(12, 6, 12, 0.1, [6, 0, 6]);
+  const tw = [0x6a5236, 0x7a6040, 0x5a4428, 0x8a7050];
+  cyl(v, 6, 6, 0, 3, 5.6, (x, y, z) => (Math.hypot(x + 0.5 - 6, z + 0.5 - 6) > 3.6 || y === 0 ? pick(tw, x, y, z) : -1));
+  for (let i = 0; i < 12; i++) v.set(3 + Math.floor(hsh(i, 2, 5) * 6), 1 + Math.floor(hsh(i, 9, 1) * 2), 3 + Math.floor(hsh(5, i, 3) * 6), [0xf0d040, 0xd8d8e0, 0xe8b830, 0xc0c8d0][i % 4]);
+  v.box(7, 2, 5, 8, 3, 6, 0xf0d020); v.set(8, 4, 5, 0xf0d020); v.set(9, 4, 5, 0xe08020);
+  v.glow(0xf0d040);
+  return v.build();
+}
+function zipWalk() {
+  // one 2 m bay of a zipline catwalk: plank walk hung from two hand cables, a haul cable overhead
+  const v = new Vox(20, 24, 15, 0.1, [10, 0, 7.5]);
+  v.box(0, 0, 1, 19, 1, 13, (x) => (x % 4 === 3 ? -1 : pick([0x8a6a48, 0x7a5c3e, 0x96744e], x, 0, 1)));
+  v.box(0, 0, 0, 19, 0, 0, 0x5a5a5a); v.box(0, 0, 14, 19, 0, 14, 0x5a5a5a);
+  v.box(0, 10, 0, 19, 10, 0, 0x3a3a3a); v.box(0, 10, 14, 19, 10, 14, 0x3a3a3a);
+  for (const x of [0, 10]) { v.box(x, 1, 0, x, 9, 0, 0x5a5a5a); v.box(x, 1, 14, x, 9, 14, 0x5a5a5a); }
+  v.box(0, 22, 7, 19, 22, 7, 0x2a2a2a);
+  return v.build();
+}
+function zipPost() {
+  const v = new Vox(6, 27, 6, 0.1, [3, 0, 3]);
+  v.box(2, 0, 2, 3, 24, 3, 0x6a6a6a); v.box(1, 21, 1, 4, 23, 4, 0xc83a2a); v.box(0, 0, 0, 5, 1, 5, 0x4a4a4a);
+  return v.build();
+}
+
 // ------------------------------------------------------------------ REGISTER
 const R = (k, fn, info) => registerProp(k, fn, info);
 R('sc_palm', () => palm(46, 0, 1), { solid: [0.25, 0.25, 6] });
@@ -646,4 +868,29 @@ R('sc_pew', pew, { solid: [1.5, 0.3, 0.9] });
 R('sc_altar', altar, { solid: [1.2, 0.5, 1.0] });
 R('sc_rack', clothesRack, { solid: [0.9, 0.3, 1.6] });
 R('sc_stove', stove, { solid: [0.5, 0.4, 0.9] });
+R('sc_yacht', () => yacht(120, 34, 0x2a5a9a, 1), { solid: [1.7, 6.0, 3.0] });
+R('sc_yacht2', () => yacht(84, 26, 0xc83a2a, 2), { solid: [1.3, 4.2, 2.6] });
+R('sc_fishboat', fishBoat, { solid: [1.3, 3.4, 2.4] });
+R('sc_hull', hull, { solid: [1.6, 4.5, 2.0] });
+R('sc_dinghy', dinghy, { solid: [0.75, 1.7, 0.6] });
+R('sc_buoy', buoy, { solid: [0.5, 0.5, 1.5] });
+R('sc_bollard', bollard, { solid: [0.3, 0.3, 0.7] });
+R('sc_anchor', anchor, { solid: [0.7, 1.2, 0.3] });
+R('sc_crane', crane, { solid: [2.2, 2.2, 14] });
+R('sc_lantern', lantern, { solid: [1.6, 1.6, 2.6] });
+R('sc_pedalo', pedalo, { solid: [0.75, 1.3, 1.0] });
+R('sc_slide', slide, { solid: [1.2, 3.5, 3.0] });
+R('sc_sunbed', sunbed, { solid: [0.4, 1.0, 0.4] });
+R('sc_lifeguard', lifeguard, { solid: [0.65, 0.65, 3.2] });
+R('sc_billboard', billboard, { solid: [2.2, 0.3, 4.5] });
+R('sc_salesign', saleSign, { solid: [0.6, 0.4, 1.1] });
+R('sc_cart', cart, { solid: [0.4, 0.6, 1.0] });
+R('sc_ambulance', ambulance, { solid: [1.0, 2.6, 2.4] });
+R('sc_flag', () => flag(0xe8c83a), { solid: [0.15, 0.15, 5] });
+R('sc_dish', dish, { solid: [0.9, 0.9, 2.0] });
+R('sc_solar', solarPanel, { solid: [1.0, 0.6, 1.2] });
+R('sc_chimney', chimney, { solid: [0.45, 0.45, 1.5] });
+R('sc_nest', nest, { cast: true });
+R('sc_zipwalk', zipWalk, { cast: true });
+R('sc_zippost', zipPost, { solid: [0.2, 0.2, 2.6] });
 export const SC_PROPS = true;
