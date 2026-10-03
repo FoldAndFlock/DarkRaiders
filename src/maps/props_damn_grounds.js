@@ -1,4 +1,5 @@
-// Dam Grounds custom voxel props (prefix dg_). Imported for its side effects by damn_grounds.js.
+// Dam Grounds custom voxel props (prefix dg_): plant machinery, dam hardware, marsh plants, furniture, the
+// marina boats, billboards, playground kit. Imported for its side effects by damn_grounds.js.
 // Everything here is procedural + deterministic (no Math.random).
 import { registerProp, Vox } from '../engine/models.js';
 
@@ -237,18 +238,6 @@ reg('dg_gantry', () => {
   v.box(30, 46 - 1, 4, 31, 45, 5, P.gRed); v.glow(P.gRed);
   return v.build();
 }, { solid: [6.2, 1.0, 9] });
-
-// pipeline tower: Ø6 m column (18 m) with pipe risers, catwalk rings and beacon
-reg('dg_pipetower', () => {
-  const S = 0.25, v = new Vox(34, 80, 34, S, [17, 0, 17]);
-  v.cyl(17, 17, 0, 3, 16, P.concD);
-  for (let y = 4; y < 72; y++) v.cyl(17, 17, y, y, 11.5, y % 10 === 0 ? P.steelD : (y > 60 ? 0x8a8a82 : (y % 20 < 10 ? 0x9a9482 : 0x8a8474)));
-  for (const [px, pz] of [[2, 17], [32, 17], [17, 2], [8, 6]]) for (let y = 0; y < 74; y++) v.cyl(px, pz, y, y, 1.6, y % 12 === 0 ? P.rust : 0x6a7a7a);
-  for (const y of [24, 48, 70]) { v.cyl(17, 17, y, y, 16, P.steel); v.cyl(17, 17, y, y, 11.5, 0x8a8474); for (let a = 0; a < 24; a++) { const x = 17 + Math.cos(a / 24 * 6.283) * 15.5, z = 17 + Math.sin(a / 24 * 6.283) * 15.5; v.box(x, y + 1, z, x, y + 3, z, P.yellow); } }
-  v.cyl(17, 17, 72, 74, 12.5, P.steelD); v.box(16, 75, 16, 18, 79, 18, P.steel); v.box(16, 79, 16, 18, 79, 18, P.gRed);
-  v.glow(P.gRed);
-  return v.build();
-}, { solid: [3, 3, 18] });
 
 reg('dg_bigpipe', () => {
   const v = new Vox(54, 17, 17, 0.15, [27, 0, 8.5]);
@@ -591,13 +580,6 @@ reg('dg_radar', () => {   // radar/radome on a short tower (South Swamp Outpost 
   return v.build();
 }, { solid: [2.6, 2.6, 8] });
 
-reg('dg_rail', () => {    // 4 m rail track along z
-  const v = new Vox(28, 3, 40, 0.1, [14, 0, 20]);
-  for (let z = 1; z < 40; z += 5) v.box(0, 0, z, 27, 0, z + 1, (z * 3) % 7 ? P.woodD : 0x3a2a1a);
-  for (const x of [6, 21]) v.box(x, 1, 0, x + 1, 2, 39, (z) => 0x6a6460);
-  return v.build();
-}, { cast: false });
-
 reg('dg_spillgrate', () => {  // grating / trash rack on spillway chute heads
   const v = new Vox(60, 14, 4, 0.1, [30, 0, 2]);
   for (let x = 0; x < 60; x += 3) v.box(x, 0, 0, x, 13, 1, P.rustD);
@@ -615,3 +597,68 @@ reg('dg_crane', () => {   // tower crane (decorative landmark)
   v.glow(P.gRed);
   return v.build();
 }, { solid: [1.3, 1.3, 20] });
+
+// ---------------------------------------------------------------- marina, park, promenade, billboards
+// rowboat ~4 m along z (place with yAbs at the water surface)
+reg('dg_boat', () => {
+  const v = new Vox(18, 7, 42, 0.1, [9, 0, 21]);
+  for (let z = 0; z < 42; z++) {
+    const t = (z - 21) / 21, hw = Math.max(1, Math.round(8 * (1 - t * t * (t < 0 ? 0.55 : 0.85))));
+    v.box(9 - hw, 0, z, 8 + hw, 4, z, (x, y) => (y === 3 ? 0x2a5a8a : y === 4 ? P.white : 0xd8d4c8));
+    if (hw > 2) v.box(10 - hw, 1, z, 7 + hw, 4, z, -1);
+    v.box(9 - hw, 0, z, 8 + hw, 0, z, 0x6a5030);
+  }
+  for (const z of [12, 26]) v.box(3, 2, z, 14, 2, z + 2, P.wood);
+  v.box(8, 3, 33, 9, 6, 34, P.steelD);
+  return v.build();
+}, { cast: true });
+
+// 3x5 pixel font for the billboards
+const FONT = { A: '010101111101101', C: '011100100100011', D: '110101101101110', E: '111100110100111', F: '111100110100100', G: '011100101101011', I: '111010010010111',
+  L: '100100100100111', M: '101111111101101', N: '110101101101101', O: '010101101101010', P: '110101110100100', R: '110101110101101', S: '011100010001110',
+  T: '111010010010010', U: '101101101101111', W: '101101111111101', ' ': '000000000000000' };
+// roadside billboard: 10.8 x 4.8 m board on two posts, lettering on the south face (toward the camera)
+function billboard(lines, bg, fg) {
+  const v = new Vox(72, 56, 5, 0.15, [36, 0, 2.5]);
+  for (const x of [8, 62]) v.box(x, 0, 1, x + 1, 24, 2, P.steelD);
+  v.box(0, 22, 0, 71, 55, 2, 0x5a5a56); v.box(1, 23, 3, 70, 54, 3, bg);
+  lines.forEach((txt, li) => {
+    const w = txt.length * 8 - 2, x0 = Math.round(36 - w / 2), y0 = lines.length === 1 ? 43 : 48 - li * 13;
+    [...txt].forEach((ch, ci) => { const g = FONT[ch] || FONT[' ']; for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) if (g[r * 3 + c] === '1') v.box(x0 + ci * 8 + c * 2, y0 - r * 2, 4, x0 + ci * 8 + c * 2 + 1, y0 - r * 2 + 1, 4, fg); });
+  });
+  v.box(0, 22, 3, 71, 22, 4, P.gAmber); v.glow(P.gAmber);
+  return v.build();
+}
+reg('dg_billboard', () => billboard(['PAST DUE'], 0xd8d0b8, 0xb83a2a), { solid: [5.4, 0.3, 8.2] });
+reg('dg_billboard2', () => billboard(['FINAL', 'NOTICE'], 0x2a3a5a, 0xe8e0c8), { solid: [5.4, 0.3, 8.2] });
+reg('dg_billboard3', () => billboard(['UNDER NEW', 'MGMT'], 0xd8a020, 0x1e1e20), { solid: [5.4, 0.3, 8.2] });
+
+// swing set (3 m along x) and a slide (along z, climbs at -z)
+reg('dg_swing', () => {
+  const v = new Vox(31, 24, 15, 0.1, [15.5, 0, 7.5]);
+  for (const x of [0, 30]) { line(v, x, 0, 0, x, 23, 7, P.red); line(v, x, 0, 14, x, 23, 7, P.red); }
+  v.box(0, 23, 7, 30, 23, 7, P.steelD);
+  for (const [a, b] of [[8, 13], [18, 23]]) { v.box(a, 6, 7, a, 22, 7, P.steelL); v.box(b, 6, 7, b, 22, 7, P.steelL); v.box(a, 5, 6, b, 5, 8, 0x2a2a2a); }
+  return v.build();
+}, { solid: [1.5, 0.7, 2.3] });
+reg('dg_slide', () => {
+  const v = new Vox(12, 22, 38, 0.1, [6, 0, 19]);
+  for (const x of [1, 10]) for (const z of [0, 7]) v.box(x, 0, z, x, 20, z, P.steelD);
+  v.box(1, 18, 0, 10, 18, 7, P.yellow); v.box(1, 19, 0, 1, 21, 7, P.steelD); v.box(10, 19, 0, 10, 21, 7, P.steelD);
+  for (let y = 2; y < 18; y += 3) v.box(2, y, 0, 9, y, 0, P.steel);
+  for (let z = 8; z < 38; z++) { const y = Math.round(17 - (z - 8) * 0.55); v.box(3, Math.max(0, y), z, 8, Math.max(0, y), z, 0x3a8ac0); v.box(2, Math.max(0, y), z, 2, Math.max(0, y) + 1, z, 0x2a6a9a); v.box(9, Math.max(0, y), z, 9, Math.max(0, y) + 1, z, 0x2a6a9a); }
+  return v.build();
+}, { solid: [0.6, 1.9, 2.1] });
+reg('dg_bench', () => {
+  const v = new Vox(18, 9, 6, 0.1, [9, 0, 3]);
+  for (const x of [1, 16]) v.box(x, 0, 1, x, 4, 5, P.steelD);
+  v.box(0, 4, 1, 17, 4, 5, (x) => (x % 3 ? P.wood : P.woodD)); v.box(0, 5, 0, 17, 8, 0, (x, y) => (y % 2 ? P.wood : P.woodD));
+  return v.build();
+}, { solid: [0.9, 0.3, 0.5] });
+reg('dg_binocs', () => {   // coin-op binoculars on a post, looking south
+  const v = new Vox(8, 16, 8, 0.1, [4, 0, 4]);
+  v.box(3, 0, 3, 4, 10, 4, P.steelD); v.box(1, 10, 2, 6, 13, 6, 0x3a6a5a);
+  for (const x of [2, 5]) v.box(x, 11, 7, x, 12, 7, P.glassD);
+  v.box(3, 13, 3, 4, 14, 4, P.yellow);
+  return v.build();
+}, { solid: [0.35, 0.35, 1.4] });

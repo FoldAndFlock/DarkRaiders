@@ -87,8 +87,8 @@ function flatText(text, c = 0xd8d4c4, s = 0.3) {
   for (const ch of text.toUpperCase()) { const g = FONT[ch] || FONT[' ']; for (let r = 0; r < 5; r++) for (let k = 0; k < 3; k++) if (g[r * 3 + k] === '1') v.set(x + k, 0, 1 + r, c); x += 4; }
   return v.build();
 }
-P('gg_bb_gate', () => billboard(['GATEKEEPING DEPARTMENT', 'YOUR CALL IS IMPORTANT'], { bg: C.greenD, fg: C.white, post: 1.0 }), {});
-P('gg_bb_toll', () => billboard(['NOW SERVING: 7', 'YOUR NUMBER: 9,412'], { bg: C.black, fg: C.gY, trim: C.red, post: 0.4, glow: true }), {});
+P('gg_bb_gate', () => billboard(['GATEKEEPING DEPARTMENT', 'YOUR CALL IS IMPORTANT'], { bg: C.greenD, fg: C.white, s: 0.16, post: 1.0 }), {});
+P('gg_bb_toll', () => billboard(['NOW SERVING: 7', 'YOUR NUMBER: 9412'], { bg: C.black, fg: C.gY, trim: C.red, s: 0.16, post: 0.4, glow: true }), {});
 P('gg_bb_cloud', () => billboard(['THE CLOUD', '(BASEMENT)'], { bg: 0x2a4a6a, fg: C.white, post: 2.4 }), { solid: [0.3, 0.3, 3] });
 P('gg_bb_estates', () => billboard(['COMING SOON', 'LUXURY LIVING - PHASE 2'], { bg: C.cream, fg: C.navy, trim: C.green, post: 2.4 }), { solid: [0.3, 0.3, 3] });
 P('gg_bb_retreat', () => billboard(['PEAK PERFORMANCE', 'RETREAT & SYNERGY SPA'], { bg: C.white, fg: C.greenD, trim: C.greenL, post: 2.2 }), { solid: [0.3, 0.3, 3] });
@@ -755,3 +755,4 @@ P('gg_pump', () => {         // lake intake pump housing with pipe stub
 }, { solid: [1.3, 0.9, 1.7] });
 P('gg_mailbox', () => { const v = new Vox(4, 12, 6, 0.1, [2, 0, 3]); v.box(1, 0, 2, 2, 8, 3, C.woodD); v.box(0, 8, 0, 3, 11, 5, C.red); v.box(3, 10, 1, 3, 11, 1, C.haz); return v.build(); }, { solid: [0.15, 0.15, 1.1] });
 P('gg_forsale', () => { const v = new Vox(12, 16, 3, 0.1, [6, 0, 1.5]); v.box(1, 0, 1, 1, 15, 1, C.white); v.box(1, 15, 1, 11, 15, 1, C.white); v.box(3, 7, 1, 11, 13, 1, C.red); v.box(4, 9, 2, 10, 11, 2, C.white); return v.build(); }, { solid: [0.1, 0.1, 1.5] });
+P('gg_txt_gate', () => flatText('GATEKEEPING', 0x9affc8, 0.3), { cast: false });

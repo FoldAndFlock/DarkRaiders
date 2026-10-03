@@ -16,7 +16,7 @@
 // lined by a frontage planner; upper storeys of named places, roofs, plank bridges and ladders are walkable.
 import './props_sandy_city.js';
 import { propInfo } from '../engine/models.js';
-import { rotFrame, rotPt, unrotPt } from '../engine/world.js';
+import { rotFrame, rotPt } from '../engine/world.js';
 
 const MW = 900, MH = 900;
 const D2R = Math.PI / 180;
@@ -125,7 +125,7 @@ const FLATS = [
 // north and east, a long terraced slope to the south, the amphitheatre bowl cut into the west flank.
 const HILL = [[296, 178], [356, 152], [440, 142], [504, 160], [532, 208], [524, 268], [494, 314], [432, 330], [362, 330], [302, 310],
   [278, 262], [282, 214]];
-const HILL_W = [6, 5, 5, 5, 5, 8, 46, 46, 30, 26, 26, 8];
+const HILL_W = [1.6, 1.6, 1.6, 1.6, 1.6, 4, 46, 46, 30, 26, 26, 6];
 const HILL_H = 7.5;
 const THEATRE = { x: 250, z: 262, r0: 13, r1: 46, half: 72 * Math.PI / 180 };   // stage centre, seating rings, sector half-angle (opens west)
 // The Bypass: elevated highway along the north edge; it leaves the land as a viaduct over the sea bed
@@ -136,7 +136,7 @@ const BP_GAPS_X = [[322, 9], [866, 8]];          // collapsed spans: [x, half le
 // sand drifts up onto the deck: [x, side (+1 = right / south of travel, -1 = north)]
 const BP_RAMPS_X = [[96, 1], [180, -1], [420, 1], [520, -1], [650, 1], [772, 1], [892, 1]];
 // The breakwater out to the lighthouse, with a footbridge over a gap you can walk under on the sea bed
-const JETTY = [[716, 470], [770, 464]], JETTY2 = [[792, 462], [828, 458]], LIGHTHOUSE = [839, 456];
+const JETTY = [[716, 470], [770, 464]], JETTY2 = [[792, 462], [828, 458]], LIGHTHOUSE = [842, 456];
 
 // Streets. The town hangs off one roundabout: seven boulevards radiate from it, ring lanes tie them
 // together, the promenade runs along the sea wall and switchback lanes climb Upper Sandy.
@@ -149,11 +149,11 @@ const STREETS = [
   ['seaway', [[529, 456], [580, 461], [640, 465], [716, 470]], 9, 'asphalt', 'shops'],
   ['mallway', [[521, 473], [560, 515], [610, 560], [660, 610], [700, 662], [732, 704]], 9, 'asphalt', 'apts'],
   ['desert', [[505, 479], [500, 540], [492, 620], [484, 700], [477, 780], [470, 860], [466, 900]], 9, 'asphalt', 'mixed'],
-  ['libraryway', [[487, 471], [440, 520], [380, 580], [320, 640], [270, 700], [234, 744]], 8, 'concrete', 'houses'],
-  ['hillfoot', [[300, 500], [312, 444], [340, 398], [380, 384], [462, 382]], 6, 'concrete', 'houses'],
-  ['southring', [[380, 580], [440, 606], [492, 618], [560, 612], [610, 560]], 6, 'concrete', 'houses'],
-  ['eastring', [[610, 560], [640, 520], [652, 466], [636, 424], [598, 344]], 6, 'concrete', 'houses'],
-  ['outer', [[270, 700], [350, 734], [420, 762], [477, 780], [560, 790], [650, 772], [732, 704]], 7, 'concrete', 'houses'],
+  ['libraryway', [[487, 471], [440, 520], [380, 580], [320, 640], [270, 700], [234, 744]], 8, 'asphalt', 'houses'],
+  ['hillfoot', [[300, 500], [312, 444], [340, 398], [380, 384], [462, 382]], 6, 'asphalt', 'houses'],
+  ['southring', [[380, 580], [440, 606], [492, 618], [560, 612], [610, 560]], 6, 'asphalt', 'houses'],
+  ['eastring', [[610, 560], [640, 520], [652, 466], [636, 424], [598, 344]], 6, 'asphalt', 'houses'],
+  ['outer', [[270, 700], [350, 734], [420, 762], [477, 780], [560, 790], [650, 772], [732, 704]], 7, 'asphalt', 'houses'],
   ['northroad', [[410, 168], [420, 134], [434, 114]], 7, 'asphalt', null],
   ['frontage', [[300, 118], [434, 114], [520, 114], [600, 124], [692, 148]], 7, 'asphalt', 'sheds'],
   ['eaststair', [[508, 238], [548, 242], [592, 238]], 6, 'concrete', null],
@@ -192,8 +192,8 @@ const B = [
   [398, 355, 70, 9, 0, 2, 'h', { poi: 'santa_marta_houses', parts: 4, tint: 'ochre', key: 'residential', keySeg: 1, keyName: 'Repossessed Townhouse (Hourglass Terraces)' }],
   [404, 371, 64, 9, 0, 2, 'h', { poi: 'santa_marta_houses', parts: 4, tint: 'rose' }],
   // ---- downtown
-  [339, 507, 66, 22, -14.4, 4, 'm', { tag: 'hospital', name: "St. Copay's Hospital", poi: 'hospital', parts: 3, upper: 2, key: 'hospital', keySeg: 2, keyStorey: 2, keyName: 'Billing Department (Ward C)' }],
-  [303, 549, 34, 18, 75.6, 2, 'm', { name: "St. Copay's Outpatients", poi: 'hospital', upper: 1 }],
+  [342, 518, 66, 22, -14.4, 4, 'm', { tag: 'hospital', name: "St. Copay's Hospital", poi: 'hospital', parts: 3, upper: 2, key: 'hospital', keySeg: 2, keyStorey: 2, keyName: 'Billing Department (Ward C)' }],
+  [302, 562, 30, 18, 75.6, 2, 'm', { name: "St. Copay's Outpatients", poi: 'hospital', upper: 1 }],
   [466, 655, 46, 22, 95.7, 4, 't', { tag: 'travel', name: 'No Refunds Travel Agency', poi: 'space_travel', parts: 2, upper: 2, key: 'space_travel', keySeg: 1, keyStorey: 2, keyName: 'Staff-Only Floor (Very Exclusive)', tint: 'sky', wall: 'plaster' }],
   [556, 612, 84, 38, 0, 3, 's', { tag: 'mall', name: 'The Dune-Hill Mall', poi: 'galleria', parts: 2, upper: 1, wall: 'concrete', tint: 'cream', flat: true, rich: true }],
   [642, 654, 44, 36, 0, 3, 'p', { tag: 'garage', name: 'Park & Pray Garage', poi: 'parking_garage' }],
@@ -205,18 +205,18 @@ const B = [
   [628, 226, 52, 24, 2, 3, 't', { tag: 'labs', name: 'Pivot Labs', poi: 'research', parts: 2, upper: 1, rich: true }],
   [592, 298, 20, 14, 30, 2, 'c', { tag: 'harbour', name: 'Harbourmaster (Gone Fishing)', poi: 'marino_station', tint: 'white' }],
   // ---- the waterfront
-  [834, 456, 9.5, 9.5, 0, 7, 'h', { tag: 'lighthouse', name: 'The Red Flag', poi: 'red_tower', tower: true, wall: 'brick', tint: 'red', flat: true }],
+  [842.1, 456, 10.8, 10.8, 0, 7, 'h', { tag: 'lighthouse', name: 'The Red Flag', poi: 'red_tower', tower: true, wall: 'brick', tint: 'red', flat: true }],
   [710, 670, 26, 20, 67.7, 5, 'a', { tag: 'condoA', name: 'Ocean View* Condos, Tower A', poi: 'sandy_properties', upper: 1, tint: 'white' }],
   [736, 727, 34, 20, 67.7, 6, 'a', { tag: 'condoB', name: 'Ocean View* Condos, Tower B', poi: 'sandy_properties', parts: 2, upper: 2, key: 'residential', keySeg: 1, keyStorey: 2, keyName: 'Show Penthouse (Do Not Touch)', tint: 'sand' }],
   [764, 780, 24, 18, 67.7, 5, 'a', { name: 'Ocean View* Condos, Tower C', poi: 'sandy_properties', tint: 'peach', sunk: 1 }],
   [684, 704, 22, 12, 67.7, 1, 's', { tag: 'sales', name: 'Sandy Properties Sales Office', poi: 'sandy_properties', tint: 'yellow', flat: true }],
   // ---- the west edge and the dunes
-  [192, 426, 30, 26, 18, 6, 'a', { tag: 'grainsA', name: 'Grains of Wrath Apartments', poi: 'grandiosa_apartments', parts: 2, upper: 2, sunk: 2, key: 'residential', keySeg: 0, keyName: 'Repossessed Unit (Grains of Wrath)', tint: 'peach' }],
-  [176, 478, 28, 26, 18, 6, 'a', { tag: 'grainsB', name: 'Grains of Wrath Apartments, East Wing (West)', poi: 'grandiosa_apartments', upper: 2, sunk: 2.5, tint: 'sand' }],
+  [192, 426, 30, 26, 18, 6, 'a', { tag: 'grainsA', name: 'Grains of Wrath Apartments', poi: 'grandiosa_apartments', parts: 2, upper: 2, sunk: 2, key: 'residential', keySeg: 0, keyName: 'Repossessed Unit (Grains of Wrath)', tint: 'peach', rich: true }],
+  [176, 478, 28, 26, 18, 6, 'a', { tag: 'grainsB', name: 'Grains of Wrath Apartments, East Wing (West)', poi: 'grandiosa_apartments', upper: 2, sunk: 2.5, tint: 'sand', rich: true }],
   [150, 236, 18, 10, 2, 1, 'i', { tag: 'inverter', name: 'Inverter Shed (Still Inverting)', poi: 'solar_farm' }],
   // ---- the south-west and the south
-  [276, 744, 9.5, 9.5, 0, 4, 'h', { tag: 'slidetower', name: 'Slide Tower', poi: 'water_park', tower: true, wall: 'concrete', tint: 'sky', flat: true }],
-  [214, 732, 30, 10, 0, 1, 's', { name: 'Changing Rooms (Unisex, Unclean)', poi: 'water_park', tint: 'sky', flat: true }],
+  [274, 768, 9.5, 9.5, 0, 4, 'h', { tag: 'slidetower', name: 'Slide Tower', poi: 'water_park', tower: true, wall: 'concrete', tint: 'sky', flat: true }],
+  [226, 723, 30, 9, 0, 1, 's', { name: 'Changing Rooms (Unisex, Unclean)', poi: 'water_park', tint: 'sky', flat: true }],
   [500, 836, 18, 12, 90, 1, 's', { tag: 'gaskiosk', name: 'Pump & Dump Mini-Mart', poi: 'gas_station', tint: 'yellow', flat: true }],
 ];
 
@@ -251,7 +251,7 @@ const GROVES = [
 // Squares and pads painted on the town floor (and kept free of frontage)
 const PLAZAS = [
   { id: 'piazza_romana', pts: [[352, 210], [478, 204], [482, 274], [356, 278]], tex: 'tiles' },
-  { id: 'hospital_front', pts: [[262, 462], [372, 440], [376, 466], [268, 492]], tex: 'concrete' },
+  { id: 'hospital_front', pts: [[372, 489], [302, 507], [304, 516], [374, 498]], tex: 'concrete' },
   { id: 'mall_front', pts: [[514, 560], [600, 560], [602, 592], [514, 592]], tex: 'tiles' },
   { id: 'library_front', pts: [[336, 572], [372, 560], [384, 590], [348, 606]], tex: 'tiles' },
   { id: 'quay', pts: [[560, 276], [640, 276], [612, 300], [606, 384], [560, 384]], tex: 'concrete' },
@@ -260,9 +260,9 @@ const PLAZAS = [
 ];
 // rects that frontage buildings keep out of: [x0, z0, x1, z1] (station sites, pads, open ground)
 const KEEP_OUT = [
-  [430, 240, 482, 278], [546, 318, 590, 356], [170, 562, 244, 596], [528, 782, 600, 826],      // metro sites (+ their street stairs)
+  [316, 232, 362, 264], [546, 318, 590, 356], [170, 562, 244, 596], [528, 782, 600, 826],      // metro sites (+ their street stairs)
   [176, 704, 312, 824], [426, 804, 536, 884], [84, 184, 222, 306], [540, 120, 700, 200],          // water park, gas station, solar farm, port yard
-  [600, 400, 716, 460], [196, 220, 300, 306], [240, 160, 300, 230],                               // Low Tide Park, theatre + its shoulder
+  [600, 400, 716, 460], [196, 220, 300, 306], [240, 160, 300, 230], [486, 590, 514, 634],                               // Low Tide Park, theatre + its shoulder
 ];
 
 // Player / squad insertion points round the edges (dunes, the north road, the sea bed)
@@ -731,7 +731,7 @@ function buildComplexes(ctx) {
       const bb = w.building({
         x: wcx - W / 2, z: wcz - D / 2, w: W, d: D, rot: C.rot || undefined, storeys, h, wall: o.wall || st.wall, floor: floorTex, roof: segGable ? 'roofTile' : st.roof,
         roofShape: segGable ? 'gable' : undefined, roofTint: segGable ? roofTint : undefined, tint: segTint, thick: 0.3,
-        doors, inner: walls, peek: ruin ? 0 : tower ? 0.85 : 0.72, name: k === 0 ? (o.name || null) : null,
+        doors, inner: walls, peek: ruin ? 0 : tower ? 0.85 : 0.72, name: o.name || null,
         roofExtras: extras, floorY: C.floorY, blend: C.o.sunk ? 0.8 : 1.6, trim: 'damConcrete', innerH: 3.0,
         vents: !segGable && !ruin && !garage ? undefined : 0, parapet: !ruin, facade: !ruin,
         floors: realFloors, perStorey: realFloors,
@@ -984,7 +984,6 @@ function shapeTerrain(ctx) {
   L.line(BYPASS, 26, 0.45);
   L.blur(5, 2);
   ctx.low = L;
-  const S = new Mask(3).poly(SEA, 1); ctx.seaM = S;
   ctx.isSea = (x, z, m = 0) => { if (inPoly(x, z, SEA)) return true; return m > 0 && x > 600 && polyDist(x, z, COAST)[0] < m; };
   // evaluate on a 2 m lattice and interpolate (dune features are >= ~15 m)
   const G = 2, gw = MW / G + 1, gh = MH / G + 1, hg = new Float32Array(gw * gh);
@@ -1007,7 +1006,6 @@ function shapeTerrain(ctx) {
     const fx = x / G, fz = z / G, i = Math.min(gw - 2, Math.floor(fx)), j = Math.min(gh - 2, Math.floor(fz)), u = fx - i, v = fz - j;
     return (hg[j * gw + i] * (1 - u) + hg[j * gw + i + 1] * u) * (1 - v) + (hg[(j + 1) * gw + i] * (1 - u) + hg[(j + 1) * gw + i + 1] * u) * v;
   }, 'set');
-  ctx.quayY = (x, z) => townH(x, z);
 }
 // works on the old shore: breakwater + lighthouse platform, boat slipways down the sea wall
 const SLIPS = [[708, 214, 1], [702, 268, 2], [624, 342, 3], [686, 398, 4], [721, 530, 5], [742, 610, 6], [775, 700, 7], [812, 778, 8]];
@@ -1109,7 +1107,7 @@ function planFrontage(ctx) {
   for (const ln of lines) {
     const total = polyLen(ln.pts), F = FRONT[ln.style];
     for (const side of ln.sides) for (const row of [0, 1]) {
-      if (row === 1 && (ln.style === 'hill' || ln.style === 'sheds' || ln.style === 'seaside')) continue;
+      if (row === 1 && (ln.style === 'hill' || ln.style === 'sheds' || ln.style === 'seaside' || ln.style === 'houses')) continue;
       let s = 7 + rng() * 4;
       while (s < total - 7) {
         const L = R2(lerp(F.len[0], F.len[1], rng())), D = R2(lerp(F.dep[0], F.dep[1], rng()));
@@ -1339,8 +1337,9 @@ function paintGround(ctx) {
     if (x > 600 && inPoly(x, z, SEA)) {
       // dried sea bed: cracked mud flats, pale sand bars, darker damp hollows
       const n = N2(x / 9, z / 9) * 0.6 + N4(x / 31, z / 31) * 0.4, g = w.groundAt(x, z);
-      if (g > 1.9 && polyDist(x, z, COAST)[0] > 4) return 'sand';
-      return n > 0.64 ? 'sand' : n < 0.34 ? 'mud' : 'sandDark';
+      if (g > 1.75 && polyDist(x, z, COAST)[0] > 4) return 'sand';                 // sand bars
+      if (g < 0.45 && n < 0.5) return 'mud';                                         // damp hollows, the old channel
+      return n > 0.66 ? 'sand' : n < 0.3 ? 'gravel' : 'sandDark';
     }
     const l = L.at(x, z);
     const drift = N4(x / 7, z / 7) * 0.55 + N2(x / 26, z / 26) * 0.45;
@@ -1357,7 +1356,7 @@ function paintGround(ctx) {
     return lee < -0.3 + N1(x / 9, z / 9) * 0.12 ? 'sandDark' : null;
   });
   for (const p of PLAZAS) w.paintPoly(p.tex, p.pts);
-  for (const [id, pts, wd, tex] of STREETS) w.road(pts, wd, tex, { edge: tex === 'asphalt' ? 'concrete' : null, edgeW: 1.4, level: false });
+  for (const [id, pts, wd, tex] of STREETS) w.road(pts, wd, tex, { edge: tex === 'asphalt' && wd >= 8 ? 'concrete' : null, edgeW: 1.4, level: false });
   w.road(PROMENADE, PROM_W, 'tiles', { edge: 'concrete', edgeW: 1, level: false });
   // drifted sand tongues across the paving
   for (let i = 0; i < 170; i++) {
@@ -1566,12 +1565,21 @@ function seaWall(ctx) {
     if (rng() < 0.5) w.prop('sc_dinghy', sl.b[0] + sl.nz * 4, sl.b[1] - sl.nx * 4, Math.atan2(sl.nx, sl.nz) + 0.4, { solid: true });
   }
 }
+// solid fill under a deck between arc positions [t0, t1] along a -> b, from below the ground up to `top`
+function abutment(ctx, a, b, spans, top) {
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]), ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L, ang = Math.atan2(uz, ux);
+  for (const [t0, t1] of spans) {
+    const cx = a[0] + ux * (t0 + t1) / 2, cz = a[1] + uz * (t0 + t1) / 2, hl = (t1 - t0) / 2;
+    ctx.w.block(cx - hl, cz - 1.6, cx + hl, cz + 1.6, top + 0.5, 'damConcrete', { y0: -0.5, rot: ang, xray: true });
+  }
+}
 // ---- the marina: wooden piers over the dry basin, boats sitting on the sand under them
 function marina(ctx) {
   const { w, rng } = ctx, y = w.groundAt(616, 342) + 0.08;
   const piers = [[[625, 320], [668, 320]], [[626, 346], [676, 346]], [[627, 368], [662, 368]], [[688, 397], [688, 350]]];
   for (const p of piers) {
     w.bridge(p, 3.6, y, 'wood', { thick: 0.35, rails: true, railH: 0.9, pillars: 4, side: 'wood', pillarW: 0.45 });
+    abutment(ctx, p[0], p[1], [[-0.5, 2.6]], y - 0.33);
     const [ax, az] = p[0], [bx, bz] = p[1], L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
     // a ladder down the far end, bollards along it
     w.ladder(bx + ux * 1.2, bz + uz * 1.2, null, bx - ux * 0.6, bz - uz * 0.6, y, Math.atan2(-ux, -uz));
@@ -1597,6 +1605,9 @@ function jettyAndLighthouse(ctx) {
   w.path(JETTY, 6.4, 'concrete'); w.path(JETTY2, 6.4, 'concrete');
   w.paintCircle('concrete', LIGHTHOUSE[0], LIGHTHOUSE[1], 10, 0.05, 2);
   w.bridge([[766, 464], [796, 462]], 6.4, y + 0.02, 'concrete', { thick: 0.7, rails: true, railH: 1.0, pillars: 0 });
+  // abutments fill the sloping ends of the breakwater under the deck (a deck hovering just over a slope reads as
+  // no floor to the nav grid); 7 m of clear span stays open to walk under
+  abutment(ctx, [766, 464], [796, 462], [[7.5, 11.5], [18.5, 22.5]], y - 0.66);
   for (const [a, b] of [JETTY, JETTY2]) {
     const L = Math.hypot(b[0] - a[0], b[1] - a[1]), ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L;
     for (let t = 2; t < L; t += 2.4) for (const sd of [-1, 1]) {
@@ -1605,13 +1616,14 @@ function jettyAndLighthouse(ctx) {
     }
     for (let t = 6; t < L; t += 16) stLamp(w, a[0] + ux * t + uz * 2.9, a[1] + uz * t - ux * 2.9, { intensity: 1.4, range: 10 });
   }
-  for (let i = 0; i < 20; i++) { const a = rng() * 6.283, r = 13 + rng() * 3; w.prop('rock', LIGHTHOUSE[0] + Math.cos(a) * r, LIGHTHOUSE[1] + Math.sin(a) * r, rng() * 6, { solid: true, scale: 1.4 + rng() }); }
+  for (let i = 0; i < 20; i++) { const a = 0.6 + rng() * 5.08, r = 13 + rng() * 3; w.prop('rock', LIGHTHOUSE[0] - Math.cos(a) * r, LIGHTHOUSE[1] + Math.sin(a) * r, rng() * 6, { solid: true, scale: 1.4 + rng() }); }   // riprap round the platform, the breakwater side left open
   const LH = ctx.cxs.find(C => C.o.tag === 'lighthouse');
   if (LH) {
-    const s = LH.segs[0], [x, z] = toW(LH, (s.x0 + s.x1) / 2, (s.z0 + s.z1) / 2);
-    w.prop('sc_lantern', x, z, 0, { yAbs: s.roofY, solid: [1.6, 1.6, 2.6] });
+    // the lantern sits on the east half of the roof: the stair from the top storey comes up on the west side
+    const s = LH.segs[0], [x, z] = toW(LH, s.x1 - 2.4, (s.z0 + s.z1) / 2);
+    w.prop('sc_lantern', x, z, 0, { yAbs: s.roofY, scale: 0.8, solid: [1.3, 1.3, 2.2] });
     w.lamp(x, z, { yAbs: s.roofY + 2.2, color: 0xffe6a0, intensity: 2.0, range: 16, model: null });
-    // white bands on the red tower (visual)
+    // white bands on the lighthouse (visual)
     for (let k = 1; k < LH.storeys; k += 2) w.block(s.x0 - 0.32, s.z0 - 0.32, s.x1 + 0.32, s.z1 + 0.32, 1.2, 'plaster', { onBuilding: s.bid, rel0: k * 3.2 + 0.9, collide: false, cast: false, cutaway: true, tint: 0xfff8f0, R: LH.R || undefined });
     w.prop('sc_bench', x - 7, z + 4, 0.4, { solid: true }); w.prop('sc_buoy', x + 6, z - 6, 0, { solid: true });
   }
@@ -1630,6 +1642,14 @@ function yachtGraveyard(ctx) {
     ctx.keepClear.push([x, z, 4]);
   });
   for (let i = 0; i < 26; i++) { const x = 730 + rng() * 160, z = 220 + rng() * 220; if (!ctx.blocked(x, z, 1)) w.prop(rng() < 0.6 ? 'sc_buoy' : 'debris', x, z, rng() * 6, { solid: rng() < 0.6 }); }
+  // the stragglers: boats that drifted south of the breakwater before the water gave up
+  for (const [x0, z0] of [[790, 520], [846, 548], [800, 640], [862, 680], [830, 760], [880, 820], [770, 600], [852, 610]]) {
+    const [x, z] = freeSpot(ctx, x0 + (rng() - 0.5) * 10, z0 + (rng() - 0.5) * 10, 4, 12), r = rng() * 6.283;
+    if (!ctx.isSea(x, z)) continue;
+    w.prop(BOATS[Math.floor(rng() * BOATS.length)], x, z, r, { solid: true });
+    if (rng() < 0.5) w.container(rng() < 0.5 ? 'suitcase' : 'locker', x + Math.cos(r) * 3.4, z - Math.sin(r) * 3.4, r, { tier: 1 });
+    ctx.keepClear.push([x, z, 4]);
+  }
 }
 // ---- Return-to-Sender Warehouses: a container yard on the old quay under the Bypass
 function port(ctx) {
@@ -1640,7 +1660,7 @@ function port(ctx) {
   w.prop('sc_crane', 694, 182, Math.PI / 2, { solid: [2.2, 6, 14] });
   for (let i = 0; i < 10; i++) { const [x, z] = freeSpot(ctx, 548 + rng() * 140, 196 + rng() * 10, 1); w.prop(rng() < 0.5 ? 'sc_cratestack' : 'crate', x, z, rng() * 6, { solid: true }); }
   // the quest cache: weapon cases in the yard and the sheds ("returned to sender")
-  for (const [x, z] of [[600, 140], [636, 146], [572, 196], [664, 202]]) w.container('weapon_case', ...freeSpot(ctx, x, z, 0.8), 0, { tier: 2 });
+  for (const [x, z] of [[600, 140], [636, 146], [580, 152], [640, 186]]) w.container('weapon_case', ...freeSpot(ctx, x, z, 0.8), 0, { tier: 2 });
   for (const [x, z] of [[556, 140], [620, 200], [680, 160]]) w.container(rng() < 0.5 ? 'crate' : 'toolbox', ...freeSpot(ctx, x, z, 0.8), 0, { tier: 2 });
   w.fence([[542, 122], [542, 208]], 1.8, 'rust'); w.fence([[542, 122], [600, 122]], 1.8, 'rust');
   for (const [x, z] of [[570, 128], [640, 140], [620, 204]]) w.lamp(x, z, { y: 4.4, color: 0xffd8a0, intensity: 1.3, range: 13 });
@@ -1663,13 +1683,18 @@ function labs(ctx) {
 function upperSandy(ctx) {
   const { w, rng } = ctx;
   ctx.piazza = fountainPlaza(ctx, 392, 238);
-  cafe(ctx, 366, 222, 6); cafe(ctx, 414, 262, 4);
+  cafe(ctx, 366, 222, 6); cafe(ctx, 414, 262, 4); cafe(ctx, 456, 252, 6);
+  for (let i = 0; i < 4; i++) w.prop('sc_parasol', ...freeSpot(ctx, 440 + i * 9, 266, 1, 4), 0, { solid: true });
   for (let i = 0; i < 6; i++) {
     const [x, z] = freeSpot(ctx, 362 + i * 9, 266 + (i % 2) * 2, 1.6, 6);
     w.prop(i % 2 ? 'sc_stall' : 'sc_stall2', x, z, Math.PI + (rng() - 0.5) * 0.3, { solid: true });
     w.container(['basket', 'desk', 'cabinet', 'suitcase', 'basket', 'desk'][i], x + 1.9, z, 0, { tier: 2 });
   }
   w.prop('sc_statue', ...freeSpot(ctx, 432, 216, 1.2), 0.3, { solid: true });
+  // the west half: an olive garden with benches and the café counters (drawers worth a look)
+  for (let i = 0; i < 12; i++) { const [x, z] = freeSpot(ctx, 362 + (i % 4) * 7, 226 + Math.floor(i / 4) * 12, 1, 3); w.prop(i % 3 ? 'sc_olive' : 'sc_planter', x, z, i, { solid: true, scale: i % 3 ? 1.2 : 1 }); }
+  for (let i = 0; i < 6; i++) w.prop('sc_bench', ...freeSpot(ctx, 365 + (i % 3) * 7, 232 + Math.floor(i / 3) * 12, 1, 3), 0, { solid: true });
+  for (const [x, z, k] of [[420, 222, 'desk'], [446, 222, 'cabinet'], [372, 270, 'desk'], [470, 232, 'cabinet']]) { const [px, pz] = freeSpot(ctx, x, z, 1, 6); w.prop('sc_counter', px, pz, 0, { solid: true }); w.container(k, px + 2, pz, 0, { tier: 2 }); }
   for (let i = 0; i < 6; i++) w.prop(i % 2 ? 'sc_cypress' : 'sc_palm', ...freeSpot(ctx, 356 + i * 22, 208, 1), rng() * 6, { solid: true });
   // the town hall: scaffolding on the facade, sandbagged steps
   for (let i = 0; i < 4; i++) w.prop('sc_scaffold', ...freeSpot(ctx, 380 + i * 15, 192, 1.6), -0.1, { solid: true });
@@ -1683,6 +1708,28 @@ function upperSandy(ctx) {
     w.prop('sc_altar', ...P(2.4, 0), face + Math.PI, { solid: true }); w.container('safe', ...P(1.6, half - 1.4), face + Math.PI, { tier: 3 });
     w.container('basket', ...P(len - 2, half - 1.2), face, { tier: 2 });
     w.lamp(...P(3, 0), { y: 1.4, color: 0xffb060, intensity: 0.8, range: 6, flicker: 0.5, model: null });
+  }
+}
+// ---- the old town walls: sandstone retaining walls round the cliffs of Upper Sandy, a parapet on top,
+// buttresses below; open where the north ramp and the east stair street come up
+function hillWalls(ctx) {
+  const { w, rng } = ctx, n = HILL.length;
+  const roads = STREETS.filter(st => st[0] === 'northroad' || st[0] === 'eaststair').map(st => st[1]);
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n; if (HILL_W[i] > 4 || HILL_W[j] > 4) continue;
+    const [ax, az] = HILL[i], [bx, bz] = HILL[j], L = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / L, uz = (bz - az) / L;
+    let nx = -uz, nz = ux; if (inPoly((ax + bx) / 2 + nx * 3, (az + bz) / 2 + nz * 3, HILL)) { nx = -nx; nz = -nz; }   // outward
+    const ang = Math.atan2(uz, ux);
+    for (let t = 1; t < L - 0.5; t += 2) {
+      const px = ax + ux * t, pz = az + uz * t;
+      if (roads.some(r => polyDist(px, pz, r)[0] < 6)) continue;
+      const top = w.groundAt(px - nx * 1.5, pz - nz * 1.5), foot = Math.min(w.groundAt(px + nx * 2.4, pz + nz * 2.4), w.groundAt(px + nx * 4, pz + nz * 4));
+      if (top - foot < 2) continue;
+      const cx = px + nx * 0.55, cz = pz + nz * 0.55;
+      w.block(cx - 1.08, cz - 0.6, cx + 1.08, cz + 0.6, top - foot + 1.5, 'brick', { y0: foot - 0.6, rot: ang, tint: 0xf0d8b0, xray: true });
+      if (Math.round(t) % 12 === 1) { const bxx = px + nx * 1.6, bzz = pz + nz * 1.6; w.block(bxx - 0.7, bzz - 0.9, bxx + 0.7, bzz + 0.9, top - foot - 0.4, 'brick', { y0: foot - 0.5, rot: ang, tint: 0xe4c89c, xray: true }); }
+      if (Math.round(t) % 24 === 11) w.lamp(px - nx * 1.2, pz - nz * 1.2, { y: 2.8, color: 0xffd8a0, intensity: 1.2, range: 10, model: 'sc_lamppost' });
+    }
   }
 }
 // ---- the Sandphitheatre: stage columns, drifted seats, a raider band's abandoned rehearsal
@@ -1709,8 +1756,8 @@ function terraces(ctx) {
   const { w, rng } = ctx;
   for (const z of [347, 363]) for (let x = 370; x < 440; x += 9) w.prop(rng() < 0.5 ? 'sc_laundry' : 'sc_laundry2', x + rng() * 3, z, 0, {});
   for (const z of [347, 363, 379]) for (let i = 0; i < 3; i++) w.prop(rng() < 0.5 ? 'sc_planter' : 'sc_planter2', ...freeSpot(ctx, 368 + rng() * 70, z, 0.8, 4), 0, { solid: true });
-  w.container('raider_cache', ...freeSpot(ctx, 446, 347, 0.9, 6), 0, { tier: 3 });
-  w.container('raider_cache', ...freeSpot(ctx, 360, 363, 0.9, 6), 0, { tier: 2 });
+  w.container('raider_cache', ...freeSpot(ctx, 424, 347, 0.9, 6), 0, { tier: 3 });
+  w.container('raider_cache', ...freeSpot(ctx, 384, 363, 0.9, 6), 0, { tier: 2 });
   w.container('trash', ...freeSpot(ctx, 400, 379, 0.8, 6), 0, { tier: 1 });
   for (const x of [362, 444]) stLamp(w, x, 347, { intensity: 1.1, range: 9 });
 }
@@ -1745,10 +1792,10 @@ function strip(ctx) {
 // ---- St. Copay's: ambulances queued at the door, a triage tent, barriers
 function hospital(ctx) {
   const { w, rng } = ctx;
-  for (let i = 0; i < 3; i++) { const [x, z] = freeSpot(ctx, 292 + i * 14, 478 - i * 3.5, 1.8, 8); w.prop('sc_ambulance', x, z, 1.32 + (rng() - 0.5) * 0.3, { solid: true }); if (i !== 1) w.container('medical_bag', x, z + 2.6, 0, { tier: 2 }); }
-  const [tx, tz] = freeSpot(ctx, 352, 456, 2.2, 8); w.prop('sc_tent', tx, tz, 1.3, { solid: true }); w.prop('sc_hospbed', tx + 3, tz + 0.5, 1.3, { solid: true }); w.container('medical_bag', tx - 2.6, tz, 0, { tier: 2 });
-  for (let i = 0; i < 5; i++) w.prop('sc_barrier', ...freeSpot(ctx, 270 + i * 4, 492 - i, 1.1), -0.25, { solid: true });
-  w.prop('sc_billboard', ...freeSpot(ctx, 262, 476, 1.4), -0.25, { solid: true });
+  for (let i = 0; i < 3; i++) { const [x, z] = freeSpot(ctx, 318 + i * 18, 507 - i * 4.6, 1.8, 6); w.prop('sc_ambulance', x, z, 1.32 + (rng() - 0.5) * 0.3, { solid: true }); if (i !== 1) w.container('medical_bag', x + 1.2, z + 2.9, 0, { tier: 2 }); }
+  const [tx, tz] = freeSpot(ctx, 286, 520, 2.2, 8); w.prop('sc_tent', tx, tz, 1.3, { solid: true }); w.prop('sc_hospbed', tx + 3, tz + 0.5, 1.3, { solid: true }); w.container('medical_bag', tx - 2.6, tz, 0, { tier: 2 });
+  for (let i = 0; i < 5; i++) w.prop('sc_barrier', ...freeSpot(ctx, 300 + i * 4, 512 - i, 1.1), -0.25, { solid: true });
+  w.prop('sc_billboard', ...freeSpot(ctx, 380, 500, 1.4), -0.25, { solid: true });
 }
 // ---- the Dune-Hill Mall: a dune climbed the west wall to the roof (someone laid planks across the last gap)
 function mall(ctx) {
@@ -1756,7 +1803,13 @@ function mall(ctx) {
   const C = ctx.cxs.find(c => c.o.tag === 'mall'); if (!C) return;
   const s = C.segs[0], [wx, wz] = toW(C, s.x0, (s.z0 + s.z1) / 2), y = s.roofY;
   // the dune: crest 3 m west of the wall at roof height, tailing off into the street
-  w.ridge([[wx - 3.2, wz - 10], [wx - 3.2, wz + 10]], 3, y - 0.15, 16, 'max');
+  // a wedge of sand: crest 3 m off the wall at roof height, running 20 m down into the street, narrowing to the sides
+  w.heightFn((x, z) => {
+    if (x < wx - 26 || x > wx - 2 || Math.abs(z - wz) > 13) return null;
+    const f = clamp(1 - (wx - 3.2 - x) / 20, 0, 1) * (1 - sstep(5, 13, Math.abs(z - wz)));
+    return f > 0 ? Math.max(w.groundAt(x, z), lerp(w.groundAt(x, z), y - 0.15, f)) : null;
+  }, 'set');
+  for (let i = 0; i < 9; i++) w.paintCircle(i % 3 ? 'sand' : 'sandDark', wx - 4 - i * 2.2, wz - 8 + (i % 4) * 5, 7 - i * 0.4, 0.5, i);
   w.bridge([[wx - 4, wz], [wx + 2.2, wz]], 2.4, y, 'wood', { thick: 0.2, rails: false, pillars: 0 });
   ctx.keepClear.push([wx - 10, wz, 12]);
   cafe(ctx, 530, 572, 6); cafe(ctx, 584, 574, 4);
@@ -1811,20 +1864,22 @@ function library(ctx) {
 function waterPark(ctx) {
   const { w, rng } = ctx;
   const gy = w.groundAt(244, 770);
+  w.paint('tiles', 186, 714, 312, 824);                                                  // the pool deck
   // the wave pool (shallow end to the west) and the kiddie pool
-  for (const [x0, z0, x1, z1, dep] of [[210, 752, 262, 784, 1.8], [278, 790, 300, 812, 0.9]]) {
+  for (const [x0, z0, x1, z1, dep] of [[210, 752, 262, 784, 1.8], [272, 788, 292, 806, 0.9]]) {
     w.ramp(x0, z0, x1, z1, gy - 0.25, gy - dep, 'x');
-    w.paint('tiles', x0 - 1, z0 - 1, x1 + 1, z1 + 1);
+    w.paint('concrete', x0 - 1, z0 - 1, x1 + 1, z1 + 1); w.paint('metalPanel', x0, z0, x1, z1);
     w.ladder(x1 - 1.2, (z0 + z1) / 2, null, x1 + 1, (z0 + z1) / 2, gy, -Math.PI / 2);
   }
+  w.water(250, 752, 262, 784, { level: gy - 1.45, deep: 0x2a6a70, shallow: 0x4a9a98, opacity: 0.8 });   // the last of the wave pool
   // the lazy river: a dry walkable channel looping round the pools
-  const loop = [[196, 740], [300, 734], [306, 780], [304, 818], [196, 820], [190, 780], [196, 740]];
+  const loop = [[198, 742], [298, 738], [304, 780], [302, 816], [200, 818], [194, 780], [198, 742]];
   w.ridge(loop, 3.4, gy - 0.8, 1.6, 'min');
-  w.path(loop, 3.2, 'tiles');
-  for (const [a, b] of [[[246, 731], [246, 744]], [[188, 800], [200, 800]]]) w.bridge([a, b], 2.2, gy + 0.1, 'wood', { thick: 0.2, rails: true, railH: 0.8, pillars: 0 });
+  w.path(loop, 3.4, 'metalPanel');
+  for (const [a, b] of [[[246, 734], [246, 746]], [[188, 800], [200, 800]]]) w.bridge([a, b], 2.2, gy + 0.1, 'wood', { thick: 0.2, rails: true, railH: 0.8, pillars: 0 });
   // slides from the tower into the wave pool, sunbeds, parasols, the lifeguard
-  w.prop('sc_slide', 270, 756, -Math.PI / 2, { solid: [1.2, 3.5, 3] });
-  w.prop('sc_slide', 266, 770, -Math.PI / 2 - 0.3, { solid: [1.2, 3.5, 3] });
+  w.prop('sc_slide', 265.5, 764, -Math.PI / 2, { solid: [1.2, 3.5, 3] });
+  w.prop('sc_slide', 265.5, 773, -Math.PI / 2 - 0.25, { solid: [1.2, 3.5, 3] });
   for (let i = 0; i < 10; i++) { const [x, z] = freeSpot(ctx, 212 + i * 5, 794 + (i % 2) * 6, 1, 4); w.prop('sc_sunbed', x, z, 0, { solid: true }); if (i % 3 === 0) w.prop(rng() < 0.5 ? 'sc_parasol' : 'sc_parasol2', x + 1.4, z, 0, { solid: true }); if (i % 4 === 1) w.container(rng() < 0.5 ? 'backpack' : 'suitcase', x, z + 2, 0, { tier: 1 }); }
   w.prop('sc_lifeguard', 236, 748, 0, { solid: true });
   w.prop('sc_kiosk', ...freeSpot(ctx, 290, 724, 1.3), 0, { solid: true }); w.container('fridge', ...freeSpot(ctx, 294, 726, 0.8), 0, { tier: 1 });
@@ -1905,7 +1960,7 @@ function fieldDepots(ctx) {
   }
 }
 function setPieces(ctx) {
-  seaWall(ctx); jettyAndLighthouse(ctx); yachtGraveyard(ctx); port(ctx); labs(ctx); upperSandy(ctx); theatre(ctx); terraces(ctx);
+  seaWall(ctx); hillWalls(ctx); jettyAndLighthouse(ctx); yachtGraveyard(ctx); port(ctx); labs(ctx); upperSandy(ctx); theatre(ctx); terraces(ctx);
   roundabout(ctx); strip(ctx); hospital(ctx); mall(ctx); travel(ctx); lowTidePark(ctx); condos(ctx); library(ctx); waterPark(ctx);
   gasStation(ctx); solarFarm(ctx); bypassLife(ctx); fieldDepots(ctx);
 }
@@ -1953,11 +2008,11 @@ function vegetation(ctx) {
   }
   // dune scrub; dried weed and shell grit on the sea bed
   const dune = (x, z) => ctx.low.at(x, z) > 0.6 || ctx.isSea(x, z, 2);
-  w.scatter('sc_grass', [0, 0, MW, MH], 2400, { seed: 77, avoid: (x, z) => dune(x, z) || ctx.blocked(x, z, 0.5), scaleVar: 0.6 });
+  w.scatter('sc_grass', [0, 0, MW, MH], 3400, { seed: 77, avoid: (x, z) => dune(x, z) || ctx.blocked(x, z, 0.5), scaleVar: 0.6 });
   w.scatter('sc_shrub_dry', [0, 0, MW, MH], 650, { seed: 78, avoid: (x, z) => ctx.low.at(x, z) > 0.75 || ctx.isSea(x, z, 2) || ctx.blocked(x, z, 1), scaleVar: 0.5 });
   w.scatter('deadTree', [0, 0, MW, MH], 80, { seed: 79, solid: true, avoid: (x, z) => ctx.low.at(x, z) > 0.5 || ctx.isSea(x, z, 2) || ctx.blocked(x, z, 2) });
   w.scatter('cactus', [0, 0, MW, MH], 70, { seed: 80, solid: true, avoid: (x, z) => ctx.low.at(x, z) > 0.4 || ctx.isSea(x, z, 2) || ctx.blocked(x, z, 2) });
-  w.scatter('sc_shrub_dry', [600, 0, MW, MH], 260, { seed: 84, scale: 0.7, avoid: (x, z) => !ctx.isSea(x, z) || ctx.blocked(x, z, 1), scaleVar: 0.5 });
+  w.scatter('sc_shrub_dry', [600, 0, MW, MH], 420, { seed: 84, scale: 0.7, avoid: (x, z) => !ctx.isSea(x, z) || ctx.blocked(x, z, 1), scaleVar: 0.5 });
   w.scatter('rock', [600, 0, MW, MH], 90, { seed: 85, solid: true, scale: 0.9, avoid: (x, z) => !ctx.isSea(x, z) || polyDist(x, z, COAST)[0] < 6 || ctx.blocked(x, z, 2), scaleVar: 0.7 });
   // wind-cut rock outcrops in the dune sea
   for (const [cx, cz, r, hh] of [[70, 340, 18, 4.5], [110, 760, 14, 3.5], [640, 880, 16, 4]]) {
@@ -2015,7 +2070,7 @@ function streetClutter(ctx) {
   }
   // parked / abandoned cars, debris, signs and street lamps in the open lanes (clustered vignettes)
   const lanes = (x, z, r) => ctx.low.at(x, z) > 0.6 && !ctx.isSea(x, z, 3) && !ctx.blocked(x, z, r);
-  const B = { car: 170, lamp: 230, deb: 900, sign: 70, husk: 40, trash: 60, barricade: 70, market: 50, weeds: 700, junk: 160 };
+  const B = { car: 190, lamp: 230, deb: 1150, sign: 70, husk: 40, trash: 60, barricade: 70, market: 55, weeds: 950, junk: 180 };
   const cnt = {}; for (const k in B) cnt[k] = 0;
   const near = (x, z, r) => { const a = rng() * 6.283, d = rng() * r; return [x + Math.cos(a) * d, z + Math.sin(a) * d]; };
   for (let i = 0; i < 26000; i++) {
@@ -2158,7 +2213,7 @@ function birdCity(ctx) {
 // [id, display name, x, z, radius, tier]  (ids are internal and stable: quests target them)
 const POIS = [
   ['town_hall', 'Town Hall (Closed Since Lunch)', 405, 178, 32, 3],
-  ['piazza_romana', 'Piazza Sandwich', 400, 238, 38, 2],
+  ['piazza_romana', 'Piazza Sandwich', 414, 242, 46, 2],
   ['escrow_chapel', 'Our Lady of Perpetual Escrow', 344, 296, 22, 1],
   ['sandphitheatre', 'The Sandphitheatre', 268, 262, 40, 2],
   ['santa_marta_houses', 'Hourglass Terraces', 404, 356, 34, 2],
@@ -2178,14 +2233,14 @@ const POIS = [
   ['yacht_rock_bottom', 'Yacht Rock Bottom', 806, 330, 72, 2],
   ['abandoned_highway_camp', 'Gridlock Campground', 800, 160, 36, 2],
   ['marino_park', 'Low Tide Park', 662, 432, 34, 1],
-  ['red_tower', 'The Red Flag', 834, 456, 26, 2],
+  ['red_tower', 'The Red Flag', 840, 456, 26, 2],
   ['sandy_properties', 'Ocean View* Condos', 726, 712, 50, 2],
 ];
 // open ground for a condition boss and its escorts (Sandy City's roster has none today; ready if one is added)
 const BOSS_ARENAS = { sandphitheatre: true, yacht_rock_bottom: true, solar_farm: true };
 // metro stations: [id, display name, wanted hall centre, lid paving]; their POIs follow the placed halls
 const STATIONS = [
-  ['northern_station', 'Uphill Both Ways Station', 452, 258, 'tiles'],
+  ['northern_station', 'Uphill Both Ways Station', 338, 246, 'tiles'],
   ['marino_station', 'Dry Dock Station', 568, 337, 'concrete'],
   ['southern_station', 'Signal Failure Station', 564, 804, 'concrete'],
   ['western_station', 'Sand Trap Station', 207, 579, 'tiles'],
@@ -2219,7 +2274,7 @@ function markers(ctx) {
   const roofOf = (tag, fx = 0.5, fz = 0.5, si = null) => { const C = ctx.cxs.find(c => c.o.tag === tag); if (!C) return null; const s = C.segs[si ?? Math.floor(C.segs.length / 2)]; const [x, z] = toW(C, lerp(s.x0, s.x1, fx), lerp(s.z0, s.z1, fz)); return [x, z, { surface: true, roof: true }]; };
   const lane = (x, z) => freeSpot(ctx, x, z, 2, 20);
   // rooftop snipers and turrets
-  for (const [t, fx, fz] of [['lighthouse', 0.3, 0.3], ['townhall', 0.5, 0.5], ['grainsA', 0.6, 0.4], ['condoB', 0.5, 0.5], ['slidetower', 0.5, 0.5], ['labs', 0.7, 0.6], ['hospital', 0.5, 0.5]]) { const r = roofOf(t, fx, fz); if (r) w.arkSpawn('sentinel', r[0], r[1], r[2]); }
+  for (const [t, fx, fz] of [['lighthouse', 0.75, 0.15], ['townhall', 0.5, 0.5], ['grainsA', 0.6, 0.4], ['condoB', 0.5, 0.5], ['slidetower', 0.5, 0.5], ['labs', 0.7, 0.6], ['hospital', 0.5, 0.5]]) { const r = roofOf(t, fx, fz); if (r) w.arkSpawn('sentinel', r[0], r[1], r[2]); }
   for (const [t, fx, fz] of [['mall', 0.6, 0.4], ['library', 0.4, 0.5], ['garage', 0.3, 0.7], ['warehouse', 0.5, 0.5], ['travel', 0.5, 0.5], ['grainsB', 0.5, 0.5], ['condoA', 0.5, 0.5], ['terraceA', 0.5, 0.5]]) { const r = roofOf(t, fx, fz); if (r) w.arkSpawn('turret', r[0], r[1], r[2]); }
   { const s = polyDist(600, 96, BYPASS)[1], [x, z] = pointAt(BYPASS, s); w.arkSpawn('sentinel', x, z, { surface: true }); }
   { const s = polyDist(740, 132, BYPASS)[1], [x, z] = pointAt(BYPASS, s); w.arkSpawn('turret', x, z, { surface: true }); }
