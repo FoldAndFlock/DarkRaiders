@@ -495,7 +495,7 @@ export class Hub {
       rows.push(['USE TIME', (u.time || 1) + ' S']); if (u.cooldown) rows.push(['COOLDOWN', u.cooldown + ' S']);
     } else if (d.throw) { const t = d.throw; rows.push(['KIND', String(t.kind).toUpperCase()]); if (t.radius) rows.push(['RADIUS', t.radius + ' M']); if (t.dmg) rows.push(['DAMAGE', t.dmg]); if (t.dur) rows.push(['DURATION', t.dur + ' S']); }
     else if (d.blueprint) { const r = Craft.RECIPE_BY_ID[d.blueprint]; rows.push(['TEACHES', r ? nm(r.out) : d.blueprint], ['BENCH', r ? `${Craft.BENCHES[r.bench]?.name} ${ROM[r.level]}` : '-'], ['STATUS', (this.p.blueprints || []).includes(d.blueprint) ? '<span class="green">LEARNED</span>' : '<span class="yellow">NEW</span>']); }
-    else if (d.key) rows.push(['OPENS', String(d.key.room || '').replace(/_/g, ' ').toUpperCase()], ['MAP', d.key.map === 'any' ? 'ANY' : (Q.MAP_NAMES[d.key.map] || d.key.map).toUpperCase()]);
+    else if (d.key) rows.push(['OPENS', String(d.key.opens || d.key.room || '').replace(/_/g, ' ').toUpperCase()], ['MAP', d.key.map === 'any' ? 'ANY' : (Q.MAP_NAMES[d.key.map] || d.key.map).toUpperCase()]);
     else if (d.material) rows.push(['MATERIAL', String(d.material.tier).toUpperCase()]);
     rows.push(['WEIGHT', `${(d.weight * (s.qty || 1)).toFixed(2)} KG`], ['VALUE', s.free ? '<span class="red">UNSELLABLE</span>' : `${fmt(Eco.fullValue(s))}${s.qty > 1 ? ` <span class="dimc">(${fmt(Eco.unitSellPrice(s))} EA)</span>` : ''}`]);
     if (d.stack > 1) rows.push(['STACK', `${s.qty || 1} / ${d.stack}`]);
