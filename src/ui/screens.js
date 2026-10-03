@@ -258,18 +258,18 @@ export class Screens {
         inp.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Enter') j.onclick(); };
         jr.append(inp, j); right.appendChild(jr);
         if (mode === 'join') setTimeout(() => inp.focus(), 50);
-        if (this.netError) right.appendChild(el('div', 'red', this.netError));
+        if (this.netError) right.appendChild(el('div', 'red', escapeHtml(this.netError)));
       } else {
-        if (this.netError) right.appendChild(el('div', 'red', this.netError));
+        if (this.netError) right.appendChild(el('div', 'red', escapeHtml(this.netError)));
         const code = el('div', 'row', `<span class="label">INVITE CODE</span><span class="bold yellow" style="font-size:calc(var(--fs-b)*2);letter-spacing:calc(var(--px)*3px)">${net.code}</span>`);
         const cp = el('button', '', 'COPY'); cp.onclick = () => { navigator.clipboard?.writeText(net.code); cp.textContent = 'COPIED'; }; code.appendChild(cp);
         right.appendChild(code);
         const COLS = ['#30d0d0', '#f0a030', '#e84a30', '#9a70ff'];
-        for (const m of net.members) right.appendChild(el('div', 'panel row', `<span style="color:${COLS[m.slot % 4]}">&#9632;</span><span>${m.name.toUpperCase()}</span><span class="label">LV${m.level || 1}</span><span style="margin-left:auto" class="${m.ready || m.pid === 'host' ? 'green' : 'dimc'}">${m.pid === 'host' ? 'HOST' : m.ready ? 'READY' : 'NOT READY'}</span>`));
+        for (const m of net.members) right.appendChild(el('div', 'panel row', `<span style="color:${COLS[(m.slot | 0) % 4]}">&#9632;</span><span>${escapeHtml(String(m.name || 'Raider').toUpperCase())}</span><span class="label">LV${(m.level | 0) || 1}</span><span style="margin-left:auto" class="${m.ready || m.pid === 'host' ? 'green' : 'dimc'}">${m.pid === 'host' ? 'HOST' : m.ready ? 'READY' : 'NOT READY'}</span>`));
         for (let i = net.members.length; i < 4; i++) right.appendChild(el('div', 'panel label', 'OPEN SLOT'));
         // chat
         const log = el('div', 'panel col scroll'); log.style.height = 'calc(var(--px)*90px)'; log.style.justifyContent = 'flex-end';
-        for (const c of (this.lobbyChat || []).slice(-12)) log.appendChild(el('div', '', `<span style="color:${COLS[(c.slot || 0) % 4]}">${c.from}:</span> ${escapeHtml(c.text)}`));
+        for (const c of (this.lobbyChat || []).slice(-12)) log.appendChild(el('div', '', `<span style="color:${COLS[(c.slot | 0) % 4]}">${escapeHtml(c.from)}:</span> ${escapeHtml(c.text)}`));
         right.appendChild(log);
         const cr = el('div', 'row'); const ci = el('input'); ci.type = 'text'; ci.placeholder = 'SAY SOMETHING'; ci.style.flex = '1'; ci.maxLength = 120;
         ci.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Enter' && ci.value.trim()) { net.chat(ci.value.trim()); ci.value = ''; } };

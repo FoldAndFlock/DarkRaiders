@@ -11,7 +11,7 @@ for (const [n, p] of [['A', A], ['B', B]]) {
 }
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 await A.goto(base); await B.goto(base);
-await A.waitForFunction('window.__ready'); await B.waitForFunction('window.__ready');
+await A.waitForFunction(() => window.__ready); await B.waitForFunction(() => window.__ready);
 await A.evaluate(() => { window.app.profile.name = 'HOSTY'; window.app.screens.lobby(); });
 await B.evaluate(() => { window.app.profile.name = 'BUDDY'; window.app.screens.lobby(); });
 await A.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('HOST A SQUAD')).click());
@@ -26,8 +26,8 @@ await wait(800);
 await A.screenshot({ path: out + '_lobbyA.png' });
 console.log('members A', await A.evaluate(() => JSON.stringify(window.app.screens.net.members.map(m => [m.name, m.ready, m.slot]))));
 await A.evaluate(() => { window.app.screens.lobbyMap = 'test_range'; window.app.screens.net.setMap('test_range'); [...document.querySelectorAll('button')].find(b => b.textContent.includes('START')).click(); });
-await A.waitForFunction('window.app.game && window.app.game.running', null, { timeout: 120000 }).catch(() => console.log('A raid not started'));
-await B.waitForFunction('window.app.game && window.app.game.running', null, { timeout: 120000 }).catch(() => console.log('B raid not started'));
+await A.waitForFunction(() => window.app.game && window.app.game.running, null, { timeout: 120000 }).catch(() => console.log('A raid not started'));
+await B.waitForFunction(() => window.app.game && window.app.game.running, null, { timeout: 120000 }).catch(() => console.log('B raid not started'));
 await wait(3000);
 // B moves right for a second
 await B.bringToFront(); await B.keyboard.down('KeyD'); await wait(1500); await B.keyboard.up('KeyD');

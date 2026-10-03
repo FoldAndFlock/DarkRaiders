@@ -15,7 +15,7 @@ const until = async (p, f, ms = 20000) => { const t0 = Date.now(); while (Date.n
 let fail = 0;
 const ok = (c, m, d = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${m} ${d}`); if (!c) fail++; };
 await A.goto(base); await B.goto(base);
-await A.waitForFunction('window.__ready'); await B.waitForFunction('window.__ready');
+await A.waitForFunction(() => window.__ready); await B.waitForFunction(() => window.__ready);
 await A.evaluate(() => { window.app.profile.name = 'HOSTY'; window.app.screens.lobby(); });
 await B.evaluate(() => { window.app.profile.name = 'BUDDY'; window.app.screens.lobby(); });
 await A.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('HOST A SQUAD')).click());

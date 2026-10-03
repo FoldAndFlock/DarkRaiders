@@ -6,7 +6,7 @@ p.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') conso
 p.on('pageerror', e => console.log('[pageerror]', e.message, e.stack?.slice(0, 600)));
 const t0 = Date.now();
 await p.goto(url);
-try { await p.waitForFunction(`window.${wait}`, null, { timeout: 120000, polling: 250 }); } catch (e) { console.log('timeout waiting', e.message); }
+try { await p.waitForFunction((k) => window[k], wait, { timeout: 120000, polling: 250 }); } catch (e) { console.log('timeout waiting', e.message); }
 console.log('ready in', Date.now() - t0, 'ms');
 await p.screenshot({ path: out });
 await b.close();

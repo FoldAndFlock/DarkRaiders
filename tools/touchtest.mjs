@@ -47,7 +47,7 @@ const G = (p, fn, arg) => p.evaluate(fn, arg);
 {
   const { ctx, p, T, errs } = await phone();
   await p.goto(base + '?raid=test_range');
-  await p.waitForFunction('window.app && window.app.game && window.app.game.running', null, { timeout: 120000 });
+  await p.waitForFunction(() => window.app && window.app.game && window.app.game.running, null, { timeout: 120000 });
   await wait(1500);
   const vis = await G(p, () => { const t = document.querySelector('.touch'); return !!t && !t.classList.contains('hidden'); });
   ok(vis, 'touch layer visible in raid');
@@ -215,7 +215,7 @@ const G = (p, fn, arg) => p.evaluate(fn, arg);
 {
   const { ctx, p, errs } = await phone(390, 844);
   await p.goto(base + '?dev');
-  await p.waitForFunction('window.__ready', null, { timeout: 60000 }); await wait(500);
+  await p.waitForFunction(() => window.__ready, null, { timeout: 60000 }); await wait(500);
   ok(await G(p, () => !document.querySelector('.rotate-hint').classList.contains('hidden')), 'portrait shows the rotate hint');
   await p.screenshot({ path: out + '/portrait.png' });
   await p.setViewportSize({ width: 844, height: 390 }); await wait(300);
@@ -228,11 +228,11 @@ const G = (p, fn, arg) => p.evaluate(fn, arg);
 {
   const { ctx, p, T, errs } = await phone();
   await p.goto(base + '?dev');
-  await p.waitForFunction('window.__ready', null, { timeout: 60000 }); await wait(600);
+  await p.waitForFunction(() => window.__ready, null, { timeout: 60000 }); await wait(600);
   await p.screenshot({ path: out + '/flow_title.png' });
   await G(p, () => { window.__ready = false; });
   await T.tapEl('button', 'NEW RAIDER');
-  await p.waitForFunction('window.__ready', null, { timeout: 60000 }); await wait(900);
+  await p.waitForFunction(() => window.__ready, null, { timeout: 60000 }); await wait(900);
   ok(await G(p, () => window.app.profile.name === 'Thumbs' && !!document.querySelector('.hub')), 'NEW RAIDER by touch reaches the hub');
   for (const [k, l] of [['workshop', 'WORKSHOP'], ['traders', 'TRADERS'], ['skills', 'SKILLS'], ['quests', 'QUESTS'], ['raider', 'RAIDER'], ['loadout', 'LOADOUT']]) {
     const c = await G(p, (k) => { const n = document.querySelector(`.hh-tabs [data-tab="${k}"]`); const r = n.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }, k);
@@ -270,7 +270,7 @@ const G = (p, fn, arg) => p.evaluate(fn, arg);
   ok(await G(p, () => window.app.screens.lobbyMap === 'test_range'), 'tap selects the map card');
   await p.screenshot({ path: out + '/flow_lobby.png' });
   await T.tapEl('.lobby button', 'DEPLOY SOLO');
-  await p.waitForFunction('window.app.game && window.app.game.running', null, { timeout: 120000 }).catch(() => {});
+  await p.waitForFunction(() => window.app.game && window.app.game.running, null, { timeout: 120000 }).catch(() => {});
   ok(await G(p, () => !!window.app.game?.running), 'DEPLOY SOLO by touch starts the raid');
   await wait(1500);
   await p.screenshot({ path: out + '/flow_raid.png' });

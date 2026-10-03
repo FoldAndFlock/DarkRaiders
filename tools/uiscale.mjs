@@ -37,7 +37,7 @@ for (const c of cfgs) {
   }, k);
   const check = async (k) => { const s = await spill(k); if (s.length) { problems += s.length; console.log('  SPILL', c.name, s.join('\n    ')); } };
   await p.goto(base);
-  await p.waitForFunction('window.__ready', null, { timeout: 60000 });
+  await p.waitForFunction(() => window.__ready, null, { timeout: 60000 });
   await wait(700);
   const px = await p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--px'));
   console.log(`${c.name} ${c.w}x${c.h} scale=${c.scale} dpr=${c.dpr} -> --px ${px}`);
@@ -45,7 +45,7 @@ for (const c of cfgs) {
   if (want('titleset')) { await p.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent === 'SETTINGS').click()); await wait(200); await shot('titleset'); await check('titleset'); }
   if (want('hub')) {
     await p.evaluate(() => { window.__ready = false; window.app.screens.hubScreen(); });
-    await p.waitForFunction('window.__ready', null, { timeout: 60000 }); await wait(900);
+    await p.waitForFunction(() => window.__ready, null, { timeout: 60000 }); await wait(900);
     const hpx = await p.evaluate(() => getComputedStyle(document.querySelector('.hub')).getPropertyValue('--px') + ' ' + document.querySelector('.hub').className);
     console.log('  hub --px', hpx);
     for (const t of ['loadout', 'workshop', 'traders', 'skills', 'quests', 'raider']) {
@@ -60,7 +60,7 @@ for (const c of cfgs) {
   if (want('raid')) {
     await p.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('DEPLOY SOLO')).click());
     await wait(350); await shot('loading');
-    await p.waitForFunction('window.app.game && window.app.game.running', null, { timeout: 120000 });
+    await p.waitForFunction(() => window.app.game && window.app.game.running, null, { timeout: 120000 });
     await wait(1800);
     await p.evaluate(() => { const g = window.app.game; g.bannerS = null; g.me.buffs.invuln = 9999; document.querySelectorAll('#ui .panel').forEach(n => { if (/FIRST DROP/.test(n.textContent)) n.remove(); }); g.feed('+1 Bandage', '#e8e0c8'); });
     await wait(400); await shot('raid'); await check('raid');

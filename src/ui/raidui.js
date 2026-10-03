@@ -6,6 +6,7 @@ import { renderMapImage } from './mapimage.js';
 import { RECIPES } from '../data/recipes.js';
 import { countIn, takeFrom, pickUp as pickUpInto } from '../game/inventory.js';
 import { settingsRows, touchEnabled } from './settings.js';
+const esc = (v) => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const sameRef = (a, b) => !!a && !!b && a.c === b.c && (a.i ?? null) === (b.i ?? null);
 const closeBtn = (fn) => { const b = el('button', 'close-x', 'X'); b.setAttribute('aria-label', 'Close'); b.onclick = (e) => { e.stopPropagation(); fn(); }; return b; };
@@ -131,7 +132,7 @@ export class RaidUI {
     }
     if (this.lootItems) {
       const right = el('div', 'panel col'); right.style.minWidth = 'calc(var(--cell) * 6)';
-      right.appendChild(el('div', 'row', `<h2>${this.lootRef.label.replace(/^(SEARCH|OPEN|LOOT) /, '')}</h2>`));
+      right.appendChild(el('div', 'row', `<h2>${esc(this.lootRef.label.replace(/^(SEARCH|OPEN|LOOT) /, ''))}</h2>`));   // (labels can come from the host)
       const grid = el('div', 'slots'); grid.style.maxWidth = 'calc(var(--cell) * 6 + var(--px) * 6px)';
       this.lootItems.forEach((s, i) => { if (i < (this.revealN ?? 1e9)) grid.appendChild(cell(s, { c: 'loot', i })); else { const c = cell(null, { c: 'loot-hidden', i }); c.innerHTML = '<span class="label">...</span>'; grid.appendChild(c); } });
       for (let k = this.lootItems.length; k < Math.max(6, this.lootItems.length); k++) grid.appendChild(cell(null, { c: 'loot', i: k }));

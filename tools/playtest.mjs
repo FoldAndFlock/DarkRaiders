@@ -8,7 +8,7 @@ p.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') { con
 p.on('pageerror', e => { const t = '[pageerror] ' + e.message + ' ' + (e.stack || '').split('\n').slice(1, 3).join(' | '); errs.set(t, (errs.get(t) || 0) + 1); });
 await p.goto(url);
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
-await p.waitForFunction('window.app && window.app.game && window.app.game.running', null, { timeout: 120000 }).catch(e => console.log('never started', e.message));
+await p.waitForFunction(() => window.app && window.app.game && window.app.game.running, null, { timeout: 120000 }).catch(e => console.log('never started', e.message));
 await wait(1500);
 await p.screenshot({ path: outPrefix + '_0.png' });
 const fps = async () => p.evaluate(() => new Promise(r => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 1000) requestAnimationFrame(f); else r(n); }; requestAnimationFrame(f); }));

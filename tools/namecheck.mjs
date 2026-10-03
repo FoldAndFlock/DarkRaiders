@@ -15,7 +15,7 @@ for (const map of mapsArg.split(',')) {
   const p = await b.newPage({ viewport: { width: 640, height: 360 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(`${base}?raid=${map}&time=noon&weather=clear`);
-  await p.waitForFunction('window.app && window.app.game && window.app.game.running', null, { timeout: 400000 });
+  await p.waitForFunction(() => window.app && window.app.game && window.app.game.running, null, { timeout: 400000 });
   const names = await p.evaluate(async () => {
     const { containerLabel } = await import('./src/game/view.js');
     const { ARK } = await import('./src/data/arc.js');

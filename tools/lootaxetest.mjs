@@ -10,7 +10,7 @@ const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-un
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
 const errs = []; p.on('pageerror', e => errs.push(e.message));
 await p.goto(`${base}?raid=test_range&time=noon&weather=clear`);
-await p.waitForFunction('window.app && window.app.game && window.app.game.running', null, { timeout: 240000 });
+await p.waitForFunction(() => window.app && window.app.game && window.app.game.running, null, { timeout: 240000 });
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 let fail = 0;
 const ok = (c, m, d = '') => { console.log(`${c ? 'ok  ' : 'FAIL'} ${m} ${d}`); if (!c) fail++; };

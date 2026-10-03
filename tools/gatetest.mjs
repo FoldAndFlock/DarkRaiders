@@ -11,7 +11,7 @@ p.on('console', m => { const t = m.text().slice(0, 300); if (m.type() === 'error
 p.on('pageerror', e => { const t = '[pageerror] ' + e.message + ' ' + (e.stack || '').split('\n').slice(1, 3).join(' | '); errs.set(t, (errs.get(t) || 0) + 1); });
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 await p.goto(`${base}?raid=test_range&time=noon&weather=clear`);
-await p.waitForFunction('window.app && window.app.game && window.app.game.running', null, { timeout: 400000 });
+await p.waitForFunction(() => window.app && window.app.game && window.app.game.running, null, { timeout: 400000 });
 await wait(800);
 let fails = 0;
 const check = (ok, msg) => { console.log((ok ? '  ok   ' : '  FAIL ') + msg); if (!ok) fails++; };

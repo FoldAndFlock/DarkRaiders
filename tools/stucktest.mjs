@@ -13,7 +13,7 @@ for (const map of mapsArg.split(',')) {
   const p = await b.newPage({ viewport: { width: 320, height: 180 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(`${base}?raid=${map}&time=noon&weather=clear`);
-  await p.waitForFunction('window.app && window.app.game && window.app.game.running', null, { timeout: 400000 });
+  await p.waitForFunction(() => window.app && window.app.game && window.app.game.running, null, { timeout: 400000 });
   const t0 = Date.now();
   const res = await p.evaluate((box) => {
     const g = window.app.game; g.running = false;

@@ -29,7 +29,7 @@ async function squad() {
   const A = await ctx.newPage(), B = await ctx.newPage();
   for (const [n, p] of [['A', A], ['B', B]]) p.on('pageerror', e => errs.push(n + ' ' + e.message + ' ' + (e.stack || '').split('\n').slice(1, 3).join(' | ')));
   await A.goto(base); await B.goto(base);
-  await A.waitForFunction('window.__ready'); await B.waitForFunction('window.__ready');
+  await A.waitForFunction(() => window.__ready); await B.waitForFunction(() => window.__ready);
   await A.evaluate(() => { window.app.profile.name = 'HOSTY'; window.app.screens.lobby(); });
   await B.evaluate(() => { window.app.profile.name = 'BUDDY'; window.app.screens.lobby(); });
   await A.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('HOST A SQUAD')).click());
@@ -38,8 +38,8 @@ async function squad() {
   await B.evaluate((c) => { const i = document.querySelector('input'); i.value = c; i.dispatchEvent(new Event('input')); [...document.querySelectorAll('button')].find(b => b.textContent === 'JOIN').click(); }, code);
   await A.waitForFunction(() => window.app.screens.net.members.length === 2, null, { timeout: 20000 });
   await A.evaluate(() => { window.app.screens.lobbyMap = 'test_range'; window.app.screens.net.setMap('test_range'); [...document.querySelectorAll('button')].find(b => b.textContent.includes('START')).click(); });
-  await A.waitForFunction('window.app.game && window.app.game.running', null, { timeout: 180000 });
-  await B.waitForFunction('window.app.game && window.app.game.running && !!window.app.game.me', null, { timeout: 180000 });
+  await A.waitForFunction(() => window.app.game && window.app.game.running, null, { timeout: 180000 });
+  await B.waitForFunction(() => window.app.game && window.app.game.running && !!window.app.game.me, null, { timeout: 180000 });
   await gtime(A, 0.3);
   // no bots / ARK in the way; nobody dies by accident
   await A.evaluate(() => { const g = window.app.game, sim = g.sim; for (const e of [...sim.entities.values()]) if (e.type === 'ark' || (e.type === 'raider' && e.bot)) sim.remove(e); for (const e of sim.entities.values()) if (e.type === 'raider') e.grace = 1e9; });

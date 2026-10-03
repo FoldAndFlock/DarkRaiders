@@ -13,7 +13,7 @@ for (const map of maps) {
   p.on('console', m => { const t = m.text().slice(0, 300); if (m.type() === 'error') errs.set(t, (errs.get(t) || 0) + 1); });
   p.on('pageerror', e => { const t = '[pageerror] ' + e.message + ' ' + (e.stack || '').split('\n').slice(1, 3).join(' | '); errs.set(t, (errs.get(t) || 0) + 1); });
   await p.goto(`${base}?raid=${map}&time=noon&weather=clear`);
-  await p.waitForFunction('window.app && window.app.game && window.app.game.running', null, { timeout: 400000 });
+  await p.waitForFunction(() => window.app && window.app.game && window.app.game.running, null, { timeout: 400000 });
   const r = await p.evaluate((nRoutes) => {
     const g = window.app.game, sim = g.sim, grid = sim.grid, W = sim.world;
     g.running = false;                                   // the sim is driven by hand below

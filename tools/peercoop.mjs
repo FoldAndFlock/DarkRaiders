@@ -13,7 +13,7 @@ for (const [n, p] of [['A', A], ['B', B]]) { p.on('pageerror', e => errs.push(n 
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 const until = async (p, f, ms = 20000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await p.evaluate(f).catch(() => false)) return true; await wait(250); } return false; };
 await A.goto(base); await B.goto(base);
-await A.waitForFunction('window.__ready'); await B.waitForFunction('window.__ready');
+await A.waitForFunction(() => window.__ready); await B.waitForFunction(() => window.__ready);
 await A.evaluate(() => { window.app.profile.name = 'HOSTY'; window.app.screens.lobby(); });
 await B.evaluate(() => { window.app.profile.name = 'BUDDY'; window.app.screens.lobby(); });
 await A.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent.includes('HOST A SQUAD')).click());

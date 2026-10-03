@@ -9,7 +9,7 @@ p.on('console', m => { if (m.type() === 'error') { const t = m.text().slice(0, 2
 p.on('pageerror', e => { const t = '[pageerror] ' + e.message + ' ' + (e.stack || '').split('\n').slice(1, 3).join(' | '); errs.set(t, (errs.get(t) || 0) + 1); });
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 await p.goto(base);
-await p.waitForFunction('window.app && window.app.game && window.app.game.running', null, { timeout: 120000 });
+await p.waitForFunction(() => window.app && window.app.game && window.app.game.running, null, { timeout: 120000 });
 await p.mouse.move(640, 300);
 const R = await p.evaluate(() => {
   const g = window.app.game, w = g.world, gr = w.grid, me = g.me, out = {};

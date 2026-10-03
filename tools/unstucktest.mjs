@@ -8,7 +8,7 @@ const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-un
 const p = await b.newPage({ viewport: { width: 960, height: 540 } });
 const errs = []; p.on('pageerror', e => errs.push(e.message));
 await p.goto(`${base}?raid=test_range&time=noon&weather=clear`);
-await p.waitForFunction('window.app && window.app.game && window.app.game.running', null, { timeout: 240000 });
+await p.waitForFunction(() => window.app && window.app.game && window.app.game.running, null, { timeout: 240000 });
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 const put = () => p.evaluate(() => {
   const g = window.app.game, sim = g.sim, me = g.me;

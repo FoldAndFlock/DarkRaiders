@@ -186,6 +186,11 @@ export class Net {
   hostMsg(from, m) {
     switch (m.k) {
       case 'hello': {
+        // what a joiner says about itself is shown to the whole squad: plain short strings / numbers only
+        m.name = String(m.name || 'Raider').replace(/[\u0000-\u001f]/g, '').slice(0, 16) || 'Raider';
+        m.outfit = typeof m.outfit === 'string' && /^[a-z0-9_]{1,24}$/.test(m.outfit) ? m.outfit : 'scav';
+        m.level = Math.max(1, Math.min(999, m.level | 0));
+        m.cid = typeof m.cid === 'string' ? m.cid.slice(0, 16) : null;
         if ((m.build && m.build !== BUILD && BUILD !== 'dev' && m.build !== 'dev') || (m.v && m.v !== NET_VERSION)) { this.t.send(from, { k: 'oldver' }); return; }
         if (this.game) { this.t.send(from, { k: 'busy' }); return; }
         // the same raider again (a repeated hello, or a second connection from the same join - e.g. JOIN tapped
@@ -207,7 +212,7 @@ export class Net {
         break;
       }
       case 'ready': { const mm = this.members.find(x => x.pid === from); if (mm) { mm.ready = !!m.r; this.broadcastLobby(); } break; }
-      case 'chat': { const mm = this.members.find(x => x.pid === from); const msg = { k: 'chat', from: mm?.name || m.from, text: String(m.text).slice(0, 120), slot: mm?.slot ?? 1 }; this.t.broadcast(msg); this.emit('chat', msg); if (this.game) this.game.sim.emit({ e: 'chat', from: msg.from, text: msg.text, slot: msg.slot, local: true }); break; }
+      case 'chat': { const mm = this.members.find(x => x.pid === from); const msg = { k: 'chat', from: mm?.name || String(m.from || 'Raider').slice(0, 16), text: String(m.text).slice(0, 120), slot: mm?.slot ?? 1 }; this.t.broadcast(msg); this.emit('chat', msg); if (this.game) this.game.sim.emit({ e: 'chat', from: msg.from, text: msg.text, slot: msg.slot, local: true }); break; }
       case 'st': { const s = this.sessions.get(from); if (s) s.state(m.s); break; }
       case 'act': this.hostAct(from, m); break;
       case 'done': this.done?.add(from); this.checkAllDone(); break;

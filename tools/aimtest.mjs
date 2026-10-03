@@ -10,7 +10,7 @@ const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
 const errs = [];
 p.on('pageerror', e => errs.push(e.message));
 await p.goto(`${base}?raid=test_range&time=noon&weather=clear`);
-await p.waitForFunction('window.app && window.app.game && window.app.game.running', null, { timeout: 240000 });
+await p.waitForFunction(() => window.app && window.app.game && window.app.game.running, null, { timeout: 240000 });
 const setup = await p.evaluate(() => {
   const g = window.app.game, sim = g.sim, me = g.me;
   for (const e of [...sim.entities.values()]) if (e.type === 'ark' || (e.type === 'raider' && e.bot)) sim.entities.delete(e.id);

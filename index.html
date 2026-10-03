@@ -11,6 +11,9 @@
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/icon-32.png">
 <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
 <meta name="theme-color" content="#0a0a0c">
+<!-- only this site's own scripts run (no inline / injected ones); workers from blob: (music, the co-op clock);
+     connections anywhere (PeerJS signalling can be self-hosted via ?peerhost=) -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' https: wss: http: ws:; object-src 'none'; base-uri 'self'; form-action 'none'">
 <title>DarkRaiders</title>
 <meta name="description" content="An unofficial parody of ARC Raiders (not affiliated with or endorsed by Embark Studios): a top-down pixel-voxel extraction roguelite. Raid the surface, dodge the ARK repo machines, extract or lose it all.">
 <link rel="stylesheet" href="src/ui/style.css">
