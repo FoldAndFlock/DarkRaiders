@@ -123,8 +123,22 @@ export class PlayerController {
     }
     let vx = mv.x * speed, vz = mv.z * speed;
     if (this.dodgeT > 0) { this.dodgeT -= dt; const ds = st.dodge_distance / 0.34; vx = this.dodgeDir[0] * ds; vz = this.dodgeDir[1] * ds; }
-    const p = { x: e.x, z: e.z, y: e.y };
-    g.world.grid.move(p, vx * dt, vz * dt, 0.33);
+    const G = g.world.grid, p = { x: e.x, z: e.z, y: e.y };
+    // pinned (dropped against a rock face, landed in a notch): ease out to the nearest free spot first
+    const free = G.unstick(p.x, p.z, 0.33, p.y); if (free) { p.x = free[0]; p.z = free[1]; }
+    const x0 = p.x, z0 = p.z;
+    G.move(p, vx * dt, vz * dt, 0.33);
+    // mantle: pushing into a ledge up to MANTLE_H high for a moment climbs onto it, so a dip in the rocks or
+    // a low wall can always be climbed out of / over
+    const want = Math.hypot(vx, vz) * dt;
+    if (want > 0.005 && this.dodgeT <= 0 && Math.hypot(p.x - x0, p.z - z0) < want * 0.3) {
+      this.pushT = (this.pushT || 0) + dt;
+      if (this.pushT > (downed ? 0.7 : 0.3)) {   // crawling raiders haul themselves up more slowly
+        this.pushT = 0;
+        const m = G.mantleTo(p.x, p.z, vx, vz, 0.33, p.y);
+        if (m) { p.x = m.x; p.z = m.z; p.y = m.y; this.vy = 0; this.fallFrom = null; g.audio?.play('jump_land', { x: m.x, z: m.z, vol: 0.35 }); }
+      }
+    } else this.pushT = 0;
     this.vx = (p.x - e.x) / dt; this.vz = (p.z - e.z) / dt;
     // multi-level: walk up stairs / kerbs (move), fall off ledges and roofs with gravity
     const fl = g.world.grid.floorAt(p.x, p.z, p.y);

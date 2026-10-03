@@ -15,6 +15,7 @@ const PROP_REGION = 48;       // instanced prop culling region (m)
 export const STEP_H = 0.45;   // max step-up height for walkers
 export const DOOR_OPEN = 1.75;  // how far an open door leaf swings (rad, ~100 deg)
 export const BODY_H = 1.7;    // headroom a walker needs above its feet (low ceilings / slabs block)
+export const MANTLE_H = 1.25; // highest ledge a raider climbs onto by pushing into it (player.js)
 export const SURF = { dirt: 0, concrete: 1, metal: 2, sand: 3, water: 4, wood: 5, grass: 6, tile: 7 };
 const TERRAIN_SURF = { grass: 6, dirt: 0, sand: 3, sandDark: 3, concrete: 1, damConcrete: 1, asphalt: 1, rock: 1, tiles: 7, wood: 5, mud: 0, gravel: 0, moss: 6, forest: 6, metalPanel: 2, hazard: 2 };
 
@@ -256,6 +257,33 @@ export class Grid {
     }
     p.x = x; p.z = z; p.y = feet;
     return hit;
+  }
+  // a walker standing where its circle overlaps something it couldn't stand next to (it dropped against a
+  // rock face, landed in a notch, a door shut on it) is pinned: every move is "blocked". This finds the
+  // nearest spot within `max` m where it is free at its height (lower is fine: it then falls); null if it
+  // isn't pinned or nothing is close. Walkers only ever reach such spots by falling or being placed.
+  unstick(x, z, r, feet, max = 0.8) {
+    if (!this.blockedAt(x, z, r, feet)) return null;
+    for (let d = 0.1; d <= max + 1e-6; d += 0.1) for (let k = 0; k < 16; k++) {
+      const a = (k + (d * 10 % 2) * 0.5) * Math.PI / 8, nx = x + Math.sin(a) * d, nz = z + Math.cos(a) * d;
+      if (!this.blockedAt(nx, nz, r, feet)) return [nx, nz];
+    }
+    return null;
+  }
+  // mantle: a ledge ahead (dx, dz) that is above a step but at most `up` higher, 0.45-0.9 m ahead, with
+  // headroom to climb and a top wide enough to stand on (so the thin top of a fence or railing never counts
+  // and fences stay barriers) -> { x, z, y } to climb onto, else null
+  mantleTo(x, z, dx, dz, r, feet, up = MANTLE_H) {
+    const L = Math.hypot(dx, dz); if (!L) return null; dx /= L; dz /= L;
+    if (this.ceilAt(x, z, feet) < feet + up + BODY_H - 0.25) return null;
+    const wide = (tx, tz, f) => [[0, 0], [0.24, 0], [-0.24, 0], [0, 0.24], [0, -0.24]].every(([ox, oz]) => Math.abs(this.floorAt(tx + ox, tz + oz, f) - f) < 0.3);
+    for (const d of [0.45, 0.6, 0.75, 0.9]) {
+      const tx = x + dx * d, tz = z + dz * d, f = this.floorAt(tx, tz, feet + up - STEP_H);
+      if (!(f > feet + STEP_H * 0.5) || f > feet + up + 0.01) continue;
+      if (!wide(tx, tz, f) || this.blockedAt(tx, tz, r, f)) continue;
+      return { x: tx, z: tz, y: f };
+    }
+    return null;
   }
   // standable height under (x, z) for someone at height y (smooth on bare terrain)
   floorAt(x, z, y = 1e9) {
