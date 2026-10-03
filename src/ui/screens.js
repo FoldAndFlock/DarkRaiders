@@ -139,7 +139,8 @@ export class Screens {
     const left = el('div', 'panel col lobby-l scroll'); left.style.flex = '1.2';
     const right = el('div', 'panel col lobby-r scroll'); right.style.flex = '1';
     // the two columns need ~540 x 280 units: cap the scale past that, stack them on narrow screens
-    const fit = () => { const px = capPx(540, 280); w.style.setProperty('--px', String(px)); w.classList.toggle('lobby-narrow', innerWidth / px < 700); };
+    // (phones in landscape keep both columns side by side - stacked, the SQUAD panel sat below the screen)
+    const fit = () => { const px = capPx(540, 280), W = this.root.clientWidth || innerWidth; w.style.setProperty('--px', String(px)); w.classList.toggle('lobby-narrow', W / px < 540 || innerHeight > innerWidth); };
     fit(); addEventListener('resize', fit); addEventListener('dr:uiscale', fit);
     const obs = new MutationObserver(() => { if (!w.isConnected) { removeEventListener('resize', fit); removeEventListener('dr:uiscale', fit); obs.disconnect(); } });
     obs.observe(this.root, { childList: true });
