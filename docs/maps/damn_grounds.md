@@ -17,9 +17,9 @@ plateaus meet only on the dam crest.
 | Region | Where | What it plays like |
 |---|---|---|
 | The Debt Ceiling | north-centre, crest x 455–715 / z 150–210 | A curved concrete arch, crest road on top (toll booth, wrecks, sandbag nests, floodlights, a sniper mast). Sheer concrete faces: down into the gorge on one side, into the reservoir on the other. The only high crossing between the plateaus. |
-| The gorge | x ≈ 465–745, z 160–480 | 12 m rock walls. The powerhouse sits at the dam's foot; the tailrace river runs down the middle (wadeable). A concrete ledge road climbs the west wall, the **Corporate Ladder** stair house climbs the east wall, the dry **Spillway of Regret** chute comes down the east side. The **Bridge To Nowhere** crosses at z 360 with its middle span on the floor. Opens south onto the lowlands. |
+| The gorge | x ≈ 465–745, z 160–480 | 12 m rock walls. The powerhouse sits at the dam's foot; the tailrace basin and river run down the middle (wadeable). A concrete ledge road climbs the west wall (built up against the rock, its parapet carried on along the rim to the dam's west abutment), the **Corporate Ladder** stair house climbs the east wall, the dry **Spillway of Regret** chute comes down the east side. The **Bridge To Nowhere** crosses at z 360 with its middle span on the floor (both broken ends walled off). Opens south onto the lowlands. |
 | West plateau | x 0–465, z 120–400 | The staff town: villa and marina on the reservoir shore, the Bottleneck intake tower on a causeway, apartment blocks, cottages, the head office and cafeteria, the Ivory Tower at the dam's west end, the Show Home cul-de-sac. Slopes gently (wooded) down to the lowlands in the south. |
-| East plateau | x 715–1100, z 150–445 | Floodgates and the chute head, the Paywall compound, the Kale Bubble domes, the Impound Lot, the Eastside Squat, the Customer Retention Center. Ends in a sheer escarpment over the Red Ink Lakes: the **Bottom Line Balcony** promenade runs along its lip; the Bottom Line Steps and the east ramp road lead down. |
+| East plateau | x 715–1100, z 150–445 | Floodgates and the chute head, the Paywall compound, the Kale Bubble domes, the Impound Lot, the Eastside Squat, the Customer Retention Center. A grassy headland where it meets the reservoir and the NE hills. Ends in a sheer escarpment over the Red Ink Lakes: the **Bottom Line Balcony** promenade runs along its lip; the Bottom Line Steps and the east ramp road lead down. |
 | The lowlands | south half | Liquid Assets water treatment and Overdraft Acres (west), the Beta Test Battlefield, the Surge Pricing Substation (centre), the tailings ponds (east), Without-A-Paddle Creek, the scrapyard, Recess Park and the water towers. |
 | The Overdraft Marsh | south-west corner | Low, flooded cypress marsh with boardwalks: Soggy Bottom Outpost, Synergy Pumping Station. |
 | The Ant Hills | south-east corner | Rolling wooded hills: the Ant Farm outpost on a hilltop, the Total Write-Off crash site, the Subprime Trailer Park at their foot. |
@@ -36,9 +36,9 @@ Quest-referenced ids are marked ★ (ids are internal and never change).
 | corporate_ladder | The Corporate Ladder | 4-storey stair house against the east gorge wall; enter from the gorge floor, climb, walk out of the top floor onto a bridge to the east plateau. Roof hatch ladder. |
 | spillway_hatch ★ | The Spillway of Regret | Dry concrete chute from the floodgates down the east side of the gorge to a plunge pool; leaking hydraulic pipes, pump and valve by the **Spillway Doggy Door**. |
 | floodgates ★ | Floodgates of Feedback | Radial gates and the gate deck at the chute head, Floodgate Control (2 storeys), the reservoir intake platform (the town's water supply), the **Floodgate Service Gallery** underground beside the chute. |
-| west_broken_bridge ★ | The Bridge To Nowhere | Highway bridge across the gorge with its middle span collapsed onto the floor; cars on the deck, a ladder up at the break; the raider hideout and a lookout shack under the west span (desks, cabinets, notice board). |
+| west_broken_bridge ★ | The Bridge To Nowhere | Highway bridge across the gorge with its middle span collapsed onto the floor; cars on the deck, hazard crash walls across both broken ends, a ladder up at the break; the raider hideout and a lookout shack under the west span (desks, cabinets, notice board). |
 | control_tower ★ | The Ivory Tower | 5-storey white tower at the dam's west end; locked top floor (**The Corner Office**), roof ladder, antenna and dish on the roof; plaza with flags, benches and an ARK husk displayed as corporate art. |
-| pipeline_tower ★ | The Bottleneck | 3-storey intake tower on a caisson island in the reservoir, reached by a causeway bridge; pump on the ground floor, **the valve** on the top floor, roof hatch, sniper on the roof. |
+| pipeline_tower ★ | The Bottleneck | 3-storey intake tower on a caisson island in the reservoir (chest-high caisson wall, room to walk right round the tower), reached by a causeway bridge; pump on the ground floor, **the valve** on the top floor, roof hatch, sniper on the roof. |
 | research_and_administration ★ | Department of Synergy | 2-storey head office: labs, server room, meeting room; reception with the notice board; **Lab 1** upstairs above the reception; locked **Mandatory Fun Room** (staff room); roof ladder, dishes. Synergy Cafeteria next door. |
 | rubie_residence ★ | Golden Handshake Villa | The ex-CEO's 2-storey lakeside villa with garage, pool terrace and a quay into the reservoir; safe upstairs. |
 | overdue_reservoir | Overdue Reservoir | The marina: boat rental hut, slipway, pier and rental boats, the **Boathouse Doggy Door**. |
@@ -88,6 +88,16 @@ Quest-referenced ids are marked ★ (ids are internal and never change).
   tailrace catwalk and footbridges, the Ant Farm flag platform; marsh boardwalks.
 * Multi-storey: Ivory Tower (5), Corporate Ladder (4), Bottleneck, Hamster Wheel control wing, Shoebox Flats (3 each),
   plus 2-storey offices, labs, houses and pump halls; ladders to most flat roofs.
+
+## Edges and water
+No dead ends: every drop a raider can walk or fall off leads somewhere they can walk back from (`tools/stucktest.mjs`
+reports 0 trap areas).
+* The reservoir banks shelve gently (≤ 0.7 m/m) from the shore to well under the water line: wade in, walk out.
+  Where a structure stands over deep water (the dam's upstream face, the Bottleneck caisson, the causeway, the villa
+  quay, the marina pier, the floodgate gate deck, the intake platform) its parapet or rails are too tall to climb (≥ 1.3 m).
+* Tanks are chest-high or wadeable: the clarifier rings and filter-bed walls at Liquid Assets; the Hamster Wheel's
+  tailrace basin is wadeable out through the tailrace.
+* Solid scatter (rocks, rubble, trees) keeps off cliff feet, so nothing wedges a pocket against a wall.
 
 ## Condition features
 * **Juice Cleanse** (harvester): The Landlady spawns at the Red Ink Lakes (`bossPoi: ['queene']`) with a

@@ -19,14 +19,14 @@ Lake Liquidity's level is 1.6 m; Grace Period Creek runs into it down a gorge cu
 ## Regions
 | Region | Where | What it plays like |
 |---|---|---|
-| Lake Liquidity | centre-west, x 190–385 / z 340–455 | Deep lake crossed by the highway causeway (7.6 m deck). The middle spans lie tilted in the shallows: walk down the slabs, wade the sand bar, climb up the other side. Boathouse and pier on the north shore, the purification bunker on the south-east shore. |
+| Lake Liquidity | centre-west, x 190–385 / z 340–455 | Deep lake crossed by the highway causeway (7.6 m deck; its guard rails carry a top bar, so nobody walks the rail and drops into deep water). The middle spans lie tilted in the shallows: walk down the slabs, wade the sand bar, climb up the other side. The bus, car and rubble that fell with them stand on wading shoals joined to the sand bar, and shoals round both abutments catch anyone who drops off the embankment. Boathouse and pier on the north shore, the purification bunker on the south-east shore. |
 | North-west terrace | x 110–300, z 25–250 | Lower Foreclosure, a street village on a terrace ~7 m up, cut off from the east by the Grace Period Creek gorge (one wooden bridge; the creek is wadeable near the lake). Fixer-Upper Farm on the slope below, woods along the west edge. |
 | Northern woods | x 320–870, z 20–250 | Dense forest between the creek and the Shelf. The north spur pushes in from the mountains with Fort Knocks on its nose (ramp road from the east, a footpath from the west). Quarry pit on the spur's east flank, Free Trial Glade and the sawmill further east. |
 | Highway corridor | x 440–870, z 300–470 | Toll plaza, open meadows (Clear-Cut Savings, the Juicer Meadow), then the gate apron at tunnel-floor height, the reception north of it and the warehouses south of it. |
 | The Shelf | east, x 860–1070, z 110–615 | 6 m cliffs on the valley side; three ramps (north road past the reception, south road from the warehouse yard, the Scenic Overlook ridge). Underneath: Tunnel Vision with the Server Gallery → the Cloud (Basement), the Pothole Repair Depot and the Head Office Plant Room. On top: the chapel, the vault's emergency stair, Coming Soon Estates, the Head Office and the Rage Quit Airshaft, wind-bent pines and rock. |
 | The south | x 360–720, z 470–815 | Terraced olive orchard under the mesa's west cliff; the mesa with the retreat (ramp road from the north-east, footpath from the orchard); the Buy The Dip crater trail between the highway and the mesa road. |
 | South-west woods | x 40–350, z 440–800 | Dense woods: the Feng Shui Crash Site and the Hedge Fund, Squatters' Rights in the far corner. |
-| South-east | x 740–1000, z 560–800 | The Scenic Overlook ridge falling off the Shelf, the white lookout tower, open meadows (Mom's Landing) and the Glamping Pyramid Scheme. |
+| South-east | x 740–1000, z 560–800 | The Scenic Overlook ridge falling off the Shelf, the white lookout tower, open meadows (Mom's Landing) and the Glamping Pyramid Scheme. The gully under the Shelf's south rim east of the meadow drains west through a rock cut (1000–1017, z 620). |
 
 ## Points of interest
 Quest-referenced ids are marked ★ (ids are internal and never change).

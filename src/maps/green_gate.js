@@ -160,6 +160,11 @@ export default {
     // Lake Liquidity: a bowl with shallow margins and a sand bar under the fallen causeway spans
     w.raisePoly(LAKE, -0.8, 14, 'set');
     w.raiseRect(262, 385, 309, 399, 1.0, 5, 'set');
+    // wading shoals (0.85 m) round the wrecks that went down with the spans and at both abutments: wherever a raider can
+    // drop off something (a wreck, the broken deck ends, the embankment's shoulder) the water below joins the sand bar or
+    // the shore, never the deep lake (nobody climbs out of that)
+    for (const P of [[[258, 385], [262, 375], [272, 367], [292, 366], [301, 374], [312, 385]], [[258, 399], [312, 399], [306, 409], [294, 414], [278, 413], [264, 406]],
+      [[176, 376], [204, 378], [205, 406], [176, 408]], [[366, 378], [398, 376], [398, 408], [366, 406]]]) w.raisePoly(P, 0.75, 5, 'max');
     w.waterPoly(LAKE.map(([x, z]) => [x + (x - 286) * 0.16, z + (z - 398) * 0.28]), { level: LAKE_LVL, deep: 0x1c4652, shallow: 0x3a7c80 });
     // Grace Period Creek: cut through the terrace as a gorge, wadeable bed
     w.river(CREEK, 9, { level: LAKE_LVL, depth: 0.8, bank: 5, bed: 'mud' });
@@ -205,6 +210,9 @@ export default {
         outcrops.push({ pts, wd, hh }); made++;
       }
     }
+    // the gully under the Shelf's south rim (east of the glamping meadow) drains west through a rock cut, so whoever
+    // drops into it off the rim walks out to the meadow
+    { const P = [[1017, 619], [1008, 619.5], [999, 620]]; w.ridge(P, 4, 4.5, 1.5, 'min'); w.path(P, 3.5, 'gravel'); }
 
     // ======================================================================== 2. ROADS
     const levelPath = (pts, hs, width, blend) => w._along(pts, width, blend, (i, f, t, k) => { const h = hs[k] + (hs[k + 1] - hs[k]) * t; w.hv[i] += (h - w.hv[i]) * f; });
@@ -865,6 +873,12 @@ export default {
       // the causeway: two surviving deck runs; the middle spans lie tilted into the shallows (walk down, wade, climb up)
       w.bridge([[186, 392], [262, 392]], 15, DECK_Y, 'asphalt', { pillars: 14, thick: 0.9, pillarW: 2.2 });
       w.bridge([[308, 392], [384, 392]], 15, DECK_Y, 'asphalt', { pillars: 14, thick: 0.9, pillarW: 2.2 });
+      // a top bar over each 1 m deck rail (posts visual only): with it overhead nobody can stand on the rail, so nobody
+      // walks along it and steps off into the deep lake, and shots from the deck still clear the rail under the bar
+      for (const [a, b] of [[186, 262], [308, 384]]) for (const zr of [384.52, 399.28]) {
+        w.block(a, zr, b, zr + 0.2, 0.15, 'rust', { y0: DECK_Y + 1.55, xray: false });
+        for (let x = a + 0.4; x < b - 0.2; x += 2.5) w.block(x - 0.08, zr + 0.02, x + 0.08, zr + 0.18, 0.55, 'rust', { y0: DECK_Y + 1.0, xray: false, collide: false });
+      }
       for (const [a, b] of [[190, 262], [308, 380]]) { for (let x = a + 3; x < b - 2; x += 7) { w.prop('gg_laney', x, 392, 0, { yAbs: DECK_Y + 0.02 }); w.prop('gg_lane', x + 3.5, 388, 0, { yAbs: DECK_Y + 0.02 }); w.prop('gg_lane', x + 3.5, 396, 0, { yAbs: DECK_Y + 0.02 }); } }
       for (let k = 0; k < 17; k++) { const top = DECK_Y - (k + 1) * 0.4, y0 = top > 3.2 ? top - 0.9 : -1.2; if (top < 1.2) break; w.block(262 + k * 1.15, 386, 262 + (k + 1) * 1.15, 398, top - y0, 'asphalt', { y0, cutaway: false }); w.block(308 - (k + 1) * 1.15, 386.5, 308 - k * 1.15, 397.5, top - y0, 'asphalt', { y0, cutaway: false }); }
       for (const [x, z, r] of [[284, 384, 0.4], [287, 401, 2.0], [278, 380, 1.2], [295, 403, 2.8]]) w.prop('gg_rubble', x, z, r, { solid: true });
@@ -874,7 +888,7 @@ export default {
         if (k !== 'gg_van') w.container('car_trunk', x + (x < 280 ? -2.8 : 2.8), z, 0, { tier: 1, poi: 'highway_collapse', yAbs: DECK_Y });
       }
       w.prop('gg_bb_bridge', 254, 386, 0, { yAbs: DECK_Y }); w.prop('gg_bb_bridge', 316, 386, 0, { yAbs: DECK_Y });
-      for (const z of [386.5, 397.5]) { w.prop('gg_barrier', 258, z, PI / 2, { yAbs: DECK_Y, solid: true }); w.prop('gg_barrier', 312, z, PI / 2, { yAbs: DECK_Y, solid: true }); }
+      for (const z of [389, 395]) { w.prop('gg_barrier', 258, z, PI / 2, { yAbs: DECK_Y, solid: true }); w.prop('gg_barrier', 312, z, PI / 2, { yAbs: DECK_Y, solid: true }); }   // clear of the rails
       for (let x = 198; x < 380; x += 24) { if (x > 256 && x < 314) continue; w.lamp(x, 384.8, { yAbs: DECK_Y + 4, color: 0xffd890, intensity: 2.2, range: 13, model: null }); }
       w.container('raider_cache', 285, 395, 0, { tier: 2, poi: 'highway_collapse' }); w.container('backpack', 281, 389, 0, { tier: 1, poi: 'highway_collapse' });
       w.zone('Infrastructure Week', [[180, 370], [390, 370], [390, 414], [180, 414]], { tier: 1 });
@@ -1500,6 +1514,22 @@ export default {
 
     // insertion points stand on open ground: drop solid scatter (rocks, trees, scrub) within 3 m of each
     w.props = w.props.filter(p => !(p.opts?.solid && !p.opts?.bid && p.opts?.yAbs == null && SPAWNS.some(([x, z]) => Math.abs(p.x - x) < 3 && Math.abs(p.z - z) < 3)));
+    // cliff toes kept clear where a boulder, crag or trunk closed a pocket against the cliff or a steep bank (a raider who
+    // slid down could land behind it and never get out): drops solid scatter only, nothing a POI placed
+    const TOE_CLEAR = [
+      [434.3, 145.9, 1.2],   // spur, west face (Fort Knocks): small rock overhanging the slot behind the big boulder
+      [536.7, 194.9, 1.5],   // spur, south-east face
+      [853.8, 246.8, 1.5],   // the Shelf, in the ditch between the north road and the cliff (the Cloud's side)
+      [819.4, 344.5, 1.5],   // the Shelf, west cliff by the north curtain wall (Take-a-Number Reception)
+      [986.7, 108.7, 1.5],   // the Shelf, north cliff (Coming Soon Estates)
+      [465.5, 670.4, 1.5], [464.4, 669.4, 1.2],   // mesa, north-west corner by the orchard path (Peak Performance Retreat)
+      [548.4, 761.7, 1.5],   // mesa, south face
+      [494.9, 746.4, 1.5],   // mesa, south-west face
+      [959.8, 621.0, 1.2],   // the overlook ridge's north bank
+      [1007.5, 616.8, 1.0],  // the glamping gully's rock cut
+      [66.3, 461.7, 0.8], [361.4, 235.4, 0.8],   // trunks against outcrop banks (south-west woods, creek valley)
+    ];
+    w.props = w.props.filter(p => !(p.opts?.solid && !p.opts?.bid && p.opts?.yAbs == null && TOE_CLEAR.some(([x, z, r]) => Math.hypot(p.x - x, p.z - z) < r)));
 
     // ======================================================================== 19. DROPSHIP SKY
     // The airshaft dropship (engine/extracts.js) comes in low from behind the shaft (rig-local -z), hovers ~7 m up
