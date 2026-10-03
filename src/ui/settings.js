@@ -55,12 +55,39 @@ export function apply() {
   S.px = px;
   // touch-control size: 1 at the phone default (1.5), grows with the UI scale but never so far that
   // the right-hand button cluster (~330 px tall) stops fitting
-  S.tk = Math.max(0.8, Math.min(px / 1.5, (h - 50) / 340, w / 760, 2.2));
+  S.tk = Math.max(0.8, Math.min(px / 1.5, (h - 40) / 290, w / 700, 2.2));
   const r = document.documentElement.style;
   r.setProperty('--px', String(px));
   r.setProperty('--tk', S.tk.toFixed(3));
+  const sa = safeSides();
+  for (const [k, v] of [['--sl', sa.l], ['--sr', sa.r], ['--st', sa.t], ['--sb', sa.b]]) r.setProperty(k, v + 'px');
   document.documentElement.classList.toggle('touchui', touchEnabled());
   window.dispatchEvent(new Event('dr:uiscale'));
+}
+
+// ---------------------------------------------------------------- safe area (notch, rounded corners)
+// env(safe-area-inset-*) in CSS px, read through a hidden probe (all 0 on most screens)
+let probe = null;
+function envInsets() {
+  if (!document.body) return { l: 0, r: 0, t: 0, b: 0 };
+  if (!probe) {
+    probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+    document.body.appendChild(probe);
+  }
+  const cs = getComputedStyle(probe), v = (k) => parseFloat(cs[k]) || 0;
+  return { t: v('paddingTop'), r: v('paddingRight'), b: v('paddingBottom'), l: v('paddingLeft') };
+}
+// iPhones report the notch inset on BOTH long sides in landscape; only the notch side needs it, the
+// other keeps a small margin for the rounded corner. window.orientation: 90 = turned counter-clockwise
+// (notch on the left), -90 = clockwise (notch on the right). Exposed as --sl/--sr/--st/--sb.
+export function safeSides() {
+  const e = envInsets(); let { l, r } = e;
+  const o = typeof window.orientation === 'number' ? window.orientation : null;
+  if (innerWidth > innerHeight && l > 16 && r > 16 && (o === 90 || o === -90)) {
+    if (o === 90) r = Math.min(r, 10); else l = Math.min(l, 10);
+  }
+  return { l, r, t: e.t, b: e.b };
 }
 
 // a screen whose layout needs at least minW x minH units caps its own --px (never below 1)
@@ -84,6 +111,8 @@ export function initSettings(app) {
   addEventListener('pointerdown', seen, true); addEventListener('touchstart', seen, { capture: true, passive: true });
   let t = 0;
   addEventListener('resize', () => { clearTimeout(t); t = setTimeout(apply, 60); apply(); });
+  addEventListener('orientationchange', () => setTimeout(apply, 250));
+  addEventListener('DOMContentLoaded', apply);
   window.matchMedia?.('(pointer: coarse)')?.addEventListener?.('change', apply);
 }
 // profile <-> device: these are display preferences of this device, so the localStorage mirror wins

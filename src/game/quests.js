@@ -204,10 +204,11 @@ export function activeObjectives(p, mapId = null, max = 4) {
       if (step.kind === 'deliver') return;
       if (mapId && step.map && step.map !== mapId) return;
       const g = stepProgress(p, d.id, i);
-      (g.done ? done : open).push({ text: stepShort(step, g.have), done: g.done, quest: d.id });
+      (g.done ? done : open).push({ text: stepShort(step, g.have), done: g.done, quest: d.id, poi: step.poi || null, poiName: step.poi ? poiName(step.map || mapId, step.poi) : null });
     });
   }
-  return [...open, ...done].slice(0, max).map(({ text, done: dn }) => ({ text, done: dn }));
+  // poi / poiName: where an open step happens (the raid HUD shows it as a waypoint)
+  return [...open, ...done].slice(0, max).map(({ text, done: dn, poi, poiName: pn }) => ({ text, done: dn, poi, poiName: pn }));
 }
 
 // ---------------------------------------------------------------- turn in

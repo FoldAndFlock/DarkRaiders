@@ -467,6 +467,11 @@ export class RaidGame {
     if (me.y > w.groundAt(me.x, me.z) + 2.5 && g.ceilAt(me.x, me.z, me.y) === Infinity) return 'ELEVATED';
     return null;
   }
+  // a quest step's POI id (or one of its aliases) -> the map POI
+  poiFor(id) {
+    if (!this._poiIdx) { this._poiIdx = new Map(); for (const p of this.world.pois || []) for (const k of [p.id, ...(p.aliases || [])]) if (k) this._poiIdx.set(String(k).toLowerCase(), p); }
+    return this._poiIdx.get(String(id).toLowerCase()) || null;
+  }
   // crosshair position (CSS px): the mouse, or the aim point projected to the screen when a stick aims
   aimScreen(me) {
     const input = this.o.input;
@@ -513,12 +518,39 @@ export class RaidGame {
     else if (pc.reloadT > 0) st.prompt = null;
     // quests
     st.objectives = this.o.objectives?.() || null;
-    // compass + off-screen ARK
-    st.heading = 0;
-    const marks = [];
-    for (const x of this.extractsData) if (x.state !== 'offline') marks.push({ bearing: Math.atan2(x.x - me.x, -(x.z - me.z)), color: x.state === 'closing' ? '#e84a30' : x.state === 'called' || x.state === 'open' ? '#f0c030' : x.kind === 'hatch' ? '#c8a020' : '#68e088' });
-    for (const p of this.pings.values()) marks.push({ bearing: Math.atan2(p.x - me.x, -(p.z - me.z)), color: SQUAD_COLORS[(p.slot ?? 0) % 4] });
+    // compass: centred on the way the character faces (bearing, 0 = north), smoothed so a cursor passing
+    // over the raider doesn't spin it
+    const fa = pc.aim?.a ?? me.f ?? 0, wantH = Math.atan2(Math.sin(fa), -Math.cos(fa));
+    if (this.compassH == null) this.compassH = wantH;
+    const dH = wantH - this.compassH, h1 = this.compassH + Math.atan2(Math.sin(dH), Math.cos(dH)) * Math.min(1, dt * 8); this.compassH = Math.atan2(Math.sin(h1), Math.cos(h1));
+    st.heading = this.compassH;
+    const marks = [], bearing = (x, z) => Math.atan2(x - me.x, -(z - me.z));
+    for (const x of this.extractsData) if (x.state !== 'offline') marks.push({ bearing: bearing(x.x, x.z), color: x.state === 'closing' ? '#e84a30' : x.state === 'called' || x.state === 'open' ? '#f0c030' : x.kind === 'hatch' ? '#c8a020' : '#68e088' });
+    for (const p of this.pings.values()) marks.push({ bearing: bearing(p.x, p.z), color: SQUAD_COLORS[(p.slot ?? 0) % 4] });
+    // waypoints: open quest objectives at a POI, pings, extractions underway (else the nearest one that
+    // can take you out), squadmates. Off screen they sit on the screen edge in the direction to walk.
+    const wps = [];
+    for (const o of st.objectives || []) {
+      const P = !o.done && o.poi ? this.poiFor(o.poi) : null;
+      if (P && !wps.some(w => w.poi === P)) wps.push({ x: P.x, z: P.z, label: String(o.poiName || P.name || 'OBJECTIVE').toUpperCase(), color: '#f0c030', kind: 'quest', poi: P });
+    }
+    for (const p of this.pings.values()) wps.push({ x: p.x, z: p.z, y: p.y, label: 'PING', color: SQUAD_COLORS[(p.slot ?? 0) % 4], kind: 'ping' });
+    let nearX = null, nearD = Infinity;
+    for (const x of this.extractsData) {
+      if (x.state === 'called' || x.state === 'open' || x.state === 'closing') wps.push({ x: x.x, z: x.z, y: x.y, label: x.name.toUpperCase(), color: x.state === 'closing' ? '#e84a30' : '#f0c030', kind: 'extract' });
+      else if (x.state !== 'offline' && x.kind !== 'hatch') { const d = Math.hypot(x.x - me.x, x.z - me.z); if (d < nearD) { nearD = d; nearX = x; } }
+    }
+    if (nearX && !wps.some(w => w.kind === 'extract')) wps.push({ x: nearX.x, z: nearX.z, y: nearX.y, label: 'EXTRACT', color: '#68e088', kind: 'extract' });
+    for (const e of this.ents.values()) if (e.type === 'raider' && !e.bot && e.team === this.myTeam && e.id !== this.meId && e.st !== 'out') wps.push({ x: e.x, z: e.z, y: e.y, label: e.name, color: SQUAD_COLORS[(e.slot ?? 0) % 4], kind: 'squad' });
+    for (const w of wps) if (w.kind === 'quest' || w.kind === 'squad') marks.push({ bearing: bearing(w.x, w.z), color: w.color });
     st.compassMarks = marks;
+    const ms = R.worldToScreen(me.x, (me.y || 0) + 1, me.z), edge = [], pad = 24;
+    for (const w of wps) {
+      const s = R.worldToScreen(w.x, (w.y ?? this.world.groundAt(w.x, w.z)) + 1, w.z), dist = Math.hypot(w.x - me.x, w.z - me.z);
+      if (s.x < pad || s.y < pad || s.x > R.cssW - pad || s.y > R.cssH - pad) edge.push({ sx: s.x, sy: s.y, label: w.label, dist, color: w.color });
+      else if (w.kind === 'quest' && dist > 6) (st.questMarks ||= []).push({ sx: s.x, sy: s.y, label: w.label, sub: `${Math.round(dist)}M`, color: w.color });
+    }
+    st.edge = edge; st.edgeOrigin = { x: ms.x, y: ms.y }; st.avoid = this.touch?.avoidRects?.() || null;
     const off = [], markers = [];
     for (const e of this.ents.values()) {
       if (e.type !== 'ark' || e.st === 'dead') continue;
@@ -541,6 +573,7 @@ export class RaidGame {
     for (const p of this.pings.values()) { const s = R.worldToScreen(p.x, this.view.floorNear(p.x, p.z, p.y) + 1, p.z); markers.push({ sx: s.x, sy: s.y, label: 'PING', sub: `${Math.round(Math.hypot(p.x - me.x, p.z - me.z))}M`, color: SQUAD_COLORS[(p.slot ?? 0) % 4] }); }
     if (this.emotes) for (const [id, em] of this.emotes) { em.ttl -= dt; if (em.ttl <= 0) { this.emotes.delete(id); continue; } const v = this.view.vis.get(id); if (v) { const s = R.worldToScreen(v.px, v.py + 2.4, v.pz); markers.push({ sx: s.x, sy: s.y, label: '"' + em.text + '"', color: '#e8e0c8', bubble: true }); } }
     for (const e of this.ents.values()) if (e.type === 'raider' && !e.bot && e.team === this.myTeam && e.id !== this.meId && e.st !== 'out') { const v = this.view.vis.get(e.id); if (v) { const s = R.worldToScreen(v.px, v.py + 2.3, v.pz); markers.push({ sx: s.x, sy: s.y, label: e.name, color: SQUAD_COLORS[(e.slot ?? 0) % 4], small: true }); } }
+    if (st.questMarks) markers.push(...st.questMarks);
     st.markers = markers;
     if (me.st === 'dead' || me.st === 'out') { st.crosshair = null; st.prompt = null; }
     this.hud.touch = this.touch?.layout() || null;

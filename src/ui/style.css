@@ -14,7 +14,7 @@ html, body { margin: 0; height: 100%; background: #0a0a0c; overflow: hidden; col
 * { box-sizing: border-box; image-rendering: pixelated; }
 canvas#gl, canvas#hud { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 canvas#hud { pointer-events: none; image-rendering: pixelated; z-index: 2; }
-#ui { position: absolute; inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); z-index: 5; pointer-events: none; }
+#ui { position: absolute; inset: var(--st, 0px) var(--sr, 0px) var(--sb, 0px) var(--sl, 0px); z-index: 5; pointer-events: none; }
 #ui > * { pointer-events: auto; }
 .small { font-family: 'DRSmall', monospace; font-size: var(--fs-s); }
 .bold, h1, h2, h3 { font-family: 'DRBold', monospace; font-size: var(--fs-b); font-weight: normal; margin: 0; }
@@ -125,7 +125,7 @@ html.touchui .cell.wide img { width: calc(var(--px) * 52px); }
 .touch * { touch-action: none; }
 .touch.hidden { display: none; }
 .touch .tz, .touch .ts-aim, .touch .tb, .touch .tq { pointer-events: auto; }
-.touch .tz { position: absolute; left: 0; bottom: 0; width: 45%; top: calc(var(--tk) * 54px); }
+.touch .tz { position: absolute; left: 0; bottom: 0; width: 45%; top: calc(var(--tk) * 46px); }
 .touch .ts { position: absolute; background-size: 100% 100%; image-rendering: pixelated; pointer-events: none; }
 .touch .ts-aim { pointer-events: auto; }
 .touch .ts i { position: absolute; left: 50%; top: 50%; width: 42%; height: 42%; margin: -21% 0 0 -21%; background-size: 100% 100%; image-rendering: pixelated; pointer-events: none; }
@@ -138,9 +138,9 @@ html.touchui .cell.wide img { width: calc(var(--px) * 52px); }
   position: absolute; display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1;
   color: var(--cream); background: rgba(16, 16, 18, 0.45); box-shadow: inset 0 0 0 calc(var(--tk) * 2px) rgba(232, 224, 200, 0.42);
   clip-path: polygon(14% 0, 86% 0, 100% 14%, 100% 86%, 86% 100%, 14% 100%, 0 86%, 0 14%);
-  font-family: 'DRSmall', monospace; font-size: calc(var(--tk) * 12px); text-shadow: 1px 1px 0 #000; letter-spacing: 0;
+  font-family: 'DRSmall', monospace; font-size: calc(var(--tk) * 11px); text-shadow: 1px 1px 0 #000; letter-spacing: 0;
 }
-.touch .tb.big { font-family: 'DRBold', monospace; font-size: calc(var(--tk) * 13px); }
+.touch .tb.big { font-family: 'DRBold', monospace; font-size: calc(var(--tk) * 12px); }
 .touch .tb span { pointer-events: none; }
 .touch .tb.down { background: rgba(240, 192, 48, 0.75); color: #141414; text-shadow: none; }
 .touch .tb.on { box-shadow: inset 0 0 0 calc(var(--tk) * 3px) var(--yellow); color: var(--yellow); }
@@ -150,8 +150,8 @@ html.touchui .cell.wide img { width: calc(var(--px) * 52px); }
 .touch .tb-reload.hot { box-shadow: inset 0 0 0 calc(var(--tk) * 3px) var(--red); color: var(--red); }
 .touch .tb-interact.hot { color: #141414; text-shadow: none; box-shadow: inset 0 0 0 calc(var(--tk) * 3px) var(--yellow);
   background: conic-gradient(rgba(255, 224, 120, 0.98) calc(var(--p, 0) * 360deg), rgba(240, 192, 48, 0.72) 0); }
-.touch .ttop { position: absolute; top: calc(var(--tk) * 5px + env(safe-area-inset-top, 0px)); right: calc(var(--tk) * 5px + env(safe-area-inset-right, 0px)); display: flex; gap: calc(var(--tk) * 3px); }
-.touch .tt { position: relative; width: calc(var(--tk) * 48px); height: calc(var(--tk) * 42px); font-size: calc(var(--tk) * 11px); }
+.touch .ttop { position: absolute; top: calc(var(--tk) * 4px + var(--st, 0px)); right: calc(var(--tk) * 4px + var(--sr, 0px)); display: flex; gap: calc(var(--tk) * 3px); }
+.touch .tt { position: relative; width: calc(var(--tk) * 44px); height: calc(var(--tk) * 36px); font-size: calc(var(--tk) * 10px); }
 .touch .tt.hidden { display: none; }
 .touch .tq { position: absolute; }
 .touch .tq.down { box-shadow: inset 0 0 0 calc(var(--tk) * 2px) var(--yellow); background: rgba(240, 192, 48, 0.25); }

@@ -8,21 +8,21 @@ import { ITEMS } from '../game/items.js';
 function el(tag, cls = '', html = '') { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; }
 const hyp = Math.hypot;
 
-// Layout at --tk = 1 in CSS px, measured from the bottom-right corner (plus safe-area insets) to each
-// centre. The aim stick sits in the corner; actions ring it on two arcs so every target is >= 54 px
-// with gaps between them, and the cluster stays under ~330 px tall (fits a 390 px landscape phone).
-const AIM = { r: 112, b: 108, rad: 62 };
-const MOVE = { l: 130, b: 112, rad: 62 };          // idle hint position of the floating move stick
+// Layout at --tk = 1 in CSS px, measured from the bottom-right corner (plus the safe margins) to each
+// centre. The aim stick sits tight in the corner; actions ring it on two arcs, every target >= 48 px
+// (iOS asks for 44) with >= 6 px gaps, and the cluster stays under ~265 px tall (fits a 390 px phone).
+const AIM = { r: 82, b: 84, rad: 54 };
+const MOVE = { l: 96, b: 88, rad: 54 };            // idle hint position of the floating move stick
 const BTNS = [
   // key, action (virtual bind name), label, right, bottom, size
-  ['fire', null, 'FIRE', 224, 108, 66],
-  ['reload', 'reload', 'RELOAD', 204, 172, 54],
-  ['dodge', 'dodge', 'ROLL', 150, 213, 54],
-  ['crouch', 'crouch', 'CROUCH', 83, 216, 54],
-  ['interact', 'interact', 'USE', 300, 134, 66],
-  ['grenade', 'grenade', 'THROW', 262, 225, 54],
-  ['swap', 'swap', 'SWAP', 195, 279, 54],
-  ['ads', null, 'AIM', 112, 298, 54],
+  ['fire', null, 'FIRE', 180, 80, 58],
+  ['reload', 'reload', 'RELOAD', 166, 140, 48],
+  ['dodge', 'dodge', 'ROLL', 118, 176, 48],
+  ['crouch', 'crouch', 'CROUCH', 62, 180, 48],
+  ['interact', 'interact', 'USE', 246, 104, 58],
+  ['grenade', 'grenade', 'THROW', 214, 186, 48],
+  ['swap', 'swap', 'SWAP', 164, 226, 48],
+  ['ads', null, 'AIM', 82, 236, 48],
 ];
 const TOP = [['fs', null, 'FULL'], ['chat', 'chat', 'CHAT'], ['light', 'flashlight', 'LIGHT'], ['ping', 'ping', 'PING'], ['map', 'map', 'MAP'], ['inv', 'inventory', 'BAG'], ['menu', 'menu', 'MENU']];
 const FIRE_AT = 0.6, SPRINT_AT = 1.3, FOLLOW_AT = 1.6, AIM_DEAD = 0.22;
@@ -67,21 +67,21 @@ export class TouchControls {
     // left: floating move stick zone
     this.zone = el('div', 'tz'); R.appendChild(this.zone);
     this.mv = this.stick('ts-move', MOVE.rad); R.appendChild(this.mv.root);
-    this.mv.defL = `calc(var(--tk) * ${MOVE.l - MOVE.rad}px + env(safe-area-inset-left, 0px))`;
-    this.mv.defB = `calc(var(--tk) * ${MOVE.b - MOVE.rad}px + env(safe-area-inset-bottom, 0px))`;
+    this.mv.defL = `calc(var(--tk) * ${MOVE.l - MOVE.rad}px + var(--sl, 0px))`;
+    this.mv.defB = `calc(var(--tk) * ${MOVE.b - MOVE.rad}px + var(--sb, 0px))`;
     this.placeStick(this.mv, null);
     this.zone.addEventListener('pointerdown', (e) => this.down(e, 'move'));
     // right: fixed aim stick
     this.am = this.stick('ts-aim', AIM.rad); R.appendChild(this.am.root);
-    this.am.root.style.right = `calc(var(--tk) * ${AIM.r - AIM.rad}px + env(safe-area-inset-right, 0px))`;
-    this.am.root.style.bottom = `calc(var(--tk) * ${AIM.b - AIM.rad}px + env(safe-area-inset-bottom, 0px))`;
+    this.am.root.style.right = `calc(var(--tk) * ${AIM.r - AIM.rad}px + var(--sr, 0px))`;
+    this.am.root.style.bottom = `calc(var(--tk) * ${AIM.b - AIM.rad}px + var(--sb, 0px))`;
     this.am.root.addEventListener('pointerdown', (e) => this.down(e, 'aim'));
     // action buttons
     this.btn = {};
     for (const [k, act, label, r, b, size] of BTNS) {
-      const n = el('div', `tb tb-${k}${size > 60 ? ' big' : ''}`, `<span>${label}</span>`);
+      const n = el('div', `tb tb-${k}${size > 52 ? ' big' : ''}`, `<span>${label}</span>`);
       n.setAttribute('role', 'button'); n.setAttribute('aria-label', label);
-      n.style.cssText = `right:calc(var(--tk) * ${r - size / 2}px + env(safe-area-inset-right, 0px));bottom:calc(var(--tk) * ${b - size / 2}px + env(safe-area-inset-bottom, 0px));width:calc(var(--tk) * ${size}px);height:calc(var(--tk) * ${size}px)`;
+      n.style.cssText = `right:calc(var(--tk) * ${r - size / 2}px + var(--sr, 0px));bottom:calc(var(--tk) * ${b - size / 2}px + var(--sb, 0px));width:calc(var(--tk) * ${size}px);height:calc(var(--tk) * ${size}px)`;
       n.dataset.k = k; if (act) n.dataset.a = act;
       n.addEventListener('pointerdown', (e) => this.down(e, 'btn', n));
       R.appendChild(n); this.btn[k] = n;
@@ -122,6 +122,8 @@ export class TouchControls {
     const a = this.btn.interact.getBoundingClientRect(), f = this.btn.fire.getBoundingClientRect(), m = this.mv.root.getBoundingClientRect();
     this.free = { freeL: m.right + 4, freeR: Math.min(a.left, f.left) - 4 };
     this.fitTop();
+    // screen areas the HUD keeps its edge waypoints out of (CSS px): buttons, aim stick, top bar
+    this.rects = [...Object.values(this.btn), this.am.root, this.top].map(n => n.getBoundingClientRect()).filter(r => r.width > 0).map(r => ({ x: r.left, y: r.top, w: r.width, h: r.height }));
   }
   // hide the fullscreen button when the top bar would run into the HUD compass
   fitTop() {
@@ -293,6 +295,7 @@ export class TouchControls {
     }
   }
   layout() { return this.visible ? this.free : null; }
+  avoidRects() { return this.visible ? this.rects || [] : []; }
   destroy() {
     this.disengage(); this.releaseAll();
     removeEventListener('resize', this.onResize); removeEventListener('dr:uiscale', this.onResize);

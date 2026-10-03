@@ -1,23 +1,12 @@
 // In-raid HUD drawn on a 2D overlay canvas in "game pixels" (same scale as the 3D view).
 import { drawText, textWidth } from './pixelfont.js';
+import { safeSides } from './settings.js';
 
 export const UI = {
   cream: '#e8e0c8', dim: '#9a9484', dark: '#141416', panel: 'rgba(16,16,18,0.78)', line: '#3a3832',
   yellow: '#f0c030', red: '#e84a30', cyan: '#58c8f0', green: '#68e088', orange: '#f08a30',
   rarity: { common: '#a8a8a0', uncommon: '#5cc860', rare: '#3a98f0', epic: '#c058f0', legendary: '#f0b828' },
 };
-
-// safe-area insets in CSS px, read from env() through a hidden probe (all 0 on most screens)
-let probe = null;
-export function safeInsets() {
-  if (!probe) {
-    probe = document.createElement('div');
-    probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
-    document.body.appendChild(probe);
-  }
-  const cs = getComputedStyle(probe), v = (k) => parseFloat(cs[k]) || 0;
-  return { t: v('paddingTop'), r: v('paddingRight'), b: v('paddingBottom'), l: v('paddingLeft') };
-}
 
 export class HUD {
   constructor(canvas) {
@@ -42,11 +31,12 @@ export class HUD {
     this.c.style.width = (this.W * scale) + 'px'; this.c.style.height = (this.H * scale) + 'px';
     this.x.imageSmoothingEnabled = false;
     // notch / rounded corners / home indicator (installed web app, viewport-fit=cover): panels keep out
-    const ins = safeInsets();
+    const ins = safeSides();
     this.safe = { l: Math.ceil(ins.l / scale), r: Math.ceil(ins.r / scale), t: Math.ceil(ins.t / scale), b: Math.ceil(ins.b / scale) };
   }
   panel(x, y, w, h, edge = UI.line) {
     const c = this.x;
+    if (this.rects) this.rects.push({ x: x + (this.ox || 0), y: y + (this.oy || 0), w, h });
     c.fillStyle = UI.panel; c.fillRect(x, y, w, h);
     c.fillStyle = edge; c.fillRect(x, y, w, 1); c.fillRect(x, y + h - 1, w, 1); c.fillRect(x, y, 1, h); c.fillRect(x + w - 1, y, 1, h);
   }
@@ -69,6 +59,7 @@ export class HUD {
     // screen-anchored panels are laid out inside the safe area; world markers and the crosshair use
     // the full canvas
     const sa = this.safe || { l: 0, r: 0, t: 0, b: 0 };
+    this.rects = []; this.ox = sa.l; this.oy = sa.t;
     c.save(); c.translate(sa.l, sa.t); this.W = W - sa.l - sa.r; this.H = H - sa.t - sa.b;
     this.compass(st);
     this.raidInfo(st);
@@ -80,8 +71,13 @@ export class HUD {
     if (st.feed) this.feed(st.feed);
     if (st.prompt) this.prompt(st.prompt);
     if (st.chat) this.chat(st.chat);
-    c.restore(); this.W = W; this.H = H;
+    c.restore(); this.W = W; this.H = H; this.ox = this.oy = 0;
     for (const q of this.quickRects) { q.x += sa.l; q.y += sa.t; }
+    if (st.edge && st.edge.length) {
+      const avoid = [...this.rects, ...this.quickRects, ...(st.avoid || []).map(r => ({ x: r.x / this.s, y: r.y / this.s, w: r.w / this.s, h: r.h / this.s }))];
+      this.edges(st.edge, st.edgeOrigin || { x: W * this.s / 2, y: H * this.s / 2 }, avoid);
+    }
+    this.rects = null;
     if (st.crosshair) this.crosshair(st.crosshair);
     if (st.banner) this.banner(st.banner);
   }
@@ -270,6 +266,40 @@ export class HUD {
       this.text(o.label, lx, ly - 4, { align: 'center', color: col });
       c.globalAlpha = 1;
     }
+  }
+
+  // waypoints off screen: an arrow on the screen edge in the direction to walk from the raider, with the
+  // name and distance just inside it (kept inside the safe area, below the compass)
+  edges(list, o, avoid = []) {
+    const c = this.x, s = this.s, sa = this.safe || { l: 0, r: 0, t: 0, b: 0 };
+    const x0 = sa.l + 7, x1 = this.W - sa.r - 7, y0 = sa.t + 24, y1 = this.H - sa.b - 8;
+    const ox = Math.min(x1 - 1, Math.max(x0 + 1, o.x / s)), oy = Math.min(y1 - 1, Math.max(y0 + 1, o.y / s));
+    const hit = (b) => avoid.some(r => b.x < r.x + r.w && b.x + b.w > r.x && b.y < r.y + r.h && b.y + b.h > r.y);
+    for (const w of list) {
+      let dx = w.sx / s - ox, dy = w.sy / s - oy; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+      const kx = dx > 1e-6 ? (x1 - ox) / dx : dx < -1e-6 ? (x0 - ox) / dx : Infinity, ky = dy > 1e-6 ? (y1 - oy) / dy : dy < -1e-6 ? (y0 - oy) / dy : Infinity;
+      const k = Math.min(kx, ky), dist = `${Math.round(w.dist)}M`, tw = Math.max(textWidth(w.label), textWidth(dist));
+      // lay out at distance t along the ray: arrow tip, then the label just inside it
+      const at = (t) => {
+        const ex = Math.round(ox + dx * t), ey = Math.round(oy + dy * t);
+        const tx = Math.round(Math.max(x0 + tw / 2 + 1, Math.min(x1 - tw / 2 - 1, ex - dx * (tw / 2 + 10))));
+        const ty = Math.round(Math.max(y0 - 2, Math.min(y1 - 16, ey - dy * 12 - 7)));
+        return { ex, ey, tx, ty, boxes: [{ x: ex - 5, y: ey - 5, w: 11, h: 11 }, { x: tx - tw / 2 - 1, y: ty - 1, w: tw + 2, h: 17 }] };
+      };
+      // the screen edge, or as close to it as it can sit without covering a panel, a button or another
+      // waypoint (never closer to the raider than about half way)
+      let L0 = at(k);
+      for (let t = k; t > k * 0.45; t -= 3) { const cand = at(t); if (!cand.boxes.some(hit)) { L0 = cand; break; } }
+      avoid.push(...L0.boxes);
+      c.fillStyle = '#000'; this.arrow(L0.ex + 1, L0.ey + 1, dx, dy); c.fillStyle = w.color; this.arrow(L0.ex, L0.ey, dx, dy);
+      this.text(w.label, L0.tx, L0.ty, { align: 'center', color: w.color });
+      this.text(dist, L0.tx, L0.ty + 8, { align: 'center', color: UI.cream });
+    }
+  }
+  // pixel arrowhead with its tip at (x, y) pointing along the unit vector (dx, dy)
+  arrow(x, y, dx, dy) {
+    const c = this.x, px = -dy, py = dx;
+    for (let i = 0; i <= 6; i++) { const h = Math.round(i * 0.7), bx = x - dx * i, by = y - dy * i; for (let j = -h; j <= h; j++) c.fillRect(Math.round(bx + px * j), Math.round(by + py * j), 1, 1); }
   }
 
   markers(list) {
