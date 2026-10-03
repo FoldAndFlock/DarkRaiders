@@ -1,4 +1,4 @@
-// Standalone harness for the Speranzia hub (src/ui/hub.js) - no renderer, no router.
+// Standalone harness for the Desperanza hub (src/ui/hub.js) - no renderer, no router.
 // URL params:  ?tab=workshop   open a tab (loadout|workshop|traders|skills|quests|raider)
 //              ?rich=1         richer profile (levels, coins, benches, blueprints, rare items, quests)
 //              ?fresh=1        brand new profile (newProfile only)

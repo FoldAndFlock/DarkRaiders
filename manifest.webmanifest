@@ -1,7 +1,7 @@
 {
   "name": "DarkRaiders",
   "short_name": "DarkRaiders",
-  "description": "A top-down pixel-voxel extraction roguelite. Raid the surface, dodge the ARK, extract or lose it all.",
+  "description": "An unofficial parody of ARC Raiders (not affiliated with or endorsed by Embark Studios). A top-down pixel-voxel extraction roguelite: raid the surface, dodge the ARK repo machines, extract or lose it all.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

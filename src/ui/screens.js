@@ -231,7 +231,7 @@ export class Screens {
       const back = el('button', '', '< DESPERANZA'); back.onclick = () => { this.hubScreen(); };
       btns.appendChild(back);
       if (!net) {
-        const go = el('button', 'primary', 'DEPLOY SOLO'); go.onclick = () => this.launch({ mapId: this.lobbyMap, ...this.forecast(this.lobbyMap), seed: Math.floor(Math.random() * 1e9) });
+        const go = el('button', 'primary', 'DEPLOY SOLO'); go.onclick = () => { const fc = this.forecast(this.lobbyMap); this.launch({ mapId: this.lobbyMap, condition: fc.cond, time: fc.time, weather: fc.weather, seed: Math.floor(Math.random() * 1e9) }); };
         btns.appendChild(go);
       } else if (net.isHost) {
         const go = el('button', 'primary', 'START RAID'); const allReady = net.members.every(m => m.ready || m.pid === 'host');

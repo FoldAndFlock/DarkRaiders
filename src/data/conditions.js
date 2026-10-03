@@ -71,7 +71,7 @@ export const CONDITIONS = {
   uncovered_caches: {
     name: 'Everything Must Go', icon: 'cond_caches', color: '#ff8040',
     desc: 'Storms dug up old Raider Caches and they are on a timer. Hear whirring and ticking? Grab the stock and run before the clearance sale goes off.',
-    bullets: ['More, richer Raider Caches', 'Caches explode if left too long'],
+    bullets: ['Extra caches, extra loot', 'Caches explode if left too long'],
     time: 'dusk', weather: 'overcast',
     effects: { cacheMul: 3, cacheLootMul: 1.5, cachesExplode: { fuse: 420, radius: 6, dmg: 80 } },
     difficulty: { damn_grounds: 2, green_gate: 4, sandy_city: 3 }, weight: 3,
@@ -98,7 +98,7 @@ export const CONDITIONS = {
   harvester: {
     name: 'Juice Cleanse', icon: 'cond_harvester', color: '#ff3040',
     desc: 'The Juicer has landed and The Landlady is guarding it. Feed it three fusion cores, shoot out the yellow targets and crack its vault.',
-    bullets: ['The Juicer is active', 'The Landlady patrols it', 'Legendary blueprints inside'],
+    bullets: ['The Juicer is active', 'The Landlady patrols it', 'Its vault holds legendary blueprints'],
     time: 'dusk', weather: 'overcast',
     effects: { spawnBoss: 'queene', bossPoi: 'harvester', spawnStructure: 'harvester',
                harvester: { fusionCores: 3, targets: 12, targetHp: 100, fireDischarge: 45,

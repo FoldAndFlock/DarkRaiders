@@ -99,7 +99,7 @@ export const SKILL_TREE = {
       effects: [ { stat: 'carry_weight', per: 6 } ], capstone: false },
     sky_clearin_swing: {
       name: 'Get Off My Lawn', branch: 'conditioning', row: 5, col: 4, ranks: 5, requires: ['effortless_swingin'], branchPoints: 0,
-      desc: 'Shoo! Your melee hits flying ARK much harder: +{c}% melee damage against drones (+{v}% always), per rank.',
+      desc: 'Shoo! Drones get the newspaper treatment: +{c}% melee damage against flying ARK (+{v}% always), per rank.',
       effects: [ { stat: 'melee_damage', per: 0.04 } ],
       conditional: [ { stat: 'melee_damage', per: 0.2, when: 'vs_drone' } ], capstone: false },
     back_on_yer_feet: {
@@ -137,7 +137,7 @@ export const SKILL_TREE = {
       effects: [ { stat: 'fall_resist', per: 0.1 } ], capstone: false },
     carry_the_moment: {
       name: 'Runner\'s High', branch: 'mobility', row: 3, col: 1, ranks: 1, requires: ['youthful_lungz'], branchPoints: 15,
-      desc: 'After a sprint dodge roll, sprinting costs no stamina for 3 seconds (8 s cooldown). Sprint stamina cost {v}% otherwise.',
+      desc: 'Roll out of a sprint and the next 3 seconds of sprinting are on the house (8 s cooldown). Sprint stamina cost {v}% otherwise.',
       effects: [ { stat: 'sprint_cost', per: -0.05 } ],
       conditional: [ { stat: 'sprint_cost', per: -1.0, when: 'after_dodge' } ], capstone: false },
     calmin_stroll: {

@@ -788,7 +788,7 @@ MODELS.snitch = (R, def) => {
     v.seg(-0.08, 0.14, -0.1, -0.12, 0.4, -0.16, 0.022, K.st); v.box(-0.15, 0.4, -0.2, -0.1, 0.45, -0.15, K.RED);    // antennae
     v.seg(0.08, 0.14, -0.12, 0.1, 0.3, -0.2, 0.022, K.st);
     if (spot) { v.box(-0.05, -0.18, 0.05, 0.05, -0.1, 0.3, K.g1); v.box(-0.025, -0.15, 0.3, 0.025, -0.1, 0.34, K.RED); v.cylY(0, -0.05, 0.12, 0.16, 0.06, K.y0); }
-    if (spot) v.cylY(0, -0.05, 0.16, 0.34, 0.07, (X, Y, Z, i, j, k) => (Y > 0.29 ? K.st2 : j % 2 ? K.y0 : K.st2), 0, 0.012);   // party hat
+    if (spot) v.cylY(0, -0.05, 0.16, 0.34, 0.09, (X, Y, Z, i, j, k) => (j % 2 ? K.y0 : K.st2), 0, 0.03);   // party hat
     return v.weather({ seed: 41, rust: 0.1 });
   });
   const lamp = gset('snitch.lamp', () => {
@@ -919,7 +919,7 @@ MODELS.fireball = (R) => {
       });
     v.paint((X, Y, Z, i, j, k, c) => (c === K.g0 && Math.hypot(X, Y, Z) > Rb - 0.04 ? -1 : undefined));
     v.paint((X, Y, Z, i, j, k, c) => { const lon = Math.atan2(X, Z), lat = Math.abs(Y) / Rb; return (Math.abs(Math.sin(lon * 2)) < 0.3 && Math.abs(lat - 0.72) < 0.06 && (c === K.g3 || c === K.g4)) ? K.st : undefined; });
-    if (top) { v.cylY(0, 0, 0.38, 0.5, 0.06, K.g1); v.cylY(0, 0, 0.47, 0.5, 0.03, K.EXH); }   // steam vent on the crown
+    if (top) { v.cylY(0, 0, 0.38, 0.5, 0.08, K.g1); v.cylY(0, 0, 0.45, 0.5, 0.04, K.EXH); }   // steam vent on the crown
     return v.weather({ seed: top ? 71 : 72, rust: 0.12, rustScale: 6, edge: 0.18 });
   });
   const core = gset('fireball.core', () => {
@@ -972,7 +972,7 @@ MODELS.shredder = (R) => {
     // armoured head (front) with a wide red visor
     v.box(-0.32, -0.18, 0.42, 0.32, 0.28, 0.84, K.g3, { ch: 2, cht: 2 });
     v.box(-0.25, -0.04, 0.77, 0.25, 0.14, 0.84, K.g0);
-    for (const sx of [-1, 1]) { v.box(sx * 0.07, 0.0, 0.84, sx * 0.21, 0.14, 0.91, K.EYE); v.box(sx * 0.07, 0.07, 0.84, sx * 0.14, 0.14, 0.91, K.EYE2); }   // two staring eyes
+    for (const [a, b] of [[-0.21, -0.07], [0.07, 0.21]]) { v.box(a, 0.0, 0.84, b, 0.14, 0.91, K.EYE); v.box(a < 0 ? -0.14 : 0.07, 0.07, 0.84, a < 0 ? -0.07 : 0.14, 0.14, 0.91, K.EYE2); }   // two staring eyes
     v.box(-0.18, -0.25, 0.63, 0.18, -0.11, 0.91, K.g1); v.cylZ(0, -0.18, 0.84, 0.98, 0.05, K.st);   // blast emitter
     // rear thruster bells (blue = weak spot), visible from above
     for (const sx of [-1, 1]) {
@@ -1457,7 +1457,7 @@ MODELS.bastion = (R) => {
     v.box(-0.84, 0.72, 0.6, 0.84, 1.0, 0.84, K.y1); v.box(-0.12, 0.72, 0.6, 0.12, 1.01, 0.84, K.bk);
     v.seg(0.54, 0.96, -0.66, 0.6, 1.4, -0.78, 0.05, K.st); v.box(0.48, 1.32, -0.84, 0.6, 1.44, -0.72, K.RED);
     for (const sx of [-1, 1]) v.box(sx > 0 ? 0.96 : -1.08, -0.48, -0.96, sx > 0 ? 1.08 : -0.96, 0.48, 0.84, K.g3);      // side skirts
-    v.paintBox(-1.09, 0.36, -0.96, 1.09, 0.48, 0.84, (X, Y, Z, i, j, k) => (k % 2 ? K.cer3 : K.g1));   // picket-fence trim
+    v.paintBox(-1.09, 0.36, -0.96, 1.09, 0.48, 0.84, (X, Y, Z, i, j, k) => ((i + k) % 2 ? K.cer3 : K.g1));   // picket-fence trim
     v.paintBox(-1.09, -0.48, -0.96, 1.09, 0.36, 0.84, seam(4, 'z', K.g1));
     // massive sloped front armour with a flush row of red eyes
     v.fillIf(-1.2, -0.96, 0.84, 1.2, 1.08, 1.68, (X, Y, Z) => { const zf = zfA(X, Y); return Z < zf && Z >= zf - 0.36 && Math.abs(X) < 1.2 - Math.max(0, Y - 0.72) * 0.8; },
@@ -1473,9 +1473,9 @@ MODELS.bastion = (R) => {
     v.box(-0.48, -0.36, -1.32, 0.48, 0.36, -1.2, K.g0);                                   // rear core recess
     v.box(-0.6, -0.48, -1.44, -0.48, 0.6, -1.2, K.g3); v.box(0.48, -0.48, -1.44, 0.6, 0.6, -1.2, K.g3);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) v.box(sx * 0.7 - 0.24, -0.84, sz * 0.6 - 0.24, sx * 0.7 + 0.24, -0.48, sz * 0.6 + 0.24, K.g3, { ch: 1 });
-    // violation notice posted on the deck: red header, two lines of small print, a signature
-    v.paintBox(0.36, 0.84, -0.48, 0.72, 0.97, 0.0, (X, Y, Z) => (Z < -0.36 ? K.tie : (Z < -0.12 && X < 0.6) || (Z > -0.12 && X < 0.48) ? K.g2 : K.cer3));
-    return v.weather({ seed: 161, rust: 0.18 });
+    v.weather({ seed: 161, rust: 0.18 });
+    // freshly posted violation notice on the deck (after weathering, so it stays clean): red header, a line of small print, a signature
+    return v.paintBox(0.36, 0.84, -0.48, 0.72, 0.97, 0.0, (X, Y, Z) => (Z < -0.36 ? K.tie : (Z < -0.24 && X < 0.6) || (Z > -0.12 && X > 0.48 && X < 0.6) ? K.g2 : K.cer3));
   });
   const canister = gset('bast.can', () => {
     const v = new VB(s, -0.48, -0.6, -0.48, 0.48, 0.72, 0.48);
@@ -1695,9 +1695,9 @@ MODELS.queen = (R, def) => {
   }
   let prop = null;
   if (matri) {   // propeller beanie on a short mast at the back
-    const mast = gset('queen.m.mast', () => { const v = new VB(s, -0.2, 0, -0.2, 0.2, 1.05, 0.2); v.cylY(0, 0, 0, 0.9, 0.08, K.st); v.cylY(0, 0, 0.75, 1.05, 0.16, K.y0); return v.weather({ seed: 2 }); });
-    R.pm(mast, hullG, -0.6, 1.5, -1.3);
-    prop = R.pm(bladesGS('mprop', s, 0.66, 4, K.g5, K.y0), hullG, -0.6, 2.5, -1.3).g;
+    const mast = gset('queen.m.mast', () => { const v = new VB(s, -0.225, 0, -0.225, 0.225, 1.05, 0.225); v.cylY(0, 0, 0, 0.9, 0.08, K.st); v.cylY(0, 0, 0.75, 1.05, 0.16, K.y0); return v.weather({ seed: 2 }); });
+    R.pm(mast, hullG, -0.6, 1.35, -1.3);
+    prop = R.pm(bladesGS('mprop', s, 0.66, 4, K.g5, K.y0), hullG, -0.6, 2.25, -1.3).g;
   }
   const headYaw = R.g(hullG, 0, -0.3, 2.85);
   R.pm(head, headYaw);
